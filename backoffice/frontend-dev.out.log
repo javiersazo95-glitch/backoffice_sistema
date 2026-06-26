@@ -1,0 +1,41 @@
+
+> repuestop-backoffice-frontend@1.0.0 dev
+> vite --host 0.0.0.0
+
+
+  [32m[1mVITE[22m v5.4.21[39m  [2mready in [0m[1m401[22m[2m[0m ms[22m
+
+  [32m➜[39m  [1mLocal[22m:   [36mhttp://localhost:[1m5173[22m/[39m
+  [32m➜[39m  [1mNetwork[22m: [36mhttp://192.168.1.14:[1m5173[22m/[39m
+[2m11:21:48 p.m.[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/modules/support/SupportPage.tsx, /src/components/shared/HelpSupportWidget.tsx[22m
+[2m11:21:48 p.m.[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/modules/support/SupportPage.tsx, /src/components/shared/HelpSupportWidget.tsx[22m
+[2m11:23:00 p.m.[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/modules/support/SupportPage.tsx[22m
+[2m11:23:12 p.m.[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/modules/support/SupportPage.tsx[22m
+[2m11:24:25 p.m.[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles/styles.css[22m
+[2m11:24:53 p.m.[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/modules/support/SupportPage.tsx[22m
+[2m11:26:14 p.m.[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/modules/support/SupportPage.tsx[22m
+[2m11:26:35 p.m.[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/modules/support/SupportPage.tsx[22m
+[2m11:26:55 p.m.[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/shared/UiIcon.tsx[22m
+[2m11:33:21 p.m.[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/modules/support/SupportPage.tsx, /src/components/shared/HelpSupportWidget.tsx[22m
+[2m11:33:46 p.m.[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/modules/support/SupportPage.tsx[22m
+[2m11:34:11 p.m.[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/modules/support/SupportPage.tsx[22m
+[2m11:34:40 p.m.[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/modules/support/SupportPage.tsx[22m
+[2m11:35:25 p.m.[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles/styles.css[22m
+[2m11:37:20 p.m.[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles/styles.css[22m
+[2m11:47:01 p.m.[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/shared/UiIcon.tsx[22m
+[2m11:47:01 p.m.[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/modules/support/SupportPage.tsx[22m
+[2m11:49:01 p.m.[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/modules/support/SupportPage.tsx[22m
+[2m11:49:10 p.m.[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/modules/support/SupportPage.tsx[22m
+[2m11:54:27 p.m.[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/modules/support/SupportPage.tsx[22m
+[2m11:54:47 p.m.[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles/styles.css[22m
+[2m12:00:54 a.m.[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/modules/support/SupportPage.tsx[22m
+[2m12:07:04 a.m.[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/modules/support/SupportPage.tsx, /src/components/shared/HelpSupportWidget.tsx[22m
+[2m12:07:04 a.m.[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/modules/support/SupportPage.tsx[22m
+[2m12:11:51 a.m.[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/shared/Badge.tsx[22m
+[2m12:11:51 a.m.[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/modules/support/SupportPage.tsx[22m
+[2m12:18:48 a.m.[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/modules/support/SupportPage.tsx[22m
+[2m12:35:57 a.m.[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/mediations/MediacionesPage.tsx[22m
+[2m12:36:26 a.m.[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles/styles.css[22m
+[2m12:45:43 a.m.[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/mediations/MediationDetail.tsx[22m
+[2m12:45:43 a.m.[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles/styles.css[22m
+[2m12:46:17 a.m.[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/mediations/MediationDetail.tsx[22m

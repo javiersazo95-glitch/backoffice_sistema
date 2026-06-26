@@ -1,0 +1,134 @@
+[2m11:33:46 p.m.[22m [31m[1m[vite][22m[39m [31mInternal server error: C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\src\modules\support\SupportPage.tsx: Expected corresponding JSX closing tag for <footer>. (141:6)
+
+[0m [90m 139 |[31m         [33m<[31m[33mUiIcon[31m name[33m=[31m[32m"trendUp"[31m [33m/[31m[33m>[31m
+ [90m 140 |[31m         [33m<[31m[33mspan[31m[33m>[31m[33mTotal[31m[33m:[31m [33m<[31m[33mstrong[31m[33m>[31m{compactNumber(total)}[33m<[31m[33m/[31m[33mstrong[31m[33m>[31m {total [33m===[31m [35m1[31m [33m?[31m [32m'reporte'[31m [33m:[31m [32m'reportes'[31m}[33m<[31m[33m/[31m[33mspan[31m[33m>[31m
+[31m[1m>[22m[31m[90m 141 |[31m       [33m<[31m[33m/[31m[33mdiv[31m[33m>[31m
+ [90m     |[31m       [31m[1m^[22m[31m
+ [90m 142 |[31m       [33m<[31m[33m/[31m[33mfooter[31m[33m>[31m
+ [90m 143 |[31m     [33m<[31m[33m/[31m[33marticle[31m[33m>[31m
+ [90m 144 |[31m   )[33m;[31m[0m[39m
+  Plugin: [35mvite:react-babel[39m
+  File: [36mC:/Users/Leprosy1513/Documents/Codex/Sistema_Backoffice/backoffice/frontend/src/modules/support/SupportPage.tsx[39m:141:6
+[33m  139|          <UiIcon name="trendUp" />
+  140|          <span>Total: <strong>{compactNumber(total)}</strong> {total === 1 ? 'reporte' : 'reportes'}</span>
+  141|        </div>
+     |        ^
+  142|        </footer>
+  143|      </article>[39m
+      at constructor (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:365:19)
+      at TypeScriptParserMixin.raise (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:6616:19)
+      at TypeScriptParserMixin.jsxParseElementAt (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:4739:16)
+      at TypeScriptParserMixin.jsxParseElementAt (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:4710:32)
+      at TypeScriptParserMixin.jsxParseElement (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:4761:17)
+      at TypeScriptParserMixin.parseExprAtom (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:4771:19)
+      at TypeScriptParserMixin.parseExprSubscripts (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:11098:23)
+      at TypeScriptParserMixin.parseUpdate (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:11083:21)
+      at TypeScriptParserMixin.parseMaybeUnary (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:11063:23)
+      at TypeScriptParserMixin.parseMaybeUnary (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:9854:18)
+      at TypeScriptParserMixin.parseMaybeUnaryOrPrivate (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:10916:61)
+      at TypeScriptParserMixin.parseExprOps (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:10921:23)
+      at TypeScriptParserMixin.parseMaybeConditional (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:10898:23)
+      at TypeScriptParserMixin.parseMaybeAssign (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:10848:21)
+      at C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:9792:39
+      at TypeScriptParserMixin.tryParse (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:6924:20)
+      at TypeScriptParserMixin.parseMaybeAssign (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:9792:18)
+      at C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:10817:39
+      at TypeScriptParserMixin.allowInAnd (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:12443:12)
+      at TypeScriptParserMixin.parseMaybeAssignAllowIn (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:10817:17)
+      at TypeScriptParserMixin.parseMaybeAssignAllowInOrVoidPattern (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:12510:17)
+      at TypeScriptParserMixin.parseParenAndDistinguishExpression (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:11692:28)
+      at TypeScriptParserMixin.parseExprAtom (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:11348:23)
+      at TypeScriptParserMixin.parseExprAtom (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:4776:20)
+      at TypeScriptParserMixin.parseExprSubscripts (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:11098:23)
+      at TypeScriptParserMixin.parseUpdate (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:11083:21)
+      at TypeScriptParserMixin.parseMaybeUnary (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:11063:23)
+      at TypeScriptParserMixin.parseMaybeUnary (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:9854:18)
+      at TypeScriptParserMixin.parseMaybeUnaryOrPrivate (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:10916:61)
+      at TypeScriptParserMixin.parseExprOps (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:10921:23)
+      at TypeScriptParserMixin.parseMaybeConditional (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:10898:23)
+      at TypeScriptParserMixin.parseMaybeAssign (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:10848:21)
+      at TypeScriptParserMixin.parseMaybeAssign (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:9803:20)
+      at TypeScriptParserMixin.parseExpressionBase (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:10801:23)
+      at C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:10797:39
+      at TypeScriptParserMixin.allowInAnd (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:12438:16)
+      at TypeScriptParserMixin.parseExpression (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:10797:17)
+      at TypeScriptParserMixin.parseReturnStatement (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:13159:28)
+      at TypeScriptParserMixin.parseStatementContent (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:12815:21)
+      at TypeScriptParserMixin.parseStatementContent (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:9525:18)
+      at TypeScriptParserMixin.parseStatementLike (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:12784:17)
+      at TypeScriptParserMixin.parseStatementListItem (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:12764:17)
+      at TypeScriptParserMixin.parseBlockOrModuleBlockBody (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:13333:61)
+      at TypeScriptParserMixin.parseBlockBody (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:13326:10)
+      at TypeScriptParserMixin.parseBlock (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:13314:10)
+      at TypeScriptParserMixin.parseFunctionBody (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:12117:24)
+      at TypeScriptParserMixin.parseFunctionBodyAndFinish (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:12103:10)
+      at TypeScriptParserMixin.parseFunctionBodyAndFinish (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:9189:18)
+      at C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:13462:12
+      at TypeScriptParserMixin.withSmartMixTopicForbiddingContext (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:12420:14)
+[2m11:33:47 p.m.[22m [31m[1m[vite][22m[39m [31mInternal server error: C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\src\modules\support\SupportPage.tsx: Expected corresponding JSX closing tag for <footer>. (141:6)
+
+[0m [90m 139 |[31m         [33m<[31m[33mUiIcon[31m name[33m=[31m[32m"trendUp"[31m [33m/[31m[33m>[31m
+ [90m 140 |[31m         [33m<[31m[33mspan[31m[33m>[31m[33mTotal[31m[33m:[31m [33m<[31m[33mstrong[31m[33m>[31m{compactNumber(total)}[33m<[31m[33m/[31m[33mstrong[31m[33m>[31m {total [33m===[31m [35m1[31m [33m?[31m [32m'reporte'[31m [33m:[31m [32m'reportes'[31m}[33m<[31m[33m/[31m[33mspan[31m[33m>[31m
+[31m[1m>[22m[31m[90m 141 |[31m       [33m<[31m[33m/[31m[33mdiv[31m[33m>[31m
+ [90m     |[31m       [31m[1m^[22m[31m
+ [90m 142 |[31m       [33m<[31m[33m/[31m[33mfooter[31m[33m>[31m
+ [90m 143 |[31m     [33m<[31m[33m/[31m[33marticle[31m[33m>[31m
+ [90m 144 |[31m   )[33m;[31m[0m[39m
+  Plugin: [35mvite:react-babel[39m
+  File: [36mC:/Users/Leprosy1513/Documents/Codex/Sistema_Backoffice/backoffice/frontend/src/modules/support/SupportPage.tsx[39m:141:6
+[33m  139|          <UiIcon name="trendUp" />
+  140|          <span>Total: <strong>{compactNumber(total)}</strong> {total === 1 ? 'reporte' : 'reportes'}</span>
+  141|        </div>
+     |        ^
+  142|        </footer>
+  143|      </article>[39m
+      at constructor (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:365:19)
+      at TypeScriptParserMixin.raise (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:6616:19)
+      at TypeScriptParserMixin.jsxParseElementAt (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:4739:16)
+      at TypeScriptParserMixin.jsxParseElementAt (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:4710:32)
+      at TypeScriptParserMixin.jsxParseElement (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:4761:17)
+      at TypeScriptParserMixin.parseExprAtom (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:4771:19)
+      at TypeScriptParserMixin.parseExprSubscripts (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:11098:23)
+      at TypeScriptParserMixin.parseUpdate (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:11083:21)
+      at TypeScriptParserMixin.parseMaybeUnary (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:11063:23)
+      at TypeScriptParserMixin.parseMaybeUnary (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:9854:18)
+      at TypeScriptParserMixin.parseMaybeUnaryOrPrivate (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:10916:61)
+      at TypeScriptParserMixin.parseExprOps (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:10921:23)
+      at TypeScriptParserMixin.parseMaybeConditional (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:10898:23)
+      at TypeScriptParserMixin.parseMaybeAssign (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:10848:21)
+      at C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:9792:39
+      at TypeScriptParserMixin.tryParse (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:6924:20)
+      at TypeScriptParserMixin.parseMaybeAssign (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:9792:18)
+      at C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:10817:39
+      at TypeScriptParserMixin.allowInAnd (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:12443:12)
+      at TypeScriptParserMixin.parseMaybeAssignAllowIn (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:10817:17)
+      at TypeScriptParserMixin.parseMaybeAssignAllowInOrVoidPattern (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:12510:17)
+      at TypeScriptParserMixin.parseParenAndDistinguishExpression (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:11692:28)
+      at TypeScriptParserMixin.parseExprAtom (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:11348:23)
+      at TypeScriptParserMixin.parseExprAtom (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:4776:20)
+      at TypeScriptParserMixin.parseExprSubscripts (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:11098:23)
+      at TypeScriptParserMixin.parseUpdate (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:11083:21)
+      at TypeScriptParserMixin.parseMaybeUnary (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:11063:23)
+      at TypeScriptParserMixin.parseMaybeUnary (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:9854:18)
+      at TypeScriptParserMixin.parseMaybeUnaryOrPrivate (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:10916:61)
+      at TypeScriptParserMixin.parseExprOps (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:10921:23)
+      at TypeScriptParserMixin.parseMaybeConditional (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:10898:23)
+      at TypeScriptParserMixin.parseMaybeAssign (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:10848:21)
+      at TypeScriptParserMixin.parseMaybeAssign (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:9803:20)
+      at TypeScriptParserMixin.parseExpressionBase (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:10801:23)
+      at C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:10797:39
+      at TypeScriptParserMixin.allowInAnd (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:12438:16)
+      at TypeScriptParserMixin.parseExpression (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:10797:17)
+      at TypeScriptParserMixin.parseReturnStatement (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:13159:28)
+      at TypeScriptParserMixin.parseStatementContent (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:12815:21)
+      at TypeScriptParserMixin.parseStatementContent (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:9525:18)
+      at TypeScriptParserMixin.parseStatementLike (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:12784:17)
+      at TypeScriptParserMixin.parseStatementListItem (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:12764:17)
+      at TypeScriptParserMixin.parseBlockOrModuleBlockBody (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:13333:61)
+      at TypeScriptParserMixin.parseBlockBody (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:13326:10)
+      at TypeScriptParserMixin.parseBlock (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:13314:10)
+      at TypeScriptParserMixin.parseFunctionBody (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:12117:24)
+      at TypeScriptParserMixin.parseFunctionBodyAndFinish (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:12103:10)
+      at TypeScriptParserMixin.parseFunctionBodyAndFinish (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:9189:18)
+      at C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:13462:12
+      at TypeScriptParserMixin.withSmartMixTopicForbiddingContext (C:\Users\Leprosy1513\Documents\Codex\Sistema_Backoffice\backoffice\frontend\node_modules\@babel\parser\lib\index.js:12420:14)

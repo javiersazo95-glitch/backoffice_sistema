@@ -1,0 +1,6 @@
+.env
+.env.local
+*.key
+*.p12
+*.jks
+.DS_Store
