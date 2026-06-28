@@ -2,6 +2,7 @@ export enum ValidationStatus {
   PENDIENTE = 'PENDIENTE',
   APROBADA = 'APROBADA',
   RECHAZADA = 'RECHAZADA',
+  POR_CORREGIR = 'POR_CORREGIR',
 }
 
 export interface ValidationResponse {

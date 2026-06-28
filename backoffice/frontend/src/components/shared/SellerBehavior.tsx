@@ -1,20 +1,15 @@
 interface SellerBehaviorProps {
   rating: number;
-  returns: number;
   claims: number;
   pendingReceipts: number;
 }
 
-export default function SellerBehavior({ rating, returns, claims, pendingReceipts }: SellerBehaviorProps) {
+export default function SellerBehavior({ rating, claims, pendingReceipts }: SellerBehaviorProps) {
   return (
-    <div className="seller-behavior">
+    <div className="seller-behavior" style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))' }}>
       <span>
         <strong>{rating.toFixed(1)}</strong>
         Valoracion
-      </span>
-      <span>
-        <strong>{returns}</strong>
-        Devoluciones
       </span>
       <span>
         <strong>{claims}</strong>
@@ -22,7 +17,7 @@ export default function SellerBehavior({ rating, returns, claims, pendingReceipt
       </span>
       <span>
         <strong>{pendingReceipts}</strong>
-        Boletas pend.
+        Reportes
       </span>
     </div>
   );

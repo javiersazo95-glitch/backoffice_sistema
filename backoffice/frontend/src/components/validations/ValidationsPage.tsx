@@ -7,6 +7,7 @@ import { showToast } from '@/components/layout/Toast';
 import { PAGE_SIZES, STATUS_LABELS } from '@/utils/constants';
 import { SellerStatus, type SellerResponse } from '@/types/seller';
 import { ValidationStatus, type ValidationResponse } from '@/types/validation';
+import { buildDocumentDownloadName, downloadDocument, resolveDocumentUrl } from '@/utils/documentUrls';
 
 
 type RequiredDocumentStatus = ValidationStatus | 'POR_CORREGIR';
@@ -62,13 +63,6 @@ const REQUIRED_DOCUMENTS: RequiredDocumentDefinition[] = [
     aliases: ['declaracion de representante legal', 'declaracion representante legal', 'declaracion representante', 'representative document', 'Cédula Identidad Representante', 'cedula identidad representante', 'cedula representante'],
     icon: 'users',
     tone: 'blue',
-  },
-  {
-    key: 'contrato-adhesion',
-    label: 'Contrato de adhesión',
-    aliases: ['contrato de adhesion', 'contrato adhesión', 'contrato de adhesión', 'contrato adhesion', 'contrato adhesión vendedor', 'contrato adhesion vendedor', 'ContratoAdhesion'],
-    icon: 'document',
-    tone: 'violet',
   },
 ];
 
@@ -214,7 +208,7 @@ function parseObservationHistory(notes: string | undefined): ObservationHistoryI
   const lines = notes.split('\n').map((l) => l.trim()).filter(Boolean);
   const items: ObservationHistoryItem[] = [];
 
-  const tagRegex = /^\[([^\]-]+)(?:\s*-\s*([^\]]+))?\](?:\s*\((?:Adjuntos|Documentos):\s*([^\)]+)\))?:\s*(.*)$/;
+  const tagRegex = /^\[([^\]-]+)(?:\s*-\s*([^\]]+))?\](?:\s*\((?:Adjuntos|Documentos):\s*(.+?)\))?:\s*(.*)$/;
   const oldTagRegex = /^\[([^\]]+)\]:\s*(.*)$/;
 
   lines.forEach((line, index) => {
@@ -602,10 +596,34 @@ export default function ValidationsPage() {
 
                           <div className="validation-document-card-footer">
                             {document ? (
-                              <button type="button" onClick={() => openDocument(document)}>
-                                Ver archivo
-                                <UiIcon name="arrowRight" />
-                              </button>
+                              <div className="validation-history-doc-actions" style={{ gap: '6px' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => openDocument(document)}
+                                  title="Previsualizar"
+                                  className="validation-doc-action-btn preview"
+                                >
+                                  <UiIcon name="eye" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const url = resolveDocumentUrl(document.documentUrl);
+                                    if (url) {
+                                      void downloadDocument(
+                                        url,
+                                        buildDocumentDownloadName(document.documentType, url),
+                                      );
+                                    } else {
+                                      showToast("No se pudo iniciar la descarga: URL no disponible.");
+                                    }
+                                  }}
+                                  title="Descargar"
+                                  className="validation-doc-action-btn download"
+                                >
+                                  <UiIcon name="download" />
+                                </button>
+                              </div>
                             ) : (
                               <span className="validation-document-placeholder">Pendiente de carga</span>
                             )}
@@ -827,7 +845,7 @@ export default function ValidationsPage() {
 
                 {hasMissingRequiredDocuments && (
                   <p className="validation-decision-hint">
-                    Completa la carga de los {REQUIRED_DOCUMENTS.length} documentos requeridos para habilitar la decisión de la solicitud.
+                    Completa la carga de los 4 documentos de registro obligatorios para habilitar la decisión de la solicitud.
                   </p>
                 )}
               </section>

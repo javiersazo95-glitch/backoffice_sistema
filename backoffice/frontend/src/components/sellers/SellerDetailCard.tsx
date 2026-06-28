@@ -9,6 +9,15 @@ import { type SellerResponse } from '@/types/seller';
 import type { ImpactMediation } from '@/types/cases';
 import { getSellerOperationalStatus, getSellerStatusLabel, getSellerStatusTone } from './status';
 
+const getBankDetails = (seller: SellerResponse) => ({
+  bank: seller.bankName || 'No registrado',
+  accountType: seller.bankAccountType || 'No registrado',
+  accountNumber: seller.bankAccountNumber || 'No registrado',
+  rut: seller.bankAccountRut || seller.rut || 'No registrado',
+  email: seller.email || 'No registrado',
+  beneficiary: seller.bankAccountHolderName || seller.owner || seller.storeName,
+});
+
 interface SellerDetailCardProps {
   seller: SellerResponse;
   activeMediationCount?: number;
@@ -31,6 +40,7 @@ export default function SellerDetailCard({
   onSuspend,
 }: SellerDetailCardProps) {
   const [blockModalOpen, setBlockModalOpen] = useState(false);
+  const [showBankModal, setShowBankModal] = useState(false);
   const opStatus = getSellerOperationalStatus({
     status: seller.status,
     activeMediationCount,
@@ -42,11 +52,6 @@ export default function SellerDetailCard({
     year: 'numeric',
   }).format(new Date(date));
 
-  const getTrustBadge = (trustLevel: string) => {
-    if (trustLevel === 'ALTO') return 'green';
-    if (trustLevel === 'MEDIO') return 'amber';
-    return 'red';
-  };
 
   const getBankBadge = (status: string) => {
     if (status === 'VERIFICADA') return 'green';
@@ -71,16 +76,17 @@ export default function SellerDetailCard({
         <div>
           <h2>{seller.storeName}</h2>
           <p className="row-sub">
-            RUT {seller.rut} · {seller.city}
+            RUT {seller.rut} · {seller.city}{seller.email ? ` · ${seller.email}` : ''}
           </p>
+          {(seller.owner || seller.phone) && (
+            <p className="row-sub" style={{ marginTop: '4px' }}>
+              Responsable: {seller.owner || 'No informado'}{seller.phone ? ` · Teléfono: ${seller.phone}` : ''}
+            </p>
+          )}
         </div>
       </div>
 
-      <div className="seller-info-stats">
-        <div className="seller-info-stat">
-          <span>Confianza</span>
-          <strong>{seller.trustScore}%</strong>
-        </div>
+      <div className="seller-info-stats" style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))' }}>
         <div className="seller-info-stat">
           <span>Esperando vendedor</span>
           <strong>{waitingSellerCount}</strong>
@@ -90,15 +96,30 @@ export default function SellerDetailCard({
           <strong>{activeMediationCount}</strong>
         </div>
         <div className="seller-info-stat">
-          <span>Boletas pend.</span>
+          <span>Reportes</span>
           <strong>{seller.pendingReceipts}</strong>
         </div>
       </div>
 
       <DetailRow label="ID externo" value={seller.externalId} />
-      <DetailRow label="Nivel de confianza" value={<Badge text={seller.trustLevel} variant={getTrustBadge(seller.trustLevel)} />} />
-      <DetailRow label="Documentos" value={<><UiIcon name="check" /> {seller.documentsSummary}</>} />
-      <DetailRow label="Cuenta bancaria" value={<Badge text={seller.bankStatus} variant={getBankBadge(seller.bankStatus)} />} />
+      <DetailRow label="Giro comercial" value={<><UiIcon name="check" /> {seller.documentsSummary || 'No informado'}</>} />
+      <DetailRow 
+        label="Cuenta bancaria" 
+        value={
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Badge text={seller.bankStatus} variant={getBankBadge(seller.bankStatus)} />
+            <button 
+              type="button" 
+              onClick={() => setShowBankModal(true)} 
+              className="ghost-button" 
+              style={{ padding: '2px', display: 'inline-flex', alignItems: 'center', cursor: 'pointer' }}
+              title="Ver datos bancarios"
+            >
+              <UiIcon name="eye" />
+            </button>
+          </div>
+        } 
+      />
       <DetailRow label="Esperando al vendedor" value={waitingSellerCount} />
       <DetailRow label="Mediación activa" value={activeMediation ? `${activeMediation.id} · ${activeMediation.reason}` : 'Sin mediación en curso'} />
       <DetailRow label="Ultima actividad" value={formatDate(seller.lastActivityAt)} />
@@ -130,7 +151,6 @@ export default function SellerDetailCard({
 
       <SellerBehavior
         rating={seller.rating}
-        returns={seller.returnsCount}
         claims={seller.claimsCount}
         pendingReceipts={seller.pendingReceipts}
       />
@@ -191,6 +211,51 @@ export default function SellerDetailCard({
                   <span>Compra asociada</span>
                   <strong>{blockedMediation?.purchase ?? blockedMediation?.reason ?? 'No informada'}</strong>
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showBankModal && (
+        <div className="case-modal-backdrop seller-block-modal-backdrop" onClick={() => setShowBankModal(false)}>
+          <div className="case-modal seller-block-modal" onClick={(event) => event.stopPropagation()} style={{ maxWidth: '400px' }}>
+            <div className="case-modal-header">
+              <div className="case-modal-icon green" style={{ background: '#e6f4ea', color: '#137333' }}>
+                <UiIcon name="check" />
+              </div>
+              <div className="case-modal-title">
+                <span className="case-modal-kicker">Datos bancarios</span>
+                <h2>{seller.storeName}</h2>
+              </div>
+              <button className="ghost-button" type="button" onClick={() => setShowBankModal(false)}>
+                Cerrar
+              </button>
+            </div>
+            <div className="case-modal-body" style={{ display: 'grid', gap: '12px', padding: '16px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '8px', borderBottom: '1px solid #f1f3f4', paddingBottom: '8px' }}>
+                <span style={{ color: '#5f6368', fontSize: '12px' }}>Banco</span>
+                <strong style={{ fontSize: '13px' }}>{getBankDetails(seller).bank}</strong>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '8px', borderBottom: '1px solid #f1f3f4', paddingBottom: '8px' }}>
+                <span style={{ color: '#5f6368', fontSize: '12px' }}>Tipo de cuenta</span>
+                <strong style={{ fontSize: '13px' }}>{getBankDetails(seller).accountType}</strong>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '8px', borderBottom: '1px solid #f1f3f4', paddingBottom: '8px' }}>
+                <span style={{ color: '#5f6368', fontSize: '12px' }}>N° de cuenta</span>
+                <strong style={{ fontSize: '13px' }}>{getBankDetails(seller).accountNumber}</strong>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '8px', borderBottom: '1px solid #f1f3f4', paddingBottom: '8px' }}>
+                <span style={{ color: '#5f6368', fontSize: '12px' }}>RUT</span>
+                <strong style={{ fontSize: '13px' }}>{getBankDetails(seller).rut}</strong>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '8px', borderBottom: '1px solid #f1f3f4', paddingBottom: '8px' }}>
+                <span style={{ color: '#5f6368', fontSize: '12px' }}>Email</span>
+                <strong style={{ fontSize: '13px' }}>{getBankDetails(seller).email}</strong>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '8px' }}>
+                <span style={{ color: '#5f6368', fontSize: '12px' }}>Beneficiario</span>
+                <strong style={{ fontSize: '13px' }}>{getBankDetails(seller).beneficiary}</strong>
               </div>
             </div>
           </div>

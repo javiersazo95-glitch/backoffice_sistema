@@ -33,6 +33,7 @@ export interface MediationResponse {
   blockingMediationExternalId?: string | null;
   createdAt: string;
   updatedAt: string;
+  buyer?: string;
 }
 
 export interface MediationDetailResponse extends MediationResponse {

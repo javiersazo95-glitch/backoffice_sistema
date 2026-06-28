@@ -254,6 +254,15 @@ export default function SellerProfileModal({
               <div className="seller-profile-subinfo">
                 <span><UiIcon name="users" /> RUT {seller.rut}</span>
                 <span><UiIcon name="home" /> {seller.city}</span>
+                {seller.email && (
+                  <span><UiIcon name="mail" /> {seller.email}</span>
+                )}
+                {seller.owner && (
+                  <span><UiIcon name="users" /> Responsable: {seller.owner}</span>
+                )}
+                {seller.phone && (
+                  <span><UiIcon name="smartphone" /> Teléfono: {seller.phone}</span>
+                )}
               </div>
 
               <div className="seller-profile-badges">
@@ -268,7 +277,7 @@ export default function SellerProfileModal({
               <InfoStat label="Mediaciones activas" value={activeMediations.length} />
               <InfoStat label="Esperando al vendedor" value={waitingSellerCases.length} />
               <InfoStat label="Tickets abiertos" value={seller.tickets.filter((ticket) => ticket.status !== 'RESUELTO' && ticket.status !== 'CERRADO').length} />
-              <InfoStat label="Boletas pendientes" value={seller.pendingReceipts} />
+              <InfoStat label="Reportes" value={seller.pendingReceipts} />
             </div>
 
             <div className="seller-profile-quick-panel seller-profile-links">
@@ -314,7 +323,7 @@ export default function SellerProfileModal({
               <InfoStat className="seller-profile-metric-stat" label="Última actividad" value={latestActivityDate} sub={seller.responseTime} />
               <InfoStat className="seller-profile-metric-stat" label="Reclamos" value={seller.claimsCount} sub="Total" />
               <InfoStat className="seller-profile-metric-stat" label="Devoluciones" value={seller.returnsCount} sub="Total" />
-              <InfoStat className="seller-profile-metric-stat" label="Boletas pendientes" value={seller.pendingReceipts} sub="Sin requerimiento" />
+              <InfoStat className="seller-profile-metric-stat" label="Reportes" value={seller.pendingReceipts} sub="Total" />
             </section>
 
             <section className="seller-profile-content-grid">
@@ -355,7 +364,7 @@ export default function SellerProfileModal({
                   <InfoStat label="Mediaciones activas" value={activeMediations.length} />
                   <InfoStat label="Reclamos" value={seller.claimsCount} />
                   <InfoStat label="Devoluciones" value={seller.returnsCount} />
-                  <InfoStat label="Boletas pendientes" value={seller.pendingReceipts} />
+                  <InfoStat label="Reportes" value={seller.pendingReceipts} />
                   <InfoStat label="Última actividad" value={latestActivityDate} />
                 </div>
               </div>

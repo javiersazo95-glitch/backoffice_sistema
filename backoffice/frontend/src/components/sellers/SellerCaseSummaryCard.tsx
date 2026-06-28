@@ -66,14 +66,13 @@ export default function SellerCaseSummaryCard({
   const actionLabel = isMediation ? 'Revisar mediación' : 'Tomar acción';
   const actionIcon = isMediation ? 'scale' : 'trendUp';
   const collapseToggleToneClass = isMediation ? 'mediation-state-violet' : 'account-lock-action';
-  const fallbackNextAction = 'Revisar reincidencia y definir medida correctiva.';
   const displayUpdated = formatCaseDateTime(updated);
   const detailRows = [
     ['Pedido', visibleOrder],
     ['Comprador', buyer || 'Comprador'],
     stage ? ['Etapa', stage] : null,
     owner ? ['Responsable', owner] : null,
-    displayUpdated ? ['Actualización', displayUpdated] : null,
+    displayUpdated ? ['Fecha reporte', displayUpdated] : null,
     amount ? ['Monto', amount] : null,
     nextAction ? ['Siguiente acción', nextAction] : null,
   ].filter(Boolean) as Array<[string, string]>;
@@ -115,7 +114,7 @@ export default function SellerCaseSummaryCard({
               <DetailRow key={label} label={label} value={value} />
             ))}
           </div>
-          {isMediation ? (
+          {isMediation && (
             <div className="seller-case-activity">
               <span className="seller-case-activity-icon">
                 <UiIcon name="clock" />
@@ -124,16 +123,6 @@ export default function SellerCaseSummaryCard({
                 <strong>Actividad reciente</strong>
                 <p>{displayUpdated || 'Sin fecha informada'} · {stage || status}</p>
                 {owner ? <small>Por {owner}</small> : null}
-              </div>
-            </div>
-          ) : (
-            <div className="seller-case-next-step">
-              <span className="seller-case-next-step-icon">
-                <UiIcon name="target" />
-              </span>
-              <div>
-                <strong>Próximo paso</strong>
-                <p>{nextAction || fallbackNextAction}</p>
               </div>
             </div>
           )}

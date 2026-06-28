@@ -40,6 +40,13 @@ export interface SellerResponse {
   phone?: string;
   cargo?: string;
   owner?: string;
+  // Cuenta bancaria real del vendedor
+  bankName?: string | null;
+  bankAccountHolderName?: string | null;
+  bankAccountRut?: string | null;
+  bankAccountType?: string | null;
+  bankAccountNumber?: string | null;
+  bankAccountUpdatedAt?: string | null;
 }
 
 export interface SellerDetailResponse extends SellerResponse {

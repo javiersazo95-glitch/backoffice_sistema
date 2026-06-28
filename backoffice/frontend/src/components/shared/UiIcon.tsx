@@ -36,6 +36,7 @@ export default function UiIcon({ name, className = '', style }: UiIconProps) {
     help: '<circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><path d="M12 17h.01" />',
     lock: '<rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /><path d="M12 15v2" />',
     message: '<path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />',
+    mail: '<rect x="2" y="4" width="20" height="16" rx="2" /><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />',
     monitor: '<rect x="3" y="3" width="18" height="13" rx="2" /><path d="M8 21h8" /><path d="M12 16v5" />',
     smartphone: '<rect x="6" y="2" width="12" height="20" rx="2" /><path d="M10 5h4" /><path d="M11 18h2" />',
     handshake: '<path d="m11 17 2 2a2 2 0 0 0 3-3l-3-3" /><path d="m14 14 2 2a2 2 0 0 0 3-3l-4-4" /><path d="m3 7 4-4 5 5-4 4z" /><path d="m21 7-4-4-5 5 4 4z" /><path d="m8 12 3-3a2 2 0 0 1 3 0" />',

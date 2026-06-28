@@ -1,7 +1,7 @@
 import axios from 'axios';
 import type { AxiosInstance } from 'axios';
 
-const normalizeApiBaseUrl = (baseUrl?: string) => {
+export const normalizeApiBaseUrl = (baseUrl?: string) => {
   const trimmedBaseUrl = baseUrl?.replace(/\/+$/, '');
 
   if (!trimmedBaseUrl) {
@@ -13,7 +13,7 @@ const normalizeApiBaseUrl = (baseUrl?: string) => {
     : `${trimmedBaseUrl}/api/v1`;
 };
 
-const API_BASE_URL = normalizeApiBaseUrl(import.meta.env.VITE_API_URL);
+export const API_BASE_URL = normalizeApiBaseUrl(import.meta.env.VITE_API_URL);
 
 const apiClient: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,

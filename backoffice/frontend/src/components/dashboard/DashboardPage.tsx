@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import * as mediationsApi from '@/api/mediations';
-import * as receiptsApi from '@/api/receipts';
+import * as reportsApi from '@/api/reports';
 import * as validationsApi from '@/api/validations';
 import { useDashboardSummary } from '@/hooks/useDashboard';
 import Badge from '@/components/shared/Badge';
@@ -10,7 +10,7 @@ import UiIcon from '@/components/shared/UiIcon';
 import { MediationStatus } from '@/types/mediation';
 import { formatCurrency, formatDate, formatDateTime, mediationStatusDisplay, trustLevelToSpanish } from '@/utils/formatters';
 import type { MediationResponse } from '@/types/mediation';
-import type { ReceiptFollowupResponse } from '@/types/receipt';
+import type { ReportResponse } from '@/types/report';
 import type { ValidationResponse } from '@/types/validation';
 
 const PREVIEW_SIZE = 5;
@@ -84,8 +84,8 @@ export default function DashboardPage() {
   });
 
   const { data: receiptsData, isLoading: isLoadingReceipts } = useQuery({
-    queryKey: ['dashboard-receipts-preview'],
-    queryFn: () => receiptsApi.getReceipts(0, PREVIEW_SIZE),
+    queryKey: ['dashboard-reports-preview'],
+    queryFn: () => reportsApi.getReports({ page: 0, size: PREVIEW_SIZE }),
   });
 
   const trustScore = data?.trustScore ?? 0;
@@ -97,7 +97,7 @@ export default function DashboardPage() {
   const mediations = mediationsData?.content ?? [];
   const escalations = escalationsData?.content ?? [];
   const validations = validationsData?.content ?? [];
-  const receipts = receiptsData?.content ?? [];
+  const receipts = (receiptsData?.content ?? []) as unknown as ReportResponse[];
   const escalatedCount = escalationsData?.totalElements ?? 0;
   const inMediationCount = mediationsData?.totalElements ?? 0;
   const reviewedDocsCount = (data?.validationsApproved ?? 0) + (data?.validationsRejected ?? 0);
@@ -249,7 +249,7 @@ function TrustPulsePanel({
               <span>Indice global</span>
             </div>
           </div>
-          <p>{pressureCount} frentes requieren seguimiento operativo entre mediaciones, boletas y documentos.</p>
+          <p>{pressureCount} frentes requieren seguimiento operativo entre mediaciones, reportes y documentos.</p>
         </div>
         <div className="trust-progress-list">
           <ProgressRow label="Solicitudes de corrección" value={corrections} total={validationTotal} tone="yellow" />
@@ -499,30 +499,30 @@ function ValidationsPanel({ items, loading, expanded, onToggle }: { items: Valid
   );
 }
 
-function ReceiptsPanel({ items, loading, expanded, onToggle }: { items: ReceiptFollowupResponse[]; loading: boolean; expanded: boolean; onToggle: () => void }) {
+function ReceiptsPanel({ items, loading, expanded, onToggle }: { items: ReportResponse[]; loading: boolean; expanded: boolean; onToggle: () => void }) {
   return (
     <article className="trust-panel">
       <CollapsiblePanelHead
-        eyebrow="Cumplimiento"
-        title="Boletas pendientes"
+        eyebrow="Confianza"
+        title="Reportes recientes"
         expanded={expanded}
         onToggle={onToggle}
         action={<Badge text={`${items.length} últimas`} variant="PENDIENTE" />}
       />
       {expanded && (
         <div className="trust-receipt-list">
-          {loading && <EmptyState text="Actualizando boletas..." />}
-          {!loading && items.length === 0 && <EmptyState text="Sin boletas pendientes." />}
+          {loading && <EmptyState text="Actualizando reportes..." />}
+          {!loading && items.length === 0 && <EmptyState text="Sin reportes." />}
           {!loading && items.map((item) => (
             <div className="trust-receipt-row" key={item.id}>
               <div>
-                <strong>{item.orderId}</strong>
-                <span>{item.sellerName}</span>
-                <small>{item.dueInfo || item.detail}</small>
+                <strong>{item.idExterno || `REP-${item.id}`}</strong>
+                <span>Reportante: {item.reportanteName} ({item.reportanteType})</span>
+                <small>Reportado: {item.reportadoName} ({item.reportadoType})</small>
               </div>
               <div>
-                <b>{formatCurrency(item.amount)}</b>
-                <Badge text={item.status} variant={item.status} />
+                <b>{item.motivo}</b>
+                <Badge text="REPORTE" variant="RECHAZADA" />
               </div>
             </div>
           ))}

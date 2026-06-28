@@ -1,4 +1,4 @@
-﻿import { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQueries, useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import * as sellersApi from '@/api/sellers';
@@ -280,47 +280,73 @@ export default function SellersPage() {
 
   const findSellerById = (id: number) => {
     return (
-      sellerPool.find((seller) => seller.id === id)
-      ?? allSellers.find((seller) => seller.id === id)
+      allSellers.find((seller) => seller.id === id)
+      ?? listedSellers.find((seller) => seller.id === id)
       ?? null
     );
   };
 
   const risks: RiskCase[] = prioritizedActiveMediations
     .filter((med: MediationResponse) => med.status === MediationStatus.ESPERANDO_VENDEDOR)
-    .map((med: MediationResponse) => ({
-      id: String(med.id),
-      sellerId: med.sellerId,
-      seller: safeText(med.sellerName, 'Vendedor'),
-      status: 'Esperando al vendedor',
-      reason: safeText(med.reason, 'Esperando al vendedor'),
-      orderId: safeText(med.orderId, 'Sin pedido'),
-      updated: safeText(med.updatedAt, 'Sin fecha informada'),
-      stage: safeText(med.stage, 'Sin etapa informada'),
-      owner: safeText(med.owner, 'Sin responsable'),
-      purchase: safeText(med.reason, 'Sin compra asociada'),
-      buyer: getBuyerFromMediation(med),
-    }));
+    .map((med: MediationResponse) => {
+      const sellerObj = findSellerById(med.sellerId);
+      const rawOwner = safeText(med.owner, 'Sin responsable');
+      let resolvedOwner = rawOwner;
+      if (rawOwner === 'Sistema' || rawOwner === 'Sin responsable' || !rawOwner) {
+        const potentialOwner = sellerObj?.owner || sellerObj?.storeName || 'eladmin';
+        resolvedOwner = potentialOwner.toLowerCase() === 'eladmin' ? 'eladmin' : potentialOwner;
+      }
+      
+      const rawStage = safeText(med.stage, 'Sin etapa informada');
+      const resolvedStage = (rawStage === 'Sin etapa informada' || !rawStage) ? 'En preparación' : rawStage;
+
+      return {
+        id: String(med.id),
+        sellerId: med.sellerId,
+        seller: safeText(med.sellerName, 'Vendedor'),
+        status: 'Esperando al vendedor',
+        reason: safeText(med.reason, 'Esperando al vendedor'),
+        orderId: safeText(med.orderId, 'Sin pedido'),
+        updated: safeText(med.createdAt, 'Sin fecha informada'),
+        stage: resolvedStage,
+        owner: resolvedOwner,
+        purchase: safeText(med.reason, 'Sin compra asociada'),
+        buyer: med.buyer || getBuyerFromMediation(med),
+      };
+    });
 
   const impactMediations: ImpactMediation[] = prioritizedActiveMediations
     .filter((m: MediationResponse) => m.status === MediationStatus.EN_MEDIACION)
-    .map((med: MediationResponse) => ({
-      id: String(med.id),
-      sellerId: med.sellerId,
-      seller: safeText(med.sellerName, 'Vendedor'),
-      status: 'En mediación' as ImpactMediation['status'],
-      reason: safeText(med.reason, 'Mediación en curso'),
-      escalationReason: safeText(med.escalationReason),
-      orderId: safeText(med.orderId, 'Sin pedido'),
-      amount: String(med.amount),
-      updated: safeText(med.updatedAt, 'Sin fecha informada'),
-      owner: safeText(med.owner, 'Sin responsable'),
-      stage: safeText(med.stage, 'Sin etapa informada'),
-      nextAction: safeText(med.nextAction),
-      accountBlocked: med.accountBlocked,
-      purchase: safeText(med.reason, 'Sin compra asociada'),
-      buyer: 'Comprador',
-    }));
+    .map((med: MediationResponse) => {
+      const sellerObj = findSellerById(med.sellerId);
+      const rawOwner = safeText(med.owner, 'Sin responsable');
+      let resolvedOwner = rawOwner;
+      if (rawOwner === 'Sistema' || rawOwner === 'Sin responsable' || !rawOwner) {
+        const potentialOwner = sellerObj?.owner || sellerObj?.storeName || 'eladmin';
+        resolvedOwner = potentialOwner.toLowerCase() === 'eladmin' ? 'eladmin' : potentialOwner;
+      }
+      
+      const rawStage = safeText(med.stage, 'Sin etapa informada');
+      const resolvedStage = (rawStage === 'Sin etapa informada' || !rawStage) ? 'En preparación' : rawStage;
+
+      return {
+        id: String(med.id),
+        sellerId: med.sellerId,
+        seller: safeText(med.sellerName, 'Vendedor'),
+        status: 'En mediación' as ImpactMediation['status'],
+        reason: safeText(med.reason, 'Mediación en curso'),
+        escalationReason: safeText(med.escalationReason),
+        orderId: safeText(med.orderId, 'Sin pedido'),
+        amount: String(med.amount),
+        updated: safeText(med.createdAt, 'Sin fecha informada'),
+        owner: resolvedOwner,
+        stage: resolvedStage,
+        nextAction: safeText(med.nextAction),
+        accountBlocked: med.accountBlocked,
+        purchase: safeText(med.reason, 'Sin compra asociada'),
+        buyer: med.buyer || 'Comprador',
+      };
+    });
 
   const resolvedCases: ResolvedCase[] = (Array.isArray(resolvedCasesData) ? resolvedCasesData : []).map((item: any) => ({
     id: String(item.id),

@@ -4,6 +4,7 @@ import ModalField from '@/components/shared/ModalField';
 import Badge from '@/components/shared/Badge';
 import UiIcon from '@/components/shared/UiIcon';
 import { formatCurrency, formatDateTime } from '@/utils/formatters';
+import { resolveDocumentUrl } from '@/utils/documentUrls';
 
 interface ResolvedCaseSummaryModalProps {
   isOpen: boolean;
@@ -67,7 +68,12 @@ export default function ResolvedCaseSummaryModal({ isOpen, onClose, item }: Reso
             <strong>{item.caseKind} · {item.sourceStatus || 'Resuelta'} · {item.externalId}</strong>
           </div>
           {item.documentUrl ? (
-            <a className="secondary-button compact-link-button" href={item.documentUrl} target="_blank" rel="noreferrer">
+            <a
+              className="secondary-button compact-link-button"
+              href={resolveDocumentUrl(item.documentUrl)}
+              target="_blank"
+              rel="noreferrer"
+            >
               <UiIcon name="document" /> Abrir documento
             </a>
           ) : null}

@@ -4881,6 +4881,34 @@ tr.is-active {
   white-space: nowrap;
 }
 
+.validation-document-row button.validation-doc-action-btn {
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  cursor: pointer;
+  color: #475569;
+  padding: 0;
+  position: relative;
+  z-index: 10;
+  pointer-events: auto;
+}
+
+.validation-document-row button.validation-doc-action-btn:hover {
+  background: #f1f5f9;
+  color: #0868ee;
+  border-color: #94a3b8;
+}
+
+.validation-document-row button.validation-doc-action-btn .ui-icon {
+  width: 14px;
+  height: 14px;
+}
+
 .validation-document-row button .ui-icon {
   width: 12px;
   height: 12px;
@@ -5166,6 +5194,9 @@ tr.is-active {
   color: #475569;
   transition: all 0.2s ease;
   padding: 0;
+  position: relative;
+  z-index: 10;
+  pointer-events: auto;
 }
 
 .validation-doc-action-btn:hover {
@@ -5177,6 +5208,112 @@ tr.is-active {
 .validation-doc-action-btn .ui-icon {
   width: 14px;
   height: 14px;
+}
+
+/* Vertical Timeline for Document Notes */
+.validation-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  position: relative;
+  padding-left: 20px;
+  margin-top: 10px;
+}
+
+.validation-timeline::before {
+  content: '';
+  position: absolute;
+  left: 6px;
+  top: 4px;
+  bottom: 4px;
+  width: 2px;
+  background: #e2e8f0;
+}
+
+.validation-timeline-item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.validation-timeline-item::before {
+  content: '';
+  position: absolute;
+  left: -20px;
+  top: 4px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #cbd5e1;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 2px #cbd5e1;
+}
+
+.validation-timeline-item.rechazo::before {
+  background: #ef4444;
+  box-shadow: 0 0 0 2px #ef4444;
+}
+
+.validation-timeline-item.correccion_solicitada::before {
+  background: #f97316;
+  box-shadow: 0 0 0 2px #f97316;
+}
+
+.validation-timeline-item.correccion_vendedor::before {
+  background: #3b82f6;
+  box-shadow: 0 0 0 2px #3b82f6;
+}
+
+.validation-timeline-item.apelacion_vendedor::before {
+  background: #8b5cf6;
+  box-shadow: 0 0 0 2px #8b5cf6;
+}
+
+.validation-timeline-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.validation-timeline-tag {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.validation-timeline-item.rechazo .validation-timeline-tag {
+  color: #ef4444;
+}
+.validation-timeline-item.correccion_solicitada .validation-timeline-tag {
+  color: #f97316;
+}
+.validation-timeline-item.correccion_vendedor .validation-timeline-tag {
+  color: #3b82f6;
+}
+.validation-timeline-item.apelacion_vendedor .validation-timeline-tag {
+  color: #8b5cf6;
+}
+.validation-timeline-item.nota_general .validation-timeline-tag {
+  color: #64748b;
+}
+
+.validation-timeline-time {
+  font-size: 10px;
+  color: #94a3b8;
+  white-space: nowrap;
+}
+
+.validation-timeline-message {
+  font-size: 12px;
+  color: #334155;
+  line-height: 1.4;
+  background: #f8fafc;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid #f1f5f9;
 }
 
 .validation-history-badge.appeal {
