@@ -26,6 +26,7 @@ export interface AuditLogResponse {
 export interface AuditFilterRequest {
   search?: string;
   module?: AuditModule;
+  sellerId?: number;
   startDate?: string;
   endDate?: string;
   page?: number;

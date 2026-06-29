@@ -40,6 +40,7 @@ export interface SellerResponse {
   phone?: string;
   cargo?: string;
   owner?: string;
+  userProfileUrl?: string | null;
   // Cuenta bancaria real del vendedor
   bankName?: string | null;
   bankAccountHolderName?: string | null;
@@ -54,6 +55,20 @@ export interface SellerDetailResponse extends SellerResponse {
   tickets: import('./ticket').TicketResponse[];
   mediations: import('./mediation').MediationSummaryResponse[];
   risks: import('./alert').AlertResponse[];
+}
+
+export interface SellerBlockHistoryResponse {
+  id: string;
+  sellerId: number;
+  mediationId?: number | null;
+  externalId?: string | null;
+  action: string;
+  reason?: string | null;
+  detail?: string | null;
+  operator?: string | null;
+  status?: string | null;
+  source: string;
+  createdAt: string;
 }
 
 export interface SellerDocumentResponse {

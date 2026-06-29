@@ -8042,6 +8042,143 @@ tr.is-active {
   color: #dc2626;
 }
 
+.mediation-notes-summary {
+  border-color: #e0e7ff;
+  background: #ffffff;
+}
+
+.mediation-notes-list {
+  display: grid;
+  gap: 10px;
+  max-height: 280px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.mediation-note-item {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.mediation-note-item.blue {
+  border-color: #bfdbfe;
+}
+
+.mediation-note-item.violet {
+  border-color: #ddd6fe;
+}
+
+.mediation-note-item.orange {
+  border-color: #fed7aa;
+}
+
+.mediation-note-item.amber {
+  border-color: #fde68a;
+}
+
+.mediation-note-item.green {
+  border-color: #bbf7d0;
+}
+
+.mediation-note-item-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: #eef2ff;
+  color: #4f46e5;
+}
+
+.mediation-note-item-icon .ui-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.mediation-note-item-icon.blue {
+  background: #dbeafe;
+  color: #2563eb;
+}
+
+.mediation-note-item-icon.violet {
+  background: #ede9fe;
+  color: #7c3aed;
+}
+
+.mediation-note-item-icon.orange {
+  background: #ffedd5;
+  color: #ea580c;
+}
+
+.mediation-note-item-icon.amber {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.mediation-note-item-icon.green {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+.mediation-note-item-body {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.mediation-note-item-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.mediation-note-item-head strong {
+  color: #111827;
+  font-size: 13px;
+}
+
+.mediation-note-item-head time,
+.mediation-note-item-body small {
+  color: #64748b;
+  font-size: 11px;
+}
+
+.mediation-note-item-body p {
+  margin: 0;
+  color: #334155;
+  font-size: 13px;
+  line-height: 1.45;
+  white-space: pre-line;
+}
+
+.mediation-notes-empty {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 12px;
+  color: #64748b;
+  background: #f8fafc;
+}
+
+.mediation-notes-empty .ui-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.mediation-notes-empty p {
+  margin: 0;
+  font-size: 13px;
+}
+
 .mediation-management-footer {
   display: flex;
   align-items: center;
@@ -12801,6 +12938,8 @@ tr.is-active {
 .status-pill.pagado,
 .status-pill.en-preparacion,
 .status-pill.preparando,
+.status-pill.esperando-al-vendedor,
+.status-pill.esperando-vendedor,
 .status-select.pendiente,
 .status-select.procesado,
 .status-select.enviado {
@@ -13853,6 +13992,14 @@ button:disabled {
   font-size: 28px;
   font-weight: 800;
   background: linear-gradient(135deg, #153a73 0%, #2457a6 100%);
+}
+
+.seller-logo img,
+.seller-profile-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
 }
 
 .seller-profile-card h2 {

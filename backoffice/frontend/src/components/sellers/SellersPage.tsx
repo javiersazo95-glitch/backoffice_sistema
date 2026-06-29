@@ -478,15 +478,8 @@ export default function SellersPage() {
   const sellerDetailView = useMemo<SellerDetailResponse | null>(() => {
     if (!sellerDetail) return null;
 
-    const sellerMediations = impactMediations.filter((mediation) => mediation.sellerId === sellerDetail.id);
-    const sellerRisks = risks.filter((risk) => risk.sellerId === sellerDetail.id);
-
-    return {
-      ...sellerDetail,
-      mediations: sellerMediations,
-      risks: sellerRisks,
-    } as unknown as SellerDetailResponse;
-  }, [impactMediations, risks, sellerDetail]);
+    return sellerDetail;
+  }, [sellerDetail]);
   const sellerDocumentList = useMemo(() => {
     return mergeDocumentLists(selectedSellerId ?? 0, sellerDocs, sellerDetail?.documents, getEmbeddedSellerDocuments(sellerDetail));
   }, [selectedSellerId, sellerDetail, sellerDocs]);

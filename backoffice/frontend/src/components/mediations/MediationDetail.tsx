@@ -2,7 +2,8 @@ import { useEffect, useState, type ChangeEvent } from 'react';
 import { MediationResponse, MediationStatus, type MediationDetailResponse, type MediationEvidenceResponse, type MediationMessageResponse } from '@/types/mediation';
 import Badge from '@/components/shared/Badge';
 import UiIcon from '@/components/shared/UiIcon';
-import { formatCurrency, mediationStatusDisplay } from '@/utils/formatters';
+import { formatCurrency, formatDateTime, mediationStatusDisplay } from '@/utils/formatters';
+import { mediationNoteTypeIcon, mediationNoteTypeLabel, mediationNoteTypeTone } from '@/utils/mediationNotes';
 
 type MediationModalItem = MediationResponse & Partial<Pick<MediationDetailResponse, 'messages' | 'buyerMessages' | 'sellerMessages' | 'buyerEvidence' | 'sellerEvidence' | 'resolutionReason' | 'documentName' | 'documentUrl' | 'documentType' | 'buyer'>>;
 
@@ -68,6 +69,12 @@ function resolveInitializationReason(item: MediationModalItem) {
   if (item.mediationStarted && earliestMessage?.text?.trim()) return earliestMessage.text.trim();
 
   return '';
+}
+
+function getHistoryNotes(item: MediationModalItem) {
+  return [...(item.messages ?? [])].sort(
+    (left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime(),
+  );
 }
 
 function ChatBubble({ message, accent }: { message: ChatMessage; accent: 'blue' | 'violet' }) {
@@ -242,6 +249,7 @@ export default function MediationDetail({
   if (!isOpen || !item) return null;
 
   const initializationReason = resolveInitializationReason(item);
+  const historyNotes = getHistoryNotes(item);
 
   const handleResolve = () => {
     if (!resolutionReason.trim() || !documentFile) return;
@@ -460,24 +468,39 @@ export default function MediationDetail({
             </section>
           </section>
 
-          <section className="mediation-resolution-summary">
+          <section className="mediation-resolution-summary mediation-notes-summary">
             <div className="mediation-resolution-summary-head">
-              <UiIcon name="info" />
-              <strong>
-                {decision === 'resolve'
-                  ? 'Al resolver el caso, se notificará al comprador y a la tienda sobre la resolución.'
-                  : 'Si eliges bloquear la cuenta, la tienda quedará suspendida en la plataforma.'}
-              </strong>
+              <UiIcon name="note" />
+              <strong>Notas del historial</strong>
             </div>
-            <ul>
-              <li>El comprador recibirá el detalle de la decisión por correo y en su cuenta.</li>
-              <li>La tienda recibirá el detalle de la decisión por correo y en su cuenta.</li>
-              {decision === 'block' ? (
-                <li className="danger">La cuenta de la tienda quedará bloqueada hasta una reactivación posterior.</li>
-              ) : (
-                <li>El caso quedará cerrado dentro del flujo de mediación.</li>
-              )}
-            </ul>
+            {historyNotes.length ? (
+              <div className="mediation-notes-list">
+                {historyNotes.map((note, index) => {
+                  const noteType = note.noteType ?? note.type ?? 'seguimiento';
+                  const tone = mediationNoteTypeTone(noteType);
+                  return (
+                    <article className={`mediation-note-item ${tone}`} key={note.id ?? `${note.createdAt}-${index}`}>
+                      <span className={`mediation-note-item-icon ${tone}`}>
+                        <UiIcon name={mediationNoteTypeIcon(noteType)} />
+                      </span>
+                      <div className="mediation-note-item-body">
+                        <div className="mediation-note-item-head">
+                          <strong>{mediationNoteTypeLabel(noteType)}</strong>
+                          <time>{formatDateTime(note.createdAt)}</time>
+                        </div>
+                        <p>{note.text}</p>
+                        <small>{note.author || 'Equipo interno'} · Solo equipo interno</small>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="mediation-notes-empty">
+                <UiIcon name="note" />
+                <p>No hay notas registradas en el historial de esta mediación.</p>
+              </div>
+            )}
           </section>
 
           <div className="mediation-management-footer">

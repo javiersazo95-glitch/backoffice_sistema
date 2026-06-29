@@ -8,9 +8,11 @@ import type {
   SuspendSellerRequest,
   SellerFilterRequest,
   SellerDocumentResponse,
+  SellerBlockHistoryResponse,
 } from '@/types/seller';
 import type { TicketResponse } from '@/types/ticket';
 import type { ValidationResponse } from '@/types/validation';
+import type { ReportResponse } from '@/types/report';
 
 type DocumentLike = Partial<SellerDocumentResponse & ValidationResponse> & Record<string, unknown>;
 
@@ -116,6 +118,16 @@ export async function updateSeller(id: number, data: UpdateSellerRequest): Promi
 
 export async function suspendSeller(id: number, data: SuspendSellerRequest): Promise<SellerResponse> {
   const response = await apiClient.patch<SellerResponse>(`/sellers/${id}/suspend`, data);
+  return response.data;
+}
+
+export async function getSellerBlockHistory(id: number): Promise<SellerBlockHistoryResponse[]> {
+  const response = await apiClient.get<SellerBlockHistoryResponse[]>(`/sellers/${id}/block-history`);
+  return response.data;
+}
+
+export async function getSellerReports(id: number): Promise<ReportResponse[]> {
+  const response = await apiClient.get<ReportResponse[]>(`/sellers/${id}/reports`);
   return response.data;
 }
 

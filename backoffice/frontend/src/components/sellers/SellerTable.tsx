@@ -70,7 +70,11 @@ export default function SellerTable({
                       <td>
                         <span className="seller-cell">
                           <span className={`seller-logo ${getLogoClass(index)}`}>
-                            {seller.storeName.substring(0, 2).toUpperCase()}
+                            {seller.userProfileUrl ? (
+                              <img src={seller.userProfileUrl} alt={seller.storeName} />
+                            ) : (
+                              seller.storeName.substring(0, 2).toUpperCase()
+                            )}
                           </span>
                           <strong>{seller.storeName}</strong>
                         </span>

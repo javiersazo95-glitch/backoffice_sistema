@@ -1,10 +1,10 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { getAuditLogs } from '@/api/audits';
-import { getReports } from '@/api/reports';
-import type { SellerDetailResponse } from '@/types/seller';
+import { getSellerBlockHistory, getSellerReports } from '@/api/sellers';
+import type { SellerBlockHistoryResponse, SellerDetailResponse } from '@/types/seller';
 import type { ImpactMediation } from '@/types/cases';
 import type { MediationSummaryResponse } from '@/types/mediation';
+import type { ReportResponse } from '@/types/report';
 import Badge from '@/components/shared/Badge';
 import UiIcon from '@/components/shared/UiIcon';
 import { applyManualMediationStatus, useManualMediationStatusOverrides } from '@/utils/manualMediationStatus';
@@ -141,18 +141,18 @@ function MediationCard({ mediation, iconName = 'scale' }: { mediation: Mediation
   );
 }
 
-function TicketCard({ ticket }: { ticket: import('@/types/ticket').TicketResponse }) {
+function ReportCard({ report }: { report: ReportResponse }) {
   return (
     <div className="seller-profile-case-card">
-      <div className="seller-profile-case-icon" style={{ backgroundColor: '#eff6ff', color: '#3b82f6' }}>
-        <UiIcon name="alert" />
+      <div className="seller-profile-case-icon" style={{ backgroundColor: '#fee2e2', color: '#dc2626' }}>
+        <UiIcon name="flag" />
       </div>
       <div className="seller-profile-case-copy">
-        <strong>{ticket.reason}</strong>
-        <span>Pedido {ticket.orderId || 'N/A'}</span>
-        <small>{ticket.lastMessage || 'Sin detalles'}</small>
+        <strong>{report.motivo}</strong>
+        <span>{report.idExterno || `#${report.id}`}</span>
+        <small>{report.descripcion || 'Sin descripción registrada'}</small>
       </div>
-      <Badge text={ticket.status} variant="blue" />
+      <Badge text={report.reportanteType === 'VENDEDOR' ? 'Reporta tienda' : 'Reporta comprador'} variant="red" />
     </div>
   );
 }
@@ -188,29 +188,12 @@ interface SellerBlockHistoryModalProps {
   isOpen: boolean;
   onClose: () => void;
   seller: SellerDetailResponse | null;
+  blockHistory: SellerBlockHistoryResponse[];
+  isLoading: boolean;
   onSuspend?: (sellerId: number) => void;
 }
 
-function SellerBlockHistoryModal({ isOpen, onClose, seller, onSuspend }: SellerBlockHistoryModalProps) {
-  const { data: auditsData, isLoading } = useQuery({
-    queryKey: ['audits', 'block-history', seller?.id],
-    queryFn: () => getAuditLogs({ size: 1000 }),
-    enabled: isOpen && !!seller,
-  });
-
-  const blockLogs = useMemo(() => {
-    if (!auditsData?.content || !seller) return [];
-    return auditsData.content.filter((audit) => {
-      const matchesSeller = Number(audit.sellerId) === Number(seller.id);
-      const actionLower = (audit.action || '').toLowerCase();
-      const matchesAction = actionLower.includes('bloque') || 
-                            actionLower.includes('suspend') || 
-                            actionLower.includes('reactiv') || 
-                            actionLower.includes('sancion');
-      return matchesSeller && matchesAction;
-    });
-  }, [auditsData, seller]);
-
+function SellerBlockHistoryModal({ isOpen, onClose, seller, blockHistory, isLoading, onSuspend }: SellerBlockHistoryModalProps) {
   if (!isOpen || !seller) return null;
 
   return (
@@ -240,19 +223,20 @@ function SellerBlockHistoryModal({ isOpen, onClose, seller, onSuspend }: SellerB
         <section className="seller-active-mediations-content" style={{ padding: '20px' }}>
           {isLoading ? (
             <p className="row-sub">Cargando historial de bloqueos...</p>
-          ) : blockLogs.length ? (
+          ) : blockHistory.length ? (
             <div className="table-wrap" style={{ marginTop: '10px' }}>
               <table className="wide-table seller-profile-table">
                 <thead>
                   <tr>
                     <th style={{ padding: '12px 8px' }}>Fecha</th>
                     <th style={{ padding: '12px 8px' }}>Acción</th>
+                    <th style={{ padding: '12px 8px' }}>Origen</th>
                     <th style={{ padding: '12px 8px' }}>Operador</th>
                     <th style={{ padding: '12px 8px' }}>Detalle</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {blockLogs.map((log) => (
+                  {blockHistory.map((log) => (
                     <tr key={log.id}>
                       <td style={{ padding: '12px 8px', whiteSpace: 'nowrap' }}>{formatDate(log.createdAt)}</td>
                       <td style={{ padding: '12px 8px' }}>
@@ -262,10 +246,14 @@ function SellerBlockHistoryModal({ isOpen, onClose, seller, onSuspend }: SellerB
                         />
                       </td>
                       <td style={{ padding: '12px 8px' }}>
-                        <strong>{log.userInitials}</strong>
-                        <span style={{ fontSize: '11px', color: '#64748b', display: 'block' }}>{log.userFullName}</span>
+                        <span style={{ fontSize: '12px', color: '#64748b' }}>{log.source}</span>
+                        {log.externalId ? <span style={{ fontSize: '11px', color: '#94a3b8', display: 'block' }}>{log.externalId}</span> : null}
                       </td>
-                      <td style={{ padding: '12px 8px' }}>{log.detail}</td>
+                      <td style={{ padding: '12px 8px' }}>
+                        <strong>{log.operator || 'Sistema'}</strong>
+                        {log.status ? <span style={{ fontSize: '11px', color: '#64748b', display: 'block' }}>{log.status}</span> : null}
+                      </td>
+                      <td style={{ padding: '12px 8px' }}>{log.detail || log.reason || 'Sin detalle registrado.'}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -336,32 +324,11 @@ interface SellerReportsModalProps {
   isOpen: boolean;
   onClose: () => void;
   seller: SellerDetailResponse | null;
+  reports: ReportResponse[];
+  isLoading: boolean;
 }
 
-function SellerReportsModal({ isOpen, onClose, seller }: SellerReportsModalProps) {
-  const { data: reportsData, isLoading } = useQuery({
-    queryKey: ['reports', 'seller-reports-modal', seller?.id],
-    queryFn: () => getReports({ size: 1000 }),
-    enabled: isOpen && !!seller,
-  });
-
-  const sellerReports = useMemo(() => {
-    if (!reportsData?.content || !seller) return [];
-    return reportsData.content.filter((report) => {
-      const storeNameLower = seller.storeName.toLowerCase();
-      const sellerEmailLower = (seller.email || '').toLowerCase();
-      
-      const repNameLower = (report.reportanteName || '').toLowerCase();
-      const repedNameLower = (report.reportadoName || '').toLowerCase();
-      const repEmailLower = (report.reportanteEmail || '').toLowerCase();
-      const repedEmailLower = (report.reportadoEmail || '').toLowerCase();
-      
-      return repNameLower.includes(storeNameLower) || 
-             repedNameLower.includes(storeNameLower) ||
-             (sellerEmailLower && (repEmailLower === sellerEmailLower || repedEmailLower === sellerEmailLower));
-    });
-  }, [reportsData, seller]);
-
+function SellerReportsModal({ isOpen, onClose, seller, reports, isLoading }: SellerReportsModalProps) {
   if (!isOpen || !seller) return null;
 
   return (
@@ -386,7 +353,7 @@ function SellerReportsModal({ isOpen, onClose, seller }: SellerReportsModalProps
         <section className="seller-active-mediations-content" style={{ padding: '20px', maxHeight: '500px', overflowY: 'auto' }}>
           {isLoading ? (
             <p className="row-sub">Cargando reportes...</p>
-          ) : sellerReports.length ? (
+          ) : reports.length ? (
             <div className="table-wrap" style={{ marginTop: '10px' }}>
               <table className="wide-table seller-profile-table">
                 <thead>
@@ -400,7 +367,7 @@ function SellerReportsModal({ isOpen, onClose, seller }: SellerReportsModalProps
                   </tr>
                 </thead>
                 <tbody>
-                  {sellerReports.map((report) => (
+                  {reports.map((report) => (
                     <tr key={report.id}>
                       <td style={{ whiteSpace: 'nowrap' }}><strong>{report.idExterno || `#${report.id}`}</strong></td>
                       <td>
@@ -474,6 +441,18 @@ export default function SellerProfileModal({
   const [isTimelineOpen, setIsTimelineOpen] = useState(false);
   const [isReportsModalOpen, setIsReportsModalOpen] = useState(false);
 
+  const { data: blockHistory = [], isLoading: isBlockHistoryLoading } = useQuery({
+    queryKey: ['seller-block-history', seller?.id],
+    queryFn: () => getSellerBlockHistory(seller!.id),
+    enabled: isOpen && !!seller,
+  });
+
+  const { data: sellerReports = [], isLoading: isSellerReportsLoading } = useQuery({
+    queryKey: ['seller-reports', seller?.id],
+    queryFn: () => getSellerReports(seller!.id),
+    enabled: isOpen && !!seller,
+  });
+
   if (!isOpen || !seller) return null;
 
   const mediatedCases = seller.mediations.map((mediation) => applyManualMediationStatus(mediation, effectiveManualStatusOverrides));
@@ -497,6 +476,22 @@ export default function SellerProfileModal({
       date: formatDate(mediation.updatedAt),
       timestamp: new Date(mediation.updatedAt).getTime(),
       tone: 'violet' as const,
+    })),
+    ...sellerReports.map((report) => ({
+      icon: 'flag',
+      title: 'Reporte registrado',
+      detail: `${report.motivo}${report.descripcion ? ` · ${report.descripcion}` : ''}`,
+      date: formatDate(report.fechaCreacion),
+      timestamp: new Date(report.fechaCreacion).getTime(),
+      tone: 'red' as const,
+    })),
+    ...blockHistory.map((event) => ({
+      icon: event.action.toLowerCase().includes('reactiv') ? 'check' : 'shieldX',
+      title: event.action,
+      detail: event.detail || event.reason || event.externalId || 'Sin detalle registrado.',
+      date: formatDate(event.createdAt),
+      timestamp: new Date(event.createdAt).getTime(),
+      tone: event.action.toLowerCase().includes('reactiv') ? 'green' as const : 'red' as const,
     })),
     ...seller.documents.map((doc) => ({
       icon: 'document',
@@ -538,7 +533,11 @@ export default function SellerProfileModal({
 
               <div className="seller-profile-card">
                 <div className={`seller-profile-avatar logo-${seller.id % 8}`}>
-                  {sellerLetterAvatar(seller.storeName)}
+                  {seller.userProfileUrl ? (
+                    <img src={seller.userProfileUrl} alt={seller.storeName} />
+                  ) : (
+                    sellerLetterAvatar(seller.storeName)
+                  )}
                 </div>
                 <h2>{seller.storeName}</h2>
                 <span className="seller-profile-id">{seller.externalId}</span>
@@ -567,7 +566,7 @@ export default function SellerProfileModal({
                 <InfoStat label="Mediaciones activas" value={inProgressMediations.length} />
                 <InfoStat label="Esperando al vendedor" value={waitingSellerMediations.length} />
                 <InfoStat label="Tickets abiertos" value={seller.tickets.filter((ticket) => ticket.status !== 'RESUELTO' && ticket.status !== 'CERRADO').length} />
-                <InfoStat label="Reportes" value={seller.pendingReceipts} />
+                <InfoStat label="Reportes" value={sellerReports.length || seller.pendingReceipts} />
               </div>
 
               <div className="seller-profile-quick-panel seller-profile-links">
@@ -611,7 +610,7 @@ export default function SellerProfileModal({
                 <InfoStat className="seller-profile-metric-stat" label="Estado actual" value={seller.status} sub={`Desde ${latestActivityDate}`} />
                 <InfoStat className="seller-profile-metric-stat" label="Última actividad" value={latestActivityDate} sub={seller.responseTime} />
                 <InfoStat className="seller-profile-metric-stat" label="Reclamos" value={seller.claimsCount} sub="Total" />
-                <InfoStat className="seller-profile-metric-stat" label="Reportes" value={seller.pendingReceipts} sub="Total" />
+                <InfoStat className="seller-profile-metric-stat" label="Reportes" value={sellerReports.length || seller.pendingReceipts} sub="Total" />
               </section>
 
               <section className="seller-profile-content-grid">
@@ -644,10 +643,12 @@ export default function SellerProfileModal({
                 </div>
 
                 <div className="seller-profile-panel info-panel">
-                  <SectionHeader icon="alert" title="Reportes de la tienda" count={`${seller.tickets.length}`} tone="red" />
+                  <SectionHeader icon="alert" title="Reportes de la tienda" count={`${sellerReports.length}`} tone="red" />
                   <div className="seller-profile-list" style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                    {seller.tickets.length ? (
-                      seller.tickets.map((ticket) => <TicketCard key={ticket.id} ticket={ticket} />)
+                    {isSellerReportsLoading ? (
+                      <p className="row-sub">Cargando reportes...</p>
+                    ) : sellerReports.length ? (
+                      sellerReports.map((report) => <ReportCard key={report.id} report={report} />)
                     ) : (
                       <p className="row-sub">No hay reportes registrados para esta tienda.</p>
                     )}
@@ -676,6 +677,8 @@ export default function SellerProfileModal({
         isOpen={isBlockHistoryOpen}
         onClose={() => setIsBlockHistoryOpen(false)}
         seller={seller}
+        blockHistory={blockHistory}
+        isLoading={isBlockHistoryLoading}
         onSuspend={(sellerId) => {
           onSuspend?.(sellerId);
           setIsBlockHistoryOpen(false);
@@ -693,6 +696,8 @@ export default function SellerProfileModal({
         isOpen={isReportsModalOpen}
         onClose={() => setIsReportsModalOpen(false)}
         seller={seller}
+        reports={sellerReports}
+        isLoading={isSellerReportsLoading}
       />
     </>
   );

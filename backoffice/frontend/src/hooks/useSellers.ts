@@ -41,6 +41,8 @@ export function useUpdateSeller() {
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['sellers'] });
       queryClient.invalidateQueries({ queryKey: ['seller', variables.id] });
+      queryClient.invalidateQueries({ queryKey: ['audits'] });
+      queryClient.invalidateQueries({ queryKey: ['seller-block-history', variables.id] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
     },
   });
@@ -54,6 +56,8 @@ export function useSuspendSeller() {
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['sellers'] });
       queryClient.invalidateQueries({ queryKey: ['seller', variables.id] });
+      queryClient.invalidateQueries({ queryKey: ['audits'] });
+      queryClient.invalidateQueries({ queryKey: ['seller-block-history', variables.id] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
     },
   });

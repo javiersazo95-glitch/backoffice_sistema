@@ -583,6 +583,7 @@ export default function MediacionesPage() {
                     accounts={blockedAccounts?.content ?? []}
                     totalItems={blockedAccounts?.totalElements ?? 0}
                     isLoading={isLoadingBlockedAccounts}
+                    onOpenSellerInfo={handleOpenSellerInfo}
                     onOpenReview={(id) => { setSelectedBlockedAccountId(id); setBlockedReviewModalOpen(true); }}
                   />
                 </>

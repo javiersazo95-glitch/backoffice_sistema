@@ -9,6 +9,7 @@ interface BlockedAccountsTableProps {
   totalItems?: number;
   isLoading?: boolean;
   onOpenReview: (id: number) => void;
+  onOpenSellerInfo: (sellerId: number) => void;
 }
 
 const STATUS_OPTIONS = [
@@ -32,6 +33,7 @@ export default function BlockedAccountsTable({
   totalItems,
   isLoading = false,
   onOpenReview,
+  onOpenSellerInfo,
 }: BlockedAccountsTableProps) {
   const [statusFilter, setStatusFilter] = useState('');
 
@@ -112,6 +114,15 @@ export default function BlockedAccountsTable({
                   <td>{item.owner || 'No informado'}</td>
                   <td className="centered-action-cell">
                     <div className="seller-actions compact-actions centered-actions">
+                      <button
+                        className="row-action"
+                        type="button"
+                        onClick={() => onOpenSellerInfo(item.sellerId)}
+                        aria-label="Ver ficha del vendedor"
+                        title="Ver ficha del vendedor"
+                      >
+                        <UiIcon name="users" />
+                      </button>
                       <button
                         className="row-action"
                         type="button"

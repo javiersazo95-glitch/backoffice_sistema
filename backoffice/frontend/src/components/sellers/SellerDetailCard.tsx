@@ -71,7 +71,11 @@ export default function SellerDetailCard({
 
       <div className="seller-profile">
         <div className={`seller-logo logo-${seller.id % 8}`}>
-          {seller.storeName.substring(0, 2).toUpperCase()}
+          {seller.userProfileUrl ? (
+            <img src={seller.userProfileUrl} alt={seller.storeName} />
+          ) : (
+            seller.storeName.substring(0, 2).toUpperCase()
+          )}
         </div>
         <div>
           <h2>{seller.storeName}</h2>
