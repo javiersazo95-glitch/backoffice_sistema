@@ -11,6 +11,7 @@ import {
 } from '@/utils/mediationNotes';
 import { useQuery } from '@tanstack/react-query';
 import { getTickets } from '@/api/support';
+import { getReportsBySellerId } from '@/api/reports';
 
 type NoteFilter = 'all' | MediationNoteType;
 
@@ -31,6 +32,7 @@ interface UnifiedHistoryEntry {
   reporterType?: string;
   category?: string;
   externalId?: string;
+  source?: string;
 }
 
 interface MediationNotesHistoryModalProps {
@@ -70,6 +72,12 @@ export default function MediationNotesHistoryModal({
     enabled: !!item && isOpen,
   });
 
+  const { data: reportsData } = useQuery({
+    queryKey: ['seller-reports-for-mediation', item?.sellerId],
+    queryFn: () => getReportsBySellerId(item?.sellerId ?? 0),
+    enabled: !!item && isOpen,
+  });
+
   const relatedTickets = useMemo(() => {
     if (!item || !ticketsData?.content) return [];
     return ticketsData.content.filter((ticket) => {
@@ -104,7 +112,7 @@ export default function MediationNotesHistoryModal({
       originalIndex: idx,
     }));
 
-    // 2. Map reports
+    // 2. Map tickets (support requests)
     const reportEntries: UnifiedHistoryEntry[] = relatedTickets.map((ticket) => {
       const reporterRoleLabel = ticket.reporterType === 'VENDEDOR' ? 'Tienda' : 'Comprador';
       return {
@@ -117,14 +125,28 @@ export default function MediationNotesHistoryModal({
         reporterType: ticket.reporterType,
         category: ticket.category,
         externalId: ticket.externalId,
+        source: 'Canal de Ayuda',
       };
     });
 
-    // 3. Combine and sort descending by date (most recent first)
-    return [...noteEntries, ...reportEntries].sort(
+    // 3. Map actual reports (from BO_reportes)
+    const actualReportEntries: UnifiedHistoryEntry[] = (reportsData ?? []).map((report) => ({
+      id: `actual-report-${report.id}`,
+      type: 'report',
+      date: report.fechaCreacion,
+      title: 'Reporte al vendedor',
+      text: `Motivo: ${report.motivo}\nDetalle: ${report.descripcion}`,
+      author: report.reportanteName || 'Comprador',
+      reporterType: 'COMPRADOR',
+      externalId: report.idExterno,
+      source: 'Reporte de Usuario',
+    }));
+
+    // 4. Combine and sort descending by date (most recent first)
+    return [...noteEntries, ...reportEntries, ...actualReportEntries].sort(
       (left, right) => new Date(right.date).getTime() - new Date(left.date).getTime()
     );
-  }, [item, relatedTickets]);
+  }, [item, relatedTickets, reportsData]);
 
   const visibleEntries = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -245,9 +267,10 @@ export default function MediationNotesHistoryModal({
                     </article>
                   );
                 } else {
-                  // It's a support report (ticket)
+                  // It's a support report (ticket) or actual seller report
                   const tone = entry.reporterType === 'VENDEDOR' ? 'orange' : 'blue';
                   const icon = entry.reporterType === 'VENDEDOR' ? 'alert' : 'document';
+                  const isUserReport = entry.source === 'Reporte de Usuario';
                   return (
                     <article className={`notes-history-entry ${tone}`} key={entry.id}>
                       <span className="notes-history-entry-dot" />
@@ -260,11 +283,11 @@ export default function MediationNotesHistoryModal({
                             <UiIcon name={icon} /> {entry.title}
                           </span>
                           <p style={{ whiteSpace: 'pre-line', marginTop: '6px', fontWeight: 550 }}>{entry.text}</p>
-                          <small>Reportado por: {entry.author} · Canal de Ayuda</small>
+                          <small>Reportado por: {entry.author} · {entry.source || 'Canal de Ayuda'}</small>
                         </div>
                         <div className="notes-history-entry-side">
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#0f766e', fontWeight: 600 }}>
-                            <UiIcon name="info" /> Reporte de Cliente
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: isUserReport ? '#9a3412' : '#0f766e', fontWeight: 600 }}>
+                            <UiIcon name="info" /> {isUserReport ? 'Reporte al vendedor' : 'Reporte de Cliente'}
                           </span>
                           <time>{noteDate(entry.date)}</time>
                         </div>
@@ -293,7 +316,7 @@ export default function MediationNotesHistoryModal({
             </div>
             <div className="notes-history-summary-row">
               <span className="orange"><UiIcon name="alert" /></span>
-              <div><small>Total de reportes</small><strong>{relatedTickets.length}</strong></div>
+              <div><small>Total de reportes</small><strong>{relatedTickets.length + (reportsData?.length ?? 0)}</strong></div>
             </div>
             <div className="notes-history-summary-row">
               <span className="violet"><UiIcon name="note" /></span>
@@ -306,7 +329,8 @@ export default function MediationNotesHistoryModal({
               <div><span className="blue" /><p><strong>Caso creado</strong><small>{noteDate(item.createdAt)}</small></p></div>
               <div><span className="violet" /><p><strong>{mediationStatusDisplay(item.status, item.accountBlocked)}</strong><small>{noteDate(item.updatedAt)}</small></p></div>
               {latestNote && <div><span className="green" /><p><strong>Nota agregada</strong><small>{noteDate(latestNote.createdAt)}</small></p></div>}
-              {relatedTickets.length > 0 && relatedTickets[0] && <div><span className="orange" /><p><strong>Reporte registrado</strong><small>{noteDate(relatedTickets[0].createdAt)}</small></p></div>}
+              {relatedTickets.length > 0 && relatedTickets[0] && <div><span className="orange" /><p><strong>Reporte de canal registrado</strong><small>{noteDate(relatedTickets[0].createdAt)}</small></p></div>}
+              {reportsData && reportsData.length > 0 && reportsData[0] && <div><span className="orange" /><p><strong>Reporte de usuario registrado</strong><small>{noteDate(reportsData[0].fechaCreacion)}</small></p></div>}
               <div><span className="blue" /><p><strong>Última actualización</strong><small>{noteDate(item.updatedAt)}</small></p></div>
             </div>
           </aside>
