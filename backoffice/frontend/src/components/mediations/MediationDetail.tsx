@@ -1,9 +1,12 @@
-import { useEffect, useState, type ChangeEvent } from 'react';
+import { useEffect, useState, useMemo, type ChangeEvent } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { MediationResponse, MediationStatus, type MediationDetailResponse, type MediationEvidenceResponse, type MediationMessageResponse } from '@/types/mediation';
 import Badge from '@/components/shared/Badge';
 import UiIcon from '@/components/shared/UiIcon';
 import { formatCurrency, formatDateTime, mediationStatusDisplay } from '@/utils/formatters';
 import { mediationNoteTypeIcon, mediationNoteTypeLabel, mediationNoteTypeTone } from '@/utils/mediationNotes';
+import { getReportsBySellerId } from '@/api/reports';
+import { getTickets } from '@/api/support';
 
 type MediationModalItem = MediationResponse & Partial<Pick<MediationDetailResponse, 'messages' | 'buyerMessages' | 'sellerMessages' | 'buyerEvidence' | 'sellerEvidence' | 'resolutionReason' | 'documentName' | 'documentUrl' | 'documentType' | 'buyer'>>;
 
@@ -71,9 +74,66 @@ function resolveInitializationReason(item: MediationModalItem) {
   return '';
 }
 
-function getHistoryNotes(item: MediationModalItem) {
-  return [...(item.messages ?? [])].sort(
-    (left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime(),
+interface UnifiedNote {
+  id: string;
+  type: 'note' | 'report';
+  date: string;
+  title: string;
+  text: string;
+  author: string;
+  noteType?: string;
+  reporterType?: string;
+  source?: string;
+  externalId?: string;
+}
+
+function buildUnifiedHistory(
+  item: MediationModalItem,
+  reports: { id: number; idExterno?: string; reportanteName: string; motivo: string; descripcion: string; fechaCreacion: string }[],
+  tickets: { id: number; externalId: string; orderId: string; sellerId: number; reason: string; lastMessage: string; createdAt: string; reporterType?: string; reporterName?: string }[],
+): UnifiedNote[] {
+  const noteEntries: UnifiedNote[] = [...(item.messages ?? [])].map((message, idx) => ({
+    id: `note-${message.id ?? idx}`,
+    type: 'note',
+    date: message.createdAt,
+    title: mediationNoteTypeLabel(message.noteType ?? 'seguimiento'),
+    text: message.text,
+    author: message.author,
+    noteType: message.noteType ?? message.type ?? 'seguimiento',
+  }));
+
+  const relatedTickets = tickets.filter((ticket) => {
+    const matchesOrder = !!(ticket.orderId && ticket.orderId === item.orderId);
+    const matchesSeller = !!(ticket.sellerId && ticket.sellerId === item.sellerId);
+    return (matchesOrder || matchesSeller) && (ticket.reporterType === 'COMPRADOR' || ticket.reporterType === 'VENDEDOR');
+  });
+
+  const ticketEntries: UnifiedNote[] = relatedTickets.map((ticket) => ({
+    id: `ticket-${ticket.id}`,
+    type: 'report',
+    date: ticket.createdAt,
+    title: `Reporte de ${ticket.reporterType === 'VENDEDOR' ? 'Tienda' : 'Comprador'}`,
+    text: `Motivo: ${ticket.reason}\nDetalle: ${ticket.lastMessage || 'Sin detalles adicionales.'}`,
+    author: ticket.reporterName || (ticket.reporterType === 'VENDEDOR' ? 'Tienda' : 'Comprador'),
+    reporterType: ticket.reporterType,
+    source: 'Canal de Ayuda',
+    externalId: ticket.externalId,
+  }));
+
+  const reportEntries: UnifiedNote[] = reports.map((report) => ({
+    id: `report-${report.id}`,
+    type: 'report',
+    date: report.fechaCreacion,
+    title: 'Reporte al vendedor',
+    text: `Motivo: ${report.motivo}\nDetalle: ${report.descripcion}`,
+    author: report.reportanteName || 'Comprador',
+    reporterType: 'COMPRADOR',
+    source: 'Reporte de Usuario',
+    externalId: report.idExterno,
+  }));
+
+  return [...noteEntries, ...ticketEntries, ...reportEntries].sort(
+    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
   );
 }
 
@@ -241,15 +301,31 @@ export default function MediationDetail({
     setDecision('resolve');
   }, [isOpen, item?.id]);
 
+  const { data: reportsData } = useQuery({
+    queryKey: ['seller-reports-for-mediation-detail', item?.sellerId],
+    queryFn: () => getReportsBySellerId(item?.sellerId ?? 0),
+    enabled: !!item && isOpen,
+  });
+
+  const { data: ticketsData } = useQuery({
+    queryKey: ['support-tickets-for-mediation-detail', item?.id],
+    queryFn: () => getTickets({ page: 0, size: 500 }),
+    enabled: !!item && isOpen,
+  });
+
   const buyerName = item ? resolveBuyerName(item) : 'Comprador';
   const sellerName = item?.sellerName || 'Tienda';
   const canBlockSeller = item?.canBlockAccount !== false && !item?.accountBlocked;
   const blockingCode = item?.blockingMediationExternalId || (item?.blockingMediationId ? `MED-${item.blockingMediationId}` : '');
 
+  const unifiedHistory = useMemo(
+    () => item ? buildUnifiedHistory(item, reportsData ?? [], (ticketsData?.content ?? []) as any) : [],
+    [item, reportsData, ticketsData],
+  );
+
   if (!isOpen || !item) return null;
 
   const initializationReason = resolveInitializationReason(item);
-  const historyNotes = getHistoryNotes(item);
 
   const handleResolve = () => {
     if (!resolutionReason.trim() || !documentFile) return;
@@ -473,23 +549,45 @@ export default function MediationDetail({
               <UiIcon name="note" />
               <strong>Notas del historial</strong>
             </div>
-            {historyNotes.length ? (
+            {unifiedHistory.length ? (
               <div className="mediation-notes-list">
-                {historyNotes.map((note, index) => {
-                  const noteType = note.noteType ?? note.type ?? 'seguimiento';
-                  const tone = mediationNoteTypeTone(noteType);
+                {unifiedHistory.map((entry) => {
+                  if (entry.type === 'note') {
+                    const noteType = entry.noteType ?? 'seguimiento';
+                    const tone = mediationNoteTypeTone(noteType);
+                    return (
+                      <article className={`mediation-note-item ${tone}`} key={entry.id}>
+                        <span className={`mediation-note-item-icon ${tone}`}>
+                          <UiIcon name={mediationNoteTypeIcon(noteType)} />
+                        </span>
+                        <div className="mediation-note-item-body">
+                          <div className="mediation-note-item-head">
+                            <strong>{entry.title}</strong>
+                            <time>{formatDateTime(entry.date)}</time>
+                          </div>
+                          <p>{entry.text}</p>
+                          <small>{entry.author || 'Equipo interno'} · Solo equipo interno</small>
+                        </div>
+                      </article>
+                    );
+                  }
+                  const tone = entry.reporterType === 'VENDEDOR' ? 'orange' : 'blue';
+                  const icon = entry.reporterType === 'VENDEDOR' ? 'alert' : 'document';
+                  const isUserReport = entry.source === 'Reporte de Usuario';
                   return (
-                    <article className={`mediation-note-item ${tone}`} key={note.id ?? `${note.createdAt}-${index}`}>
+                    <article className={`mediation-note-item ${tone}`} key={entry.id}>
                       <span className={`mediation-note-item-icon ${tone}`}>
-                        <UiIcon name={mediationNoteTypeIcon(noteType)} />
+                        <UiIcon name={icon} />
                       </span>
                       <div className="mediation-note-item-body">
                         <div className="mediation-note-item-head">
-                          <strong>{mediationNoteTypeLabel(noteType)}</strong>
-                          <time>{formatDateTime(note.createdAt)}</time>
+                          <strong>{entry.title}</strong>
+                          <time>{formatDateTime(entry.date)}</time>
                         </div>
-                        <p>{note.text}</p>
-                        <small>{note.author || 'Equipo interno'} · Solo equipo interno</small>
+                        <p style={{ whiteSpace: 'pre-line' }}>{entry.text}</p>
+                        <small>
+                          {entry.author} · {isUserReport ? 'Reporte de Usuario' : 'Canal de Ayuda'}
+                        </small>
                       </div>
                     </article>
                   );
@@ -498,7 +596,7 @@ export default function MediationDetail({
             ) : (
               <div className="mediation-notes-empty">
                 <UiIcon name="note" />
-                <p>No hay notas registradas en el historial de esta mediación.</p>
+                <p>No hay notas ni reportes registrados en el historial de esta mediación.</p>
               </div>
             )}
           </section>
