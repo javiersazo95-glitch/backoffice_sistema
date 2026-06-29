@@ -47,7 +47,7 @@ function mapBackendMessages(messages: MediationMessageResponse[] | undefined, si
     time: formatChatTime(message.createdAt),
     side,
     aligned: message.senderRole === 'MEDIADOR' ? (side === 'buyer' ? 'right' : 'left') : (side === 'buyer' ? 'left' : 'right'),
-    label: message.senderRole === 'MEDIADOR' ? 'Mediador' : message.senderRole === 'SISTEMA' ? 'Sistema' : side === 'buyer' ? 'Comprador' : 'Vendedor',
+    label: message.senderRole === 'MEDIADOR' ? 'Mediador' : message.senderRole === 'SISTEMA' ? 'Sistema' : side === 'buyer' ? 'Comprador' : 'Tienda',
   }));
 }
 
@@ -235,7 +235,7 @@ export default function MediationDetail({
   }, [isOpen, item?.id]);
 
   const buyerName = item ? resolveBuyerName(item) : 'Comprador';
-  const sellerName = item?.sellerName || 'Vendedor';
+  const sellerName = item?.sellerName || 'Tienda';
   const canBlockSeller = item?.canBlockAccount !== false && !item?.accountBlocked;
   const blockingCode = item?.blockingMediationExternalId || (item?.blockingMediationId ? `MED-${item.blockingMediationId}` : '');
 
@@ -300,7 +300,7 @@ export default function MediationDetail({
                 <UiIcon name="users" />
               </span>
               <div>
-                <small>Vendedor</small>
+                <small>Tienda</small>
                 <strong>{sellerName}</strong>
               </div>
             </div>
@@ -341,13 +341,13 @@ export default function MediationDetail({
               <div className="mediation-evidence-area-head">
                 <div>
                   <span className="mediation-init-reason-kicker">Documentos del caso</span>
-                  <h3>Evidencias de comprador y vendedor</h3>
+                  <h3>Evidencias de comprador y tienda</h3>
                 </div>
                 <p>Archivos adjuntados por cada parte durante la conversación.</p>
               </div>
               <div className="mediation-evidence-grid">
                 <EvidenceSection title="Evidencias del comprador" partyName={buyerName} evidence={item.buyerEvidence ?? []} accent="blue" />
-                <EvidenceSection title="Evidencias del vendedor" partyName={sellerName} evidence={item.sellerEvidence ?? []} accent="violet" />
+                <EvidenceSection title="Evidencias de la tienda" partyName={sellerName} evidence={item.sellerEvidence ?? []} accent="violet" />
               </div>
             </section>
 
@@ -363,7 +363,7 @@ export default function MediationDetail({
             />
 
             <ChatCard
-              title="Chat con vendedor"
+              title="Chat con tienda"
               partyName={sellerName}
               icon="users"
               messages={mapBackendMessages(item.sellerMessages, 'seller')}
@@ -405,10 +405,10 @@ export default function MediationDetail({
                 >
                   <span className="mediation-choice-radio" />
                   <div>
-                    <strong>Bloquear cuenta del vendedor</strong>
+                    <strong>Bloquear cuenta de la tienda</strong>
                     <p>
                       {canBlockSeller
-                        ? 'Suspende la cuenta del vendedor.'
+                        ? 'Suspende la cuenta de la tienda.'
                         : `No disponible: la cuenta ya fue bloqueada por ${blockingCode}.`}
                     </p>
                   </div>
@@ -422,7 +422,7 @@ export default function MediationDetail({
                 <div className="mediation-blocking-warning">
                   <UiIcon name="lock" />
                   <p>
-                    No se puede bloquear esta cuenta desde este caso porque el vendedor ya fue bloqueado por la mediación <strong>{blockingCode}</strong>. Esta mediación puede continuar su curso, pero la acción de bloqueo queda inhabilitada.
+                    No se puede bloquear esta cuenta desde este caso porque la tienda ya fue bloqueada por la mediación <strong>{blockingCode}</strong>. Esta mediación puede continuar su curso, pero la acción de bloqueo queda inhabilitada.
                   </p>
                 </div>
               ) : null}
@@ -465,15 +465,15 @@ export default function MediationDetail({
               <UiIcon name="info" />
               <strong>
                 {decision === 'resolve'
-                  ? 'Al resolver el caso, se notificará al comprador y al vendedor sobre la resolución.'
-                  : 'Si eliges bloquear la cuenta, el vendedor quedará suspendido en la plataforma.'}
+                  ? 'Al resolver el caso, se notificará al comprador y a la tienda sobre la resolución.'
+                  : 'Si eliges bloquear la cuenta, la tienda quedará suspendida en la plataforma.'}
               </strong>
             </div>
             <ul>
               <li>El comprador recibirá el detalle de la decisión por correo y en su cuenta.</li>
-              <li>El vendedor recibirá el detalle de la decisión por correo y en su cuenta.</li>
+              <li>La tienda recibirá el detalle de la decisión por correo y en su cuenta.</li>
               {decision === 'block' ? (
-                <li className="danger">La cuenta del vendedor quedará bloqueada hasta una reactivación posterior.</li>
+                <li className="danger">La cuenta de la tienda quedará bloqueada hasta una reactivación posterior.</li>
               ) : (
                 <li>El caso quedará cerrado dentro del flujo de mediación.</li>
               )}
@@ -497,7 +497,7 @@ export default function MediationDetail({
                 onClick={() => onBlockAccount(item.id)}
                 disabled={decision !== 'block' || !canBlockSeller}
               >
-                <UiIcon name="shieldX" /> Bloquear vendedor
+                <UiIcon name="shieldX" /> Bloquear tienda
               </button>
             </div>
           </div>

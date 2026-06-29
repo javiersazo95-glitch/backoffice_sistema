@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import type { UserSummaryResponse } from '@/types/auth';
 import UiIcon from '@/components/shared/UiIcon';
 
+
 interface SidebarProps {
   user: UserSummaryResponse | null;
   onLogout: () => Promise<void>;

@@ -94,7 +94,7 @@ export default function BlockedAccountReviewModal({
                 <UiIcon name="users" />
               </span>
               <div>
-                <small>Vendedor</small>
+                <small>Tienda</small>
                 <strong>{item.sellerName}</strong>
               </div>
             </div>

@@ -61,14 +61,12 @@ export default function MediationTableRow({
   return (
     <tr className={isSelected ? 'is-active' : ''} onClick={() => onSelect(item.id)} style={{ cursor: 'pointer' }}>
       <td><strong className="blue-link">{item.externalId}</strong></td>
-      <td>{item.title.replace('Comprador vs ', '')}</td>
+      <td>{item.buyer?.trim() || item.title.replace('Comprador vs ', '').trim() || 'Comprador'}</td>
       <td>{item.sellerName}</td>
       <td><strong className="blue-link">{item.orderId}</strong></td>
       <td>{item.reason}</td>
-      <td>
-        <div className="mediation-status-slot">
-          <Badge text={mediationStatusDisplay(item.status, item.accountBlocked)} variant={item.accountBlocked ? 'cuenta-bloqueada' : item.status} />
-        </div>
+      <td style={{ textAlign: 'center' }}>
+        <Badge text={mediationStatusDisplay(item.status, item.accountBlocked)} variant={item.accountBlocked ? 'cuenta-bloqueada' : item.status} />
       </td>
       <td className="mediation-actions-cell">
         <div className="seller-actions compact-actions centered-actions">

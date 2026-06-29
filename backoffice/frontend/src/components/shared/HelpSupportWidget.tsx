@@ -7,8 +7,18 @@ import type { TicketCategory, TicketPriority, TicketPlatform } from '@/api/suppo
 import UiIcon from './UiIcon';
 import { showToast } from '@/components/layout/Toast';
 
-export default function HelpSupportWidget() {
-  const [isOpen, setIsOpen] = useState(false);
+interface HelpSupportWidgetProps {
+  /** Controlled mode: pass isOpen + onClose to use without the floating button */
+  isOpen?: boolean;
+  onClose?: () => void;
+}
+
+export default function HelpSupportWidget({ isOpen: controlledOpen, onClose }: HelpSupportWidgetProps = {}) {
+  const [localOpen, setLocalOpen] = useState(false);
+  const isControlled = controlledOpen !== undefined;
+  const isOpen = isControlled ? controlledOpen : localOpen;
+  const closePanel = isControlled ? (onClose ?? (() => {})) : () => setLocalOpen(false);
+  const togglePanel = () => setLocalOpen((prev) => !prev);
   const [view, setView] = useState<'help' | 'report'>('help');
   const location = useLocation();
   const { user } = useAuth();
@@ -88,7 +98,7 @@ export default function HelpSupportWidget() {
       queryClient.invalidateQueries({ queryKey: ['support-tickets-global'] });
       
       showToast('Falla reportada exitosamente a Soporte');
-      setIsOpen(false);
+      closePanel();
       resetForm();
     },
     onError: (err: any) => {
@@ -372,11 +382,13 @@ export default function HelpSupportWidget() {
         }
       `}</style>
 
-      {/* Floating button */}
-      <button className="help-widget-btn" type="button" onClick={() => setIsOpen((prev) => !prev)}>
-        <UiIcon name={isOpen ? 'close' : 'help'} />
-        {isOpen ? 'Cerrar' : 'Ayuda'}
-      </button>
+      {/* Floating button — hidden on /administracion and /confianza (help icon in page header handles it there) */}
+      {!isControlled && !location.pathname.startsWith('/administracion') && !location.pathname.startsWith('/confianza') && (
+        <button className="help-widget-btn" type="button" onClick={togglePanel}>
+          <UiIcon name={isOpen ? 'close' : 'help'} />
+          {isOpen ? 'Cerrar' : 'Ayuda'}
+        </button>
+      )}
 
       {/* Floating panel drawer */}
       {isOpen && (
@@ -386,7 +398,7 @@ export default function HelpSupportWidget() {
               <h3>Ayuda e Incidencias</h3>
               <span>Plataforma: {currentPlatformInfo.name}</span>
             </div>
-            <button className="help-close-btn" type="button" onClick={() => setIsOpen(false)} aria-label="Cerrar panel">
+            <button className="help-close-btn" type="button" onClick={closePanel} aria-label="Cerrar panel">
               <UiIcon name="close" />
             </button>
           </header>

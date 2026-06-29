@@ -49,7 +49,7 @@ export default function MediationResolvedTable({
             <tr>
               <th>Registro</th>
               <th>Motivo</th>
-              <th>Vendedor</th>
+              <th>Tienda</th>
               <th>Pedido</th>
               <th>Resumen</th>
               <th>Resolución</th>

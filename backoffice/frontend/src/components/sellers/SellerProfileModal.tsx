@@ -1,7 +1,10 @@
+import { useState, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { getAuditLogs } from '@/api/audits';
+import { getReports } from '@/api/reports';
 import type { SellerDetailResponse } from '@/types/seller';
 import type { ImpactMediation } from '@/types/cases';
 import type { MediationSummaryResponse } from '@/types/mediation';
-import type { AlertResponse } from '@/types/alert';
 import Badge from '@/components/shared/Badge';
 import UiIcon from '@/components/shared/UiIcon';
 import { applyManualMediationStatus, useManualMediationStatusOverrides } from '@/utils/manualMediationStatus';
@@ -22,14 +25,6 @@ function formatDate(date: string, locale: Intl.LocalesArgument = 'es-CL') {
     month: 'short',
     year: 'numeric',
   }).format(new Date(date));
-}
-
-function badgeTone(value: string) {
-  const slug = value.toLowerCase();
-  if (slug.includes('verific')) return 'green';
-  if (slug.includes('pend')) return 'amber';
-  if (slug.includes('suspend') || slug.includes('bloque')) return 'red';
-  return 'blue';
 }
 
 function sellerLetterAvatar(name: string) {
@@ -93,13 +88,11 @@ function DocumentTable({ documents }: { documents: SellerDetailResponse['documen
         <colgroup>
           <col className="seller-profile-document-name-col" />
           <col className="seller-profile-document-status-col" />
-          <col className="seller-profile-document-date-col" />
         </colgroup>
         <thead>
           <tr>
             <th>Documento</th>
             <th>Estado</th>
-            <th>Vencimiento</th>
           </tr>
         </thead>
         <tbody>
@@ -107,7 +100,6 @@ function DocumentTable({ documents }: { documents: SellerDetailResponse['documen
             <tr key={doc.id}>
               <td>{doc.documentType}</td>
               <td><Badge text={doc.status} variant={doc.status} /></td>
-              <td>{formatDate(doc.dueAt)}</td>
             </tr>
           ))}
         </tbody>
@@ -116,11 +108,11 @@ function DocumentTable({ documents }: { documents: SellerDetailResponse['documen
   );
 }
 
-function MediationCard({ mediation }: { mediation: MediationSummaryResponse | ImpactMediation }) {
+function MediationCard({ mediation, iconName = 'scale' }: { mediation: MediationSummaryResponse | ImpactMediation; iconName?: string }) {
   return (
     <div className="seller-profile-case-card">
       <div className="seller-profile-case-icon">
-        <UiIcon name="scale" />
+        <UiIcon name={iconName} />
       </div>
       <div className="seller-profile-case-copy">
         <strong>{mediation.reason}</strong>
@@ -132,23 +124,18 @@ function MediationCard({ mediation }: { mediation: MediationSummaryResponse | Im
   );
 }
 
-function riskTone(severity?: AlertResponse['severity']) {
-  if (severity === 'CRITICA') return 'red';
-  if (severity === 'ALTA') return 'amber';
-  return 'blue';
-}
-
-function RiskCard({ risk }: { risk: AlertResponse | any }) {
+function TicketCard({ ticket }: { ticket: import('@/types/ticket').TicketResponse }) {
   return (
-    <div className="seller-profile-risk-card">
-      <div className="seller-profile-risk-icon">
-        <UiIcon name="clock" />
+    <div className="seller-profile-case-card">
+      <div className="seller-profile-case-icon" style={{ backgroundColor: '#eff6ff', color: '#3b82f6' }}>
+        <UiIcon name="alert" />
       </div>
-      <div className="seller-profile-risk-copy">
-        <strong>{risk.signalType || risk.reason || 'Esperando al vendedor'}</strong>
-        <span>{risk.evidence || risk.impact || risk.orderId || risk.stage || 'Pendiente de respuesta'}</span>
+      <div className="seller-profile-case-copy">
+        <strong>{ticket.reason}</strong>
+        <span>Pedido {ticket.orderId || 'N/A'}</span>
+        <small>{ticket.lastMessage || 'Sin detalles'}</small>
       </div>
-      <Badge text={risk.severity || risk.status || 'Esperando'} variant={riskTone(risk.severity)} />
+      <Badge text={ticket.status} variant="blue" />
     </div>
   );
 }
@@ -180,6 +167,280 @@ function ActivityCard({
   );
 }
 
+interface SellerBlockHistoryModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  seller: SellerDetailResponse | null;
+  onSuspend?: (sellerId: number) => void;
+}
+
+function SellerBlockHistoryModal({ isOpen, onClose, seller, onSuspend }: SellerBlockHistoryModalProps) {
+  const { data: auditsData, isLoading } = useQuery({
+    queryKey: ['audits', 'block-history', seller?.id],
+    queryFn: () => getAuditLogs({ size: 1000 }),
+    enabled: isOpen && !!seller,
+  });
+
+  const blockLogs = useMemo(() => {
+    if (!auditsData?.content || !seller) return [];
+    return auditsData.content.filter((audit) => {
+      const matchesSeller = Number(audit.sellerId) === Number(seller.id);
+      const actionLower = (audit.action || '').toLowerCase();
+      const matchesAction = actionLower.includes('bloque') || 
+                            actionLower.includes('suspend') || 
+                            actionLower.includes('reactiv') || 
+                            actionLower.includes('sancion');
+      return matchesSeller && matchesAction;
+    });
+  }, [auditsData, seller]);
+
+  if (!isOpen || !seller) return null;
+
+  return (
+    <div className="case-modal-backdrop" onClick={onClose} style={{ zIndex: 1100 }}>
+      <div className="seller-documents-modal seller-active-mediations-modal" style={{ maxWidth: '800px', width: '90%' }} onClick={(e) => e.stopPropagation()}>
+        <header className="seller-documents-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div className="seller-documents-heading">
+            <span className="seller-documents-icon" style={{ backgroundColor: '#fee2e2', color: '#dc2626' }}>
+              <UiIcon name="shieldX" />
+            </span>
+            <div className="seller-documents-title">
+              <h2>Historial de bloqueos</h2>
+              <p>{seller.storeName} · {seller.externalId}</p>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <button className="danger-button" type="button" style={{ padding: '8px 16px', borderRadius: '8px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }} onClick={() => onSuspend?.(seller.id)}>
+              <UiIcon name="shieldX" /> Bloquear tienda
+            </button>
+            <button className="seller-documents-close" type="button" onClick={onClose} aria-label="Cerrar" style={{ margin: 0 }}>
+              <UiIcon name="close" />
+              <span>Cerrar</span>
+            </button>
+          </div>
+        </header>
+
+        <section className="seller-active-mediations-content" style={{ padding: '20px' }}>
+          {isLoading ? (
+            <p className="row-sub">Cargando historial de bloqueos...</p>
+          ) : blockLogs.length ? (
+            <div className="table-wrap" style={{ marginTop: '10px' }}>
+              <table className="wide-table seller-profile-table">
+                <thead>
+                  <tr>
+                    <th style={{ padding: '12px 8px' }}>Fecha</th>
+                    <th style={{ padding: '12px 8px' }}>Acción</th>
+                    <th style={{ padding: '12px 8px' }}>Operador</th>
+                    <th style={{ padding: '12px 8px' }}>Detalle</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {blockLogs.map((log) => (
+                    <tr key={log.id}>
+                      <td style={{ padding: '12px 8px', whiteSpace: 'nowrap' }}>{formatDate(log.createdAt)}</td>
+                      <td style={{ padding: '12px 8px' }}>
+                        <Badge 
+                          text={log.action} 
+                          variant={log.action.toLowerCase().includes('reactiv') ? 'green' : 'red'} 
+                        />
+                      </td>
+                      <td style={{ padding: '12px 8px' }}>
+                        <strong>{log.userInitials}</strong>
+                        <span style={{ fontSize: '11px', color: '#64748b', display: 'block' }}>{log.userFullName}</span>
+                      </td>
+                      <td style={{ padding: '12px 8px' }}>{log.detail}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="row-sub" style={{ textAlign: 'center', padding: '40px 0', color: '#64748b' }}>
+              La tienda no registra antecedentes de bloqueos o sanciones disciplinarias.
+            </p>
+          )}
+        </section>
+      </div>
+    </div>
+  );
+}
+
+interface SellerTimelineModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  seller: SellerDetailResponse | null;
+  recentActivity: Array<{ icon: string; title: string; detail: string; date: string; tone: 'blue' | 'violet' | 'red' | 'green' | 'amber' }>;
+}
+
+function SellerTimelineModal({ isOpen, onClose, seller, recentActivity }: SellerTimelineModalProps) {
+  if (!isOpen || !seller) return null;
+
+  return (
+    <div className="case-modal-backdrop" onClick={onClose} style={{ zIndex: 1100 }}>
+      <div className="seller-documents-modal seller-active-mediations-modal" style={{ maxWidth: '600px', width: '90%' }} onClick={(e) => e.stopPropagation()}>
+        <header className="seller-documents-header">
+          <div className="seller-documents-heading">
+            <span className="seller-documents-icon" style={{ backgroundColor: '#e0e7ff', color: '#4f46e5' }}>
+              <UiIcon name="clock" />
+            </span>
+            <div className="seller-documents-title">
+              <h2>Línea de tiempo completa</h2>
+              <p>{seller.storeName} · {seller.externalId}</p>
+            </div>
+          </div>
+          <button className="seller-documents-close" type="button" onClick={onClose} aria-label="Cerrar">
+            <UiIcon name="close" />
+            <span>Cerrar</span>
+          </button>
+        </header>
+
+        <section className="seller-active-mediations-content" style={{ padding: '20px', maxHeight: '450px', overflowY: 'auto' }}>
+          <div className="seller-profile-activity" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {recentActivity.map((activity, index) => (
+              <div key={index} className="seller-profile-activity-item" style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '12px', display: 'flex', alignItems: 'center' }}>
+                <span className={`seller-profile-activity-icon ${activity.tone}`} style={{ marginRight: '12px' }}>
+                  <UiIcon name={activity.icon} />
+                </span>
+                <div>
+                  <strong>{activity.title}</strong>
+                  <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#475569' }}>{activity.detail}</p>
+                </div>
+                <time style={{ marginLeft: 'auto', fontSize: '12px', color: '#94a3b8', whiteSpace: 'nowrap' }}>{activity.date}</time>
+              </div>
+            ))}
+          </div>
+        </section>
+      </div>
+    </div>
+  );
+}
+
+interface SellerReportsModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  seller: SellerDetailResponse | null;
+}
+
+function SellerReportsModal({ isOpen, onClose, seller }: SellerReportsModalProps) {
+  const { data: reportsData, isLoading } = useQuery({
+    queryKey: ['reports', 'seller-reports-modal', seller?.id],
+    queryFn: () => getReports({ size: 1000 }),
+    enabled: isOpen && !!seller,
+  });
+
+  const sellerReports = useMemo(() => {
+    if (!reportsData?.content || !seller) return [];
+    return reportsData.content.filter((report) => {
+      const storeNameLower = seller.storeName.toLowerCase();
+      const sellerEmailLower = (seller.email || '').toLowerCase();
+      
+      const repNameLower = (report.reportanteName || '').toLowerCase();
+      const repedNameLower = (report.reportadoName || '').toLowerCase();
+      const repEmailLower = (report.reportanteEmail || '').toLowerCase();
+      const repedEmailLower = (report.reportadoEmail || '').toLowerCase();
+      
+      return repNameLower.includes(storeNameLower) || 
+             repedNameLower.includes(storeNameLower) ||
+             (sellerEmailLower && (repEmailLower === sellerEmailLower || repedEmailLower === sellerEmailLower));
+    });
+  }, [reportsData, seller]);
+
+  if (!isOpen || !seller) return null;
+
+  return (
+    <div className="case-modal-backdrop" onClick={onClose} style={{ zIndex: 1100 }}>
+      <div className="seller-documents-modal seller-active-mediations-modal" style={{ maxWidth: '950px', width: '95%' }} onClick={(e) => e.stopPropagation()}>
+        <header className="seller-documents-header">
+          <div className="seller-documents-heading">
+            <span className="seller-documents-icon" style={{ backgroundColor: '#fee2e2', color: '#dc2626' }}>
+              <UiIcon name="flag" />
+            </span>
+            <div className="seller-documents-title">
+              <h2>Casos de reporte</h2>
+              <p>{seller.storeName} · {seller.externalId}</p>
+            </div>
+          </div>
+          <button className="seller-documents-close" type="button" onClick={onClose} aria-label="Cerrar">
+            <UiIcon name="close" />
+            <span>Cerrar</span>
+          </button>
+        </header>
+
+        <section className="seller-active-mediations-content" style={{ padding: '20px', maxHeight: '500px', overflowY: 'auto' }}>
+          {isLoading ? (
+            <p className="row-sub">Cargando reportes...</p>
+          ) : sellerReports.length ? (
+            <div className="table-wrap" style={{ marginTop: '10px' }}>
+              <table className="wide-table seller-profile-table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Reportante</th>
+                    <th>Reportado</th>
+                    <th>Motivo</th>
+                    <th>Descripción</th>
+                    <th>Fecha</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sellerReports.map((report) => (
+                    <tr key={report.id}>
+                      <td style={{ whiteSpace: 'nowrap' }}><strong>{report.idExterno || `#${report.id}`}</strong></td>
+                      <td>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                          <strong>{report.reportanteName}</strong>
+                          <span style={{ fontSize: '11px', color: '#64748b' }}>{report.reportanteEmail}</span>
+                          <Badge
+                            text={report.reportanteType === 'VENDEDOR' ? 'TIENDA' : 'COMPRADOR'}
+                            variant={report.reportanteType === 'COMPRADOR' ? 'blue' : 'amber'}
+                          />
+                        </div>
+                      </td>
+                      <td>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                          <strong>{report.reportadoName}</strong>
+                          <span style={{ fontSize: '11px', color: '#64748b' }}>{report.reportadoEmail}</span>
+                          <Badge
+                            text={report.reportadoType === 'VENDEDOR' ? 'TIENDA' : 'COMPRADOR'}
+                            variant={report.reportadoType === 'COMPRADOR' ? 'blue' : 'amber'}
+                          />
+                        </div>
+                      </td>
+                      <td>
+                        <strong>{report.motivo}</strong>
+                      </td>
+                      <td>
+                        <span
+                          style={{
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            maxWidth: 250,
+                            fontSize: '13px'
+                          }}
+                        >
+                          {report.descripcion}
+                        </span>
+                      </td>
+                      <td style={{ whiteSpace: 'nowrap' }}>{formatDate(report.fechaCreacion)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="row-sub" style={{ textAlign: 'center', padding: '40px 0', color: '#64748b' }}>
+              La tienda no registra reportes en chats.
+            </p>
+          )}
+        </section>
+      </div>
+    </div>
+  );
+}
+
 export default function SellerProfileModal({
   isOpen,
   onClose,
@@ -192,196 +453,231 @@ export default function SellerProfileModal({
   const [adminMode] = useManualMediationAdminMode();
   const effectiveManualStatusOverrides = adminMode ? manualStatusOverrides : {};
 
+  const [isBlockHistoryOpen, setIsBlockHistoryOpen] = useState(false);
+  const [isTimelineOpen, setIsTimelineOpen] = useState(false);
+  const [isReportsModalOpen, setIsReportsModalOpen] = useState(false);
+
   if (!isOpen || !seller) return null;
 
   const mediatedCases = seller.mediations.map((mediation) => applyManualMediationStatus(mediation, effectiveManualStatusOverrides));
-  const activeMediations = mediatedCases.filter((m) => m.status !== 'RESUELTA' && m.status !== 'CERRADA');
-  const waitingSellerCases = seller.risks as any[];
+  const inProgressMediations = mediatedCases.filter((m) => m.status === 'EN_MEDIACION');
+  const waitingSellerMediations = mediatedCases.filter((m) => m.status === 'ESPERANDO_VENDEDOR' || m.status === 'ESCALADO');
   const documents = seller.documents;
-  const latestActivityDate = seller.lastActivityAt ? formatDate(seller.lastActivityAt) : 'Sin datos';
-  const recentActivity: Array<{ icon: string; title: string; detail: string; date: string; tone: 'blue' | 'violet' | 'red' | 'green' | 'amber' }> = [
-    ...waitingSellerCases.slice(0, 2).map((risk) => ({
-      icon: 'alert',
+
+  const recentActivityRaw: Array<{ icon: string; title: string; detail: string; date: string; timestamp: number; tone: 'blue' | 'violet' | 'red' | 'green' | 'amber' }> = [
+    ...waitingSellerMediations.map((mediation) => ({
+      icon: 'clock',
       title: 'Esperando al vendedor',
-      detail: risk.signalType || risk.reason || 'Pendiente de respuesta',
-      date: formatDate(risk.createdAt || risk.updated || new Date().toISOString()),
+      detail: mediation.reason,
+      date: formatDate(mediation.updatedAt),
+      timestamp: new Date(mediation.updatedAt).getTime(),
       tone: 'amber' as const,
     })),
-    ...mediatedCases.slice(0, 2).map((mediation) => ({
+    ...inProgressMediations.map((mediation) => ({
       icon: 'scale',
       title: 'Mediación iniciada',
       detail: mediation.reason,
       date: formatDate(mediation.updatedAt),
+      timestamp: new Date(mediation.updatedAt).getTime(),
       tone: 'violet' as const,
     })),
-    ...seller.documents.slice(0, 2).map((doc) => ({
+    ...seller.documents.map((doc) => ({
       icon: 'document',
       title: `Documento "${doc.documentType}" actualizado`,
       detail: `Estado: ${doc.status}`,
       date: formatDate(doc.uploadedAt),
+      timestamp: new Date(doc.uploadedAt).getTime(),
       tone: 'amber' as const,
     })),
-    ...seller.tickets.slice(0, 2).map((ticket) => ({
+    ...seller.tickets.map((ticket) => ({
       icon: 'users',
       title: 'Ticket abierto',
       detail: ticket.reason,
       date: formatDate(ticket.updatedAt),
+      timestamp: new Date(ticket.updatedAt).getTime(),
       tone: 'blue' as const,
     })),
-  ].slice(0, 6);
+  ];
+
+  const recentActivityRawSorted = [...recentActivityRaw].sort((a, b) => b.timestamp - a.timestamp);
+  const recentActivity = recentActivityRawSorted.slice(0, 6);
+
+  const latestActivityDate = recentActivity[0] ? recentActivity[0].date : (seller.lastActivityAt ? formatDate(seller.lastActivityAt) : 'Sin datos');
 
   return (
-    <div className="case-modal-backdrop seller-profile-backdrop" onClick={onClose}>
-      <div className="seller-profile-modal" onClick={(event) => event.stopPropagation()}>
-        <button className="seller-profile-close" type="button" onClick={onClose} aria-label="Cerrar">
-          <UiIcon name="close" />
-        </button>
-        <div className="seller-profile-layout">
-          <aside className="seller-profile-sidebar">
-            <div className="seller-profile-breadcrumbs">
-              <span>Vendedores</span>
-              <UiIcon name="arrowRight" />
-              <strong>{seller.storeName}</strong>
-            </div>
-
-            <div className="seller-profile-card">
-              <div className={`seller-profile-avatar logo-${seller.id % 8}`}>
-                {sellerLetterAvatar(seller.storeName)}
-              </div>
-              <h2>{seller.storeName}</h2>
-              <span className="seller-profile-id">{seller.externalId}</span>
-
-              <div className="seller-profile-subinfo">
-                <span><UiIcon name="users" /> RUT {seller.rut}</span>
-                <span><UiIcon name="home" /> {seller.city}</span>
-                {seller.email && (
-                  <span><UiIcon name="mail" /> {seller.email}</span>
-                )}
-                {seller.owner && (
-                  <span><UiIcon name="users" /> Responsable: {seller.owner}</span>
-                )}
-                {seller.phone && (
-                  <span><UiIcon name="smartphone" /> Teléfono: {seller.phone}</span>
-                )}
-              </div>
-
-              <div className="seller-profile-badges">
-                <Badge text={seller.status} variant={seller.status} />
-                <Badge text={seller.trustLevel} variant={badgeTone(seller.trustLevel)} />
-              </div>
-            </div>
-
-            <div className="seller-profile-quick-panel">
-              <SectionHeader icon="shield" title="Resumen rápido" tone="violet" />
-              <InfoStat label="Nivel de confianza" value={`${seller.trustLevel} ${seller.trustScore}%`} />
-              <InfoStat label="Mediaciones activas" value={activeMediations.length} />
-              <InfoStat label="Esperando al vendedor" value={waitingSellerCases.length} />
-              <InfoStat label="Tickets abiertos" value={seller.tickets.filter((ticket) => ticket.status !== 'RESUELTO' && ticket.status !== 'CERRADO').length} />
-              <InfoStat label="Reportes" value={seller.pendingReceipts} />
-            </div>
-
-            <div className="seller-profile-quick-panel seller-profile-links">
-              <button type="button" onClick={() => onOpenDocuments?.(seller.id)}>
-                <UiIcon name="document" />
-                <span>Documentos</span>
+    <>
+      <div className="case-modal-backdrop seller-profile-backdrop" onClick={onClose}>
+        <div className="seller-profile-modal" onClick={(event) => event.stopPropagation()}>
+          <button className="seller-profile-close" type="button" onClick={onClose} aria-label="Cerrar">
+            <UiIcon name="close" />
+          </button>
+          <div className="seller-profile-layout">
+            <aside className="seller-profile-sidebar">
+              <div className="seller-profile-breadcrumbs">
+                <span>Tiendas</span>
                 <UiIcon name="arrowRight" />
-              </button>
-              <button type="button" onClick={() => onOpenMediation?.(seller.id)}>
-                <UiIcon name="scale" />
-                <span>Mediaciones</span>
-                <UiIcon name="arrowRight" />
-              </button>
-              <button type="button" onClick={() => onSuspend?.(seller.id)}>
-                <UiIcon name="shieldX" />
-                <span>Bloqueo disciplinario</span>
-                <UiIcon name="arrowRight" />
-              </button>
-            </div>
-
-            <div className="seller-profile-footer-info">
-              <span>Creado el {formatDate(seller.lastActivityAt || new Date().toISOString())}</span>
-              <strong>ID externo</strong>
-            </div>
-          </aside>
-
-          <main className="seller-profile-main">
-            <div className="seller-profile-top-actions">
-              <button className="secondary-button" type="button" onClick={() => onOpenDocuments?.(seller.id)}>
-                <UiIcon name="fileCheck" /> Ver documentación
-              </button>
-              <button className="secondary-button mediation-button" type="button" onClick={() => onOpenMediation?.(seller.id)}>
-                <UiIcon name="scale" /> Ver mediación en curso
-              </button>
-              <button className="danger-button" type="button" onClick={() => onSuspend?.(seller.id)}>
-                <UiIcon name="shieldX" /> Bloquear por fraude o falta grave
-              </button>
-            </div>
-
-            <section className="seller-profile-metric-strip">
-              <InfoStat className="seller-profile-metric-stat" label="Estado actual" value={seller.status} sub={`Desde ${latestActivityDate}`} />
-              <InfoStat className="seller-profile-metric-stat" label="Nivel de confianza" value={seller.trustLevel} sub={`${seller.trustScore}%`} />
-              <InfoStat className="seller-profile-metric-stat" label="Última actividad" value={latestActivityDate} sub={seller.responseTime} />
-              <InfoStat className="seller-profile-metric-stat" label="Reclamos" value={seller.claimsCount} sub="Total" />
-              <InfoStat className="seller-profile-metric-stat" label="Devoluciones" value={seller.returnsCount} sub="Total" />
-              <InfoStat className="seller-profile-metric-stat" label="Reportes" value={seller.pendingReceipts} sub="Total" />
-            </section>
-
-            <section className="seller-profile-content-grid">
-              <div className="seller-profile-panel documents-panel">
-                <PanelTitle title="Documentos del vendedor" />
-                <DocumentTable documents={documents} />
-                <button className="profile-inline-link" type="button" onClick={() => onOpenDocuments?.(seller.id)}>
-                  Ver todos los documentos <UiIcon name="arrowRight" />
-                </button>
+                <strong>{seller.storeName}</strong>
               </div>
 
-              <div className="seller-profile-panel mediation-panel">
-                <SectionHeader icon="scale" title="Casos en mediación" count={`${activeMediations.length} activos`} tone="violet" />
-                <div className="seller-profile-list">
-                  {activeMediations.length ? activeMediations.map((mediation) => <MediationCard key={mediation.id} mediation={mediation} />) : <p className="row-sub">No hay casos en mediación.</p>}
+              <div className="seller-profile-card">
+                <div className={`seller-profile-avatar logo-${seller.id % 8}`}>
+                  {sellerLetterAvatar(seller.storeName)}
                 </div>
-                <button className="profile-inline-link" type="button" onClick={() => onOpenMediation?.(seller.id)}>
-                  Ver todos los casos en mediación <UiIcon name="arrowRight" />
-                </button>
-              </div>
+                <h2>{seller.storeName}</h2>
+                <span className="seller-profile-id">{seller.externalId}</span>
 
-              <div className="seller-profile-panel risks-panel">
-                <SectionHeader icon="clock" title="Esperando al vendedor" count={`${waitingSellerCases.length}`} tone="amber" />
-                <div className="seller-profile-list">
-                  {waitingSellerCases.length ? waitingSellerCases.map((risk) => <RiskCard key={risk.id} risk={risk} />) : <p className="row-sub">No hay casos esperando al vendedor.</p>}
+                <div className="seller-profile-subinfo">
+                  <span><UiIcon name="users" /> RUT {seller.rut}</span>
+                  <span><UiIcon name="home" /> {seller.city}</span>
+                  {seller.email && (
+                    <span><UiIcon name="mail" /> {seller.email}</span>
+                  )}
+                  {seller.owner && (
+                    <span><UiIcon name="users" /> Responsable: {seller.owner}</span>
+                  )}
+                  {seller.phone && (
+                    <span><UiIcon name="smartphone" /> Teléfono: {seller.phone}</span>
+                  )}
                 </div>
-                <button className="profile-inline-link" type="button">
-                  Ver todos los casos esperando al vendedor <UiIcon name="arrowRight" />
-                </button>
-              </div>
 
-              <div className="seller-profile-panel info-panel">
-                <PanelTitle title="Información adicional" />
-                <div className="seller-profile-additional-grid">
-                  <InfoStat label="Nivel de confianza" value={`${seller.trustLevel} (${seller.trustScore}%)`} />
-                  <InfoStat label="Cuenta bancaria" value={seller.bankStatus} />
-                  <InfoStat label="Esperando al vendedor" value={waitingSellerCases.length} />
-                  <InfoStat label="Mediaciones activas" value={activeMediations.length} />
-                  <InfoStat label="Reclamos" value={seller.claimsCount} />
-                  <InfoStat label="Devoluciones" value={seller.returnsCount} />
-                  <InfoStat label="Reportes" value={seller.pendingReceipts} />
-                  <InfoStat label="Última actividad" value={latestActivityDate} />
+                <div className="seller-profile-badges">
+                  <Badge text={seller.status} variant={seller.status} />
                 </div>
               </div>
 
-              <div className="seller-profile-panel activity-panel">
-                <PanelTitle title="Actividad reciente" />
-                <div className="seller-profile-activity">
-                  {recentActivity.length ? recentActivity.map((activity, index) => <ActivityCard key={`${activity.title}-${index}`} {...activity} />) : <p className="row-sub">No hay actividad reciente.</p>}
-                </div>
-                <button className="profile-inline-link" type="button">
-                  Ver toda la actividad <UiIcon name="arrowRight" />
+              <div className="seller-profile-quick-panel">
+                <SectionHeader icon="shield" title="Resumen rápido" tone="violet" />
+                <InfoStat label="Mediaciones activas" value={inProgressMediations.length} />
+                <InfoStat label="Esperando al vendedor" value={waitingSellerMediations.length} />
+                <InfoStat label="Tickets abiertos" value={seller.tickets.filter((ticket) => ticket.status !== 'RESUELTO' && ticket.status !== 'CERRADO').length} />
+                <InfoStat label="Reportes" value={seller.pendingReceipts} />
+              </div>
+
+              <div className="seller-profile-quick-panel seller-profile-links">
+                <button type="button" onClick={() => onOpenDocuments?.(seller.id)}>
+                  <UiIcon name="document" />
+                  <span>Documentos</span>
+                  <UiIcon name="arrowRight" />
+                </button>
+                <button type="button" onClick={() => onOpenMediation?.(seller.id)}>
+                  <UiIcon name="scale" />
+                  <span>Mediaciones</span>
+                  <UiIcon name="arrowRight" />
+                </button>
+                <button type="button" onClick={() => setIsBlockHistoryOpen(true)}>
+                  <UiIcon name="shieldX" />
+                  <span>Historial de bloqueos</span>
+                  <UiIcon name="arrowRight" />
                 </button>
               </div>
-            </section>
-          </main>
+
+              <div className="seller-profile-footer-info">
+                <span>Creado el {formatDate(seller.lastActivityAt || new Date().toISOString())}</span>
+                <strong>ID externo</strong>
+              </div>
+            </aside>
+
+            <main className="seller-profile-main">
+              <div className="seller-profile-top-actions">
+                <button className="secondary-button" type="button" onClick={() => onOpenDocuments?.(seller.id)}>
+                  <UiIcon name="fileCheck" /> Ver documentación
+                </button>
+                <button className="secondary-button" type="button" onClick={() => setIsBlockHistoryOpen(true)}>
+                  <UiIcon name="shieldX" /> Historial de bloqueos
+                </button>
+                <button className="secondary-button mediation-button" type="button" onClick={() => onOpenMediation?.(seller.id)}>
+                  <UiIcon name="scale" /> Ver mediación en curso
+                </button>
+              </div>
+
+              <section className="seller-profile-metric-strip" style={{ gridTemplateColumns: 'repeat(5, minmax(0, 1fr))' }}>
+                <InfoStat className="seller-profile-metric-stat" label="Estado actual" value={seller.status} sub={`Desde ${latestActivityDate}`} />
+                <InfoStat className="seller-profile-metric-stat" label="Última actividad" value={latestActivityDate} sub={seller.responseTime} />
+                <InfoStat className="seller-profile-metric-stat" label="Reclamos" value={seller.claimsCount} sub="Total" />
+                <InfoStat className="seller-profile-metric-stat" label="Devoluciones" value={seller.returnsCount} sub="Total" />
+                <InfoStat className="seller-profile-metric-stat" label="Reportes" value={seller.pendingReceipts} sub="Total" />
+              </section>
+
+              <section className="seller-profile-content-grid">
+                <div className="seller-profile-panel documents-panel">
+                  <PanelTitle title="Documentos de la tienda" />
+                  <DocumentTable documents={documents} />
+                  <button className="profile-inline-link" type="button" onClick={() => onOpenDocuments?.(seller.id)}>
+                    Ver todos los documentos <UiIcon name="arrowRight" />
+                  </button>
+                </div>
+
+                <div className="seller-profile-panel mediation-panel">
+                  <SectionHeader icon="scale" title="Casos en mediación" count={`${inProgressMediations.length} activos`} tone="violet" />
+                  <div className="seller-profile-list">
+                    {inProgressMediations.length ? inProgressMediations.map((mediation) => <MediationCard key={mediation.id} mediation={mediation} />) : <p className="row-sub">No hay casos en mediación.</p>}
+                  </div>
+                  <button className="profile-inline-link" type="button" onClick={() => onOpenMediation?.(seller.id)}>
+                    Ver todos los casos en mediación <UiIcon name="arrowRight" />
+                  </button>
+                </div>
+
+                <div className="seller-profile-panel risks-panel">
+                  <SectionHeader icon="clock" title="Esperando al vendedor" count={`${waitingSellerMediations.length}`} tone="amber" />
+                  <div className="seller-profile-list">
+                    {waitingSellerMediations.length ? waitingSellerMediations.map((mediation) => <MediationCard key={mediation.id} mediation={mediation} iconName="clock" />) : <p className="row-sub">No hay casos esperando al vendedor.</p>}
+                  </div>
+                  <button className="profile-inline-link" type="button" onClick={() => onOpenMediation?.(seller.id)}>
+                    Ver todos los casos esperando al vendedor <UiIcon name="arrowRight" />
+                  </button>
+                </div>
+
+                <div className="seller-profile-panel info-panel">
+                  <SectionHeader icon="alert" title="Reportes de la tienda" count={`${seller.tickets.length}`} tone="red" />
+                  <div className="seller-profile-list" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                    {seller.tickets.length ? (
+                      seller.tickets.map((ticket) => <TicketCard key={ticket.id} ticket={ticket} />)
+                    ) : (
+                      <p className="row-sub">No hay reportes registrados para esta tienda.</p>
+                    )}
+                  </div>
+                  <button className="profile-inline-link" type="button" onClick={() => setIsReportsModalOpen(true)}>
+                    Ver todos los casos de reporte <UiIcon name="arrowRight" />
+                  </button>
+                </div>
+
+                <div className="seller-profile-panel activity-panel">
+                  <PanelTitle title="Actividad reciente" />
+                  <div className="seller-profile-activity">
+                    {recentActivity.length ? recentActivity.map((activity, index) => <ActivityCard key={`${activity.title}-${index}`} {...activity} />) : <p className="row-sub">No hay actividad reciente.</p>}
+                  </div>
+                  <button className="profile-inline-link" type="button" onClick={() => setIsTimelineOpen(true)}>
+                    Ver toda la actividad <UiIcon name="arrowRight" />
+                  </button>
+                </div>
+              </section>
+            </main>
+          </div>
         </div>
       </div>
-    </div>
+
+      <SellerBlockHistoryModal
+        isOpen={isBlockHistoryOpen}
+        onClose={() => setIsBlockHistoryOpen(false)}
+        seller={seller}
+        onSuspend={(sellerId) => {
+          onSuspend?.(sellerId);
+          setIsBlockHistoryOpen(false);
+        }}
+      />
+
+      <SellerTimelineModal
+        isOpen={isTimelineOpen}
+        onClose={() => setIsTimelineOpen(false)}
+        seller={seller}
+        recentActivity={recentActivityRawSorted}
+      />
+
+      <SellerReportsModal
+        isOpen={isReportsModalOpen}
+        onClose={() => setIsReportsModalOpen(false)}
+        seller={seller}
+      />
+    </>
   );
 }

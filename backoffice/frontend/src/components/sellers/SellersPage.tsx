@@ -205,7 +205,7 @@ export default function SellersPage() {
 
   const handleStatusChange = (value: string) => {
     setStatusDisplay(value);
-    applyFilter({ status: undefined });
+    applyFilter({ status: value === 'Todos' ? undefined : value });
   };
 
   const handleStartDateChange = (value: string) => {
@@ -219,8 +219,6 @@ export default function SellersPage() {
   };
 
   const sellerListFilter: SellerFilterRequest = {
-    ...filter,
-    status: undefined,
     page: 0,
     size: PAGE_SIZES.MAX,
   };
@@ -424,7 +422,46 @@ export default function SellersPage() {
   const activeMediationsCount = impactMediations.length;
   const escalatedMediationsCount = risks.length;
 
-  const visibleSellers = sellerPool.filter((seller) => isSellerVisibleInList(seller));
+  const visibleSellers = useMemo(() => {
+    let sellers = sellerPool.filter((seller) => isSellerVisibleInList(seller));
+
+    // Mediation-status filter
+    if (filter.status === 'Esperando al vendedor') {
+      sellers = sellers.filter((s) => !!risksBySeller[s.id]?.length);
+    } else if (filter.status === 'En mediación') {
+      sellers = sellers.filter((s) => !!mediationsBySeller[s.id]?.length);
+    }
+
+    // Search filter
+    const q = (filter.search ?? '').trim().toLowerCase();
+    if (q) {
+      sellers = sellers.filter((s) =>
+        (s.storeName ?? '').toLowerCase().includes(q) ||
+        (s.rut ?? '').toLowerCase().includes(q) ||
+        (s.city ?? '').toLowerCase().includes(q) ||
+        (s.owner ?? '').toLowerCase().includes(q)
+      );
+    }
+
+    // Date range filter (compare against lastActivityAt)
+    if (filter.startDate) {
+      const from = new Date(filter.startDate).getTime();
+      sellers = sellers.filter((s) => {
+        const date = new Date(s.lastActivityAt ?? '').getTime();
+        return !isNaN(date) && date >= from;
+      });
+    }
+    if (filter.endDate) {
+      // include the full end day
+      const to = new Date(filter.endDate).getTime() + 86_400_000;
+      sellers = sellers.filter((s) => {
+        const date = new Date(s.lastActivityAt ?? '').getTime();
+        return !isNaN(date) && date <= to;
+      });
+    }
+
+    return sellers;
+  }, [sellerPool, filter, risksBySeller, mediationsBySeller]);
 
   const currentPage = filter.page ?? 0;
   const pageSize = filter.size ?? PAGE_SIZES.SELLERS;

@@ -53,7 +53,7 @@ export default function ResolvedCaseSummaryModal({ isOpen, onClose, item }: Reso
           <ModalField label="Tipo de caso" value={item.caseKind} />
           <ModalField label="Pedido" value={item.orderId} />
           <ModalField label="Monto" value={formatCurrency(item.amount)} />
-          <ModalField label="Vendedor" value={item.sellerName} />
+          <ModalField label="Tienda" value={item.sellerName} />
           <ModalField label="Comprador" value={item.buyer || 'No informado'} />
           <ModalField label="Resuelto por" value={item.resolvedBy || 'No informado'} />
           <ModalField label="Fecha de cierre" value={formatDateTime(item.createdAt)} />

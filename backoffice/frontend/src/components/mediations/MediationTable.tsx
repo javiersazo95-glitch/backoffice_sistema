@@ -25,7 +25,7 @@ export default function MediationTable({
           <tr>
             <th>ID caso</th>
             <th>Comprador</th>
-            <th>Vendedor</th>
+            <th>Tienda</th>
             <th>Pedido asociado</th>
             <th>Motivo</th>
             <th>Estado</th>

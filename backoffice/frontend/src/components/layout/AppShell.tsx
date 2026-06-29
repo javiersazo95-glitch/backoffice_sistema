@@ -33,3 +33,4 @@ export default function AppShell({ children, noSidebar }: { children?: ReactNode
     </div>
   );
 }
+

@@ -64,7 +64,7 @@ export default function CaseResolutionModal({ isOpen, onClose, item, mode, onSub
           <div className="case-modal-grid">
             <ModalField label="Tipo de caso" value={kind} />
             <ModalField label="Pedido" value={item.orderId} />
-            <ModalField label="Vendedor" value={item.sellerName} />
+            <ModalField label="Tienda" value={item.sellerName} />
             <ModalField label="Comprador" value={item.title.replace('Comprador vs ', '')} />
             <ModalField label="Monto" value={item.amount} />
             <ModalField label="Fecha actual" value={item.updatedAt} />

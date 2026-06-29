@@ -3,8 +3,6 @@ import Badge from '@/components/shared/Badge';
 import DetailRow from '@/components/shared/DetailRow';
 import ActionRow from '@/components/shared/ActionRow';
 import QuickActions from '@/components/shared/QuickActions';
-import Timeline from '@/components/shared/Timeline';
-import TimelineItem from '@/components/shared/TimelineItem';
 import UiIcon from '@/components/shared/UiIcon';
 import { mediationStatusDisplay } from '@/utils/formatters';
 
@@ -19,21 +17,28 @@ interface MediationDetailPanelProps {
   onOpenSellerInfo: (sellerId: number) => void;
 }
 
+
+function resolveBuyerName(item: MediationResponse) {
+  if (item.buyer && item.buyer.trim()) return item.buyer.trim();
+  const fromTitle = item.title.replace('Comprador vs ', '').trim();
+  return fromTitle || 'Comprador';
+}
+
 export default function MediationDetailPanel({
   item,
   onOpenReactivation,
   onOpenMediationCase,
-  onOpenInitMediation,
   onOpenNote,
   onOpenNotesHistory,
   onBlockAccount,
   onOpenSellerInfo,
-}: MediationDetailPanelProps) {
-  const canInitialize = item.status === MediationStatus.ESPERANDO_VENDEDOR && !item.mediationStarted;
+}: Omit<MediationDetailPanelProps, 'onOpenInitMediation'> & { onOpenInitMediation?: (id: number) => void }) {
   const canReview = item.status === MediationStatus.EN_MEDIACION && item.mediationStarted && !item.accountBlocked;
   const canBlock = canReview && item.canBlockAccount !== false;
   const canReactivate = item.status === MediationStatus.EN_MEDIACION && item.accountBlocked;
   const blockingCode = item.blockingMediationExternalId || (item.blockingMediationId ? `MED-${item.blockingMediationId}` : '');
+  const buyerName = resolveBuyerName(item);
+
 
   return (
     <aside className="side-panel">
@@ -48,31 +53,15 @@ export default function MediationDetailPanel({
         />
       </div>
 
-      <Timeline>
-        <TimelineItem
-          time="Hoy, 14:25"
-          actor={item.owner}
-          text={item.nextAction}
-        />
-        <TimelineItem
-          time="24/06/2025, 11:02"
-          actor="Lucia Martinez"
-          text="Caso asignado al equipo de mediación."
-        />
-        <TimelineItem
-          time="24/06/2025, 10:15"
-          actor="Sistema"
-          text="Caso creado por reclamo del comprador."
-        />
-      </Timeline>
 
       <div className="side-section">
-        <DetailRow label="Vendedor" value={item.sellerName} />
-        <DetailRow label="Comprador" value={item.title.replace('Comprador vs ', '')} />
+        <DetailRow label="Tienda" value={item.sellerName} />
+        <DetailRow label="Comprador" value={buyerName} />
         <DetailRow label="Pedido" value={item.orderId} />
-        <DetailRow label="Compra asociada" value={item.reason} />
+        <DetailRow label="Motivo" value={item.reason} />
+        <DetailRow label="Etapa del pedido" value={item.stage} />
+        <DetailRow label="Responsable" value={item.owner} />
         <DetailRow label="Monto" value={item.amount} />
-        <DetailRow label="Etapa" value={item.stage} />
         <DetailRow label="Tiempo transcurrido" value={item.elapsed} />
       </div>
 
@@ -82,7 +71,7 @@ export default function MediationDetailPanel({
             <UiIcon name="lock" />
           </span>
           <p>
-            La cuenta del vendedor está bloqueada. Considere reactivar o resolver el caso.
+            La cuenta de la tienda está bloqueada. Considere reactivar o resolver el caso.
           </p>
         </div>
       )}
@@ -109,16 +98,7 @@ export default function MediationDetailPanel({
             Revisar mediación
           </ActionRow>
         )}
-        {canInitialize && (
-          <ActionRow icon="scale" variant="emphasis" onClick={() => onOpenInitMediation(item.id)}>
-            Inicializar mediación
-          </ActionRow>
-        )}
-        {item.status === MediationStatus.ESPERANDO_VENDEDOR && item.mediationStarted && (
-          <ActionRow icon="check" disabled>
-            Mediación inicializada
-          </ActionRow>
-        )}
+
         <ActionRow icon="note" onClick={() => onOpenNote(item.id)}>
           Dejar nota
         </ActionRow>
@@ -136,7 +116,7 @@ export default function MediationDetailPanel({
           </ActionRow>
         )}
         <ActionRow icon="users" onClick={() => onOpenSellerInfo(item.sellerId)}>
-          Ver vendedor
+          Ver tienda
         </ActionRow>
       </QuickActions>
     </aside>

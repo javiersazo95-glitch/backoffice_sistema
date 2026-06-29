@@ -75,7 +75,7 @@ export default function BlockedAccountsTable({
             <tr>
               <th>Registro</th>
               <th>Estado</th>
-              <th>Vendedor</th>
+              <th>Tienda</th>
               <th>Pedido</th>
               <th>Motivo del bloqueo</th>
               <th>Etapa</th>

@@ -9,12 +9,28 @@ import {
   mediationNoteTypeTone,
   type MediationNoteType,
 } from '@/utils/mediationNotes';
+import { useQuery } from '@tanstack/react-query';
+import { getTickets } from '@/api/support';
 
 type NoteFilter = 'all' | MediationNoteType;
 
 interface IndexedNote {
   message: MediationMessageResponse;
   originalIndex: number;
+}
+
+interface UnifiedHistoryEntry {
+  id: string;
+  type: 'note' | 'report';
+  date: string;
+  title: string;
+  text: string;
+  author: string;
+  noteType?: MediationNoteType;
+  originalIndex?: number;
+  reporterType?: string;
+  category?: string;
+  externalId?: string;
 }
 
 interface MediationNotesHistoryModalProps {
@@ -48,6 +64,24 @@ export default function MediationNotesHistoryModal({
     }
   }, [isOpen]);
 
+  const { data: ticketsData } = useQuery({
+    queryKey: ['support-tickets-for-mediation', item?.id],
+    queryFn: () => getTickets({ page: 0, size: 500 }),
+    enabled: !!item && isOpen,
+  });
+
+  const relatedTickets = useMemo(() => {
+    if (!item || !ticketsData?.content) return [];
+    return ticketsData.content.filter((ticket) => {
+      // Must correspond to buyer or seller (store) of the mediation
+      const matchesOrder = !!(ticket.orderId && ticket.orderId === item.orderId);
+      const matchesSeller = !!(ticket.sellerId && ticket.sellerId === item.sellerId);
+      
+      return (matchesOrder || matchesSeller) && 
+             (ticket.reporterType === 'COMPRADOR' || ticket.reporterType === 'VENDEDOR');
+    });
+  }, [ticketsData, item]);
+
   const indexedNotes = useMemo<IndexedNote[]>(() => {
     if (!item) return [];
     return (item.messages ?? [])
@@ -55,15 +89,52 @@ export default function MediationNotesHistoryModal({
       .sort((left, right) => new Date(right.message.createdAt).getTime() - new Date(left.message.createdAt).getTime());
   }, [item]);
 
-  const visibleNotes = useMemo(() => {
+  const unifiedEntries = useMemo<UnifiedHistoryEntry[]>(() => {
+    if (!item) return [];
+    
+    // 1. Map notes
+    const noteEntries: UnifiedHistoryEntry[] = (item.messages ?? []).map((message, idx) => ({
+      id: `note-${message.id ?? idx}`,
+      type: 'note',
+      date: message.createdAt,
+      title: mediationNoteTypeLabel(message.noteType ?? 'seguimiento'),
+      text: message.text,
+      author: message.author,
+      noteType: message.noteType ?? 'seguimiento',
+      originalIndex: idx,
+    }));
+
+    // 2. Map reports
+    const reportEntries: UnifiedHistoryEntry[] = relatedTickets.map((ticket) => {
+      const reporterRoleLabel = ticket.reporterType === 'VENDEDOR' ? 'Tienda' : 'Comprador';
+      return {
+        id: `report-${ticket.id}`,
+        type: 'report',
+        date: ticket.createdAt,
+        title: `Reporte de ${reporterRoleLabel}`,
+        text: `Motivo: ${ticket.reason}\nDetalle: ${ticket.lastMessage || 'Sin detalles adicionales.'}`,
+        author: ticket.reporterName || reporterRoleLabel,
+        reporterType: ticket.reporterType,
+        category: ticket.category,
+        externalId: ticket.externalId,
+      };
+    });
+
+    // 3. Combine and sort descending by date (most recent first)
+    return [...noteEntries, ...reportEntries].sort(
+      (left, right) => new Date(right.date).getTime() - new Date(left.date).getTime()
+    );
+  }, [item, relatedTickets]);
+
+  const visibleEntries = useMemo(() => {
     const query = search.trim().toLowerCase();
-    return indexedNotes.filter(({ message }) => {
-      const type = message.noteType ?? 'seguimiento';
-      const matchesType = filter === 'all' || type === filter;
-      const matchesSearch = !query || `${message.text} ${message.author} ${mediationNoteTypeLabel(type)}`.toLowerCase().includes(query);
+    return unifiedEntries.filter((entry) => {
+      // If a specific note type filter is selected, we only show matching notes (hide reports)
+      const matchesType = filter === 'all' || (entry.type === 'note' && entry.noteType === filter);
+      const matchesSearch = !query || `${entry.text} ${entry.author} ${entry.title}`.toLowerCase().includes(query);
       return matchesType && matchesSearch;
     });
-  }, [filter, indexedNotes, search]);
+  }, [filter, unifiedEntries, search]);
 
   if (!isOpen || !item) return null;
 
@@ -142,40 +213,69 @@ export default function MediationNotesHistoryModal({
             </label>
 
             <div className="notes-history-timeline">
-              {visibleNotes.length ? visibleNotes.map(({ message, originalIndex }) => {
-                const type = message.noteType ?? 'seguimiento';
-                const tone = mediationNoteTypeTone(type);
-                return (
-                  <article className={`notes-history-entry ${tone}`} key={message.id ?? originalIndex}>
-                    <span className="notes-history-entry-dot" />
-                    <span className={`notes-history-entry-icon ${tone}`}>
-                      <UiIcon name={mediationNoteTypeIcon(type)} />
-                    </span>
-                    <div className="notes-history-entry-card">
-                      <div className="notes-history-entry-main">
-                        <span className={`notes-history-type-badge ${tone}`}>{mediationNoteTypeLabel(type)}</span>
-                        <p>{message.text}</p>
-                        <small>{message.author} · Mediación</small>
-                      </div>
-                      <div className="notes-history-entry-side">
-                        <span><UiIcon name="lock" /> Solo equipo interno</span>
-                        <time>{noteDate(message.createdAt)}</time>
-                        <div className="notes-history-entry-actions">
-                          <button type="button" onClick={() => onEditNote(item.id, originalIndex)} aria-label="Editar nota" title="Editar nota">
-                            <UiIcon name="edit" />
-                          </button>
-                          <button type="button" onClick={() => onDeleteNote(item.id, originalIndex)} aria-label="Eliminar nota" title="Eliminar nota">
-                            <UiIcon name="trash" />
-                          </button>
+              {visibleEntries.length ? visibleEntries.map((entry) => {
+                if (entry.type === 'note') {
+                  const type = entry.noteType ?? 'seguimiento';
+                  const tone = mediationNoteTypeTone(type);
+                  return (
+                    <article className={`notes-history-entry ${tone}`} key={entry.id}>
+                      <span className="notes-history-entry-dot" />
+                      <span className={`notes-history-entry-icon ${tone}`}>
+                        <UiIcon name={mediationNoteTypeIcon(type)} />
+                      </span>
+                      <div className="notes-history-entry-card">
+                        <div className="notes-history-entry-main">
+                          <span className={`notes-history-type-badge ${tone}`}>{entry.title}</span>
+                          <p>{entry.text}</p>
+                          <small>{entry.author} · Mediación</small>
+                        </div>
+                        <div className="notes-history-entry-side">
+                          <span><UiIcon name="lock" /> Solo equipo interno</span>
+                          <time>{noteDate(entry.date)}</time>
+                          <div className="notes-history-entry-actions">
+                            <button type="button" onClick={() => onEditNote(item.id, entry.originalIndex!)} aria-label="Editar nota" title="Editar nota">
+                              <UiIcon name="edit" />
+                            </button>
+                            <button type="button" onClick={() => onDeleteNote(item.id, entry.originalIndex!)} aria-label="Eliminar nota" title="Eliminar nota">
+                              <UiIcon name="trash" />
+                            </button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </article>
-                );
+                    </article>
+                  );
+                } else {
+                  // It's a support report (ticket)
+                  const tone = entry.reporterType === 'VENDEDOR' ? 'orange' : 'blue';
+                  const icon = entry.reporterType === 'VENDEDOR' ? 'alert' : 'document';
+                  return (
+                    <article className={`notes-history-entry ${tone}`} key={entry.id}>
+                      <span className="notes-history-entry-dot" />
+                      <span className={`notes-history-entry-icon ${tone}`}>
+                        <UiIcon name={icon} />
+                      </span>
+                      <div className="notes-history-entry-card report-card" style={{ borderLeft: `3px solid var(--${tone})` }}>
+                        <div className="notes-history-entry-main">
+                          <span className={`notes-history-type-badge ${tone}`} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            <UiIcon name={icon} /> {entry.title}
+                          </span>
+                          <p style={{ whiteSpace: 'pre-line', marginTop: '6px', fontWeight: 550 }}>{entry.text}</p>
+                          <small>Reportado por: {entry.author} · Canal de Ayuda</small>
+                        </div>
+                        <div className="notes-history-entry-side">
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#0f766e', fontWeight: 600 }}>
+                            <UiIcon name="info" /> Reporte de Cliente
+                          </span>
+                          <time>{noteDate(entry.date)}</time>
+                        </div>
+                      </div>
+                    </article>
+                  );
+                }
               }) : (
                 <div className="notes-history-empty">
                   <UiIcon name="note" />
-                  <p>No hay notas que coincidan con los filtros seleccionados.</p>
+                  <p>No hay notas ni reportes que coincidan con los filtros seleccionados.</p>
                 </div>
               )}
             </div>
@@ -192,6 +292,10 @@ export default function MediationNotesHistoryModal({
               <div><small>Total de notas</small><strong>{indexedNotes.length}</strong></div>
             </div>
             <div className="notes-history-summary-row">
+              <span className="orange"><UiIcon name="alert" /></span>
+              <div><small>Total de reportes</small><strong>{relatedTickets.length}</strong></div>
+            </div>
+            <div className="notes-history-summary-row">
               <span className="violet"><UiIcon name="note" /></span>
               <div><small>Tipos registrados</small><strong>{registeredTypes.length ? registeredTypes.join(', ') : 'Sin tipos registrados'}</strong></div>
             </div>
@@ -202,6 +306,7 @@ export default function MediationNotesHistoryModal({
               <div><span className="blue" /><p><strong>Caso creado</strong><small>{noteDate(item.createdAt)}</small></p></div>
               <div><span className="violet" /><p><strong>{mediationStatusDisplay(item.status, item.accountBlocked)}</strong><small>{noteDate(item.updatedAt)}</small></p></div>
               {latestNote && <div><span className="green" /><p><strong>Nota agregada</strong><small>{noteDate(latestNote.createdAt)}</small></p></div>}
+              {relatedTickets.length > 0 && relatedTickets[0] && <div><span className="orange" /><p><strong>Reporte registrado</strong><small>{noteDate(relatedTickets[0].createdAt)}</small></p></div>}
               <div><span className="blue" /><p><strong>Última actualización</strong><small>{noteDate(item.updatedAt)}</small></p></div>
             </div>
           </aside>
