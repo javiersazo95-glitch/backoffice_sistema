@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import * as reportsApi from '@/api/reports';
 import MetricCard from '@/components/shared/MetricCard';
@@ -13,22 +13,74 @@ import AreaHomeShortcut from '@/components/shared/AreaHomeShortcut';
 export default function ReportsPage() {
   const [page, setPage] = useState(0);
   const [search, setSearch] = useState('');
-  const [reporterType, setReporterType] = useState('ALL');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  const [originFilter, setOriginFilter] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
+  const [responsibleFilter, setResponsibleFilter] = useState('');
   const [selectedReportId, setSelectedReportId] = useState<number | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
 
+  // Consulta para obtener la totalidad de reportes y extraer la lista única de nombres
+  const { data: allReportsData } = useQuery({
+    queryKey: ['all-reports-names'],
+    queryFn: () => reportsApi.getReports({ size: 1000 }),
+  });
+
+  const reportsList = allReportsData?.content ?? [];
+
+  const storeNames = useMemo(() => {
+    const names = new Set<string>();
+    reportsList.forEach((r) => {
+      if (r.reportanteType === 'VENDEDOR') names.add(r.reportanteName);
+      if (r.reportadoType === 'VENDEDOR') names.add(r.reportadoName);
+    });
+    return Array.from(names).sort();
+  }, [reportsList]);
+
+  const buyerNames = useMemo(() => {
+    const names = new Set<string>();
+    reportsList.forEach((r) => {
+      if (r.reportanteType === 'COMPRADOR') names.add(r.reportanteName);
+      if (r.reportadoType === 'COMPRADOR') names.add(r.reportadoName);
+    });
+    return Array.from(names).sort();
+  }, [reportsList]);
+
+  const responsibleOptions = useMemo(() => {
+    if (typeFilter === 'VENDEDOR') return storeNames;
+    if (typeFilter === 'COMPRADOR') return buyerNames;
+    return Array.from(new Set([...storeNames, ...buyerNames])).sort();
+  }, [typeFilter, storeNames, buyerNames]);
+
+  // Mapear los filtros anidados a los parámetros de backend
+  const reporterTypeParam = useMemo(() => {
+    if (originFilter === 'REPORTANTE') {
+      if (typeFilter === 'VENDEDOR') return 'VENDEDOR';
+      if (typeFilter === 'COMPRADOR') return 'COMPRADOR';
+    }
+    if (originFilter === 'REPORTADO') {
+      if (typeFilter === 'VENDEDOR') return 'COMPRADOR';
+      if (typeFilter === 'COMPRADOR') return 'VENDEDOR';
+    }
+    if (typeFilter === 'VENDEDOR') return 'VENDEDOR';
+    if (typeFilter === 'COMPRADOR') return 'COMPRADOR';
+    return undefined;
+  }, [originFilter, typeFilter]);
+
+  const searchParam = useMemo(() => {
+    if (responsibleFilter && responsibleFilter !== 'ALL') {
+      return responsibleFilter;
+    }
+    return search || undefined;
+  }, [responsibleFilter, search]);
+
   const { data, isLoading } = useQuery({
-    queryKey: ['reports', search, reporterType, startDate, endDate, page],
+    queryKey: ['reports', searchParam, reporterTypeParam, page],
     queryFn: () =>
       reportsApi.getReports({
-        search: search || undefined,
-        reporterType: reporterType !== 'ALL' ? reporterType : undefined,
-        startDate: startDate || undefined,
-        endDate: endDate || undefined,
+        search: searchParam,
+        reporterType: reporterTypeParam,
         page,
-        size: PAGE_SIZES.MEDIATIONS, // usar el mismo tamaño por defecto que mediaciones
+        size: PAGE_SIZES.MEDIATIONS,
       }),
   });
 
@@ -91,7 +143,7 @@ export default function ReportsPage() {
           className="seller-filter-bar" 
           style={{ 
             display: 'grid',
-            gridTemplateColumns: 'minmax(200px, 2fr) minmax(150px, 1.2fr) minmax(180px, 1.5fr) minmax(180px, 1.5fr)',
+            gridTemplateColumns: 'minmax(200px, 2fr) minmax(150px, 1.2fr) minmax(150px, 1.2fr) minmax(150px, 1.2fr)',
             gap: '16px',
             alignItems: 'center',
             padding: '14px 18px',
@@ -102,54 +154,64 @@ export default function ReportsPage() {
           <input
             type="search"
             className="input"
-            placeholder="Buscar por nombre, motivo o descripción..."
+            placeholder="Buscar por motivo o descripción..."
             value={search}
             onChange={(e) => {
               setSearch(e.target.value);
+              setResponsibleFilter('');
               setPage(0);
             }}
           />
           <select
             className="select"
-            value={reporterType}
+            value={originFilter}
             onChange={(e) => {
-              setReporterType(e.target.value);
+              setOriginFilter(e.target.value);
+              setTypeFilter('');
+              setResponsibleFilter('');
               setPage(0);
             }}
-            aria-label="Tipo de reportante"
+            aria-label="Origen del reporte"
           >
-            <option value="ALL">Todos los reportantes</option>
-            <option value="COMPRADOR">Compradores</option>
-            <option value="VENDEDOR">Vendedores</option>
+            <option value="">Seleccione origen...</option>
+            <option value="ALL">Todos</option>
+            <option value="REPORTANTE">Reportante</option>
+            <option value="REPORTADO">Reportado</option>
           </select>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%' }}>
-            <span style={{ fontSize: 13, color: '#b9c7d8', whiteSpace: 'nowrap' }}>Desde:</span>
-            <input
-              type="date"
-              className="input"
-              value={startDate}
-              onChange={(e) => {
-                setStartDate(e.target.value);
-                setPage(0);
-              }}
-              aria-label="Fecha inicio"
-              style={{ flex: 1, minWidth: 0 }}
-            />
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%' }}>
-            <span style={{ fontSize: 13, color: '#b9c7d8', whiteSpace: 'nowrap' }}>Hasta:</span>
-            <input
-              type="date"
-              className="input"
-              value={endDate}
-              onChange={(e) => {
-                setEndDate(e.target.value);
-                setPage(0);
-              }}
-              aria-label="Fecha fin"
-              style={{ flex: 1, minWidth: 0 }}
-            />
-          </div>
+          <select
+            className="select"
+            value={typeFilter}
+            onChange={(e) => {
+              setTypeFilter(e.target.value);
+              setResponsibleFilter('');
+              setPage(0);
+            }}
+            disabled={!originFilter}
+            aria-label="Tipo de reporte"
+          >
+            <option value="">Seleccione tipo...</option>
+            <option value="ALL">Todos</option>
+            <option value="VENDEDOR">Vendedor</option>
+            <option value="COMPRADOR">Comprador</option>
+          </select>
+          <select
+            className="select"
+            value={responsibleFilter}
+            onChange={(e) => {
+              setResponsibleFilter(e.target.value);
+              setPage(0);
+            }}
+            disabled={!originFilter || !typeFilter}
+            aria-label="Responsable del reporte"
+          >
+            <option value="">Seleccione responsable...</option>
+            <option value="ALL">Todos</option>
+            {responsibleOptions.map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+          </select>
         </div>
 
         {isLoading ? (

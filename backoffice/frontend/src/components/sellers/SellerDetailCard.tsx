@@ -107,7 +107,9 @@ export default function SellerDetailCard({
         label="Cuenta bancaria" 
         value={
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Badge text={seller.bankStatus} variant={getBankBadge(seller.bankStatus)} />
+            {seller.bankStatus && seller.bankStatus.trim() ? (
+              <Badge text={seller.bankStatus} variant={getBankBadge(seller.bankStatus)} />
+            ) : null}
             <button 
               type="button" 
               onClick={() => setShowBankModal(true)} 

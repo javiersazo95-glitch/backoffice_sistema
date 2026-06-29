@@ -760,14 +760,17 @@ export default function ValidationsPage() {
                                             <>
                                               <button
                                                 type="button"
-                                                onClick={() => window.open(doc.documentUrl, '_blank')}
+                                                onClick={() => {
+                                                  const resolved = resolveDocumentUrl(doc.documentUrl);
+                                                  if (resolved) window.open(resolved, '_blank');
+                                                }}
                                                 title="Previsualizar"
                                                 className="validation-doc-action-btn preview"
                                               >
                                                 <UiIcon name="eye" />
                                               </button>
                                               <a
-                                                href={doc.documentUrl}
+                                                href={resolveDocumentUrl(doc.documentUrl)}
                                                 download
                                                 target="_blank"
                                                 rel="noopener noreferrer"

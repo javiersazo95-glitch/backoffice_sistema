@@ -42,13 +42,25 @@ function SectionHeader({
   count?: string;
   tone?: 'blue' | 'violet' | 'red' | 'green' | 'amber';
 }) {
+  const countStyle = tone === 'amber'
+    ? { backgroundColor: '#fef3c7', color: '#d97706' }
+    : tone === 'red'
+    ? { backgroundColor: '#fee2e2', color: '#dc2626' }
+    : tone === 'violet'
+    ? { backgroundColor: '#f4efff', color: '#7c3aed' }
+    : undefined;
+
   return (
     <div className="seller-profile-section-header">
       <span className={`seller-profile-section-icon ${tone}`}>
         <UiIcon name={icon} />
       </span>
       <h3>{title}</h3>
-      {count ? <span className="seller-profile-section-count">{count}</span> : null}
+      {count ? (
+        <span className="seller-profile-section-count" style={countStyle}>
+          {count}
+        </span>
+      ) : null}
     </div>
   );
 }
@@ -109,9 +121,14 @@ function DocumentTable({ documents }: { documents: SellerDetailResponse['documen
 }
 
 function MediationCard({ mediation, iconName = 'scale' }: { mediation: MediationSummaryResponse | ImpactMediation; iconName?: string }) {
+  const isWaiting = iconName === 'clock' || mediation.status === 'ESPERANDO_VENDEDOR' || mediation.status === 'ESCALADO';
+  
   return (
     <div className="seller-profile-case-card">
-      <div className="seller-profile-case-icon">
+      <div 
+        className="seller-profile-case-icon"
+        style={isWaiting ? { backgroundColor: '#fef3c7', color: '#d97706' } : undefined}
+      >
         <UiIcon name={iconName} />
       </div>
       <div className="seller-profile-case-copy">
@@ -119,7 +136,7 @@ function MediationCard({ mediation, iconName = 'scale' }: { mediation: Mediation
         <span>Pedido {mediation.orderId}</span>
         {'amount' in mediation ? <small>Monto {mediation.amount}</small> : null}
       </div>
-      <Badge text={mediation.status} variant="violet" />
+      <Badge text={mediation.status} variant={isWaiting ? 'amber' : 'violet'} />
     </div>
   );
 }
@@ -590,11 +607,10 @@ export default function SellerProfileModal({
                 </button>
               </div>
 
-              <section className="seller-profile-metric-strip" style={{ gridTemplateColumns: 'repeat(5, minmax(0, 1fr))' }}>
+              <section className="seller-profile-metric-strip" style={{ gridTemplateColumns: 'repeat(4, minmax(0, 1fr))' }}>
                 <InfoStat className="seller-profile-metric-stat" label="Estado actual" value={seller.status} sub={`Desde ${latestActivityDate}`} />
                 <InfoStat className="seller-profile-metric-stat" label="Última actividad" value={latestActivityDate} sub={seller.responseTime} />
                 <InfoStat className="seller-profile-metric-stat" label="Reclamos" value={seller.claimsCount} sub="Total" />
-                <InfoStat className="seller-profile-metric-stat" label="Devoluciones" value={seller.returnsCount} sub="Total" />
                 <InfoStat className="seller-profile-metric-stat" label="Reportes" value={seller.pendingReceipts} sub="Total" />
               </section>
 
