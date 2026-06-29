@@ -8,6 +8,7 @@ import SellerBehavior from '@/components/shared/SellerBehavior';
 import { type SellerResponse } from '@/types/seller';
 import type { ImpactMediation } from '@/types/cases';
 import { getSellerOperationalStatus, getSellerStatusLabel, getSellerStatusTone } from './status';
+import { resolveProfileImageUrl } from '@/api/client';
 
 const getBankDetails = (seller: SellerResponse) => ({
   bank: seller.bankName || 'No registrado',
@@ -72,7 +73,7 @@ export default function SellerDetailCard({
       <div className="seller-profile">
         <div className={`seller-logo logo-${seller.id % 8}`}>
           {seller.userProfileUrl ? (
-            <img src={seller.userProfileUrl} alt={seller.storeName} />
+            <img src={resolveProfileImageUrl(seller.userProfileUrl) ?? undefined} alt={seller.storeName} />
           ) : (
             seller.storeName.substring(0, 2).toUpperCase()
           )}

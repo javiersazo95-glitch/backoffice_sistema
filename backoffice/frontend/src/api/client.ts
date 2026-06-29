@@ -15,6 +15,18 @@ export const normalizeApiBaseUrl = (baseUrl?: string) => {
 
 export const API_BASE_URL = normalizeApiBaseUrl(import.meta.env.VITE_API_URL);
 
+/**
+ * Resuelve una URL de imagen de perfil que puede ser relativa (/api/v1/...) o absoluta (https://...).
+ * Las URLs relativas se preprenden con el host del backend configurado en VITE_API_URL.
+ */
+export const resolveProfileImageUrl = (url?: string | null): string | null => {
+  if (!url) return null;
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  // URL relativa: anteponer el origen del backend
+  const apiBase = import.meta.env.VITE_API_URL?.replace(/\/+$/, '') ?? '';
+  return apiBase ? `${apiBase}${url}` : url;
+};
+
 const apiClient: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
   timeout: 30000,

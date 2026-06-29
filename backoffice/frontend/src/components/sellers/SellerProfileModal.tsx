@@ -8,6 +8,7 @@ import type { ReportResponse } from '@/types/report';
 import Badge from '@/components/shared/Badge';
 import UiIcon from '@/components/shared/UiIcon';
 import { applyManualMediationStatus, useManualMediationStatusOverrides } from '@/utils/manualMediationStatus';
+import { resolveProfileImageUrl } from '@/api/client';
 import { useManualMediationAdminMode } from '@/utils/manualMediationAdminMode';
 
 interface SellerProfileModalProps {
@@ -534,7 +535,7 @@ export default function SellerProfileModal({
               <div className="seller-profile-card">
                 <div className={`seller-profile-avatar logo-${seller.id % 8}`}>
                   {seller.userProfileUrl ? (
-                    <img src={seller.userProfileUrl} alt={seller.storeName} />
+                    <img src={resolveProfileImageUrl(seller.userProfileUrl) ?? undefined} alt={seller.storeName} />
                   ) : (
                     sellerLetterAvatar(seller.storeName)
                   )}

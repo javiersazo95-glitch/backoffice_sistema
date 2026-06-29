@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as sellersApi from '@/api/sellers';
 import * as validationsApi from '@/api/validations';
@@ -162,7 +162,6 @@ function buildValidationGroups(validations: ValidationResponse[]): ValidationReq
         return new Date(a.uploadedAt).getTime() - new Date(b.uploadedAt).getTime();
       });
       const firstDocument = sortedDocuments[0];
-      const lastDocument = sortedDocuments[sortedDocuments.length - 1];
       const requiredDocuments = buildRequiredDocumentStates(sortedDocuments);
 
       return {
@@ -172,10 +171,10 @@ function buildValidationGroups(validations: ValidationResponse[]): ValidationReq
         documents: sortedDocuments,
         requiredDocuments,
         status: getRequiredDocumentsStatus(requiredDocuments),
-        uploadedAt: lastDocument?.uploadedAt ?? firstDocument?.uploadedAt ?? '',
+        uploadedAt: firstDocument?.uploadedAt ?? '',
       };
     })
-    .sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime());
+    .sort((a, b) => new Date(a.uploadedAt).getTime() - new Date(b.uploadedAt).getTime());
 }
 
 function getCompletedCount(documents: RequiredDocumentState[]): number {
@@ -294,6 +293,7 @@ export default function ValidationsPage() {
   const [dateFilter, setDateFilter] = useState('');
   const [decisionNotes, setDecisionNotes] = useState('');
   const [isHistoryExpanded, setIsHistoryExpanded] = useState(false);
+  const [approvalFeedbackOpen, setApprovalFeedbackOpen] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: validationsData, isLoading: isLoadingValidations } = useQuery({
@@ -345,8 +345,8 @@ export default function ValidationsPage() {
   }, [dateFilter, groups, searchTerm, sellerById, statusFilter]);
 
   const selectedGroup = useMemo(() => {
-    if (filteredGroups.length === 0) return undefined;
-    return filteredGroups.find((group) => group.sellerId === selectedSellerId) ?? filteredGroups[0];
+    if (!selectedSellerId || filteredGroups.length === 0) return undefined;
+    return filteredGroups.find((group) => group.sellerId === selectedSellerId);
   }, [filteredGroups, selectedSellerId]);
 
   const selectedSeller = selectedGroup ? sellerById.get(selectedGroup.sellerId) : undefined;
@@ -368,7 +368,8 @@ export default function ValidationsPage() {
       queryClient.invalidateQueries({ queryKey: ['validation-sellers-lookup'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-validations-preview'] });
-      showToast('Solicitud aprobada');
+      setSelectedSellerId(null);
+      setApprovalFeedbackOpen(true);
     },
   });
 
@@ -399,6 +400,12 @@ export default function ValidationsPage() {
   });
 
   const mutationInProgress = approveMutation.isPending || correctMutation.isPending || rejectMutation.isPending;
+
+  useEffect(() => {
+    if (!approvalFeedbackOpen) return;
+    const timeout = window.setTimeout(() => setApprovalFeedbackOpen(false), 2200);
+    return () => window.clearTimeout(timeout);
+  }, [approvalFeedbackOpen]);
 
   function clearFilters() {
     setSearchTerm('');
@@ -513,6 +520,10 @@ export default function ValidationsPage() {
                 <span className="validation-request-meta">
                   <UiIcon name="target" />
                   {seller?.city ?? 'Ciudad no informada'}
+                </span>
+                <span className="validation-request-date">
+                  <UiIcon name="calendar" />
+                  {group.uploadedAt ? new Date(group.uploadedAt).toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Sin fecha'}
                 </span>
                 <span className="validation-request-footer">
                   <span>
@@ -856,6 +867,18 @@ export default function ValidationsPage() {
           )}
         </main>
       </div>
+
+      {approvalFeedbackOpen && (
+        <div className="validation-approval-feedback-overlay" onClick={() => setApprovalFeedbackOpen(false)}>
+          <div className="validation-approval-feedback-card">
+            <span className="validation-approval-feedback-icon">
+              <UiIcon name="check" />
+            </span>
+            <strong>Solicitud aprobada</strong>
+            <p>La validación fue aceptada correctamente.</p>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

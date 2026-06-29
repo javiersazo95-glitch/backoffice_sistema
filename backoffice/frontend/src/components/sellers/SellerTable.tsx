@@ -6,6 +6,7 @@ import UiIcon from '@/components/shared/UiIcon';
 import SellerExpandedRow from './SellerExpandedRow';
 import { getSellerOperationalStatus, getSellerStatusLabel, getSellerStatusTone } from './status';
 import { formatDate } from '@/utils/formatters';
+import { resolveProfileImageUrl } from '@/api/client';
 
 interface SellerTableProps {
   sellers: SellerResponse[];
@@ -71,7 +72,7 @@ export default function SellerTable({
                         <span className="seller-cell">
                           <span className={`seller-logo ${getLogoClass(index)}`}>
                             {seller.userProfileUrl ? (
-                              <img src={seller.userProfileUrl} alt={seller.storeName} />
+                              <img src={resolveProfileImageUrl(seller.userProfileUrl) ?? undefined} alt={seller.storeName} />
                             ) : (
                               seller.storeName.substring(0, 2).toUpperCase()
                             )}
