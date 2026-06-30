@@ -7,6 +7,7 @@ import { formatCurrency, formatDateTime, mediationStatusDisplay } from '@/utils/
 import { mediationNoteTypeIcon, mediationNoteTypeLabel, mediationNoteTypeTone } from '@/utils/mediationNotes';
 import { getReportsBySellerId } from '@/api/reports';
 import { getTickets } from '@/api/support';
+import { resolveProfileImageUrl } from '@/api/client';
 
 type MediationModalItem = MediationResponse & Partial<Pick<MediationDetailResponse, 'messages' | 'buyerMessages' | 'sellerMessages' | 'buyerEvidence' | 'sellerEvidence' | 'resolutionReason' | 'documentName' | 'documentUrl' | 'documentType' | 'buyer' | 'buyerPhotoUrl' | 'sellerPhotoUrl'>>;
 
@@ -239,8 +240,8 @@ function ChatCard({
       <div className="mediation-chat-header">
         <div className="mediation-chat-title">
           <span className="mediation-chat-icon">
-            {photoUrl ? (
-              <img src={photoUrl} alt={partyName} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+            {resolveProfileImageUrl(photoUrl) ? (
+              <img src={resolveProfileImageUrl(photoUrl)!} alt={partyName} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
             ) : (
               <UiIcon name={icon} />
             )}
