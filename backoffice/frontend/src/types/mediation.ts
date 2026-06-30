@@ -49,6 +49,17 @@ export interface MediationDetailResponse extends MediationResponse {
   buyer: string;
   buyerPhotoUrl?: string | null;
   sellerPhotoUrl?: string | null;
+  buyerProfileImageUrl?: string | null;
+  sellerProfileImageUrl?: string | null;
+  buyerProfileUrl?: string | null;
+  sellerProfileUrl?: string | null;
+  buyerUserProfileUrl?: string | null;
+  sellerUserProfileUrl?: string | null;
+  buyerAvatarUrl?: string | null;
+  sellerAvatarUrl?: string | null;
+  profileImageUrl?: string | null;
+  userProfileUrl?: string | null;
+  avatarUrl?: string | null;
 }
 
 export interface MediationEvidenceResponse {

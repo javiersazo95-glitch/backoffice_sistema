@@ -8,8 +8,9 @@ import { mediationNoteTypeIcon, mediationNoteTypeLabel, mediationNoteTypeTone } 
 import { getReportsBySellerId } from '@/api/reports';
 import { getTickets } from '@/api/support';
 import { resolveProfileImageUrl } from '@/api/client';
+import mediatorProfileImage from '@/assets/mediator-profile.jpg';
 
-type MediationModalItem = MediationResponse & Partial<Pick<MediationDetailResponse, 'messages' | 'buyerMessages' | 'sellerMessages' | 'buyerEvidence' | 'sellerEvidence' | 'resolutionReason' | 'documentName' | 'documentUrl' | 'documentType' | 'buyer' | 'buyerPhotoUrl' | 'sellerPhotoUrl'>>;
+type MediationModalItem = MediationResponse & Partial<MediationDetailResponse>;
 
 interface MediationDetailProps {
   isOpen: boolean;
@@ -30,6 +31,7 @@ interface ChatMessage {
   side: ChatSide;
   aligned: 'left' | 'right';
   label: string;
+  isMediator: boolean;
 }
 
 function formatChatTime(value?: string) {
@@ -53,6 +55,7 @@ function mapBackendMessages(messages: MediationMessageResponse[] | undefined, si
     side,
     aligned: message.senderRole === 'MEDIADOR' ? (side === 'buyer' ? 'right' : 'left') : (side === 'buyer' ? 'left' : 'right'),
     label: message.senderRole === 'MEDIADOR' ? 'Mediador' : message.senderRole === 'SISTEMA' ? 'Sistema' : side === 'buyer' ? 'Comprador' : 'Tienda',
+    isMediator: message.senderRole === 'MEDIADOR',
   }));
 }
 
@@ -140,13 +143,20 @@ function buildUnifiedHistory(
 
 function ChatBubble({ message, accent }: { message: ChatMessage; accent: 'blue' | 'violet' }) {
   return (
-    <div className={`chat-bubble ${message.aligned === 'left' ? 'incoming' : 'outgoing'} ${accent}`}>
-      <div className="chat-bubble-meta">
-        <strong>{message.label}</strong>
-        <span>{message.author}</span>
+    <div className={`chat-bubble-row ${message.aligned === 'left' ? 'incoming' : 'outgoing'} ${message.isMediator ? 'mediator' : ''}`}>
+      {message.isMediator ? (
+        <span className="chat-mediator-avatar">
+          <img src={mediatorProfileImage} alt="Mediador RepuesTop" />
+        </span>
+      ) : null}
+      <div className={`chat-bubble ${message.aligned === 'left' ? 'incoming' : 'outgoing'} ${accent}`}>
+        <div className="chat-bubble-meta">
+          <strong>{message.label}</strong>
+          <span>{message.author}</span>
+        </div>
+        <p>{message.text}</p>
+        <span>{message.time}</span>
       </div>
-      <p>{message.text}</p>
-      <span>{message.time}</span>
     </div>
   );
 }
@@ -227,6 +237,12 @@ function ChatCard({
   disabled?: boolean;
 }) {
   const [draft, setDraft] = useState('');
+  const resolvedPhotoUrl = useMemo(() => resolveProfileImageUrl(photoUrl), [photoUrl]);
+  const [imageFailed, setImageFailed] = useState(false);
+
+  useEffect(() => {
+    setImageFailed(false);
+  }, [resolvedPhotoUrl]);
 
   const handleSend = () => {
     const trimmed = draft.trim();
@@ -240,8 +256,13 @@ function ChatCard({
       <div className="mediation-chat-header">
         <div className="mediation-chat-title">
           <span className="mediation-chat-icon">
-            {resolveProfileImageUrl(photoUrl) ? (
-              <img src={resolveProfileImageUrl(photoUrl)!} alt={partyName} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
+            {resolvedPhotoUrl && !imageFailed ? (
+              <img
+                src={resolvedPhotoUrl}
+                alt={partyName}
+                style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }}
+                onError={() => setImageFailed(true)}
+              />
             ) : (
               <UiIcon name={icon} />
             )}
@@ -322,6 +343,26 @@ export default function MediationDetail({
 
   const buyerName = item ? resolveBuyerName(item) : 'Comprador';
   const sellerName = item?.sellerName || 'Tienda';
+  const buyerPhotoUrl = item ? resolveProfileImageUrl(
+    item.buyerPhotoUrl,
+    item.buyerProfileImageUrl,
+    item.buyerProfileUrl,
+    item.buyerUserProfileUrl,
+    item.buyerAvatarUrl,
+    item.profileImageUrl,
+    item.userProfileUrl,
+    item.avatarUrl,
+  ) : null;
+  const sellerPhotoUrl = item ? resolveProfileImageUrl(
+    item.sellerPhotoUrl,
+    item.sellerProfileImageUrl,
+    item.sellerProfileUrl,
+    item.sellerUserProfileUrl,
+    item.sellerAvatarUrl,
+    item.profileImageUrl,
+    item.userProfileUrl,
+    item.avatarUrl,
+  ) : null;
   const canBlockSeller = item?.canBlockAccount !== false && !item?.accountBlocked;
   const blockingCode = item?.blockingMediationExternalId || (item?.blockingMediationId ? `MED-${item.blockingMediationId}` : '');
 
@@ -446,7 +487,7 @@ export default function MediationDetail({
               title="Chat con comprador"
               partyName={buyerName}
               icon="users"
-              photoUrl={item.buyerPhotoUrl}
+              photoUrl={buyerPhotoUrl}
               messages={mapBackendMessages(item.buyerMessages, 'buyer')}
               accent="blue"
               placeholder="Aún no hay mensajes en este chat."
@@ -458,7 +499,7 @@ export default function MediationDetail({
               title="Chat con tienda"
               partyName={sellerName}
               icon="users"
-              photoUrl={item.sellerPhotoUrl}
+              photoUrl={sellerPhotoUrl}
               messages={mapBackendMessages(item.sellerMessages, 'seller')}
               accent="violet"
               placeholder="Aún no hay mensajes en este chat."

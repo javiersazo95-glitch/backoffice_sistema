@@ -15,16 +15,26 @@ export const normalizeApiBaseUrl = (baseUrl?: string) => {
 
 export const API_BASE_URL = normalizeApiBaseUrl(import.meta.env.VITE_API_URL);
 
-/**
- * Resuelve una URL de imagen de perfil que puede ser relativa (/api/v1/...) o absoluta (https://...).
- * Las URLs relativas se preprenden con el host del backend configurado en VITE_API_URL.
- */
-export const resolveProfileImageUrl = (url?: string | null): string | null => {
-  if (!url) return null;
-  if (url.startsWith('http://') || url.startsWith('https://')) return url;
-  // URL relativa: anteponer el origen del backend
-  const apiBase = import.meta.env.VITE_API_URL?.replace(/\/+$/, '') ?? '';
-  return apiBase ? `${apiBase}${url}` : url;
+const getApiOrigin = () => {
+  const configuredBase = import.meta.env.VITE_API_URL?.trim().replace(/\/+$/, '') ?? '';
+  return configuredBase.replace(/\/api\/v1$/i, '').replace(/\/api$/i, '');
+};
+
+export const resolveProfileImageUrl = (...candidates: Array<string | null | undefined>): string | null => {
+  const rawUrl = candidates.find((candidate) => typeof candidate === 'string' && candidate.trim().length > 0)?.trim();
+  if (!rawUrl) return null;
+  if (/^https?:\/\//i.test(rawUrl)) return rawUrl;
+  if (/^(data|blob):/i.test(rawUrl)) return rawUrl;
+  if (rawUrl.startsWith('//')) return `https:${rawUrl}`;
+
+  const apiOrigin = getApiOrigin();
+  if (!apiOrigin) return rawUrl;
+
+  if (rawUrl.startsWith('/')) return `${apiOrigin}${rawUrl}`;
+  if (rawUrl.startsWith('api/')) return `${apiOrigin}/${rawUrl}`;
+  if (rawUrl.startsWith('uploads/')) return `${apiOrigin}/api/v1/${rawUrl}`;
+
+  return `${apiOrigin}/api/v1/uploads/r2/${rawUrl.replace(/^\/+/, '')}`;
 };
 
 const apiClient: AxiosInstance = axios.create({
