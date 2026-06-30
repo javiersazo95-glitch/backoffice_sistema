@@ -21,10 +21,7 @@ export default function AppShell({ children, noSidebar }: { children?: ReactNode
 
   return (
     <div className="app-shell">
-      <Sidebar
-        user={user}
-        onLogout={logout}
-      />
+      <Sidebar user={user} />
       <main className="content">
         {children ?? <Outlet />}
       </main>

@@ -6,7 +6,6 @@ import UiIcon from '@/components/shared/UiIcon';
 
 interface SidebarProps {
   user: UserSummaryResponse | null;
-  onLogout: () => Promise<void>;
 }
 
 const navSections = [
@@ -47,7 +46,7 @@ const navSections = [
   },
 ];
 
-export default function Sidebar({ user, onLogout }: SidebarProps) {
+export default function Sidebar({ user }: SidebarProps) {
   const location = useLocation();
   const isHome = location.pathname === '/';
   const isConfianza = location.pathname.startsWith('/confianza');
