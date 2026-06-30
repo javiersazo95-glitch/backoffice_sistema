@@ -8,7 +8,7 @@ import { mediationNoteTypeIcon, mediationNoteTypeLabel, mediationNoteTypeTone } 
 import { getReportsBySellerId } from '@/api/reports';
 import { getTickets } from '@/api/support';
 
-type MediationModalItem = MediationResponse & Partial<Pick<MediationDetailResponse, 'messages' | 'buyerMessages' | 'sellerMessages' | 'buyerEvidence' | 'sellerEvidence' | 'resolutionReason' | 'documentName' | 'documentUrl' | 'documentType' | 'buyer'>>;
+type MediationModalItem = MediationResponse & Partial<Pick<MediationDetailResponse, 'messages' | 'buyerMessages' | 'sellerMessages' | 'buyerEvidence' | 'sellerEvidence' | 'resolutionReason' | 'documentName' | 'documentUrl' | 'documentType' | 'buyer' | 'buyerPhotoUrl' | 'sellerPhotoUrl'>>;
 
 interface MediationDetailProps {
   isOpen: boolean;
