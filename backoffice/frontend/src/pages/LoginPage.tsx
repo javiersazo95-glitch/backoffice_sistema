@@ -43,6 +43,66 @@ const loginStyles = `
   0%, 100% { opacity: 0.2; transform: scale(0.8); }
   50% { opacity: 0.9; transform: scale(1.3); }
 }
+
+/* ── Layout ── */
+.login-wrapper {
+  min-height: 100vh;
+  display: flex;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+.login-left {
+  flex: 1;
+  background: linear-gradient(135deg, #0b1d5a 0%, #0d2370 50%, #091548 100%);
+  background-size: 200% 200%;
+  animation: gradientShift 8s ease infinite;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 40px;
+  position: relative;
+  overflow: hidden;
+}
+.login-right {
+  width: min(480px, 45vw);
+  min-width: 360px;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 40px;
+  box-shadow: -8px 0 40px rgba(0,0,0,0.12);
+}
+.login-right-inner {
+  width: 100%;
+  max-width: 380px;
+}
+
+/* ── Mobile ── */
+@media (max-width: 768px) {
+  .login-left {
+    display: none;
+  }
+  .login-right {
+    width: 100%;
+    min-width: 0;
+    padding: 40px 24px;
+    box-shadow: none;
+    background: linear-gradient(160deg, #f0f4ff 0%, #fff 60%);
+    justify-content: flex-start;
+    padding-top: 56px;
+  }
+  .login-right-inner {
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 400px) {
+  .login-right {
+    padding: 40px 20px 32px;
+  }
+}
 `;
 
 export default function LoginPage() {
@@ -69,26 +129,10 @@ export default function LoginPage() {
   };
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      display: 'flex',
-      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-    }}>
+    <div className="login-wrapper">
       <style>{loginStyles}</style>
       {/* Left panel */}
-      <div style={{
-        flex: 1,
-        background: 'linear-gradient(135deg, #0b1d5a 0%, #0d2370 50%, #091548 100%)',
-        backgroundSize: '200% 200%',
-        animation: 'gradientShift 8s ease infinite',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '48px 40px',
-        position: 'relative',
-        overflow: 'hidden',
-      }}>
+      <div className="login-left">
         {/* Background decorative gears - animated */}
         <div style={{ position: 'absolute', top: 30, right: 60, opacity: 0.1, width: 120, height: 120, animation: 'rotateSlow 20s linear infinite' }}>
           <GearIcon />
@@ -176,18 +220,8 @@ export default function LoginPage() {
       </div>
 
       {/* Right panel */}
-      <div style={{
-        width: 'min(480px, 45vw)',
-        minWidth: 360,
-        background: '#fff',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '48px 40px',
-        boxShadow: '-8px 0 40px rgba(0,0,0,0.12)',
-      }}>
-        <div style={{ width: '100%', maxWidth: 380 }}>
+      <div className="login-right">
+        <div className="login-right-inner">
           {/* Logo */}
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 36 }}>
             <img

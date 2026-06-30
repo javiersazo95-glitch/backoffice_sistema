@@ -67,6 +67,7 @@ const REQUIRED_DOCUMENTS: RequiredDocumentDefinition[] = [
 ];
 
 const STATUS_OPTIONS = [
+  { value: 'ACTIVOS', label: 'Pendiente y Por corregir' },
   { value: 'Todos', label: 'Todos' },
   { value: ValidationStatus.PENDIENTE, label: 'Pendiente' },
   { value: 'POR_CORREGIR', label: 'Por corregir' },
@@ -289,7 +290,7 @@ function parseObservationHistory(notes: string | undefined): ObservationHistoryI
 export default function ValidationsPage() {
   const [selectedSellerId, setSelectedSellerId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('Todos');
+  const [statusFilter, setStatusFilter] = useState<string>('ACTIVOS');
   const [dateFilter, setDateFilter] = useState('');
   const [decisionNotes, setDecisionNotes] = useState('');
   const [isHistoryExpanded, setIsHistoryExpanded] = useState(false);
@@ -331,7 +332,9 @@ export default function ValidationsPage() {
         || (seller?.city?.toLowerCase() ?? '').includes(normalizedSearch);
 
       let matchesStatus = false;
-      if (statusFilter === 'Todos') {
+      if (statusFilter === 'ACTIVOS') {
+        matchesStatus = group.status === ValidationStatus.PENDIENTE || group.status === 'POR_CORREGIR';
+      } else if (statusFilter === 'Todos') {
         matchesStatus = true;
       } else if (statusFilter === 'POR_CORREGIR') {
         matchesStatus = group.status === 'POR_CORREGIR';
@@ -409,7 +412,7 @@ export default function ValidationsPage() {
 
   function clearFilters() {
     setSearchTerm('');
-    setStatusFilter('Todos');
+    setStatusFilter('ACTIVOS');
     setDateFilter('');
     setSelectedSellerId(null);
   }

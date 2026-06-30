@@ -6,6 +6,8 @@ import UiIcon from '@/components/shared/UiIcon';
 
 interface SidebarProps {
   user: UserSummaryResponse | null;
+  mobileOpen?: boolean;
+  onMobileClose?: () => void;
 }
 
 const navSections = [
@@ -46,7 +48,7 @@ const navSections = [
   },
 ];
 
-export default function Sidebar({ user }: SidebarProps) {
+export default function Sidebar({ user, mobileOpen, onMobileClose }: SidebarProps) {
   const location = useLocation();
   const isHome = location.pathname === '/';
   const isConfianza = location.pathname.startsWith('/confianza');
@@ -87,12 +89,22 @@ export default function Sidebar({ user }: SidebarProps) {
   }, [isConfianza, isAdmin, isSupport, user?.role]);
 
   return (
-    <aside className="sidebar">
-      <Link to="/" className="brand">
-        <img src="/assets/repuestop-logo-cropped.jpg" alt="RepuesTop" />
-      </Link>
+    <aside className={`sidebar${mobileOpen ? ' mobile-open' : ''}`}>
+      <div className="sidebar-header">
+        <Link to="/" className="brand" onClick={onMobileClose}>
+          <img src="/assets/repuestop-logo-cropped.jpg" alt="RepuesTop" />
+        </Link>
+        <button
+          className="mobile-sidebar-close"
+          type="button"
+          aria-label="Cerrar menú"
+          onClick={onMobileClose}
+        >
+          ×
+        </button>
+      </div>
 
-      <nav className="main-nav">
+      <nav className="main-nav" onClick={onMobileClose}>
         {isHome ? (
           <Link to="/" className="nav-link active">
             <span className="nav-icon"><UiIcon name="dashboard" /></span>
