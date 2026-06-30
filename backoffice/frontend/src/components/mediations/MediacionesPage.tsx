@@ -30,13 +30,14 @@ import {
   MediationNoteModal,
   MediationNotesHistoryModal,
   CaseResolutionModal,
-  ResolvedDocumentModal,
-  ResolvedCaseSummaryModal,
-  BlockedAccountReviewModal,
   MediationInitFeedbackOverlay,
+  ResolvedCaseTimelineModal,
+  BlockedAccountHistoryModal,
+  AppealReviewModal,
 } from './modals';
 import AreaHomeShortcut from '@/components/shared/AreaHomeShortcut';
 import { SellerStatus, type SellerDetailResponse, type SellerDocumentResponse } from '@/types/seller';
+import type { ResolvedCaseResponse } from '@/types/mediation';
 
 function normalizeDocumentKey(documentType: string) {
   return documentType
@@ -196,13 +197,13 @@ export default function MediacionesPage() {
   const [noteFeedbackTitle, setNoteFeedbackTitle] = useState('Nota registrada');
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
   const [reactivateModalOpen, setReactivateModalOpen] = useState(false);
-  const [resolvedDocModalOpen, setResolvedDocModalOpen] = useState(false);
-  const [resolvedSummaryModalOpen, setResolvedSummaryModalOpen] = useState(false);
-  const [blockedReviewModalOpen, setBlockedReviewModalOpen] = useState(false);
+  const [resolvedTimelineOpen, setResolvedTimelineOpen] = useState(false);
+  const [selectedTimelineCase, setSelectedTimelineCase] = useState<ResolvedCaseResponse | null>(null);
   const [editingNote, setEditingNote] = useState<{ index: number; messageId: number; text: string; noteType?: MediationNoteType } | null>(null);
-  const [selectedResolvedDocId, setSelectedResolvedDocId] = useState<number | null>(null);
-  const [selectedResolvedCaseId, setSelectedResolvedCaseId] = useState<number | null>(null);
-  const [selectedBlockedAccountId, setSelectedBlockedAccountId] = useState<number | null>(null);
+  const [blockedHistoryOpen, setBlockedHistoryOpen] = useState(false);
+  const [blockedHistoryId, setBlockedHistoryId] = useState<number | null>(null);
+  const [appealModalOpen, setAppealModalOpen] = useState(false);
+  const [appealMediationId, setAppealMediationId] = useState<number | null>(null);
   const [sellerInfoOpen, setSellerInfoOpen] = useState(false);
   const [sellerDocumentsOpen, setSellerDocumentsOpen] = useState(false);
   const [sellerMediationsOpen, setSellerMediationsOpen] = useState(false);
@@ -571,20 +572,20 @@ export default function MediacionesPage() {
                     />
                   </section>
 
-                  <MediationResolvedTable
-                    cases={resolvedCases?.content ?? []}
-                    totalItems={resolvedCases?.totalElements ?? 0}
-                    isLoading={isLoadingResolvedCases}
-                    onOpenResolvedDoc={(id) => { setSelectedResolvedDocId(id); setResolvedDocModalOpen(true); }}
-                    onOpenResolvedSummary={(id) => { setSelectedResolvedCaseId(id); setResolvedSummaryModalOpen(true); }}
-                  />
-
                   <BlockedAccountsTable
                     accounts={blockedAccounts?.content ?? []}
                     totalItems={blockedAccounts?.totalElements ?? 0}
                     isLoading={isLoadingBlockedAccounts}
                     onOpenSellerInfo={handleOpenSellerInfo}
-                    onOpenReview={(id) => { setSelectedBlockedAccountId(id); setBlockedReviewModalOpen(true); }}
+                    onOpenHistory={(id) => { setBlockedHistoryId(id); setBlockedHistoryOpen(true); }}
+                    onOpenAppeal={(id) => { setAppealMediationId(id); setAppealModalOpen(true); }}
+                  />
+
+                  <MediationResolvedTable
+                    cases={resolvedCases?.content ?? []}
+                    totalItems={resolvedCases?.totalElements ?? 0}
+                    isLoading={isLoadingResolvedCases}
+                    onOpenTimeline={(item) => { setSelectedTimelineCase(item); setResolvedTimelineOpen(true); }}
                   />
                 </>
               )}
@@ -649,24 +650,24 @@ export default function MediacionesPage() {
         onSubmit={handleReactivate}
       />
 
-      <ResolvedCaseSummaryModal
-        isOpen={resolvedSummaryModalOpen}
-        onClose={() => setResolvedSummaryModalOpen(false)}
-        item={resolvedCases?.content?.find((c: any) => c.id === selectedResolvedCaseId) || null}
+      <ResolvedCaseTimelineModal
+        isOpen={resolvedTimelineOpen}
+        onClose={() => { setResolvedTimelineOpen(false); setSelectedTimelineCase(null); }}
+        item={selectedTimelineCase}
       />
 
-      <ResolvedDocumentModal
-        isOpen={resolvedDocModalOpen}
-        onClose={() => setResolvedDocModalOpen(false)}
-        item={resolvedCases?.content?.find((c: any) => c.id === selectedResolvedDocId) || null}
+      <BlockedAccountHistoryModal
+        isOpen={blockedHistoryOpen}
+        onClose={() => { setBlockedHistoryOpen(false); setBlockedHistoryId(null); }}
+        item={blockedAccounts?.content?.find((item: MediationResponse) => item.id === blockedHistoryId) || null}
       />
 
-      <BlockedAccountReviewModal
-        isOpen={blockedReviewModalOpen}
-        onClose={() => setBlockedReviewModalOpen(false)}
-        item={blockedAccounts?.content?.find((item: MediationResponse) => item.id === selectedBlockedAccountId) || null}
+      <AppealReviewModal
+        isOpen={appealModalOpen}
+        onClose={() => { setAppealModalOpen(false); setAppealMediationId(null); }}
+        item={blockedAccounts?.content?.find((item: MediationResponse) => item.id === appealMediationId) || null}
         isSubmitting={reactivateMutation.isPending}
-        onReactivate={handleReactivate}
+        onReactivate={(id, reason, file) => { handleReactivate(id, reason, file); setAppealModalOpen(false); }}
       />
 
       <SellerProfileModal

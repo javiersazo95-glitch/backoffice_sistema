@@ -8,7 +8,8 @@ interface BlockedAccountsTableProps {
   accounts: MediationResponse[];
   totalItems?: number;
   isLoading?: boolean;
-  onOpenReview: (id: number) => void;
+  onOpenHistory: (id: number) => void;
+  onOpenAppeal: (id: number) => void;
   onOpenSellerInfo: (sellerId: number) => void;
 }
 
@@ -32,7 +33,8 @@ export default function BlockedAccountsTable({
   accounts,
   totalItems,
   isLoading = false,
-  onOpenReview,
+  onOpenHistory,
+  onOpenAppeal,
   onOpenSellerInfo,
 }: BlockedAccountsTableProps) {
   const [statusFilter, setStatusFilter] = useState('');
@@ -93,49 +95,63 @@ export default function BlockedAccountsTable({
                 </td>
               </tr>
             ) : rows.length ? (
-              rows.map((item) => (
-                <tr key={item.id}>
-                  <td>
-                    <strong className="blue-link">{item.externalId}</strong>
-                    <span className="row-sub">{mediationStatusDisplay(item.status, item.accountBlocked)}</span>
-                  </td>
-                  <td>
-                    <Badge text={getBlockedStatusLabel(item.blockedAccountStatus)} variant={getBlockedStatusVariant(item.blockedAccountStatus)} />
-                  </td>
-                  <td>{item.sellerName}</td>
-                  <td>{item.orderId}</td>
-                  <td className="resolved-table-summary">
-                    <strong>{item.escalationReason || item.reason || 'Motivo no informado'}</strong>
-                    <span>{item.title}</span>
-                  </td>
-                  <td>
-                    <Badge text={item.stage || item.status} variant={item.accountBlocked ? 'cuenta-bloqueada' : item.status} />
-                  </td>
-                  <td>{item.owner || 'No informado'}</td>
-                  <td className="centered-action-cell">
-                    <div className="seller-actions compact-actions centered-actions">
-                      <button
-                        className="row-action"
-                        type="button"
-                        onClick={() => onOpenSellerInfo(item.sellerId)}
-                        aria-label="Ver ficha del vendedor"
-                        title="Ver ficha del vendedor"
-                      >
-                        <UiIcon name="users" />
-                      </button>
-                      <button
-                        className="row-action"
-                        type="button"
-                        onClick={() => onOpenReview(item.id)}
-                        aria-label="Revisar caso bloqueado"
-                        title="Revisar caso bloqueado"
-                      >
-                        <UiIcon name="eye" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))
+              rows.map((item) => {
+                const hasAppeal = item.blockedAccountStatus === 'SOLICITUD_REVISION';
+                return (
+                  <tr key={item.id} className={hasAppeal ? 'blocked-row--appeal' : ''}>
+                    <td>
+                      <strong className="blue-link">{item.externalId}</strong>
+                      <span className="row-sub">{mediationStatusDisplay(item.status, item.accountBlocked)}</span>
+                    </td>
+                    <td>
+                      <Badge text={getBlockedStatusLabel(item.blockedAccountStatus)} variant={getBlockedStatusVariant(item.blockedAccountStatus)} />
+                    </td>
+                    <td>{item.sellerName}</td>
+                    <td>{item.orderId}</td>
+                    <td className="resolved-table-summary">
+                      <strong>{item.escalationReason || item.reason || 'Motivo no informado'}</strong>
+                      <span>{item.title}</span>
+                    </td>
+                    <td>
+                      <Badge text={item.stage || item.status} variant={item.accountBlocked ? 'cuenta-bloqueada' : item.status} />
+                    </td>
+                    <td>{item.owner || 'No informado'}</td>
+                    <td className="centered-action-cell">
+                      <div className="seller-actions compact-actions centered-actions">
+                        <button
+                          className="row-action"
+                          type="button"
+                          onClick={() => onOpenSellerInfo(item.sellerId)}
+                          aria-label="Ver ficha del vendedor"
+                          title="Ver ficha del vendedor"
+                        >
+                          <UiIcon name="users" />
+                        </button>
+                        <button
+                          className="row-action"
+                          type="button"
+                          onClick={() => onOpenHistory(item.id)}
+                          aria-label="Ver historial del bloqueo"
+                          title="Ver historial del bloqueo"
+                        >
+                          <UiIcon name="list" />
+                        </button>
+                        {hasAppeal && (
+                          <button
+                            className="row-action row-action--appeal"
+                            type="button"
+                            onClick={() => onOpenAppeal(item.id)}
+                            aria-label="Ver apelación del vendedor"
+                            title="Ver apelación del vendedor"
+                          >
+                            <UiIcon name="flag" />
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
             ) : (
               <tr>
                 <td colSpan={8}>

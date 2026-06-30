@@ -2,35 +2,18 @@ import { ResolvedCaseResponse } from '@/types/mediation';
 import { formatDateTime } from '@/utils/formatters';
 import UiIcon from '@/components/shared/UiIcon';
 
-const getDisplayResponsible = (resolvedBy?: string, owner?: string) => {
-  const val = (resolvedBy || owner || '').trim();
-  if (!val || val === 'Sistema' || val === 'No asignado') {
-    return 'Mediador';
-  }
-  if (val === 'Comprador/Vendedor') {
-    return 'Vendedor';
-  }
-  const lower = val.toLowerCase();
-  if (lower.includes('comprador')) return 'Comprador';
-  if (lower.includes('vendedor')) return 'Vendedor';
-  if (lower.includes('mediador') || lower.includes('admin') || lower.includes('sistema')) return 'Mediador';
-  return 'Mediador';
-};
-
 interface MediationResolvedTableProps {
   cases: ResolvedCaseResponse[];
   totalItems?: number;
   isLoading?: boolean;
-  onOpenResolvedDoc: (id: number) => void;
-  onOpenResolvedSummary: (id: number) => void;
+  onOpenTimeline: (item: ResolvedCaseResponse) => void;
 }
 
 export default function MediationResolvedTable({
   cases,
   totalItems,
   isLoading = false,
-  onOpenResolvedDoc,
-  onOpenResolvedSummary,
+  onOpenTimeline,
 }: MediationResolvedTableProps) {
   const rows = [...cases].sort((a, b) => (new Date(b.createdAt).getTime() || 0) - (new Date(a.createdAt).getTime() || 0));
 
@@ -55,7 +38,7 @@ export default function MediationResolvedTable({
               <th>Resolución</th>
               <th>Resuelto por</th>
               <th>Fecha resolución</th>
-              <th>Iconos</th>
+              <th>Acciones</th>
             </tr>
           </thead>
           <tbody>
@@ -77,27 +60,18 @@ export default function MediationResolvedTable({
                     <span>{item.buyer}</span>
                   </td>
                   <td>{item.resolutionReason}</td>
-                  <td>{getDisplayResponsible(item.resolvedBy, (item as any).owner)}</td>
+                  <td>{item.resolvedBy || 'Mediador'}</td>
                   <td>{formatDateTime(item.createdAt)}</td>
                   <td>
                     <div className="seller-actions compact-actions">
                       <button
                         className="row-action"
                         type="button"
-                        onClick={() => onOpenResolvedDoc(item.id)}
-                        aria-label="Ver documento adjunto"
-                        title="Ver documento adjunto"
+                        onClick={() => onOpenTimeline(item)}
+                        aria-label="Ver historial del caso"
+                        title="Ver historial del caso"
                       >
-                        <UiIcon name="fileCheck" />
-                      </button>
-                      <button
-                        className="row-action"
-                        type="button"
-                        onClick={() => onOpenResolvedSummary(item.id)}
-                        aria-label="Ver resumen del caso"
-                        title="Ver resumen del caso"
-                      >
-                        <UiIcon name="audit" />
+                        <UiIcon name="clock" />
                       </button>
                     </div>
                   </td>

@@ -6,3 +6,6 @@ export { default as ResolvedDocumentModal } from './ResolvedDocumentModal';
 export { default as ResolvedCaseSummaryModal } from './ResolvedCaseSummaryModal';
 export { default as BlockedAccountReviewModal } from './BlockedAccountReviewModal';
 export { default as MediationInitFeedbackOverlay } from './MediationInitFeedbackOverlay';
+export { default as ResolvedCaseTimelineModal } from './ResolvedCaseTimelineModal';
+export { default as BlockedAccountHistoryModal } from './BlockedAccountHistoryModal';
+export { default as AppealReviewModal } from './AppealReviewModal';
