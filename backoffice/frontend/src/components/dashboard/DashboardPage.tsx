@@ -13,7 +13,7 @@ import type { MediationResponse } from '@/types/mediation';
 import type { ReportResponse } from '@/types/report';
 import type { ValidationResponse } from '@/types/validation';
 
-const PREVIEW_SIZE = 5;
+const PAGE_SIZE = 5;
 
 function percent(value: number, total: number) {
   if (!total) return 0;
@@ -35,11 +35,9 @@ function parseAgeDays(item: { createdAt: string; elapsed?: string }) {
   if (!Number.isNaN(createdAtMs)) {
     return Math.max(0, Math.floor((Date.now() - createdAtMs) / (1000 * 60 * 60 * 24)));
   }
-
   const elapsed = item.elapsed?.toLowerCase() ?? '';
   const match = elapsed.match(/(\d+)\s*(?:d|día|dias|dias habiles|días|days)/);
   if (match) return Number(match[1]);
-
   return 0;
 }
 
@@ -68,46 +66,25 @@ export default function DashboardPage() {
     setExpandedPanels((current) => ({ ...current, [panel]: !current[panel] }));
   };
 
-  const { data: mediationsData, isLoading: isLoadingMediations } = useQuery({
-    queryKey: ['dashboard-mediations-preview'],
-    queryFn: () => mediationsApi.getMediations({ status: MediationStatus.EN_MEDIACION, page: 0, size: PREVIEW_SIZE }),
+  // Minimal queries just for hero KPI totals
+  const { data: mediationsTotalData } = useQuery({
+    queryKey: ['dashboard-mediations-total'],
+    queryFn: () => mediationsApi.getMediations({ status: MediationStatus.EN_MEDIACION, page: 0, size: 1 }),
   });
-
-  const { data: escalationsData, isLoading: isLoadingEscalations } = useQuery({
-    queryKey: ['dashboard-escalations-preview'],
-    queryFn: () => mediationsApi.getMediations({ status: MediationStatus.ESPERANDO_VENDEDOR, page: 0, size: PREVIEW_SIZE }),
-  });
-
-  const { data: validationsData, isLoading: isLoadingValidations } = useQuery({
-    queryKey: ['dashboard-validations-preview'],
-    queryFn: () => validationsApi.getValidations(0, 50),
-  });
-
-  const { data: receiptsData, isLoading: isLoadingReceipts } = useQuery({
-    queryKey: ['dashboard-reports-preview'],
-    queryFn: () => reportsApi.getReports({ page: 0, size: PREVIEW_SIZE }),
+  const { data: reportsTotalData } = useQuery({
+    queryKey: ['dashboard-reports-total'],
+    queryFn: () => reportsApi.getReports({ page: 0, size: 1 }),
   });
 
   const trustScore = data?.trustScore ?? 0;
   const currentTrustTone = trustTone(trustScore);
   const trustLevel = trustLevelToSpanish(data?.trustLevel ?? 'MEDIO');
   const validationTotal = (data?.validationsApproved ?? 0) + (data?.validationsPending ?? 0) + (data?.validationsRejected ?? 0);
-  const pressureCount = (data?.openMediations ?? 0) + (data?.pendingValidation ?? 0) + (data?.receiptFollowups ?? 0);
 
-  const mediations = mediationsData?.content ?? [];
-  const escalations = escalationsData?.content ?? [];
-  const validations = validationsData?.content ?? [];
-  const receipts = (receiptsData?.content ?? []) as unknown as ReportResponse[];
-  const escalatedCount = escalationsData?.totalElements ?? 0;
-  const inMediationCount = mediationsData?.totalElements ?? 0;
-  const reviewedDocsCount = (data?.validationsApproved ?? 0) + (data?.validationsRejected ?? 0);
-  const pendingDocsCount = data?.validationsPending ?? 0;
-  const activeSellers = data?.activeSellers ?? 0;
-  const openMediations = data?.openMediations ?? 0;
-  const criticalAlerts = data?.criticalAlerts ?? 0;
-  const operationalSummary = `${compactNumber(activeSellers)} vendedores activos, ${compactNumber(openMediations)} casos abiertos y ${compactNumber(criticalAlerts)} alertas críticas requieren seguimiento operativo.`;
 
-  const hasPreviewLoading = isLoadingMediations || isLoadingEscalations || isLoadingValidations || isLoadingReceipts;
+  const escalatedCount = data?.unansweredClaims ?? 0;
+  const inMediationCount = mediationsTotalData?.totalElements ?? 0;
+  const reportsCount = reportsTotalData?.totalElements ?? 0;
 
   return (
     <>
@@ -118,21 +95,25 @@ export default function DashboardPage() {
             Mediacion y confianza
           </span>
           <h1>Estado operativo</h1>
-          <p>{operationalSummary}</p>
-          <div className="trust-hero-kpis" aria-label="Indicadores principales">
-            <div className="trust-hero-kpi">
-              <span className="trust-hero-kpi-icon"><UiIcon name="users" /></span>
-              <div><span>Vendedores activos</span><strong>{compactNumber(activeSellers)}</strong></div>
+
+          {isLoading ? (
+            <p>Cargando datos...</p>
+          ) : (
+            <div className="trust-hero-kpis" aria-label="Indicadores principales">
+              <div className="trust-hero-kpi">
+                <span className="trust-hero-kpi-icon"><UiIcon name="clock" /></span>
+                <div><span>Esperando al vendedor</span><strong>{compactNumber(escalatedCount)}</strong></div>
+              </div>
+              <div className="trust-hero-kpi">
+                <span className="trust-hero-kpi-icon"><UiIcon name="scale" /></span>
+                <div><span>En mediación</span><strong>{compactNumber(inMediationCount)}</strong></div>
+              </div>
+              <div className="trust-hero-kpi">
+                <span className="trust-hero-kpi-icon"><UiIcon name="flag" /></span>
+                <div><span>Reportes</span><strong>{compactNumber(reportsCount)}</strong></div>
+              </div>
             </div>
-            <div className="trust-hero-kpi">
-              <span className="trust-hero-kpi-icon"><UiIcon name="document" /></span>
-              <div><span>Casos abiertos</span><strong>{compactNumber(openMediations)}</strong></div>
-            </div>
-            <div className="trust-hero-kpi">
-              <span className="trust-hero-kpi-icon"><UiIcon name="alert" /></span>
-              <div><span>Alertas criticas</span><strong>{compactNumber(criticalAlerts)}</strong></div>
-            </div>
-          </div>
+          )}
         </div>
 
         <div className="trust-command-actions">
@@ -159,13 +140,6 @@ export default function DashboardPage() {
         </div>
       ) : (
         <>
-          <section className="trust-summary-grid" aria-label="Resumen operativo">
-            <SummaryCard icon="users" tone="blue" label="Vendedores monitoreados" value={data?.activeSellers ?? 0} detail={`${data?.suspendedSellers ?? 0} suspendidos bajo revisión`} />
-            <SummaryCard icon="clock" tone="amber" label="Esperando al vendedor" value={escalatedCount} detail="Pendientes de respuesta o gestión del vendedor" />
-            <SummaryCard icon="scale" tone="violet" label="En mediación" value={inMediationCount} detail="Casos ya en curso y en seguimiento" />
-            <SummaryCard icon="fileCheck" tone="green" label="Documentación revisada" value={reviewedDocsCount} detail={`${pendingDocsCount} pendientes de aceptar o rechazar`} />
-          </section>
-
           <section className="trust-dashboard-grid">
             <TrustPulsePanel
               trustScore={trustScore}
@@ -174,19 +148,23 @@ export default function DashboardPage() {
               corrections={data?.validationsCorrection ?? 0}
               pending={data?.validationsPending ?? 0}
               rejected={data?.validationsRejected ?? 0}
-              pressureCount={pressureCount}
+              openMediations={data?.openMediations ?? 0}
+              pendingValidation={data?.pendingValidation ?? 0}
+              criticalAlerts={data?.criticalAlerts ?? 0}
               expiringDocuments={data?.expiringDocuments ?? 0}
+              sellerRisks={data?.sellerRisks ?? 0}
+              unansweredClaims={data?.unansweredClaims ?? 0}
             />
           </section>
 
           <section className="trust-mini-grid">
-            <MediationsPanel items={mediations} loading={hasPreviewLoading} expanded={expandedPanels.mediations} onToggle={() => togglePanel('mediations')} />
-            <EscalationsPanel items={escalations} loading={hasPreviewLoading} expanded={expandedPanels.alerts} onToggle={() => togglePanel('alerts')} />
+            <MediationsPanel expanded={expandedPanels.mediations} onToggle={() => togglePanel('mediations')} />
+            <EscalationsPanel expanded={expandedPanels.alerts} onToggle={() => togglePanel('alerts')} />
           </section>
 
           <section className="trust-mini-grid">
-            <ValidationsPanel items={validations} loading={hasPreviewLoading} expanded={expandedPanels.validations} onToggle={() => togglePanel('validations')} />
-            <ReceiptsPanel items={receipts} loading={hasPreviewLoading} expanded={expandedPanels.receipts} onToggle={() => togglePanel('receipts')} />
+            <ValidationsPanel expanded={expandedPanels.validations} onToggle={() => togglePanel('validations')} />
+            <ReceiptsPanel expanded={expandedPanels.receipts} onToggle={() => togglePanel('receipts')} />
           </section>
         </>
       )}
@@ -194,49 +172,296 @@ export default function DashboardPage() {
   );
 }
 
-function SummaryCard({ icon, tone, label, value, detail }: { icon: string; tone: string; label: string; value: number; detail: string }) {
+// ─── Pagination control ───────────────────────────────────────────────────────
+
+function PanelPagination({ page, totalPages, onPrev, onNext }: {
+  page: number;
+  totalPages: number;
+  onPrev: () => void;
+  onNext: () => void;
+}) {
+  if (totalPages <= 1) return null;
   return (
-    <article className={`trust-summary-card tone-${tone}`}>
-      <span className="trust-summary-icon">
-        <UiIcon name={icon} />
-      </span>
-      <div>
-        <span>{label}</span>
-        <strong>{compactNumber(value)}</strong>
-        <small>{detail}</small>
-      </div>
+    <div className="trust-panel-pagination">
+      <button type="button" onClick={onPrev} disabled={page === 0} className="trust-page-btn">
+        <UiIcon name="arrowLeft" />
+      </button>
+      <span>Página {page + 1} de {totalPages}</span>
+      <button type="button" onClick={onNext} disabled={page >= totalPages - 1} className="trust-page-btn">
+        <UiIcon name="arrowRight" />
+      </button>
+    </div>
+  );
+}
+
+// ─── Panels ──────────────────────────────────────────────────────────────────
+
+function MediationsPanel({ expanded, onToggle }: { expanded: boolean; onToggle: () => void }) {
+  const [page, setPage] = useState(0);
+
+  const { data: totalData } = useQuery({
+    queryKey: ['dashboard-mediations-panel-total'],
+    queryFn: () => mediationsApi.getMediations({ status: MediationStatus.EN_MEDIACION, page: 0, size: 1 }),
+  });
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['dashboard-mediations-panel', page],
+    queryFn: () => mediationsApi.getMediations({ status: MediationStatus.EN_MEDIACION, page, size: PAGE_SIZE }),
+    enabled: expanded,
+  });
+
+  const items: MediationResponse[] = data?.content ?? [];
+  const total = totalData?.totalElements ?? 0;
+  const totalPages = data?.totalPages ?? 0;
+
+  return (
+    <article className="trust-panel">
+      <CollapsiblePanelHead
+        eyebrow="Mediaciones"
+        title="Casos en mediación"
+        expanded={expanded}
+        onToggle={onToggle}
+        action={<Badge text={`${total} activos`} variant="EN_MEDIACION" />}
+      />
+      {expanded && (
+        <>
+          <div className="trust-feed">
+            {isLoading && <EmptyState text="Actualizando mediaciones..." />}
+            {!isLoading && items.length === 0 && <EmptyState text="No hay casos activos en mediación." />}
+            {!isLoading && items.map((item) => (
+              <div className="trust-feed-item" key={item.id}>
+                <span className="trust-feed-icon violet"><UiIcon name="scale" /></span>
+                <div className="trust-feed-copy">
+                  <strong>{item.externalId} · Pedido {item.orderId}</strong>
+                  <span>{item.reason || item.title}</span>
+                  <small>Vendedor: {item.sellerName}</small>
+                  <small>Texto de inicio: {item.escalationReason || item.nextAction || 'Sin texto registrado'}</small>
+                  <small>Días hábiles transcurridos: {item.elapsed || 'Sin dato disponible'}</small>
+                </div>
+                <div className="trust-feed-side">
+                  <Badge text={mediationStatusDisplay(item.status, false)} variant={item.status} />
+                  <b>{formatCurrency(item.amount)}</b>
+                </div>
+              </div>
+            ))}
+          </div>
+          <PanelPagination page={page} totalPages={totalPages} onPrev={() => setPage(p => p - 1)} onNext={() => setPage(p => p + 1)} />
+        </>
+      )}
     </article>
   );
 }
 
+function EscalationsPanel({ expanded, onToggle }: { expanded: boolean; onToggle: () => void }) {
+  const [page, setPage] = useState(0);
+
+  const { data: totalData } = useQuery({
+    queryKey: ['dashboard-escalations-panel-total'],
+    queryFn: () => mediationsApi.getMediations({ status: MediationStatus.ESPERANDO_VENDEDOR, page: 0, size: 1 }),
+  });
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['dashboard-escalations-panel', page],
+    queryFn: () => mediationsApi.getMediations({ status: MediationStatus.ESPERANDO_VENDEDOR, page, size: PAGE_SIZE }),
+    enabled: expanded,
+  });
+
+  const items: MediationResponse[] = (data?.content ?? [])
+    .filter((item) => !item.accountBlocked)
+    .sort((a, b) => parseAgeDays(b) - parseAgeDays(a));
+  const total = totalData?.totalElements ?? 0;
+  const totalPages = data?.totalPages ?? 0;
+
+  return (
+    <article className="trust-panel">
+      <CollapsiblePanelHead
+        eyebrow="Seguimiento"
+        title="Últimos esperando al vendedor"
+        expanded={expanded}
+        onToggle={onToggle}
+        action={<Badge text={`${total} casos`} variant="ESPERANDO_VENDEDOR" />}
+      />
+      {expanded && (
+        <>
+          <div className="trust-feed">
+            {isLoading && <EmptyState text="Actualizando casos esperando al vendedor..." />}
+            {!isLoading && items.length === 0 && <EmptyState text="Sin casos esperando al vendedor." />}
+            {!isLoading && items.map((item) => {
+              const ageDays = parseAgeDays(item);
+              const tone = escalationTone(ageDays);
+              const level = escalationLevel(ageDays);
+              return (
+                <div className="trust-feed-item" key={item.id}>
+                  <span className={`trust-feed-icon ${tone}`}>
+                    <UiIcon name={tone === 'red' ? 'alert' : 'clock'} />
+                  </span>
+                  <div className="trust-feed-copy">
+                    <strong>{item.externalId} · {item.sellerName}</strong>
+                    <span>{item.reason || item.title}</span>
+                    <small>Esperando hace {ageDays} d · {item.elapsed || 'sin antigüedad calculada'}</small>
+                    <small>Última actualización: {formatDateTime(item.updatedAt)}</small>
+                  </div>
+                  <div className="trust-feed-side">
+                    <Badge text={level} variant={tone === 'red' ? 'RECHAZADO' : tone === 'amber' ? 'PENDIENTE' : 'APROBADO'} />
+                    <Badge text={item.status} variant={item.status} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <PanelPagination page={page} totalPages={totalPages} onPrev={() => setPage(p => p - 1)} onNext={() => setPage(p => p + 1)} />
+        </>
+      )}
+    </article>
+  );
+}
+
+function ValidationsPanel({ expanded, onToggle }: { expanded: boolean; onToggle: () => void }) {
+  const [page, setPage] = useState(0);
+
+  const { data: totalData } = useQuery({
+    queryKey: ['dashboard-validations-panel-total'],
+    queryFn: () => validationsApi.getValidations(0, PAGE_SIZE),
+  });
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['dashboard-validations-panel', page],
+    queryFn: () => validationsApi.getValidations(page, PAGE_SIZE),
+    enabled: expanded,
+  });
+
+  const allItems: ValidationResponse[] = data?.content ?? [];
+  const items = allItems.filter((item) => item.status === 'RECHAZADA' || item.status === 'POR_CORREGIR');
+  const totalFiltered = (totalData?.content ?? []).filter((item: ValidationResponse) => item.status === 'RECHAZADA' || item.status === 'POR_CORREGIR').length;
+  const total = data ? items.length : totalFiltered;
+  const totalPages = data?.totalPages ?? 0;
+
+  return (
+    <article className="trust-panel">
+      <CollapsiblePanelHead
+        eyebrow="Documentacion"
+        title="Validaciones recientes"
+        expanded={expanded}
+        onToggle={onToggle}
+        action={<Badge text={`${total} observaciones`} variant="RECHAZADO" />}
+      />
+      {expanded && (
+        <>
+          <div className="trust-document-list">
+            {isLoading && <EmptyState text="Actualizando validaciones..." />}
+            {!isLoading && items.length === 0 && <EmptyState text="Sin validaciones rechazadas ni por corregir." />}
+            {!isLoading && items.map((item) => {
+              const isRejected = item.status === 'RECHAZADA';
+              const isCorrection = item.status === 'POR_CORREGIR';
+
+              let badgeText = 'Rechazado';
+              let badgeVariant = 'RECHAZADO';
+              let iconClass = 'rejected';
+              let customIcon = <RejectedIcon />;
+
+              if (isCorrection) {
+                badgeText = 'Por corregir';
+                badgeVariant = 'PENDIENTE';
+                iconClass = 'correction';
+                customIcon = <CorrectionIcon />;
+              } else if (!isRejected) {
+                badgeText = 'Aceptado';
+                badgeVariant = 'APROBADO';
+                iconClass = 'approved';
+                customIcon = <ApprovedIcon />;
+              }
+
+              return (
+                <div className={`trust-document-row state-${iconClass}`} key={item.id}>
+                  <span className={`trust-document-icon ${iconClass}`}>{customIcon}</span>
+                  <div className="trust-document-copy">
+                    <strong>{item.documentType}</strong>
+                    <span>{item.sellerName}</span>
+                    <small>Responsable: {item.owner || 'Sin responsable'} · Subido: {formatDate(item.uploadedAt)}</small>
+                    <small>Vence {formatDate(item.dueAt)}</small>
+                    {item.notes && <small>{item.notes}</small>}
+                  </div>
+                  <Badge text={badgeText} variant={badgeVariant} />
+                </div>
+              );
+            })}
+          </div>
+          <PanelPagination page={page} totalPages={totalPages} onPrev={() => setPage(p => p - 1)} onNext={() => setPage(p => p + 1)} />
+        </>
+      )}
+    </article>
+  );
+}
+
+function ReceiptsPanel({ expanded, onToggle }: { expanded: boolean; onToggle: () => void }) {
+  const [page, setPage] = useState(0);
+
+  const { data: totalData } = useQuery({
+    queryKey: ['dashboard-reports-panel-total'],
+    queryFn: () => reportsApi.getReports({ page: 0, size: 1 }),
+  });
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['dashboard-reports-panel', page],
+    queryFn: () => reportsApi.getReports({ page, size: PAGE_SIZE }),
+    enabled: expanded,
+  });
+
+  const items = (data?.content ?? []) as unknown as ReportResponse[];
+  const total = totalData?.totalElements ?? 0;
+  const totalPages = data?.totalPages ?? 0;
+
+  return (
+    <article className="trust-panel">
+      <CollapsiblePanelHead
+        eyebrow="Confianza"
+        title="Reportes recientes"
+        expanded={expanded}
+        onToggle={onToggle}
+        action={<Badge text={`${total} en total`} variant="PENDIENTE" />}
+      />
+      {expanded && (
+        <>
+          <div className="trust-receipt-list">
+            {isLoading && <EmptyState text="Actualizando reportes..." />}
+            {!isLoading && items.length === 0 && <EmptyState text="Sin reportes." />}
+            {!isLoading && items.map((item) => (
+              <div className="trust-receipt-row" key={item.id}>
+                <div>
+                  <strong>{item.idExterno || `REP-${item.id}`}</strong>
+                  <span>Reportante: {item.reportanteName} ({item.reportanteType})</span>
+                  <small>Reportado: {item.reportadoName} ({item.reportadoType})</small>
+                </div>
+                <div>
+                  <b>{item.motivo}</b>
+                  <Badge text="REPORTE" variant="RECHAZADA" />
+                </div>
+              </div>
+            ))}
+          </div>
+          <PanelPagination page={page} totalPages={totalPages} onPrev={() => setPage(p => p - 1)} onNext={() => setPage(p => p + 1)} />
+        </>
+      )}
+    </article>
+  );
+}
+
+// ─── TrustPulsePanel ─────────────────────────────────────────────────────────
+
 function TrustPulsePanel({
-  trustScore,
-  trustLevel,
-  validationTotal,
-  corrections,
-  pending,
-  rejected,
-  pressureCount,
-  expiringDocuments,
+  trustScore, trustLevel, validationTotal, corrections, pending, rejected,
+  openMediations, pendingValidation, criticalAlerts, expiringDocuments, sellerRisks, unansweredClaims,
 }: {
-  trustScore: number;
-  trustLevel: string;
-  validationTotal: number;
-  corrections: number;
-  pending: number;
-  rejected: number;
-  pressureCount: number;
-  expiringDocuments: number;
+  trustScore: number; trustLevel: string; validationTotal: number;
+  corrections: number; pending: number; rejected: number;
+  openMediations: number; pendingValidation: number; criticalAlerts: number;
+  expiringDocuments: number; sellerRisks: number; unansweredClaims: number;
 }) {
   const tone = trustTone(trustScore);
-
   return (
     <article className="trust-panel trust-panel-large">
       <div className="trust-panel-head">
-        <div>
-          <span>Estado general</span>
-          <h2>Pulso operativo</h2>
-        </div>
+        <div><span>Estado general</span><h2>Pulso operativo</h2></div>
         <div className="trust-panel-actions">
           <Badge text={`Confianza ${trustLevel}`} variant={tone} />
         </div>
@@ -249,308 +474,109 @@ function TrustPulsePanel({
               <span>Indice global</span>
             </div>
           </div>
-          <p>{pressureCount} frentes requieren seguimiento operativo entre mediaciones, reportes y documentos.</p>
+          <PressureSummary openMediations={openMediations} pendingValidation={pendingValidation} criticalAlerts={criticalAlerts} />
         </div>
         <div className="trust-progress-list">
           <ProgressRow label="Solicitudes de corrección" value={corrections} total={validationTotal} tone="yellow" />
           <ProgressRow label="Validaciones pendientes" value={pending} total={validationTotal} tone="amber" />
           <ProgressRow label="Rechazos documentales" value={rejected} total={validationTotal} tone="red" />
-          <div className="trust-cycle-strip" aria-label="Flujo de mediación">
-            <span>Esperando al vendedor</span>
+<div className="trust-cycle-strip" aria-label="Flujo de mediación">
+            <span>Esperando al vendedor ({unansweredClaims})</span>
             <UiIcon name="arrowRight" />
             <span>En mediación</span>
             <UiIcon name="arrowRight" />
             <span>Resuelta o cuenta bloqueada</span>
           </div>
-          <div className="trust-pulse-note">
-            <UiIcon name="calendar" />
-            <span>{expiringDocuments} documentos proximos a vencer dentro del flujo de confianza. Un caso en mediación no debe verse como esperando al vendedor ni bloqueado al mismo tiempo.</span>
-          </div>
+          <PulseNote
+            expiringDocuments={expiringDocuments}
+            unansweredClaims={unansweredClaims}
+            sellerRisks={sellerRisks}
+          />
         </div>
       </div>
     </article>
+  );
+}
+
+function PressureSummary({ openMediations, pendingValidation, criticalAlerts }: {
+  openMediations: number;
+  pendingValidation: number;
+  criticalAlerts: number;
+}) {
+  const parts: string[] = [];
+  if (openMediations > 0) parts.push(`${openMediations} mediación${openMediations > 1 ? 'es' : ''} abierta${openMediations > 1 ? 's' : ''}`);
+  if (pendingValidation > 0) parts.push(`${pendingValidation} validación${pendingValidation > 1 ? 'es' : ''} pendiente${pendingValidation > 1 ? 's' : ''}`);
+  if (criticalAlerts > 0) parts.push(`${criticalAlerts} alerta${criticalAlerts > 1 ? 's' : ''} crítica${criticalAlerts > 1 ? 's' : ''}`);
+
+  if (parts.length === 0) {
+    return <p style={{ fontSize: 13, color: 'var(--text-secondary)', textAlign: 'center' }}>Sin elementos pendientes de atención.</p>;
+  }
+
+  const text = parts.length === 1
+    ? parts[0]
+    : parts.slice(0, -1).join(', ') + ' y ' + parts[parts.length - 1];
+
+  return (
+    <p style={{ fontSize: 13, color: 'var(--text-secondary)', textAlign: 'center', lineHeight: 1.5 }}>
+      Hay <strong style={{ color: 'var(--ink)' }}>{text}</strong> que requieren atención operativa.
+    </p>
+  );
+}
+
+function PulseNote({ expiringDocuments, unansweredClaims, sellerRisks }: {
+  expiringDocuments: number;
+  unansweredClaims: number;
+  sellerRisks: number;
+}) {
+  const parts: { icon: string; text: string; tone: 'ok' | 'warn' | 'alert' }[] = [];
+
+  if (expiringDocuments > 0) {
+    parts.push({ icon: 'calendar', text: `${expiringDocuments} documento${expiringDocuments > 1 ? 's' : ''} próximo${expiringDocuments > 1 ? 's' : ''} a vencer — requiere revisión urgente.`, tone: 'alert' });
+  } else {
+    parts.push({ icon: 'calendar', text: 'Sin documentos próximos a vencer.', tone: 'ok' });
+  }
+
+  if (unansweredClaims > 0) {
+    parts.push({ icon: 'clock', text: `${unansweredClaims} reclamo${unansweredClaims > 1 ? 's' : ''} sin respuesta del vendedor.`, tone: unansweredClaims >= 5 ? 'alert' : 'warn' });
+  }
+
+  if (sellerRisks > 0) {
+    parts.push({ icon: 'alert', text: `${sellerRisks} alerta${sellerRisks > 1 ? 's' : ''} de riesgo sin revisar.`, tone: 'alert' });
+  }
+
+  const toneColor = { ok: 'var(--green, #059669)', warn: 'var(--amber, #d97706)', alert: '#dc2626' };
+
+  return (
+    <div className="trust-pulse-note-list">
+      {parts.map((p, i) => (
+        <div key={i} className="trust-pulse-note" style={{ borderLeftColor: toneColor[p.tone] }}>
+          <UiIcon name={p.icon} style={{ color: toneColor[p.tone], flexShrink: 0 }} />
+          <span style={{ color: p.tone === 'ok' ? 'var(--text-secondary)' : toneColor[p.tone] }}>{p.text}</span>
+        </div>
+      ))}
+    </div>
   );
 }
 
 function ProgressRow({ label, value, total, tone }: { label: string; value: number; total: number; tone: string }) {
   const width = percent(value, total);
-
   return (
     <div className={`trust-progress-row tone-${tone}`}>
-      <div>
-        <span>{label}</span>
-        <strong>{compactNumber(value)}</strong>
-      </div>
-      <div className="trust-progress-track">
-        <span style={{ width: `${width}%` }} />
-      </div>
+      <div><span>{label}</span><strong>{compactNumber(value)}</strong></div>
+      <div className="trust-progress-track"><span style={{ width: `${width}%` }} /></div>
       <small>{width}%</small>
     </div>
   );
 }
 
-function MediationsPanel({ items, loading, expanded, onToggle }: { items: MediationResponse[]; loading: boolean; expanded: boolean; onToggle: () => void }) {
-  const activeMediations = items.filter((item) => item.status === MediationStatus.EN_MEDIACION && !item.accountBlocked);
+// ─── Shared panel header ──────────────────────────────────────────────────────
 
-  return (
-    <article className="trust-panel">
-      <CollapsiblePanelHead
-        eyebrow="Mediaciones"
-        title="Casos en mediación"
-        expanded={expanded}
-        onToggle={onToggle}
-        action={<Badge text={`${activeMediations.length} activos`} variant="EN_MEDIACION" />}
-      />
-      {expanded && (
-        <div className="trust-feed">
-          {loading && <EmptyState text="Actualizando mediaciones..." />}
-          {!loading && activeMediations.length === 0 && <EmptyState text="No hay casos activos en mediación para mostrar." />}
-          {!loading && activeMediations.map((item) => (
-            <div className="trust-feed-item" key={item.id}>
-              <span className="trust-feed-icon violet">
-                <UiIcon name="scale" />
-              </span>
-              <div className="trust-feed-copy">
-                <strong>{item.externalId} · Pedido {item.orderId}</strong>
-                <span>{item.reason || item.title}</span>
-                <small>Vendedor: {item.sellerName}</small>
-                <small>Texto de inicio: {item.escalationReason || item.nextAction || 'Sin texto registrado'}</small>
-                <small>Días hábiles transcurridos: {item.elapsed || 'Sin dato disponible'}</small>
-              </div>
-              <div className="trust-feed-side">
-                <Badge text={mediationStatusDisplay(item.status, false)} variant={item.status} />
-                <b>{formatCurrency(item.amount)}</b>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </article>
-  );
-}
-
-function EscalationsPanel({ items, loading, expanded, onToggle }: { items: MediationResponse[]; loading: boolean; expanded: boolean; onToggle: () => void }) {
-  const escalations = items
-    .filter((item) => item.status === MediationStatus.ESPERANDO_VENDEDOR && !item.accountBlocked)
-    .sort((a, b) => parseAgeDays(b) - parseAgeDays(a));
-
-  return (
-    <article className="trust-panel">
-      <CollapsiblePanelHead
-        eyebrow="Seguimiento"
-        title="Últimos esperando al vendedor"
-        expanded={expanded}
-        onToggle={onToggle}
-        action={<Badge text={`${escalations.length} casos`} variant="ESPERANDO_VENDEDOR" />}
-      />
-      {expanded && (
-        <div className="trust-feed">
-          {loading && <EmptyState text="Actualizando casos esperando al vendedor..." />}
-          {!loading && escalations.length === 0 && <EmptyState text="Sin casos esperando al vendedor recientes." />}
-          {!loading && escalations.map((item) => {
-            const ageDays = parseAgeDays(item);
-            const tone = escalationTone(ageDays);
-            const level = escalationLevel(ageDays);
-
-            return (
-              <div className="trust-feed-item" key={item.id}>
-                <span className={`trust-feed-icon ${tone}`}>
-                  <UiIcon name={tone === 'red' ? 'alert' : 'clock'} />
-                </span>
-                <div className="trust-feed-copy">
-                  <strong>{item.externalId} · {item.sellerName}</strong>
-                  <span>{item.reason || item.title}</span>
-                  <small>Esperando hace {ageDays} d · {item.elapsed || 'sin antigüedad calculada'}</small>
-                  <small>Última actualización: {formatDateTime(item.updatedAt)}</small>
-                </div>
-                <div className="trust-feed-side">
-                  <Badge text={level} variant={tone === 'red' ? 'RECHAZADO' : tone === 'amber' ? 'PENDIENTE' : 'APROBADO'} />
-                  <Badge text={item.status} variant={item.status} />
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </article>
-  );
-}
-
-function ApprovedIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" className="premium-svg">
-      <defs>
-        <linearGradient id="approveGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#34d399" />
-          <stop offset="100%" stopColor="#059669" />
-        </linearGradient>
-        <filter id="approveShadow" x="-20%" y="-20%" width="140%" height="140%">
-          <feDropShadow dx="0" dy="2" stdDeviation="2" floodColor="#059669" floodOpacity="0.3" />
-        </filter>
-      </defs>
-      <circle cx="12" cy="12" r="10" fill="url(#approveGrad)" filter="url(#approveShadow)" />
-      <circle cx="12" cy="12" r="8.5" stroke="#ffffff" strokeWidth="1" strokeDasharray="3 2" opacity="0.6" />
-      <path d="m8.5 12.5 2.5 2.5 5-5" stroke="#ffffff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function RejectedIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" className="premium-svg">
-      <defs>
-        <linearGradient id="rejectGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#f87171" />
-          <stop offset="100%" stopColor="#dc2626" />
-        </linearGradient>
-        <filter id="rejectShadow" x="-20%" y="-20%" width="140%" height="140%">
-          <feDropShadow dx="0" dy="2" stdDeviation="2" floodColor="#dc2626" floodOpacity="0.3" />
-        </filter>
-      </defs>
-      <circle cx="12" cy="12" r="10" fill="url(#rejectGrad)" filter="url(#rejectShadow)" />
-      <circle cx="12" cy="12" r="8.5" stroke="#ffffff" strokeWidth="1" strokeDasharray="3 2" opacity="0.6" />
-      <path d="m8.5 8.5 7 7M15.5 8.5l-7 7" stroke="#ffffff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function CorrectionIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" className="premium-svg">
-      <defs>
-        <linearGradient id="correctionGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#fbbf24" />
-          <stop offset="100%" stopColor="#d97706" />
-        </linearGradient>
-        <filter id="correctionShadow" x="-20%" y="-20%" width="140%" height="140%">
-          <feDropShadow dx="0" dy="2" stdDeviation="2" floodColor="#d97706" floodOpacity="0.3" />
-        </filter>
-      </defs>
-      <circle cx="12" cy="12" r="10" fill="url(#correctionGrad)" filter="url(#correctionShadow)" />
-      <circle cx="12" cy="12" r="8.5" stroke="#ffffff" strokeWidth="1" strokeDasharray="3 2" opacity="0.6" />
-      <path d="M15.5 6.5l2 2-7.5 7.5H8v-2l7.5-7.5z" stroke="#ffffff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M14.5 7.5l2 2" stroke="#ffffff" strokeWidth="1.8" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function ValidationsPanel({ items, loading, expanded, onToggle }: { items: ValidationResponse[]; loading: boolean; expanded: boolean; onToggle: () => void }) {
-  const reviewedItems = items
-    .filter(
-      (item) =>
-        item.status === 'RECHAZADA' ||
-        (item.status === 'PENDIENTE' && item.notes && item.notes.trim())
-    )
-    .slice(0, 5);
-
-  return (
-    <article className="trust-panel">
-      <CollapsiblePanelHead
-        eyebrow="Documentacion"
-        title="Validaciones recientes"
-        expanded={expanded}
-        onToggle={onToggle}
-        action={<Badge text={`${reviewedItems.length} observaciones`} variant="RECHAZADO" />}
-      />
-      {expanded && (
-        <div className="trust-document-list">
-          {loading && <EmptyState text="Actualizando validaciones..." />}
-          {!loading && reviewedItems.length === 0 && <EmptyState text="Sin validaciones aceptadas o rechazadas." />}
-          {!loading && reviewedItems.map((item) => {
-            const isRejected = item.status === 'RECHAZADA';
-            const isCorrection = item.status === 'PENDIENTE' && item.notes;
-
-            let badgeText = 'Aceptado';
-            let badgeVariant = 'APROBADO';
-            let iconClass = 'approved';
-            let customIcon = <ApprovedIcon />;
-
-            if (isRejected) {
-              badgeText = 'Rechazado';
-              badgeVariant = 'RECHAZADO';
-              iconClass = 'rejected';
-              customIcon = <RejectedIcon />;
-            } else if (isCorrection) {
-              badgeText = 'Por corregir';
-              badgeVariant = 'PENDIENTE';
-              iconClass = 'correction';
-              customIcon = <CorrectionIcon />;
-            }
-
-            return (
-              <div className={`trust-document-row state-${iconClass}`} key={item.id}>
-                <span className={`trust-document-icon ${iconClass}`}>
-                  {customIcon}
-                </span>
-                <div className="trust-document-copy">
-                  <strong>{item.documentType}</strong>
-                  <span>{item.sellerName}</span>
-                  <small>Responsable: {item.owner || 'Sin responsable'} · Subido: {formatDate(item.uploadedAt)}</small>
-                  <small>Vence {formatDate(item.dueAt)}</small>
-                  {item.notes && <small>{item.notes}</small>}
-                </div>
-                <Badge text={badgeText} variant={badgeVariant} />
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </article>
-  );
-}
-
-function ReceiptsPanel({ items, loading, expanded, onToggle }: { items: ReportResponse[]; loading: boolean; expanded: boolean; onToggle: () => void }) {
-  return (
-    <article className="trust-panel">
-      <CollapsiblePanelHead
-        eyebrow="Confianza"
-        title="Reportes recientes"
-        expanded={expanded}
-        onToggle={onToggle}
-        action={<Badge text={`${items.length} últimas`} variant="PENDIENTE" />}
-      />
-      {expanded && (
-        <div className="trust-receipt-list">
-          {loading && <EmptyState text="Actualizando reportes..." />}
-          {!loading && items.length === 0 && <EmptyState text="Sin reportes." />}
-          {!loading && items.map((item) => (
-            <div className="trust-receipt-row" key={item.id}>
-              <div>
-                <strong>{item.idExterno || `REP-${item.id}`}</strong>
-                <span>Reportante: {item.reportanteName} ({item.reportanteType})</span>
-                <small>Reportado: {item.reportadoName} ({item.reportadoType})</small>
-              </div>
-              <div>
-                <b>{item.motivo}</b>
-                <Badge text="REPORTE" variant="RECHAZADA" />
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </article>
-  );
-}
-
-function CollapsiblePanelHead({
-  eyebrow,
-  title,
-  action,
-  expanded,
-  onToggle,
-}: {
-  eyebrow: string;
-  title: string;
-  action: ReactNode;
-  expanded: boolean;
-  onToggle: () => void;
+function CollapsiblePanelHead({ eyebrow, title, action, expanded, onToggle }: {
+  eyebrow: string; title: string; action: ReactNode; expanded: boolean; onToggle: () => void;
 }) {
   return (
     <div className="trust-panel-head">
-      <div>
-        <span>{eyebrow}</span>
-        <h2>{title}</h2>
-      </div>
+      <div><span>{eyebrow}</span><h2>{title}</h2></div>
       <div className="trust-panel-actions">
         {action}
         <button
@@ -573,5 +599,62 @@ function EmptyState({ text }: { text: string }) {
       <UiIcon name="clock" />
       <span>{text}</span>
     </div>
+  );
+}
+
+// ─── Validation icons ─────────────────────────────────────────────────────────
+
+function ApprovedIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" className="premium-svg">
+      <defs>
+        <linearGradient id="approveGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#34d399" /><stop offset="100%" stopColor="#059669" />
+        </linearGradient>
+        <filter id="approveShadow" x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="2" stdDeviation="2" floodColor="#059669" floodOpacity="0.3" />
+        </filter>
+      </defs>
+      <circle cx="12" cy="12" r="10" fill="url(#approveGrad)" filter="url(#approveShadow)" />
+      <circle cx="12" cy="12" r="8.5" stroke="#ffffff" strokeWidth="1" strokeDasharray="3 2" opacity="0.6" />
+      <path d="m8.5 12.5 2.5 2.5 5-5" stroke="#ffffff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function RejectedIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" className="premium-svg">
+      <defs>
+        <linearGradient id="rejectGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#f87171" /><stop offset="100%" stopColor="#dc2626" />
+        </linearGradient>
+        <filter id="rejectShadow" x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="2" stdDeviation="2" floodColor="#dc2626" floodOpacity="0.3" />
+        </filter>
+      </defs>
+      <circle cx="12" cy="12" r="10" fill="url(#rejectGrad)" filter="url(#rejectShadow)" />
+      <circle cx="12" cy="12" r="8.5" stroke="#ffffff" strokeWidth="1" strokeDasharray="3 2" opacity="0.6" />
+      <path d="m8.5 8.5 7 7M15.5 8.5l-7 7" stroke="#ffffff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function CorrectionIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" className="premium-svg">
+      <defs>
+        <linearGradient id="correctionGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#fbbf24" /><stop offset="100%" stopColor="#d97706" />
+        </linearGradient>
+        <filter id="correctionShadow" x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="2" stdDeviation="2" floodColor="#d97706" floodOpacity="0.3" />
+        </filter>
+      </defs>
+      <circle cx="12" cy="12" r="10" fill="url(#correctionGrad)" filter="url(#correctionShadow)" />
+      <circle cx="12" cy="12" r="8.5" stroke="#ffffff" strokeWidth="1" strokeDasharray="3 2" opacity="0.6" />
+      <path d="M15.5 6.5l2 2-7.5 7.5H8v-2l7.5-7.5z" stroke="#ffffff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M14.5 7.5l2 2" stroke="#ffffff" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
   );
 }

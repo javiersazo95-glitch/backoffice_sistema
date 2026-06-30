@@ -127,21 +127,6 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
         )}
       </nav>
 
-      <div className="operator-card">
-        <div className="operator-avatar">{user?.initials ?? '?'}</div>
-        <div>
-          <strong>{user?.fullName ?? 'Operador'}</strong>
-          <span>{user?.role === 'ADMIN' ? 'Administrador' : 'Operador'}</span>
-        </div>
-      </div>
-
-      <button
-        className="ghost-button"
-        style={{ marginTop: 8, width: '100%', color: '#b9c7d8', borderColor: 'rgba(255,255,255,0.1)' }}
-        onClick={onLogout}
-      >
-        Cerrar sesión
-      </button>
     </aside>
   );
 }
