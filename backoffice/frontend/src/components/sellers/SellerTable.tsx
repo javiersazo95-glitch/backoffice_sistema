@@ -12,8 +12,9 @@ interface SellerTableProps {
   sellers: SellerResponse[];
   onViewSeller?: (seller: SellerResponse) => void;
   onViewDocs?: (id: number) => void;
-  onToggleSeller?: (id: number) => void;
   onReviewMediation?: (mediationId: number) => void;
+  onOpenMediation?: (id: number) => void;
+  onShowBlockHistory?: (id: number) => void;
   expandedId?: number | null;
   onToggleExpand?: (id: number) => void;
   risks?: Record<number, RiskCase[]>;
@@ -31,8 +32,9 @@ export default function SellerTable({
   sellers,
   onViewSeller,
   onViewDocs,
-  onToggleSeller,
   onReviewMediation,
+  onOpenMediation,
+  onShowBlockHistory,
   expandedId,
   onToggleExpand,
   risks,
@@ -117,7 +119,7 @@ export default function SellerTable({
                             <button
                               className="row-action mediation-state-violet"
                               type="button"
-                              onClick={() => onToggleSeller?.(seller.id)}
+                              onClick={() => onOpenMediation?.(seller.id)}
                               aria-label="Ver mediación en curso"
                             >
                               <UiIcon name="scale" />
@@ -127,7 +129,7 @@ export default function SellerTable({
                             <button
                               className="row-action account-lock-action"
                               type="button"
-                              onClick={() => onToggleSeller?.(seller.id)}
+                              onClick={() => onOpenMediation?.(seller.id)}
                               aria-label="Ver casos esperando al vendedor"
                             >
                               <UiIcon name="clock" />
@@ -152,9 +154,9 @@ export default function SellerTable({
                         mediations={mediations?.[seller.id]}
                         blockedMediations={sellerBlockedMediations}
                         onViewDocs={onViewDocs}
-                        onOpenMediation={onToggleSeller}
+                        onOpenMediation={onOpenMediation}
                         onReviewMediation={onReviewMediation}
-                        onSuspend={onToggleSeller}
+                        onShowBlockHistory={onShowBlockHistory}
                       />
                     )}
                   </Fragment>

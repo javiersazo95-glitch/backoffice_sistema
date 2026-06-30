@@ -420,8 +420,9 @@ export default function ValidationsPage() {
   }
 
   function openDocument(document: ValidationResponse) {
-    if (document.documentUrl) {
-      window.open(document.documentUrl, '_blank');
+    const url = resolveDocumentUrl(document.documentUrl);
+    if (url) {
+      window.open(url, '_blank');
     } else {
       showToast(`Documento "${document.documentType}" registrado en backend. No hay URL de archivo expuesta en esta API.`);
     }

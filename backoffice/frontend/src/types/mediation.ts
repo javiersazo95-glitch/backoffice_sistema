@@ -47,6 +47,8 @@ export interface MediationDetailResponse extends MediationResponse {
   documentUrl: string;
   documentType: string;
   buyer: string;
+  buyerPhotoUrl?: string | null;
+  sellerPhotoUrl?: string | null;
 }
 
 export interface MediationEvidenceResponse {

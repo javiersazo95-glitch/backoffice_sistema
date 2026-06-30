@@ -12,7 +12,7 @@ interface SellerExpandedRowProps {
   onViewDocs?: (id: number) => void;
   onOpenMediation?: (id: number) => void;
   onReviewMediation?: (mediationId: number) => void;
-  onSuspend?: (id: number) => void;
+  onShowBlockHistory?: (id: number) => void;
 }
 
 export default function SellerExpandedRow({
@@ -23,7 +23,7 @@ export default function SellerExpandedRow({
   onViewDocs,
   onOpenMediation,
   onReviewMediation,
-  onSuspend,
+  onShowBlockHistory,
 }: SellerExpandedRowProps) {
   return (
     <tr className="seller-expanded-row">
@@ -37,7 +37,7 @@ export default function SellerExpandedRow({
             blockedMediation={blockedMediations[0]}
             onViewDocs={onViewDocs}
             onOpenMediation={onOpenMediation}
-            onSuspend={onSuspend}
+            onShowBlockHistory={onShowBlockHistory}
           />
           <div className="seller-summary-grid">
             <RisksSummary risks={risks} />

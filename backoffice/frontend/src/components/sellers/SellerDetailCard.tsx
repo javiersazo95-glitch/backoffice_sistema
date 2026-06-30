@@ -27,7 +27,7 @@ interface SellerDetailCardProps {
   blockedMediation?: ImpactMediation;
   onViewDocs?: (id: number) => void;
   onOpenMediation?: (id: number) => void;
-  onSuspend?: (id: number) => void;
+  onShowBlockHistory?: (id: number) => void;
 }
 
 export default function SellerDetailCard({
@@ -38,7 +38,7 @@ export default function SellerDetailCard({
   blockedMediation,
   onViewDocs,
   onOpenMediation,
-  onSuspend,
+  onShowBlockHistory,
 }: SellerDetailCardProps) {
   const [blockModalOpen, setBlockModalOpen] = useState(false);
   const [showBankModal, setShowBankModal] = useState(false);
@@ -166,9 +166,9 @@ export default function SellerDetailCard({
         <button
           className="discipline-action"
           type="button"
-          onClick={() => onSuspend?.(seller.id)}
+          onClick={() => onShowBlockHistory?.(seller.id)}
         >
-          <UiIcon name="shieldX" /> Bloquear por fraude o falta grave
+          <UiIcon name="shieldX" /> Historial de bloqueos
         </button>
       )}
 

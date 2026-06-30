@@ -185,7 +185,7 @@ function ActivityCard({
   );
 }
 
-interface SellerBlockHistoryModalProps {
+export interface SellerBlockHistoryModalProps {
   isOpen: boolean;
   onClose: () => void;
   seller: SellerDetailResponse | null;
@@ -194,7 +194,7 @@ interface SellerBlockHistoryModalProps {
   onSuspend?: (sellerId: number) => void;
 }
 
-function SellerBlockHistoryModal({ isOpen, onClose, seller, blockHistory, isLoading, onSuspend }: SellerBlockHistoryModalProps) {
+export function SellerBlockHistoryModal({ isOpen, onClose, seller, blockHistory, isLoading, onSuspend }: SellerBlockHistoryModalProps) {
   if (!isOpen || !seller) return null;
 
   return (

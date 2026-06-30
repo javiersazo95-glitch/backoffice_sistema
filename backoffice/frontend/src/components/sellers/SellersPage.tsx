@@ -20,7 +20,7 @@ import type { RiskCase, ImpactMediation, ResolvedCase } from '@/types/cases';
 import { MediationStatus, type MediationResponse, type ResolvedCaseResponse } from '@/types/mediation';
 import AreaHomeShortcut from '@/components/shared/AreaHomeShortcut';
 import SellerDocumentsModal from './SellerDocumentsModal';
-import SellerProfileModal from './SellerProfileModal';
+import SellerProfileModal, { SellerBlockHistoryModal } from './SellerProfileModal';
 import SellerActiveMediationsModal from './SellerActiveMediationsModal';
 import { showToast } from '@/components/layout/Toast';
 import { applyManualMediationStatus, useManualMediationStatusOverrides } from '@/utils/manualMediationStatus';
@@ -193,6 +193,7 @@ export default function SellersPage() {
   const [infoSeller, setInfoSeller] = useState<SellerResponse | null>(null);
   const [sellerInfoOpen, setSellerInfoOpen] = useState(false);
   const [sellerMediationsOpen, setSellerMediationsOpen] = useState(false);
+  const [sellerBlockHistoryOpen, setSellerBlockHistoryOpen] = useState(false);
 
   const applyFilter = (updates: Partial<SellerFilterRequest>) => {
     setFilter((f) => ({ ...f, ...updates, page: 0 }));
@@ -534,6 +535,22 @@ export default function SellersPage() {
     setInfoSeller(null);
   };
 
+  const handleShowBlockHistory = (sellerId: number) => {
+    const seller = findSellerById(sellerId);
+    setSelectedSellerId(sellerId);
+    setInfoSeller(seller ?? null);
+    setSellerInfoOpen(false);
+    setDocModalOpen(false);
+    setSellerMediationsOpen(false);
+    setSellerBlockHistoryOpen(true);
+  };
+
+  const handleCloseBlockHistory = () => {
+    setSellerBlockHistoryOpen(false);
+    setSelectedSellerId(null);
+    setInfoSeller(null);
+  };
+
   const handleBlockAccount = (id: number) => {
     if (confirm('¿Estás seguro de bloquear esta cuenta?')) {
       suspendMutation.mutate(
@@ -550,6 +567,12 @@ export default function SellersPage() {
       );
     }
   };
+
+  const { data: sellerBlockHistory = [], isLoading: isBlockHistoryLoading } = useQuery({
+    queryKey: ['seller-block-history', selectedSellerId],
+    queryFn: () => sellersApi.getSellerBlockHistory(selectedSellerId!),
+    enabled: sellerBlockHistoryOpen && !!selectedSellerId,
+  });
 
   const handleStartMediation = (mediationId: number) => {
     navigate(`/confianza/mediations?action=init&mediationId=${mediationId}`);
@@ -604,13 +627,14 @@ export default function SellersPage() {
                 sellers={pagedSellers}
                 onViewSeller={handleOpenSellerInfo}
                 onViewDocs={handleViewDocs}
-                onToggleSeller={handleSellerSelect}
                 expandedId={expandedId}
                 onToggleExpand={handleToggleExpand}
                 risks={risksBySeller}
                 mediations={mediationsBySeller}
                 blockedMediations={blockedMediationsBySeller}
                 onReviewMediation={handleReviewMediation}
+                onOpenMediation={handleOpenSellerMediations}
+                onShowBlockHistory={handleShowBlockHistory}
                 selectedSellerId={selectedSellerId}
               />
 
@@ -695,6 +719,15 @@ export default function SellersPage() {
         isOpen={sellerMediationsOpen}
         onClose={handleCloseSellerMediations}
         seller={sellerDetailView || null}
+      />
+
+      <SellerBlockHistoryModal
+        isOpen={sellerBlockHistoryOpen}
+        onClose={handleCloseBlockHistory}
+        seller={sellerDetailView || null}
+        blockHistory={sellerBlockHistory}
+        isLoading={isBlockHistoryLoading}
+        onSuspend={handleBlockAccount}
       />
     </>
   );

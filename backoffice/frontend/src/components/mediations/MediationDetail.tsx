@@ -208,6 +208,7 @@ function ChatCard({
   title,
   partyName,
   icon,
+  photoUrl,
   messages,
   accent,
   placeholder,
@@ -217,6 +218,7 @@ function ChatCard({
   title: string;
   partyName: string;
   icon: string;
+  photoUrl?: string | null;
   messages: ChatMessage[];
   accent: 'blue' | 'violet';
   placeholder: string;
@@ -237,7 +239,11 @@ function ChatCard({
       <div className="mediation-chat-header">
         <div className="mediation-chat-title">
           <span className="mediation-chat-icon">
-            <UiIcon name={icon} />
+            {photoUrl ? (
+              <img src={photoUrl} alt={partyName} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+            ) : (
+              <UiIcon name={icon} />
+            )}
           </span>
           <div>
             <h3>{title}</h3>
@@ -439,6 +445,7 @@ export default function MediationDetail({
               title="Chat con comprador"
               partyName={buyerName}
               icon="users"
+              photoUrl={item.buyerPhotoUrl}
               messages={mapBackendMessages(item.buyerMessages, 'buyer')}
               accent="blue"
               placeholder="Aún no hay mensajes en este chat."
@@ -450,6 +457,7 @@ export default function MediationDetail({
               title="Chat con tienda"
               partyName={sellerName}
               icon="users"
+              photoUrl={item.sellerPhotoUrl}
               messages={mapBackendMessages(item.sellerMessages, 'seller')}
               accent="violet"
               placeholder="Aún no hay mensajes en este chat."
