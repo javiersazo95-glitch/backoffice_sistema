@@ -6,7 +6,7 @@ import Toast from './Toast';
 import HelpSupportWidget from '@/components/shared/HelpSupportWidget';
 
 export default function AppShell({ children, noSidebar }: { children?: ReactNode; noSidebar?: boolean }) {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
 
   if (noSidebar) {
     return (
