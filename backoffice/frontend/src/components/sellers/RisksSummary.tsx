@@ -14,7 +14,7 @@ export default function RisksSummary({ risks }: RisksSummaryProps) {
           <UiIcon name="clock" />
         </span>
         <div>
-          <h3>Esperando al vendedor</h3>
+          <h3>En disputa</h3>
           <p>Casos pendientes de respuesta</p>
         </div>
         <strong>{risks.length}</strong>
@@ -39,7 +39,7 @@ export default function RisksSummary({ risks }: RisksSummaryProps) {
           ))
         ) : (
           <div className="empty-insight">
-            <strong>Sin casos esperando al vendedor</strong>
+            <strong>Sin casos en disputa</strong>
             <p>No hay casos esperando respuesta para este vendedor.</p>
           </div>
         )}

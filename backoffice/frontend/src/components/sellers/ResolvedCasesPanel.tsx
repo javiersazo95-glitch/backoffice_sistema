@@ -71,7 +71,7 @@ export default function ResolvedCasesPanel({ cases, onOpenSeller }: ResolvedCase
         ) : (
           <div className="empty-insight">
             <strong>Sin casos resueltos</strong>
-            <p>Aún no hay resoluciones registradas para casos esperando al vendedor o mediaciones.</p>
+            <p>Aún no hay resoluciones registradas para casos en disputa o mediaciones.</p>
           </div>
         )}
       </div>

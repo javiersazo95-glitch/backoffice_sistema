@@ -43,7 +43,7 @@ export default function RisksPanel({ risks, onOpenSeller, onOpenCase }: RisksPan
     <article className="panel emphasis-panel">
       <div className="panel-header signal-panel-header">
         <div>
-          <h2>Esperando al vendedor</h2>
+          <h2>En disputa</h2>
           <span className="panel-hint">Casos pendientes de respuesta o gestión del vendedor</span>
         </div>
         <div className="risk-panel-controls">
@@ -88,8 +88,8 @@ export default function RisksPanel({ risks, onOpenSeller, onOpenCase }: RisksPan
           ))
         ) : (
           <div className="empty-insight">
-            <strong>Sin casos esperando al vendedor</strong>
-            <p>No hay casos esperando al vendedor que coincidan con la busqueda.</p>
+            <strong>Sin casos en disputa</strong>
+            <p>No hay casos en disputa que coincidan con la busqueda.</p>
           </div>
         )}
       </div>

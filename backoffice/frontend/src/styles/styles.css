@@ -7862,10 +7862,11 @@ tr.is-active {
 }
 
 .chat-bubble-row.mediator.outgoing {
-  flex-direction: row-reverse;
+  flex-direction: row;
 }
 
-.chat-mediator-avatar {
+.chat-mediator-avatar,
+.chat-party-avatar {
   display: inline-flex;
   width: 32px;
   height: 32px;
@@ -7879,10 +7880,18 @@ tr.is-active {
   box-shadow: 0 6px 14px rgba(15, 23, 42, 0.12);
 }
 
-.chat-mediator-avatar img {
+.chat-mediator-avatar img,
+.chat-party-avatar img {
   width: 100%;
   height: 100%;
+}
+
+.chat-mediator-avatar img {
   object-fit: contain;
+}
+
+.chat-party-avatar img {
+  object-fit: cover;
 }
 
 .chat-bubble.incoming {
@@ -13232,15 +13241,32 @@ tr.is-active {
   background: #fbfdff;
 }
 
+.modal-title-block {
+  min-width: 0;
+  flex: 1;
+}
+
 .modal-header h2,
 .modal-header p {
   margin: 0;
+}
+
+.modal-header h2 {
+  white-space: nowrap;
 }
 
 .modal-header p {
   margin-top: 4px;
   color: var(--muted);
   font-size: 12.5px;
+}
+
+.modal-header-badges {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  flex: 0 0 auto;
 }
 
 .settlement-detail-modal {

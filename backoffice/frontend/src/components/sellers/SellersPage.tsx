@@ -303,8 +303,8 @@ export default function SellersPage() {
         id: String(med.id),
         sellerId: med.sellerId,
         seller: safeText(med.sellerName, 'Vendedor'),
-        status: 'Esperando al vendedor',
-        reason: safeText(med.reason, 'Esperando al vendedor'),
+        status: 'En disputa',
+        reason: safeText(med.reason, 'En disputa'),
         orderId: safeText(med.orderId, 'Sin pedido'),
         updated: safeText(med.createdAt, 'Sin fecha informada'),
         stage: resolvedStage,
@@ -427,7 +427,7 @@ export default function SellersPage() {
     let sellers = sellerPool.filter((seller) => isSellerVisibleInList(seller));
 
     // Mediation-status filter
-    if (filter.status === 'Esperando al vendedor') {
+    if (filter.status === 'En disputa') {
       sellers = sellers.filter((s) => !!risksBySeller[s.id]?.length);
     } else if (filter.status === 'En mediación') {
       sellers = sellers.filter((s) => !!mediationsBySeller[s.id]?.length);
@@ -597,7 +597,7 @@ export default function SellersPage() {
       />
 
       <Notice>
-        Los casos abiertos no cambian la visibilidad del vendedor. Esta vista muestra solo vendedores activos y sus mediaciones o casos esperando al vendedor asociados.
+        Los casos abiertos no cambian la visibilidad del vendedor. Esta vista muestra solo vendedores activos y sus mediaciones o casos en disputa asociados.
       </Notice>
 
       <RegisteredSellersLegend />

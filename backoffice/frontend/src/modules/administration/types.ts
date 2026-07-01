@@ -1,6 +1,6 @@
 export type AdminView = 'resumen' | 'pedidos' | 'liquidaciones' | 'gastos' | 'retiros';
 
-export type OrderStatus = 'Pendiente' | 'Preparando' | 'Enviado' | 'Recibido' | 'Finalizado' | 'En mediación' | 'Esperando al vendedor';
+export type OrderStatus = 'Pendiente' | 'Preparando' | 'Enviado' | 'Recibido' | 'Finalizado' | 'En mediación' | 'En disputa';
 
 export type SettlementStatus = 'Completada' | 'Enviado' | 'En disputa' | 'Cancelado';
 

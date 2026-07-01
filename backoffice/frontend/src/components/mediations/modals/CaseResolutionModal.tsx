@@ -23,7 +23,7 @@ export default function CaseResolutionModal({ isOpen, onClose, item, mode, onSub
   const title = mode === 'reactivate' ? 'Reactivar cuenta' : 'Registrar resolución';
   const kicker = mode === 'reactivate' ? 'Cuenta bloqueada o suspendida por mediación' : 'Resolución de caso';
   const buttonLabel = mode === 'reactivate' ? 'Reactivar cuenta' : 'Guardar resolución';
-  const kind = item.status === 'ESPERANDO_VENDEDOR' ? 'Esperando al vendedor' : 'Mediación';
+  const kind = item.status === 'ESPERANDO_VENDEDOR' ? 'En disputa' : 'Mediación';
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

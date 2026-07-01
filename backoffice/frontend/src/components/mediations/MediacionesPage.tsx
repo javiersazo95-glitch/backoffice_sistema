@@ -329,7 +329,7 @@ export default function MediacionesPage() {
           setSelectedId(targetId);
           setInitModalOpen(true);
         } else {
-          showToast('No se encontró un caso esperando al vendedor para inicializar mediación.');
+          showToast('No se encontró un caso en disputa para inicializar mediación.');
         }
 
         clearDeepLinkParams();
@@ -509,7 +509,7 @@ export default function MediacionesPage() {
               description="Casos con mediación formal ya iniciada."
             />
             <MetricCard
-              label="Esperando al vendedor"
+              label="En disputa"
               value={statusMetrics.waiting}
               tone="amber"
               iconName="clock"

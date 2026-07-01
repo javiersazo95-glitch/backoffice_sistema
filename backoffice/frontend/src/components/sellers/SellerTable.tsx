@@ -130,7 +130,7 @@ export default function SellerTable({
                               className="row-action account-lock-action"
                               type="button"
                               onClick={() => onOpenMediation?.(seller.id)}
-                              aria-label="Ver casos esperando al vendedor"
+                              aria-label="Ver casos en disputa"
                             >
                               <UiIcon name="clock" />
                             </button>

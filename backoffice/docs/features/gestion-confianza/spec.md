@@ -76,7 +76,7 @@ Gestionar la confianza del marketplace mediante:
 
 ### CA-06: Mediaciones
 
-- Debe mostrar estados Esperando al vendedor, Escalado, En mediación, Resuelta y Cerrada.
+- Debe mostrar estados En disputa, Escalado, En mediación, Resuelta y Cerrada.
 - Debe mostrar icono gris para escaladas e icono violeta para mediaciones en curso.
 - Debe permitir iniciar mediación desde un caso escalado.
 - Debe permitir revisar mediación en curso.

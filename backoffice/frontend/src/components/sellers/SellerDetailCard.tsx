@@ -127,7 +127,7 @@ export default function SellerDetailCard({
           </div>
         } 
       />
-      <DetailRow label="Esperando al vendedor" value={waitingSellerCount} />
+      <DetailRow label="En disputa" value={waitingSellerCount} />
       <DetailRow label="Mediación activa" value={activeMediation ? `${activeMediation.id} · ${activeMediation.reason}` : 'Sin mediación en curso'} />
       <DetailRow label="Ultima actividad" value={formatDate(seller.lastActivityAt)} />
 

@@ -157,15 +157,28 @@ function FieldLabel({ label, children }: { label: string; children: ReactNode })
   );
 }
 
-function Modal({ title, subtitle, children, onClose }: { title: string; subtitle?: string; children: ReactNode; onClose: () => void }) {
+function Modal({
+  title,
+  subtitle,
+  badges,
+  children,
+  onClose,
+}: {
+  title: string;
+  subtitle?: string;
+  badges?: ReactNode;
+  children: ReactNode;
+  onClose: () => void;
+}) {
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={onClose}>
       <section className="modal-panel" role="dialog" aria-modal="true" aria-label={title} onMouseDown={(event) => event.stopPropagation()}>
         <div className="modal-header">
-          <div>
+          <div className="modal-title-block">
             <h2>{title}</h2>
             {subtitle && <p>{subtitle}</p>}
           </div>
+          {badges && <div className="modal-header-badges">{badges}</div>}
           <button className="icon-button" type="button" onClick={onClose} aria-label="Cerrar">
             <UiIcon name="close" />
           </button>
@@ -1488,8 +1501,13 @@ export default function AdminFinancePage() {
 
       {selectedDetailOrder && (
         <Modal
-          title="Detalle del Pedido"
-          subtitle={selectedDetailOrder.id}
+          title={`Pedido ${selectedDetailOrder.id}`}
+          badges={
+            <>
+              <span className={`status-pill ${slug(selectedDetailOrder.status)}`}>{selectedDetailOrder.status}</span>
+              <span className="status-pill pagado">Pagado</span>
+            </>
+          }
           onClose={() => setSelectedDetailOrder(null)}
         >
           <div className="form-grid" style={{ padding: '20px', gap: '20px' }}>

@@ -62,8 +62,8 @@ export function sellerStatusDisplay(status: string): string {
 export function mediationStatusDisplay(status: string, accountBlocked: boolean): string {
   if (accountBlocked) return 'Cuenta Bloqueada';
   const map: Record<string, string> = {
-    ESPERANDO_VENDEDOR: 'Esperando Vendedor',
-    ESCALADO: 'Esperando Vendedor',
+    ESPERANDO_VENDEDOR: 'En disputa',
+    ESCALADO: 'En disputa',
     EN_MEDIACION: 'En Mediación',
     RESUELTA: 'Resuelta',
     CERRADA: 'Cerrada',
@@ -72,14 +72,14 @@ export function mediationStatusDisplay(status: string, accountBlocked: boolean):
 }
 
 export function mediationStatusOptions(): string[] {
-  return ['Todos', 'En mediación', 'Cuenta bloqueada', 'Esperando al vendedor'];
+  return ['Todos', 'En mediación', 'Cuenta bloqueada', 'En disputa'];
 }
 
 export function mediationStatusHelp(status: string): string {
   const help: Record<string, string> = {
     'En mediación': 'Caso formal ya inicializado. El icono de mediación va en morado.',
     'Cuenta bloqueada': 'Cuenta bloqueada desde una mediación inicializada. Solo corresponde reactivar si existe respaldo acreditador.',
-    'Esperando al vendedor': 'Caso pendiente de respuesta del vendedor. Desde aquí el equipo puede iniciar mediación cuando corresponda.',
+    'En disputa': 'Caso pendiente de respuesta del vendedor. Desde aquí el equipo puede iniciar mediación cuando corresponda.',
   };
   return help[status] || 'Todos los casos visibles en el período seleccionado.';
 }

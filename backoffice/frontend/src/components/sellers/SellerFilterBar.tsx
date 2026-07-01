@@ -55,7 +55,7 @@ export default function SellerFilterBar({
         aria-label="Estado del vendedor"
       >
         <option value="Todos">Todos los vendedores</option>
-        <option value="Esperando al vendedor">Esperando al vendedor</option>
+        <option value="En disputa">En disputa</option>
         <option value="En mediación">En mediación</option>
       </select>
     </div>

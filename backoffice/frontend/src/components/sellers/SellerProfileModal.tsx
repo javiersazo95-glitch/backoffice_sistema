@@ -7,6 +7,7 @@ import type { MediationSummaryResponse } from '@/types/mediation';
 import type { ReportResponse } from '@/types/report';
 import Badge from '@/components/shared/Badge';
 import UiIcon from '@/components/shared/UiIcon';
+import { mediationStatusDisplay } from '@/utils/formatters';
 import { applyManualMediationStatus, useManualMediationStatusOverrides } from '@/utils/manualMediationStatus';
 import { resolveProfileImageUrl } from '@/api/client';
 import { useManualMediationAdminMode } from '@/utils/manualMediationAdminMode';
@@ -137,7 +138,10 @@ function MediationCard({ mediation, iconName = 'scale' }: { mediation: Mediation
         <span>Pedido {mediation.orderId}</span>
         {'amount' in mediation ? <small>Monto {mediation.amount}</small> : null}
       </div>
-      <Badge text={mediation.status} variant={isWaiting ? 'amber' : 'violet'} />
+      <Badge
+        text={mediationStatusDisplay(mediation.status, 'accountBlocked' in mediation ? !!mediation.accountBlocked : false)}
+        variant={isWaiting ? 'amber' : 'violet'}
+      />
     </div>
   );
 }
@@ -464,7 +468,7 @@ export default function SellerProfileModal({
   const recentActivityRaw: Array<{ icon: string; title: string; detail: string; date: string; timestamp: number; tone: 'blue' | 'violet' | 'red' | 'green' | 'amber' }> = [
     ...waitingSellerMediations.map((mediation) => ({
       icon: 'clock',
-      title: 'Esperando al vendedor',
+      title: 'En disputa',
       detail: mediation.reason,
       date: formatDate(mediation.updatedAt),
       timestamp: new Date(mediation.updatedAt).getTime(),
@@ -565,7 +569,7 @@ export default function SellerProfileModal({
               <div className="seller-profile-quick-panel">
                 <SectionHeader icon="shield" title="Resumen rápido" tone="violet" />
                 <InfoStat label="Mediaciones activas" value={inProgressMediations.length} />
-                <InfoStat label="Esperando al vendedor" value={waitingSellerMediations.length} />
+                <InfoStat label="En disputa" value={waitingSellerMediations.length} />
                 <InfoStat label="Tickets abiertos" value={seller.tickets.filter((ticket) => ticket.status !== 'RESUELTO' && ticket.status !== 'CERRADO').length} />
                 <InfoStat label="Reportes" value={sellerReports.length || seller.pendingReceipts} />
               </div>
@@ -634,12 +638,12 @@ export default function SellerProfileModal({
                 </div>
 
                 <div className="seller-profile-panel risks-panel">
-                  <SectionHeader icon="clock" title="Esperando al vendedor" count={`${waitingSellerMediations.length}`} tone="amber" />
+                  <SectionHeader icon="clock" title="En disputa" count={`${waitingSellerMediations.length}`} tone="amber" />
                   <div className="seller-profile-list">
-                    {waitingSellerMediations.length ? waitingSellerMediations.map((mediation) => <MediationCard key={mediation.id} mediation={mediation} iconName="clock" />) : <p className="row-sub">No hay casos esperando al vendedor.</p>}
+                    {waitingSellerMediations.length ? waitingSellerMediations.map((mediation) => <MediationCard key={mediation.id} mediation={mediation} iconName="clock" />) : <p className="row-sub">No hay casos en disputa.</p>}
                   </div>
                   <button className="profile-inline-link" type="button" onClick={() => onOpenMediation?.(seller.id)}>
-                    Ver todos los casos esperando al vendedor <UiIcon name="arrowRight" />
+                    Ver todos los casos en disputa <UiIcon name="arrowRight" />
                   </button>
                 </div>
 

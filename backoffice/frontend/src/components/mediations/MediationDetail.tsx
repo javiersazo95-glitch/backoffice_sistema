@@ -53,7 +53,7 @@ function mapBackendMessages(messages: MediationMessageResponse[] | undefined, si
     author: message.author,
     time: formatChatTime(message.createdAt),
     side,
-    aligned: message.senderRole === 'MEDIADOR' ? (side === 'buyer' ? 'right' : 'left') : (side === 'buyer' ? 'left' : 'right'),
+    aligned: message.senderRole === 'MEDIADOR' ? 'right' : 'left',
     label: message.senderRole === 'MEDIADOR' ? 'Mediador' : message.senderRole === 'SISTEMA' ? 'Sistema' : side === 'buyer' ? 'Comprador' : 'Tienda',
     isMediator: message.senderRole === 'MEDIADOR',
   }));
@@ -141,7 +141,9 @@ function buildUnifiedHistory(
   );
 }
 
-function ChatBubble({ message, accent }: { message: ChatMessage; accent: 'blue' | 'violet' }) {
+function ChatBubble({ message, accent, partyPhotoUrl }: { message: ChatMessage; accent: 'blue' | 'violet'; partyPhotoUrl?: string | null }) {
+  const showPartyAvatar = !message.isMediator && message.aligned === 'left' && !!partyPhotoUrl;
+
   return (
     <div className={`chat-bubble-row ${message.aligned === 'left' ? 'incoming' : 'outgoing'} ${message.isMediator ? 'mediator' : ''}`}>
       {message.isMediator ? (
@@ -149,10 +151,14 @@ function ChatBubble({ message, accent }: { message: ChatMessage; accent: 'blue' 
           <img src={mediatorProfileImage} alt="Mediador RepuesTop" />
         </span>
       ) : null}
+      {showPartyAvatar ? (
+        <span className="chat-party-avatar">
+          <img src={partyPhotoUrl} alt={message.label} />
+        </span>
+      ) : null}
       <div className={`chat-bubble ${message.aligned === 'left' ? 'incoming' : 'outgoing'} ${accent}`}>
         <div className="chat-bubble-meta">
           <strong>{message.label}</strong>
-          <span>{message.author}</span>
         </div>
         <p>{message.text}</p>
         <span>{message.time}</span>
@@ -239,6 +245,7 @@ function ChatCard({
   const [draft, setDraft] = useState('');
   const resolvedPhotoUrl = useMemo(() => resolveProfileImageUrl(photoUrl), [photoUrl]);
   const [imageFailed, setImageFailed] = useState(false);
+  const visiblePhotoUrl = resolvedPhotoUrl && !imageFailed ? resolvedPhotoUrl : null;
 
   useEffect(() => {
     setImageFailed(false);
@@ -256,9 +263,9 @@ function ChatCard({
       <div className="mediation-chat-header">
         <div className="mediation-chat-title">
           <span className="mediation-chat-icon">
-            {resolvedPhotoUrl && !imageFailed ? (
+            {visiblePhotoUrl ? (
               <img
-                src={resolvedPhotoUrl}
+                src={visiblePhotoUrl}
                 alt={partyName}
                 style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }}
                 onError={() => setImageFailed(true)}
@@ -277,7 +284,7 @@ function ChatCard({
 
       <div className="mediation-chat-thread">
         {messages.length ? (
-          messages.map((message) => <ChatBubble key={message.id} message={message} accent={accent} />)
+          messages.map((message) => <ChatBubble key={message.id} message={message} accent={accent} partyPhotoUrl={visiblePhotoUrl} />)
         ) : (
           <div className="mediation-chat-empty">
             <UiIcon name="message" />

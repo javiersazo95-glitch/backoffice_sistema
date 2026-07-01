@@ -102,7 +102,7 @@ export default function DashboardPage() {
             <div className="trust-hero-kpis" aria-label="Indicadores principales">
               <div className="trust-hero-kpi">
                 <span className="trust-hero-kpi-icon"><UiIcon name="clock" /></span>
-                <div><span>Esperando al vendedor</span><strong>{compactNumber(escalatedCount)}</strong></div>
+                <div><span>En disputa</span><strong>{compactNumber(escalatedCount)}</strong></div>
               </div>
               <div className="trust-hero-kpi">
                 <span className="trust-hero-kpi-icon"><UiIcon name="scale" /></span>
@@ -276,7 +276,7 @@ function EscalationsPanel({ expanded, onToggle }: { expanded: boolean; onToggle:
     <article className="trust-panel">
       <CollapsiblePanelHead
         eyebrow="Seguimiento"
-        title="Últimos esperando al vendedor"
+        title="Últimos en disputa"
         expanded={expanded}
         onToggle={onToggle}
         action={<Badge text={`${total} casos`} variant="ESPERANDO_VENDEDOR" />}
@@ -284,8 +284,8 @@ function EscalationsPanel({ expanded, onToggle }: { expanded: boolean; onToggle:
       {expanded && (
         <>
           <div className="trust-feed">
-            {isLoading && <EmptyState text="Actualizando casos esperando al vendedor..." />}
-            {!isLoading && items.length === 0 && <EmptyState text="Sin casos esperando al vendedor." />}
+            {isLoading && <EmptyState text="Actualizando casos en disputa..." />}
+            {!isLoading && items.length === 0 && <EmptyState text="Sin casos en disputa." />}
             {!isLoading && items.map((item) => {
               const ageDays = parseAgeDays(item);
               const tone = escalationTone(ageDays);
@@ -481,7 +481,7 @@ function TrustPulsePanel({
           <ProgressRow label="Validaciones pendientes" value={pending} total={validationTotal} tone="amber" />
           <ProgressRow label="Rechazos documentales" value={rejected} total={validationTotal} tone="red" />
 <div className="trust-cycle-strip" aria-label="Flujo de mediación">
-            <span>Esperando al vendedor ({unansweredClaims})</span>
+            <span>En disputa ({unansweredClaims})</span>
             <UiIcon name="arrowRight" />
             <span>En mediación</span>
             <UiIcon name="arrowRight" />
