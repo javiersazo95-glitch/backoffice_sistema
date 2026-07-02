@@ -25,6 +25,7 @@ interface AuthState {
 
 interface AuthContextValue extends AuthState {
   login: (username: string, password: string) => Promise<void>;
+  loginWithGoogle: (idToken: string) => Promise<void>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
 }
@@ -33,7 +34,10 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 const ACCESS_TOKEN_STORAGE_KEY = 'repuestop.backoffice.access-token';
 
 function mapRole(role: string) {
-  return role.toUpperCase() === Role.ADMIN ? Role.ADMIN : Role.OPERATOR;
+  const normalizedRole = role.toUpperCase();
+  if (normalizedRole === Role.SUPER_ADMIN) return Role.SUPER_ADMIN;
+  if (normalizedRole === Role.ADMIN) return Role.ADMIN;
+  return Role.OPERATOR;
 }
 
 function mapUser(response: BackofficeLoginResponse): UserSummaryResponse | null {
@@ -52,12 +56,17 @@ function mapUser(response: BackofficeLoginResponse): UserSummaryResponse | null 
     fullName: usuario.nombre,
     initials: usuario.nombre.substring(0, 2).toUpperCase(),
     role: mapRole(usuario.rol),
+    permissions: [],
   };
 }
 
 function mapCurrentUser(response: UserSummaryResponse | BackofficeUserResponse): UserSummaryResponse {
   if ('fullName' in response) {
-    return response;
+    return {
+      ...response,
+      role: mapRole(response.role),
+      permissions: response.permissions ?? [],
+    };
   }
 
   return {
@@ -66,6 +75,7 @@ function mapCurrentUser(response: UserSummaryResponse | BackofficeUserResponse):
     fullName: response.nombre,
     initials: response.nombre.substring(0, 2).toUpperCase(),
     role: mapRole(response.rol),
+    permissions: [],
   };
 }
 
@@ -131,8 +141,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     localStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, token);
     setAuthHeader(token);
+    const currentUser = await apiClient.get<UserSummaryResponse | BackofficeUserResponse>('/auth/me');
     setState({
-      user,
+      user: mapCurrentUser(currentUser.data),
+      isAuthenticated: true,
+      isLoading: false,
+    });
+  }, []);
+
+  const loginWithGoogle = useCallback(async (idToken: string) => {
+    const response = await apiClient.post<BackofficeLoginResponse>('/auth/google', { idToken });
+
+    const token = response.data.token ?? response.data.accessToken;
+    const user = mapUser(response.data);
+
+    if (!token || !user) {
+      throw new Error('Respuesta de autenticación inválida');
+    }
+
+    localStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, token);
+    setAuthHeader(token);
+    const currentUser = await apiClient.get<UserSummaryResponse | BackofficeUserResponse>('/auth/me');
+    setState({
+      user: mapCurrentUser(currentUser.data),
       isAuthenticated: true,
       isLoading: false,
     });
@@ -159,7 +190,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ ...state, login, logout, refresh }}>
+    <AuthContext.Provider value={{ ...state, login, loginWithGoogle, logout, refresh }}>
       {children}
     </AuthContext.Provider>
   );

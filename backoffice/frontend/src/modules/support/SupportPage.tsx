@@ -11,17 +11,22 @@ import { showToast } from '@/components/layout/Toast';
 import { PAGE_SIZES } from '@/utils/constants';
 import { formatDate } from '@/utils/formatters';
 import type { TicketResponse, TicketStatus, TicketPriority, TicketCategory, ReporterType, TicketPlatform } from '@/api/support';
+import { useAuth } from '@/context/AuthContext';
+import { hasBackofficePermission } from '@/hooks/usePermissions';
+import { resolveDocumentUrl } from '@/utils/documentUrls';
 
 const PLATFORM_LABELS: Record<TicketPlatform, string> = {
   ADMINISTRACION_CONTABLE: 'Administración Contable',
   MEDIACION_CONFIANZA: 'Mediación y Confianza',
   APP_MOBILE: 'App Mobile RepuesTop',
+  SOPORTE: 'Soporte',
 };
 
 const PLATFORM_TONES: Record<TicketPlatform, string> = {
   ADMINISTRACION_CONTABLE: 'green',
   MEDIACION_CONFIANZA: 'violet',
   APP_MOBILE: 'blue',
+  SOPORTE: 'amber',
 };
 
 const PRIORITY_LABELS: Record<TicketPriority, string> = {
@@ -95,6 +100,578 @@ function showLegacyTicketModal() {
   return false;
 }
 
+
+
+function SupportQaPage() {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const [qaTab, setQaTab] = useState<'defectos' | 'resueltos'>('defectos');
+  const [search, setSearch] = useState('');
+  const [selectedBugId, setSelectedBugId] = useState<number | null>(null);
+
+  // States for creating a defect
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [newTitle, setNewTitle] = useState('');
+  const [newDescription, setNewDescription] = useState('');
+  const [newPlatform, setNewPlatform] = useState<TicketPlatform>('APP_MOBILE');
+  const [newPriority, setNewPriority] = useState<TicketPriority>('MEDIA');
+  const [newEntorno, setNewEntorno] = useState('');
+  const [newFile, setNewFile] = useState<File | null>(null);
+
+  // States for review
+  const [reviewComment, setReviewComment] = useState('');
+  const [reviewFile, setReviewFile] = useState<File | null>(null);
+
+  // Fetch bugs
+  const { data: qaReportsData, isLoading } = useQuery({
+    queryKey: ['qa-reports'],
+    queryFn: () => supportApi.getQaReports({ page: 0, size: 200 }),
+  });
+
+  const qaReports = qaReportsData?.content ?? [];
+
+  // Mutations
+  const createMutation = useMutation({
+    mutationFn: supportApi.createTicket,
+    onSuccess: () => {
+      setNewTitle('');
+      setNewDescription('');
+      setNewEntorno('');
+      setNewFile(null);
+      setNewPlatform('APP_MOBILE');
+      setNewPriority('MEDIA');
+      setCreateModalOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['qa-reports'] });
+      showToast('Defecto registrado con éxito');
+    },
+    onError: (error: any) => showToast(error.message || 'No se pudo registrar el defecto'),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ status, nextAction, file }: { status: TicketStatus; nextAction: string; file: File | null }) => {
+      let docUrl = undefined;
+      if (file) {
+        const uploadResult = await supportApi.uploadDocument(file);
+        docUrl = uploadResult.url;
+      }
+      if (!selectedBugId) throw new Error('No hay defecto seleccionado');
+      return supportApi.updateTicketStatus(selectedBugId, {
+        status,
+        nextAction,
+        documentoUrl: docUrl
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['qa-reports'] });
+      setReviewComment('');
+      setReviewFile(null);
+      showToast('Revisión registrada con éxito');
+    },
+    onError: (error: any) => showToast(error.message || 'No se pudo registrar la revisión'),
+  });
+
+  // Client-side filtering & search
+  const filteredBugs = useMemo(() => {
+    return qaReports.filter(bug => {
+      // Matches search term
+      if (search.trim()) {
+        const term = search.toLowerCase();
+        const matchesSearch = bug.reason.toLowerCase().includes(term) ||
+          bug.externalId.toLowerCase().includes(term) ||
+          (bug.lastMessage && bug.lastMessage.toLowerCase().includes(term));
+        if (!matchesSearch) return false;
+      }
+      // Matches tab
+      const isResolved = bug.status === 'RESUELTO' || bug.status === 'CERRADO' || bug.status === 'CANCELADO';
+      if (qaTab === 'defectos') {
+        return !isResolved;
+      } else {
+        return isResolved;
+      }
+    });
+  }, [qaReports, search, qaTab]);
+
+  const activeBugs = useMemo(() => {
+    return filteredBugs;
+  }, [filteredBugs]);
+
+  const resolvedBugs = useMemo(() => {
+    return filteredBugs;
+  }, [filteredBugs]);
+
+  const selectedBug = useMemo(() => {
+    return qaReports.find(b => b.id === selectedBugId) || null;
+  }, [qaReports, selectedBugId]);
+
+  const getDefectStatusLabel = (status: TicketStatus): string => {
+    if (status === 'ABIERTO') return 'Pendiente';
+    if (status === 'EN_PROCESO') return 'Listo para revisar';
+    if (status === 'PENDIENTE_VENDEDOR') return 'Con observación';
+    if (status === 'RESUELTO') return 'Resuelto';
+    return STATUS_LABELS[status] ?? status;
+  };
+
+  const getDefectStatusTone = (status: TicketStatus): string => {
+    if (status === 'ABIERTO') return 'blue';
+    if (status === 'EN_PROCESO') return 'amber';
+    if (status === 'PENDIENTE_VENDEDOR') return 'violet';
+    if (status === 'RESUELTO') return 'green';
+    return 'blue';
+  };
+
+  return (
+    <div className="support-qa-page">
+      <div className="page-header">
+        <div className="page-title">
+          <h1>Registro QA</h1>
+          <p>Registra y gestiona los defectos del sistema.</p>
+        </div>
+        <div className="header-actions">
+          <AreaHomeShortcut />
+        </div>
+      </div>
+
+      <nav className="module-tabs" aria-label="Bugs" style={{ marginBottom: '20px' }}>
+        <button
+          className={qaTab === 'defectos' ? 'active' : ''}
+          onClick={() => { setQaTab('defectos'); setSelectedBugId(null); }}
+          type="button"
+        >
+          <UiIcon name="alert" />
+          Defectos
+        </button>
+        <button
+          className={qaTab === 'resueltos' ? 'active' : ''}
+          onClick={() => { setQaTab('resueltos'); setSelectedBugId(null); }}
+          type="button"
+        >
+          <UiIcon name="fileCheck" />
+          Bugs Resueltos
+        </button>
+      </nav>
+
+      {qaTab === 'defectos' ? (
+        <>
+          <div className="validation-filters" style={{ marginBottom: '20px' }}>
+            <label className="validation-search-field">
+              <UiIcon name="search" />
+              <input
+                type="search"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Buscar por nombre o descripción..."
+              />
+            </label>
+
+            <button
+              className="primary-button"
+              style={{ marginLeft: 'auto' }}
+              type="button"
+              onClick={() => setCreateModalOpen(true)}
+            >
+              <UiIcon name="plus" />
+              Registrar Defecto
+            </button>
+          </div>
+
+          <div className="validation-content-grid">
+            <aside className="validation-request-list" style={{ minHeight: '400px' }}>
+              {isLoading && <div className="validation-empty-state">Cargando defectos...</div>}
+              {!isLoading && activeBugs.length === 0 && (
+                <div className="validation-empty-state">No hay defectos registrados.</div>
+              )}
+              {activeBugs.map(bug => {
+                const isSelected = bug.id === selectedBugId;
+                return (
+                  <button
+                    key={bug.id}
+                    className={`validation-request-card ${isSelected ? 'active' : ''}`}
+                    type="button"
+                    onClick={() => setSelectedBugId(bug.id)}
+                  >
+                    <span className="validation-request-title-row">
+                      <strong>{bug.reason}</strong>
+                      <span className={`status-pill tone-${getDefectStatusTone(bug.status)}`}>
+                        {getDefectStatusLabel(bug.status)}
+                      </span>
+                    </span>
+                    <span className="validation-request-meta">
+                      <UiIcon name="dashboard" />
+                      {PLATFORM_LABELS[bug.platform as TicketPlatform] || bug.platform}
+                    </span>
+                    <span className="validation-request-date">
+                      <UiIcon name="calendar" />
+                      {formatDate(bug.createdAt)}
+                    </span>
+                    <span className="validation-request-footer">
+                      <span>
+                        <UiIcon name="shield" />
+                        {bug.entorno || 'No especificado'}
+                      </span>
+                      <span className={`status-pill tone-${PRIORITY_TONES[bug.priority]}`}>
+                        {PRIORITY_LABELS[bug.priority]}
+                      </span>
+                    </span>
+                  </button>
+                );
+              })}
+            </aside>
+
+            <main className="validation-detail-stack">
+              {selectedBug ? (
+                <div style={{ display: 'grid', gap: '16px' }}>
+                  <section className="validation-panel">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                      <h2 style={{ fontSize: '18px', fontWeight: 'bold', margin: 0 }}>{selectedBug.reason}</h2>
+                      <span className={`status-pill tone-${getDefectStatusTone(selectedBug.status)}`}>
+                        {getDefectStatusLabel(selectedBug.status)}
+                      </span>
+                    </div>
+
+                    <div className="validation-info-grid">
+                      <div className="validation-info-box">
+                        <div style={{ marginBottom: '8px' }}>
+                          <span style={{ fontSize: '12px', color: '#5b6b84', display: 'block' }}>ID Externo</span>
+                          <strong>{selectedBug.externalId}</strong>
+                        </div>
+                        <div style={{ marginBottom: '8px' }}>
+                          <span style={{ fontSize: '12px', color: '#5b6b84', display: 'block' }}>Área</span>
+                          <strong>{PLATFORM_LABELS[selectedBug.platform as TicketPlatform] || selectedBug.platform}</strong>
+                        </div>
+                        <div style={{ marginBottom: '8px' }}>
+                          <span style={{ fontSize: '12px', color: '#5b6b84', display: 'block' }}>Entorno</span>
+                          <strong>{selectedBug.entorno || 'No especificado'}</strong>
+                        </div>
+                      </div>
+
+                      <div className="validation-info-box">
+                        <div style={{ marginBottom: '8px' }}>
+                          <span style={{ fontSize: '12px', color: '#5b6b84', display: 'block' }}>Criticidad</span>
+                          <strong>{PRIORITY_LABELS[selectedBug.priority] || selectedBug.priority}</strong>
+                        </div>
+                        <div style={{ marginBottom: '8px' }}>
+                          <span style={{ fontSize: '12px', color: '#5b6b84', display: 'block' }}>Fecha Registro</span>
+                          <strong>{formatDate(selectedBug.createdAt)}</strong>
+                        </div>
+                        {selectedBug.documentoUrl && (
+                          <div style={{ marginBottom: '8px' }}>
+                            <span style={{ fontSize: '12px', color: '#5b6b84', display: 'block' }}>Documento Adjunto</span>
+                            <button
+                              className="link-button"
+                              type="button"
+                              style={{ background: 'none', border: 'none', padding: 0, color: 'var(--blue)', textDecoration: 'underline', cursor: 'pointer', textAlign: 'left', fontWeight: 'bold' }}
+                              onClick={() => {
+                                const url = resolveDocumentUrl(selectedBug.documentoUrl);
+                                if (url) window.open(url, '_blank');
+                              }}
+                            >
+                              Ver Documento Adjunto
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </section>
+
+                  <section className="validation-panel">
+                    <h3 style={{ fontSize: '15px', fontWeight: 'bold', margin: '0 0 12px 0' }}>Descripción del Defecto</h3>
+                    <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '8px', border: '1px solid #e2e8f0', whiteSpace: 'pre-wrap', color: '#334155' }}>
+                      {selectedBug.lastMessage}
+                    </div>
+                  </section>
+
+                  {selectedBug.status === 'EN_PROCESO' && (
+                    <section className="validation-panel">
+                      <h3 style={{ fontSize: '15px', fontWeight: 'bold', margin: '0 0 12px 0' }}>Registrar revisión de QA</h3>
+                      <div style={{ display: 'grid', gap: '12px' }}>
+                        <label style={{ display: 'grid', gap: '6px' }}>
+                          <span style={{ fontSize: '13px', color: '#334765', fontWeight: 'bold' }}>Comentario de revisión</span>
+                          <textarea
+                            value={reviewComment}
+                            onChange={e => setReviewComment(e.target.value)}
+                            placeholder="Escribe aquí las observaciones o confirmación de la corrección..."
+                            rows={4}
+                            style={{ width: '100%', padding: '12px', border: '1px solid #d9e3f0', borderRadius: '8px', font: 'inherit' }}
+                          />
+                        </label>
+
+                        <label style={{ display: 'grid', gap: '6px' }}>
+                          <span style={{ fontSize: '13px', color: '#334765', fontWeight: 'bold' }}>Documento adjunto (opcional)</span>
+                          <input
+                            type="file"
+                            onChange={e => setReviewFile(e.target.files?.[0] || null)}
+                            style={{ fontSize: '13px' }}
+                          />
+                        </label>
+
+                        <div style={{ display: 'flex', gap: '12px', marginTop: '12px' }}>
+                          <button
+                            className="primary-button"
+                            type="button"
+                            style={{ backgroundColor: 'var(--violet)' }}
+                            disabled={updateMutation.isPending || !reviewComment.trim()}
+                            onClick={() => updateMutation.mutate({ status: 'PENDIENTE_VENDEDOR', nextAction: reviewComment, file: reviewFile })}
+                          >
+                            <UiIcon name="alert" />
+                            Con observación
+                          </button>
+                          <button
+                            className="primary-button"
+                            type="button"
+                            style={{ backgroundColor: 'var(--green)' }}
+                            disabled={updateMutation.isPending || !reviewComment.trim()}
+                            onClick={() => updateMutation.mutate({ status: 'RESUELTO', nextAction: reviewComment, file: reviewFile })}
+                          >
+                            <UiIcon name="check" />
+                            Corregido
+                          </button>
+                        </div>
+                      </div>
+                    </section>
+                  )}
+                </div>
+              ) : (
+                <div className="validation-empty-state large">
+                  Selecciona un defecto para revisar sus detalles.
+                </div>
+              )}
+            </main>
+          </div>
+        </>
+      ) : (
+        <div className="panel" style={{ padding: '18px', overflowX: 'auto' }}>
+          <div className="validation-filters" style={{ marginBottom: '20px' }}>
+            <label className="validation-search-field" style={{ maxWidth: '400px' }}>
+              <UiIcon name="search" />
+              <input
+                type="search"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Buscar por nombre..."
+              />
+            </label>
+          </div>
+
+          <table className="users-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ borderBottom: '2px solid #e2e8f0' }}>
+                <th style={{ textAlign: 'left', padding: '12px 8px', color: '#475569', fontSize: '13px', fontWeight: 'bold' }}>ID Externo</th>
+                <th style={{ textAlign: 'left', padding: '12px 8px', color: '#475569', fontSize: '13px', fontWeight: 'bold' }}>Nombre del Defecto</th>
+                <th style={{ textAlign: 'left', padding: '12px 8px', color: '#475569', fontSize: '13px', fontWeight: 'bold' }}>Área</th>
+                <th style={{ textAlign: 'left', padding: '12px 8px', color: '#475569', fontSize: '13px', fontWeight: 'bold' }}>Entorno</th>
+                <th style={{ textAlign: 'left', padding: '12px 8px', color: '#475569', fontSize: '13px', fontWeight: 'bold' }}>Criticidad</th>
+                <th style={{ textAlign: 'left', padding: '12px 8px', color: '#475569', fontSize: '13px', fontWeight: 'bold' }}>Fecha Creación</th>
+                <th style={{ textAlign: 'left', padding: '12px 8px', color: '#475569', fontSize: '13px', fontWeight: 'bold' }}>Documento</th>
+              </tr>
+            </thead>
+            <tbody>
+              {isLoading && (
+                <tr>
+                  <td colSpan={7} style={{ textAlign: 'center', padding: '24px', color: '#64748b' }}>
+                    Cargando bugs resueltos...
+                  </td>
+                </tr>
+              )}
+              {!isLoading && resolvedBugs.length === 0 && (
+                <tr>
+                  <td colSpan={7} style={{ textAlign: 'center', padding: '24px', color: '#64748b' }}>
+                    No hay bugs resueltos.
+                  </td>
+                </tr>
+              )}
+              {!isLoading && resolvedBugs.map(bug => (
+                <tr key={bug.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                  <td style={{ padding: '12px 8px', fontWeight: 'bold' }}>{bug.externalId}</td>
+                  <td style={{ padding: '12px 8px' }}>{bug.reason}</td>
+                  <td style={{ padding: '12px 8px' }}>{PLATFORM_LABELS[bug.platform as TicketPlatform] || bug.platform}</td>
+                  <td style={{ padding: '12px 8px' }}>{bug.entorno || '-'}</td>
+                  <td style={{ padding: '12px 8px' }}>
+                    <span className={`status-pill tone-${PRIORITY_TONES[bug.priority]}`}>
+                      {PRIORITY_LABELS[bug.priority] || bug.priority}
+                    </span>
+                  </td>
+                  <td style={{ padding: '12px 8px' }}>{formatDate(bug.createdAt)}</td>
+                  <td style={{ padding: '12px 8px' }}>
+                    {bug.documentoUrl ? (
+                      <button
+                        className="link-button"
+                        type="button"
+                        style={{ background: 'none', border: 'none', padding: 0, color: 'var(--blue)', textDecoration: 'underline', cursor: 'pointer', fontWeight: 'bold' }}
+                        onClick={() => {
+                          const url = resolveDocumentUrl(bug.documentoUrl);
+                          if (url) window.open(url, '_blank');
+                        }}
+                      >
+                        Ver adjunto
+                      </button>
+                    ) : (
+                      '-'
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {createModalOpen && (
+        <div className="case-modal-backdrop" onClick={() => setCreateModalOpen(false)}>
+          <div className="case-modal" style={{ maxWidth: '600px' }} onClick={e => e.stopPropagation()}>
+            <div className="case-modal-header" style={{ gridTemplateColumns: '42px 1fr auto' }}>
+              <div className="case-modal-icon red">
+                <UiIcon name="alert" />
+              </div>
+              <div className="case-modal-title">
+                <h2 style={{ margin: 0 }}>Registrar Nuevo Defecto</h2>
+                <p style={{ margin: 0 }}>Ingresa los detalles del bug encontrado.</p>
+              </div>
+              <button
+                className="close-button"
+                type="button"
+                style={{ background: 'none', border: 'none', cursor: 'pointer' }}
+                onClick={() => setCreateModalOpen(false)}
+              >
+                <UiIcon name="close" style={{ width: '20px', height: '20px' }} />
+              </button>
+            </div>
+
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                if (!newTitle.trim() || !newDescription.trim() || !newEntorno.trim()) {
+                  showToast('Por favor completa los campos obligatorios');
+                  return;
+                }
+
+                try {
+                  let docUrl = undefined;
+                  if (newFile) {
+                    const uploadResult = await supportApi.uploadDocument(newFile);
+                    docUrl = uploadResult.url;
+                  }
+
+                  createMutation.mutate({
+                    reason: newTitle.trim(),
+                    lastMessage: newDescription.trim(),
+                    category: 'FALLA_TECNICA',
+                    priority: newPriority,
+                    reporterType: 'INTERNO',
+                    reporterName: user?.fullName ?? 'QA RepuesTop',
+                    platform: newPlatform,
+                    contexto: 'QA',
+                    origen: 'QA',
+                    documentoUrl: docUrl,
+                    entorno: newEntorno.trim()
+                  });
+                } catch (error: any) {
+                  showToast(error.message || 'Error al subir el archivo');
+                }
+              }}
+              style={{ padding: '20px', display: 'grid', gap: '14px' }}
+            >
+              <label style={{ display: 'grid', gap: '6px' }}>
+                <span style={{ fontSize: '13px', fontWeight: 'bold' }}>Nombre del defecto *</span>
+                <input
+                  type="text"
+                  value={newTitle}
+                  onChange={e => setNewTitle(e.target.value)}
+                  placeholder="Ej: Error al procesar pago duplicado"
+                  required
+                  style={{ width: '100%', padding: '10px', border: '1px solid #d9e3f0', borderRadius: '8px', font: 'inherit' }}
+                />
+              </label>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <label style={{ display: 'grid', gap: '6px' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 'bold' }}>Área *</span>
+                  <select
+                    value={newPlatform}
+                    onChange={e => setNewPlatform(e.target.value as TicketPlatform)}
+                    style={{ padding: '10px', border: '1px solid #d9e3f0', borderRadius: '8px', font: 'inherit' }}
+                  >
+                    <option value="ADMINISTRACION_CONTABLE">Administración Contable</option>
+                    <option value="SOPORTE">Soporte</option>
+                    <option value="MEDIACION_CONFIANZA">Mediación y Confianza</option>
+                    <option value="APP_MOBILE">Aplicación móvil</option>
+                  </select>
+                </label>
+
+                <label style={{ display: 'grid', gap: '6px' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 'bold' }}>Criticidad *</span>
+                  <select
+                    value={newPriority}
+                    onChange={e => setNewPriority(e.target.value as TicketPriority)}
+                    style={{ padding: '10px', border: '1px solid #d9e3f0', borderRadius: '8px', font: 'inherit' }}
+                  >
+                    <option value="BAJA">Baja</option>
+                    <option value="MEDIA">Media</option>
+                    <option value="ALTA">Alta</option>
+                    <option value="CRITICA">Crítica</option>
+                  </select>
+                </label>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <label style={{ display: 'grid', gap: '6px' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 'bold' }}>Entorno *</span>
+                  <input
+                    type="text"
+                    value={newEntorno}
+                    onChange={e => setNewEntorno(e.target.value)}
+                    placeholder="Ej: Staging, Producción, Local"
+                    required
+                    style={{ padding: '10px', border: '1px solid #d9e3f0', borderRadius: '8px', font: 'inherit' }}
+                  />
+                </label>
+
+                <label style={{ display: 'grid', gap: '6px' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 'bold' }}>Documento adjunto (opcional)</span>
+                  <input
+                    type="file"
+                    onChange={e => setNewFile(e.target.files?.[0] || null)}
+                    style={{ padding: '6px 0', font: 'inherit' }}
+                  />
+                </label>
+              </div>
+
+              <label style={{ display: 'grid', gap: '6px' }}>
+                <span style={{ fontSize: '13px', fontWeight: 'bold' }}>Descripción *</span>
+                <textarea
+                  value={newDescription}
+                  onChange={e => setNewDescription(e.target.value)}
+                  placeholder="Detalla los pasos para reproducir el bug y el resultado esperado..."
+                  rows={4}
+                  required
+                  style={{ width: '100%', padding: '12px', border: '1px solid #d9e3f0', borderRadius: '8px', font: 'inherit' }}
+                />
+              </label>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '10px' }}>
+                <button
+                  type="button"
+                  className="page-button"
+                  onClick={() => setCreateModalOpen(false)}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="primary-button"
+                  disabled={createMutation.isPending}
+                >
+                  <UiIcon name="alert" />
+                  {createMutation.isPending ? 'Registrando...' : 'Registrar Defecto'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ReportMetricRow({ icon, label, detail, value, total, tone }: {
   icon: string;
   label: string;
@@ -154,7 +731,11 @@ function ReportMetricCard({ icon, title, total, children, tooltipTitle, tooltipT
 export default function SupportPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user } = useAuth();
+  const isSupportOperator = hasBackofficePermission(user, 'SOPORTE', 'OPERADOR');
+  const isSupportQa = hasBackofficePermission(user, 'SOPORTE', 'QA');
   const activeTab = useMemo(() => {
+    if (location.pathname.endsWith('/qa-reports')) return 'qa-reports';
     return location.pathname.endsWith('/tickets') ? 'tickets' : 'resumen';
   }, [location.pathname]);
 
@@ -166,6 +747,7 @@ export default function SupportPage() {
   } } = useQuery({
     queryKey: ['support-workspace'],
     queryFn: supportApi.getWorkspace,
+    enabled: isSupportOperator,
   });
 
   const resolutionRate = useMemo(() => {
@@ -211,19 +793,34 @@ export default function SupportPage() {
       page,
       size: 10,
     }),
+    enabled: isSupportOperator && activeTab === 'tickets',
+  });
+
+  const { data: qaReportsData, isLoading: isLoadingQaReports } = useQuery({
+    queryKey: ['support-qa-reports', search, statusFilter, priorityFilter, platformFilter, page],
+    queryFn: () => supportApi.getQaReports({
+      search: search || undefined,
+      status: statusFilter !== 'All' ? statusFilter : undefined,
+      priority: priorityFilter !== 'All' ? priorityFilter : undefined,
+      platform: platformFilter !== 'All' ? platformFilter : undefined,
+      page,
+      size: 10,
+    }),
+    enabled: isSupportOperator && activeTab === 'qa-reports',
   });
 
   // Query de sellers para el selector del nuevo ticket
   const { data: sellersData } = useQuery({
     queryKey: ['support-sellers-lookup'],
     queryFn: () => sellersApi.getSellers({ page: 0, size: PAGE_SIZES.MAX }),
+    enabled: isSupportOperator,
   });
 
   // Query global para dashboard (distribuciones)
   const { data: globalTicketsData } = useQuery({
     queryKey: ['support-tickets-global'],
     queryFn: () => supportApi.getTickets({ page: 0, size: 100 }),
-    enabled: activeTab === 'resumen',
+    enabled: isSupportOperator && activeTab === 'resumen',
   });
 
   const sellers = sellersData?.content ?? [];
@@ -250,7 +847,7 @@ export default function SupportPage() {
   const { data: selectedTicketDetail, isFetching: isLoadingTicketDetail } = useQuery({
     queryKey: ['support-ticket-detail', selectedTicket?.id],
     queryFn: () => supportApi.getTicketById(selectedTicket!.id),
-    enabled: selectedTicket !== null,
+    enabled: isSupportOperator && selectedTicket !== null,
     placeholderData: selectedTicket ?? undefined,
   });
 
@@ -335,6 +932,10 @@ export default function SupportPage() {
     return { criticalTickets };
   }, [globalTickets]);
 
+  if (isSupportQa && !isSupportOperator) {
+    return <SupportQaPage />;
+  }
+
   return (
     <>
       <div className="page-header">
@@ -367,6 +968,14 @@ export default function SupportPage() {
         >
           <UiIcon name="message" />
           Tickets
+        </button>
+        <button
+          className={activeTab === 'qa-reports' ? 'active' : ''}
+          onClick={() => navigate('/soporte/qa-reports')}
+          type="button"
+        >
+          <UiIcon name="alert" />
+          Reportes QA
         </button>
       </nav>
 
@@ -513,6 +1122,95 @@ export default function SupportPage() {
             </aside>
           </div>
         </div>
+      ) : activeTab === 'qa-reports' ? (
+        <div className="support-tickets-layout" style={{ marginTop: '24px' }}>
+          <div className="validation-filters" style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', marginBottom: '20px', minHeight: 'auto', padding: '16px 20px', alignItems: 'center' }}>
+            <label className="validation-search-field" style={{ flex: '2 1 280px', margin: 0 }}>
+              <UiIcon name="search" />
+              <input type="search" value={search} onChange={(e) => { setSearch(e.target.value); setPage(0); }} placeholder="Buscar reporte QA..." />
+            </label>
+            <label className="validation-filter-field" style={{ flex: '1 1 170px', margin: 0 }}>
+              <span>Estado</span>
+              <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }}>
+                <option value="All">Todos</option>
+                {Object.entries(STATUS_LABELS)
+                  .filter(([val]) => val !== 'PENDIENTE_VENDEDOR' && val !== 'PENDIENTE_COMPRADOR')
+                  .map(([val, label]) => <option key={val} value={val}>{label}</option>)}
+              </select>
+            </label>
+            <label className="validation-filter-field" style={{ flex: '1 1 170px', margin: 0 }}>
+              <span>Prioridad</span>
+              <select value={priorityFilter} onChange={(e) => { setPriorityFilter(e.target.value); setPage(0); }}>
+                <option value="All">Todas</option>
+                {Object.entries(PRIORITY_LABELS).map(([val, label]) => <option key={val} value={val}>{label}</option>)}
+              </select>
+            </label>
+            <label className="validation-filter-field" style={{ flex: '1 1 190px', margin: 0 }}>
+              <span>Plataforma</span>
+              <select value={platformFilter} onChange={(e) => { setPlatformFilter(e.target.value as TicketPlatform | 'All'); setPage(0); }}>
+                <option value="All">Todas</option>
+                <option value="ADMINISTRACION_CONTABLE">Administración Contable</option>
+                <option value="MEDIACION_CONFIANZA">Mediación y Confianza</option>
+                <option value="APP_MOBILE">App Mobile RepuesTop</option>
+              </select>
+            </label>
+            <button className="validation-clear-button" type="button" onClick={clearFilters} style={{ flex: '0 0 auto', margin: 0 }}>
+              <UiIcon name="filter" />
+              Limpiar
+            </button>
+          </div>
+
+          <div className="panel" style={{ overflow: 'hidden' }}>
+            <div className="table-wrap">
+              <table style={{ tableLayout: 'fixed', width: '100%' }}>
+                <thead>
+                  <tr>
+                    <th style={{ width: '12%' }}>Reporte</th>
+                    <th style={{ width: '10%' }}>Fecha</th>
+                    <th style={{ width: '15%' }}>QA</th>
+                    <th style={{ width: '18%' }}>Plataforma</th>
+                    <th style={{ width: '27%' }}>Bug reportado</th>
+                    <th style={{ width: '10%' }}>Prioridad</th>
+                    <th style={{ width: '10%' }}>Estado</th>
+                    <th style={{ width: '8%', textAlign: 'center' }}>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {isLoadingQaReports ? (
+                    <tr><td colSpan={8} style={{ textAlign: 'center', padding: '32px' }}>Cargando reportes QA...</td></tr>
+                  ) : !qaReportsData || qaReportsData.content.length === 0 ? (
+                    <tr><td colSpan={8} style={{ textAlign: 'center', padding: '32px', color: 'var(--text-secondary)' }}>No hay reportes QA para los filtros seleccionados.</td></tr>
+                  ) : qaReportsData.content.map((ticket) => (
+                    <tr key={ticket.id}>
+                      <td><strong>{ticket.externalId}</strong></td>
+                      <td>{formatDate(ticket.createdAt)}</td>
+                      <td>{ticket.reporterName}</td>
+                      <td>{ticket.platform ? <Badge text={PLATFORM_LABELS[ticket.platform]} variant={PLATFORM_TONES[ticket.platform]} /> : 'General'}</td>
+                      <td style={{ maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ticket.reason}</td>
+                      <td><Badge text={PRIORITY_LABELS[ticket.priority]} variant={PRIORITY_TONES[ticket.priority]} /></td>
+                      <td><Badge text={STATUS_LABELS[ticket.status]} variant={STATUS_TONES[ticket.status]} /></td>
+                      <td style={{ textAlign: 'center' }}>
+                        <button className="row-action" type="button" onClick={() => setSelectedTicket(ticket)} title="Ver detalles">
+                          <UiIcon name="arrowRight" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {qaReportsData && qaReportsData.totalPages > 1 && (
+            <div className="table-pagination">
+              <span>Mostrando página {page + 1} de {qaReportsData.totalPages} ({qaReportsData.totalElements} reportes)</span>
+              <div>
+                <button className="page-button" disabled={page === 0} onClick={() => setPage(page - 1)} type="button">Anterior</button>
+                <button className="page-button" disabled={page === qaReportsData.totalPages - 1} onClick={() => setPage(page + 1)} type="button">Siguiente</button>
+              </div>
+            </div>
+          )}
+        </div>
       ) : (
         /* VISTA: TICKETS (LISTADO Y FILTROS) */
         <div className="support-tickets-layout" style={{ marginTop: '24px' }}>
@@ -580,20 +1278,20 @@ export default function SupportPage() {
 
           <div className="panel" style={{ overflow: 'hidden' }}>
             <div className="table-wrap">
-              <table>
+              <table style={{ tableLayout: 'fixed', width: '100%' }}>
                 <thead>
                   <tr>
-                    <th style={{ width: '90px' }}>Ticket</th>
-                    <th style={{ width: '120px' }}>Fecha</th>
-                    <th style={{ width: '130px' }}>Reportante</th>
-                    <th style={{ width: '100px' }}>Tipo</th>
-                    <th style={{ width: '160px' }}>Plataforma</th>
-                    <th style={{ width: '130px' }}>Categoría</th>
-                    <th>Asunto / Falla</th>
-                    <th style={{ width: '100px' }}>Prioridad</th>
-                    <th style={{ width: '120px' }}>Estado</th>
-                    <th style={{ width: '100px' }}>SLA</th>
-                    <th style={{ width: '80px', textAlign: 'center' }}>Acciones</th>
+                    <th style={{ width: '10%' }}>Ticket</th>
+                    <th style={{ width: '8%' }}>Fecha</th>
+                    <th style={{ width: '10%' }}>Reportante</th>
+                    <th style={{ width: '6%' }}>Tipo</th>
+                    <th style={{ width: '12%' }}>Plataforma</th>
+                    <th style={{ width: '10%' }}>Categoría</th>
+                    <th style={{ width: '20%' }}>Asunto / Falla</th>
+                    <th style={{ width: '6%' }}>Prioridad</th>
+                    <th style={{ width: '6%' }}>Estado</th>
+                    <th style={{ width: '6%' }}>SLA</th>
+                    <th style={{ width: '6%', textAlign: 'center' }}>Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -622,7 +1320,7 @@ export default function SupportPage() {
                         <td>
                           <Badge text={CATEGORY_LABELS[ticket.category]} variant={CATEGORY_TONES[ticket.category]} />
                         </td>
-                        <td style={{ maxWidth: '240px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <td style={{ maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {ticket.reason}
                         </td>
                         <td>

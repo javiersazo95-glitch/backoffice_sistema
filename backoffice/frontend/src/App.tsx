@@ -13,12 +13,27 @@ import AlertsPage from '@/components/alerts/AlertsPage';
 import AuditPage from '@/components/audit/AuditPage';
 import ReportsPage from '@/components/reports/ReportsPage';
 import PermissionsConfigPage from '@/pages/PermissionsConfigPage';
+import { Role } from '@/types/auth';
 
 function RequireAuth({ children }: { children: JSX.Element }) {
   const { isAuthenticated } = useAuth();
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
+  }
+
+  return children;
+}
+
+function RequireSuperAdmin({ children }: { children: JSX.Element }) {
+  const { user, isAuthenticated } = useAuth();
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (user?.role !== Role.SUPER_ADMIN) {
+    return <Navigate to="/" replace />;
   }
 
   return children;
@@ -31,7 +46,7 @@ export default function App() {
     <Routes>
       <Route path="/login" element={isAuthenticated ? <Navigate to="/" replace /> : <LoginPage />} />
       <Route path="/" element={<RequireAuth><AreaSelectorPage /></RequireAuth>} />
-      <Route path="/configuracion" element={<RequireAuth><PermissionsConfigPage /></RequireAuth>} />
+      <Route path="/configuracion" element={<RequireSuperAdmin><PermissionsConfigPage /></RequireSuperAdmin>} />
       <Route path="/administracion" element={<RequireAuth><AppShell /></RequireAuth>}>
         <Route index element={<AdminFinancePage />} />
         <Route path="resumen" element={<AdminFinancePage />} />

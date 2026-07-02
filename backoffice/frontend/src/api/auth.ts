@@ -8,6 +8,11 @@ export async function login(data: LoginRequest): Promise<AuthResponse> {
   return response.data;
 }
 
+export async function loginGoogle(idToken: string): Promise<AuthResponse> {
+  const response = await apiClient.post<AuthResponse>('/auth/google', { idToken });
+  return response.data;
+}
+
 export async function refresh(data: RefreshTokenRequest): Promise<AuthResponse> {
   const response = await apiClient.post<AuthResponse>('/auth/refresh', data);
   return response.data;

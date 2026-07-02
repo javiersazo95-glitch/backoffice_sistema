@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import type { UserSummaryResponse } from '@/types/auth';
 import UiIcon from '@/components/shared/UiIcon';
+import { Role } from '@/types/auth';
 
 
 interface SidebarProps {
@@ -24,6 +25,7 @@ const navSections = [
     items: [
       { path: '/soporte', label: 'Resumen', badge: 0, icon: 'dashboard', exact: true },
       { path: '/soporte/tickets', label: 'Tickets', badge: 0, icon: 'message' },
+      { path: '/soporte/qa-reports', label: 'Reportes QA', badge: 0, icon: 'alert' },
     ],
   },
   {
@@ -59,7 +61,7 @@ export default function Sidebar({ user, mobileOpen, onMobileClose }: SidebarProp
     let sections = navSections;
 
     // Si el usuario es un operador normal de soporte, ocultamos otras áreas contables/mediación
-    if (user?.role !== 'ADMIN') {
+    if (user?.role !== Role.ADMIN && user?.role !== Role.SUPER_ADMIN) {
       sections = sections.filter(
         (s) => s.title !== 'Administración Contable' && s.title !== 'Gestión de Confianza'
       );
@@ -73,7 +75,7 @@ export default function Sidebar({ user, mobileOpen, onMobileClose }: SidebarProp
       return sections.filter((s) => s.title === 'Soporte Técnico');
     } else {
       // En la vista general, si es OPERATOR, removemos también los accesos directos de Backoffice
-      if (user?.role !== 'ADMIN') {
+      if (user?.role !== Role.ADMIN && user?.role !== Role.SUPER_ADMIN) {
         return sections.map((s) => {
           if (s.title === 'Backoffice') {
             return {

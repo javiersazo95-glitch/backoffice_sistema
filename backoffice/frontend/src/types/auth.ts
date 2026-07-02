@@ -1,6 +1,16 @@
 export enum Role {
+  SUPER_ADMIN = 'SUPER_ADMIN',
   ADMIN = 'ADMIN',
   OPERATOR = 'OPERATOR',
+}
+
+export type BackofficeArea = 'ADMINISTRACION_CONTABLE' | 'SOPORTE' | 'MEDIACION_CONFIANZA';
+export type BackofficePermissionSlot = 'OPERADOR' | 'QA';
+
+export interface BackofficePermission {
+  id?: number;
+  area: BackofficeArea;
+  slot: BackofficePermissionSlot;
 }
 
 export interface UserSummaryResponse {
@@ -9,6 +19,7 @@ export interface UserSummaryResponse {
   fullName: string;
   initials: string;
   role: Role;
+  permissions?: BackofficePermission[];
 }
 
 export interface AuthResponse {

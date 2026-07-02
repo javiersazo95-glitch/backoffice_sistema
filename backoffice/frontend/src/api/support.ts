@@ -4,7 +4,7 @@ import type { PageResponse } from '@/types/common'; // Aseguramos usar tipos del
 export type TicketCategory = 'FALLA_TECNICA' | 'SOLICITUD_AYUDA' | 'CONSULTA';
 export type ReporterType = 'COMPRADOR' | 'VENDEDOR' | 'INTERNO';
 export type TicketPriority = 'CRITICA' | 'ALTA' | 'MEDIA' | 'BAJA';
-export type TicketPlatform = 'ADMINISTRACION_CONTABLE' | 'MEDIACION_CONFIANZA' | 'APP_MOBILE';
+export type TicketPlatform = 'ADMINISTRACION_CONTABLE' | 'MEDIACION_CONFIANZA' | 'APP_MOBILE' | 'SOPORTE';
 export type TicketStatus =
   | 'ABIERTO'
   | 'EN_PROCESO'
@@ -53,6 +53,9 @@ export interface TicketResponse {
   supportResponse?: string;
   responseRead?: boolean;
   respondedAt?: string;
+  origin?: string;
+  documentoUrl?: string;
+  entorno?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -84,11 +87,16 @@ export interface CreateTicketData {
   reporterName: string;
   sellerId?: number | null;
   platform?: TicketPlatform | null;
+  contexto?: string;
+  origen?: string;
+  documentoUrl?: string;
+  entorno?: string;
 }
 
 export interface UpdateTicketStatusData {
   status: TicketStatus;
   nextAction?: string;
+  documentoUrl?: string;
 }
 
 export async function getWorkspace(): Promise<SupportWorkspaceResponse> {
@@ -98,6 +106,11 @@ export async function getWorkspace(): Promise<SupportWorkspaceResponse> {
 
 export async function getTickets(params?: GetTicketsParams): Promise<PageResponse<TicketResponse>> {
   const response = await apiClient.get<PageResponse<TicketResponse>>('/support/tickets', { params });
+  return response.data;
+}
+
+export async function getQaReports(params?: Omit<GetTicketsParams, 'category'>): Promise<PageResponse<TicketResponse>> {
+  const response = await apiClient.get<PageResponse<TicketResponse>>('/support/tickets/qa-reports', { params });
   return response.data;
 }
 
@@ -123,5 +136,17 @@ export async function getTicketMessages(ticketId: number): Promise<TicketMessage
 
 export async function sendTicketMessage(ticketId: number, data: { autorTipo: string; autorNombre?: string; mensaje: string }): Promise<TicketMessage> {
   const response = await apiClient.post<TicketMessage>(`/support/tickets/${ticketId}/messages`, data);
+  return response.data;
+}
+
+export async function uploadDocument(file: File, folder: string = 'qa-docs'): Promise<{ url: string; path: string }> {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('folder', folder);
+  const response = await apiClient.post<{ url: string; path: string }>('/uploads/upload', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
   return response.data;
 }

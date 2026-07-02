@@ -3,6 +3,7 @@ import { useState, useRef, useEffect } from 'react';
 import UiIcon from './UiIcon';
 import HelpSupportWidget from './HelpSupportWidget';
 import { useAuth } from '@/context/AuthContext';
+import { Role } from '@/types/auth';
 
 interface AreaHomeShortcutProps {
   className?: string;
@@ -77,7 +78,7 @@ export default function AreaHomeShortcut({ className = '' }: AreaHomeShortcutPro
                 <div>
                   <strong className="user-dropdown-name">{user?.fullName ?? 'Operador'}</strong>
                   <span className="user-dropdown-role">
-                    {user?.role === 'ADMIN' ? 'Administrador' : 'Operador'}
+                    {user?.role === Role.SUPER_ADMIN ? 'Super administrador' : user?.role === Role.ADMIN ? 'Administrador' : 'Operador'}
                   </span>
                 </div>
               </div>
