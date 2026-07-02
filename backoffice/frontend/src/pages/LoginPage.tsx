@@ -128,7 +128,7 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
     try {
-      await login(username, password);
+      await login(username, password, keepSession);
       navigate('/', { replace: true });
     } catch (err) {
       setError(extractErrorMessage(err, 'Credenciales inválidas. Intente nuevamente.'));
@@ -145,7 +145,7 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
     try {
-      await loginWithGoogle(credential);
+      await loginWithGoogle(credential, keepSession);
       navigate('/', { replace: true });
     } catch (err) {
       setError(extractErrorMessage(err, 'No se pudo iniciar sesión con Google. Verifica que tu cuenta esté habilitada.'));

@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import type { UserSummaryResponse } from '@/types/auth';
 import UiIcon from '@/components/shared/UiIcon';
 import { Role } from '@/types/auth';
+import { hasBackofficePermission } from '@/hooks/usePermissions';
 
 
 interface SidebarProps {
@@ -58,13 +59,18 @@ export default function Sidebar({ user, mobileOpen, onMobileClose }: SidebarProp
   const isSupport = location.pathname.startsWith('/soporte');
 
   const visibleSections = useMemo(() => {
+    const isAdminOrSuper = user?.role === Role.ADMIN || user?.role === Role.SUPER_ADMIN;
+    const canAdmin = isAdminOrSuper || hasBackofficePermission(user, 'ADMINISTRACION_CONTABLE');
+    const canConfianza = isAdminOrSuper || hasBackofficePermission(user, 'MEDIACION_CONFIANZA');
+    const canSoporte = isAdminOrSuper || hasBackofficePermission(user, 'SOPORTE');
+
     let sections = navSections;
 
-    // Si el usuario es un operador normal de soporte, ocultamos otras áreas contables/mediación
-    if (user?.role !== Role.ADMIN && user?.role !== Role.SUPER_ADMIN) {
-      sections = sections.filter(
-        (s) => s.title !== 'Administración Contable' && s.title !== 'Gestión de Confianza'
-      );
+    if (!canAdmin) {
+      sections = sections.filter((s) => s.title !== 'Administración Contable');
+    }
+    if (!canConfianza) {
+      sections = sections.filter((s) => s.title !== 'Gestión de Confianza');
     }
 
     if (isConfianza) {
@@ -74,21 +80,26 @@ export default function Sidebar({ user, mobileOpen, onMobileClose }: SidebarProp
     } else if (isSupport) {
       return sections.filter((s) => s.title === 'Soporte Técnico');
     } else {
-      // En la vista general, si es OPERATOR, removemos también los accesos directos de Backoffice
-      if (user?.role !== Role.ADMIN && user?.role !== Role.SUPER_ADMIN) {
+      if (!isAdminOrSuper) {
         return sections.map((s) => {
           if (s.title === 'Backoffice') {
             return {
               ...s,
-              items: s.items.filter((item) => item.path === '/' || item.path.startsWith('/soporte')),
+              items: s.items.filter((item) => {
+                if (item.path === '/') return true;
+                if (item.path.startsWith('/soporte')) return canSoporte;
+                if (item.path.startsWith('/administracion')) return canAdmin;
+                if (item.path.startsWith('/confianza')) return canConfianza;
+                return false;
+              }),
             };
           }
           return s;
         });
       }
-      return sections.filter((s) => s.title !== 'Soporte Técnico'); // Admin en la general ve "Soporte" del menú Backoffice
+      return sections.filter((s) => s.title !== 'Soporte Técnico');
     }
-  }, [isConfianza, isAdmin, isSupport, user?.role]);
+  }, [isConfianza, isAdmin, isSupport, user]);
 
   return (
     <aside className={`sidebar${mobileOpen ? ' mobile-open' : ''}`}>

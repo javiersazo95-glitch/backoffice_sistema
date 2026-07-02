@@ -6,11 +6,11 @@ import * as sellersApi from '@/api/sellers';
 import UiIcon from '@/components/shared/UiIcon';
 import AreaHomeShortcut from '@/components/shared/AreaHomeShortcut';
 import Badge from '@/components/shared/Badge';
-import SupportTicketDetailModal from './SupportTicketDetailModal';
+import SupportTicketDetailModal, { getStatusLabel } from './SupportTicketDetailModal';
 import { showToast } from '@/components/layout/Toast';
 import { PAGE_SIZES } from '@/utils/constants';
 import { formatDate } from '@/utils/formatters';
-import type { TicketResponse, TicketStatus, TicketPriority, TicketCategory, ReporterType, TicketPlatform } from '@/api/support';
+import type { TicketResponse, TicketStatus, TicketPriority, TicketCategory, ReporterType, TicketPlatform, TicketMessage } from '@/api/support';
 import { useAuth } from '@/context/AuthContext';
 import { hasBackofficePermission } from '@/hooks/usePermissions';
 import { resolveDocumentUrl } from '@/utils/documentUrls';
@@ -70,6 +70,27 @@ const STATUS_TONES: Record<TicketStatus, string> = {
   CANCELADO: 'red',
 };
 
+const QA_STATUS_FILTER_OPTIONS: Array<{ value: TicketStatus; label: string }> = [
+  { value: 'ABIERTO', label: 'Pendiente' },
+  { value: 'EN_PROCESO', label: 'En revisión' },
+  { value: 'PENDIENTE_VENDEDOR', label: 'Listo para revisión' },
+  { value: 'PENDIENTE_COMPRADOR', label: 'Con observaciones' },
+  { value: 'RESUELTO', label: 'Resuelto' },
+];
+
+const SUPPORT_QA_STATUS_FILTER_OPTIONS = QA_STATUS_FILTER_OPTIONS.filter((option) => option.value !== 'RESUELTO');
+
+const QA_STATUS_TONE_CLASSES: Record<TicketStatus, string> = {
+  ABIERTO: 's-todo',
+  EN_PROCESO: 's-progress',
+  PENDIENTE_VENDEDOR: 's-review',
+  PENDIENTE_COMPRADOR: 's-overdue',
+  SLA_VENCIDO: 's-overdue',
+  RESUELTO: 's-done',
+  CERRADO: 's-closed',
+  CANCELADO: 's-overdue',
+};
+
 const PRIORITY_TONES: Record<TicketPriority, string> = {
   CRITICA: 'red',
   ALTA: 'red',
@@ -92,6 +113,10 @@ function compactNumber(value: number) {
   return new Intl.NumberFormat('es-CL').format(value);
 }
 
+function normalizeMessageText(value?: string | null) {
+  return (value ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
 function isTicketSelected(ticket: TicketResponse | null): ticket is TicketResponse {
   return ticket !== null;
 }
@@ -107,6 +132,7 @@ function SupportQaPage() {
   const queryClient = useQueryClient();
   const [qaTab, setQaTab] = useState<'defectos' | 'resueltos'>('defectos');
   const [search, setSearch] = useState('');
+  const [defectStatusFilter, setDefectStatusFilter] = useState<TicketStatus | 'All'>('All');
   const [selectedBugId, setSelectedBugId] = useState<number | null>(null);
 
   // States for creating a defect
@@ -161,8 +187,15 @@ function SupportQaPage() {
         documentoUrl: docUrl
       });
     },
-    onSuccess: () => {
+    onSuccess: (updated) => {
+      queryClient.setQueryData(['support-ticket-detail', updated.id], updated);
       queryClient.invalidateQueries({ queryKey: ['qa-reports'] });
+      queryClient.invalidateQueries({ queryKey: ['support-ticket-detail', updated.id] });
+      queryClient.invalidateQueries({ queryKey: ['support-ticket-messages', updated.id] });
+      setSelectedBugId(updated.id);
+      if (qaTab === 'defectos' && defectStatusFilter !== 'All' && updated.status !== defectStatusFilter) {
+        setDefectStatusFilter('All');
+      }
       setReviewComment('');
       setReviewFile(null);
       showToast('Revisión registrada con éxito');
@@ -184,12 +217,12 @@ function SupportQaPage() {
       // Matches tab
       const isResolved = bug.status === 'RESUELTO' || bug.status === 'CERRADO' || bug.status === 'CANCELADO';
       if (qaTab === 'defectos') {
-        return !isResolved;
+        return !isResolved && (defectStatusFilter === 'All' || bug.status === defectStatusFilter);
       } else {
         return isResolved;
       }
     });
-  }, [qaReports, search, qaTab]);
+  }, [qaReports, search, qaTab, defectStatusFilter]);
 
   const activeBugs = useMemo(() => {
     return filteredBugs;
@@ -203,15 +236,45 @@ function SupportQaPage() {
     return qaReports.find(b => b.id === selectedBugId) || null;
   }, [qaReports, selectedBugId]);
 
-  const getDefectStatusLabel = (status: TicketStatus): string => {
+  const { data: selectedBugDetail, isFetching: isLoadingSelectedBugDetail } = useQuery({
+    queryKey: ['support-ticket-detail', selectedBugId],
+    queryFn: () => supportApi.getTicketById(selectedBugId!),
+    enabled: selectedBugId !== null,
+    placeholderData: selectedBug ?? undefined,
+  });
+
+  const selectedBugView = selectedBugDetail ?? selectedBug;
+
+  const { data: selectedBugMessages = [], isFetching: isLoadingSelectedBugMessages } = useQuery<TicketMessage[]>({
+    queryKey: ['support-ticket-messages', selectedBugId],
+    queryFn: () => supportApi.getTicketMessages(selectedBugId!),
+    enabled: selectedBugId !== null,
+  });
+
+  const visibleSelectedBugMessages = useMemo(() => {
+    if (!selectedBugView) return [];
+    const descriptionText = normalizeMessageText(selectedBugView.lastMessage);
+    const reasonText = normalizeMessageText(selectedBugView.reason);
+    return selectedBugMessages.filter((message) => {
+      const text = normalizeMessageText(message.mensaje);
+      return text && text !== descriptionText && text !== reasonText;
+    });
+  }, [selectedBugMessages, selectedBugView]);
+
+  const getDefectStatusLabel = (status: string): string => {
+    if (status === 'EN_PROCESO') return 'En revisión';
+    if (status === 'PENDIENTE_VENDEDOR') return 'Listo para revisión';
+    if (status === 'PENDIENTE_COMPRADOR') return 'Con observaciones';
     if (status === 'ABIERTO') return 'Pendiente';
-    if (status === 'EN_PROCESO') return 'Listo para revisar';
     if (status === 'PENDIENTE_VENDEDOR') return 'Con observación';
     if (status === 'RESUELTO') return 'Resuelto';
-    return STATUS_LABELS[status] ?? status;
+    return STATUS_LABELS[status as TicketStatus] ?? status;
   };
 
-  const getDefectStatusTone = (status: TicketStatus): string => {
+  const getDefectStatusTone = (status: string): string => {
+    if (status === 'ABIERTO') return 'gray';
+    if (status === 'EN_PROCESO') return 'blue';
+    if (status === 'PENDIENTE_COMPRADOR') return 'red';
     if (status === 'ABIERTO') return 'blue';
     if (status === 'EN_PROCESO') return 'amber';
     if (status === 'PENDIENTE_VENDEDOR') return 'violet';
@@ -234,7 +297,7 @@ function SupportQaPage() {
       <nav className="module-tabs" aria-label="Bugs" style={{ marginBottom: '20px' }}>
         <button
           className={qaTab === 'defectos' ? 'active' : ''}
-          onClick={() => { setQaTab('defectos'); setSelectedBugId(null); }}
+          onClick={() => { setQaTab('defectos'); setSelectedBugId(null); setDefectStatusFilter('All'); }}
           type="button"
         >
           <UiIcon name="alert" />
@@ -242,7 +305,7 @@ function SupportQaPage() {
         </button>
         <button
           className={qaTab === 'resueltos' ? 'active' : ''}
-          onClick={() => { setQaTab('resueltos'); setSelectedBugId(null); }}
+          onClick={() => { setQaTab('resueltos'); setSelectedBugId(null); setDefectStatusFilter('All'); }}
           type="button"
         >
           <UiIcon name="fileCheck" />
@@ -261,6 +324,22 @@ function SupportQaPage() {
                 onChange={e => setSearch(e.target.value)}
                 placeholder="Buscar por nombre o descripción..."
               />
+            </label>
+
+            <label className="validation-filter-field" style={{ minWidth: '220px' }}>
+              <span>Estado</span>
+              <select
+                value={defectStatusFilter}
+                onChange={(e) => {
+                  setDefectStatusFilter(e.target.value as TicketStatus | 'All');
+                  setSelectedBugId(null);
+                }}
+              >
+                <option value="All">Todos</option>
+                {SUPPORT_QA_STATUS_FILTER_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
             </label>
 
             <button
@@ -318,6 +397,36 @@ function SupportQaPage() {
             </aside>
 
             <main className="validation-detail-stack">
+              {selectedBugView ? (
+                <SupportTicketDetailModal
+                  ticket={selectedBugView}
+                  isLoading={isLoading || isLoadingSelectedBugDetail}
+                  isUpdating={updateMutation.isPending}
+                  notes={reviewComment}
+                  onNotesChange={setReviewComment}
+                  onClose={() => {
+                    setSelectedBugId(null);
+                    setReviewComment('');
+                    setReviewFile(null);
+                  }}
+                  onStatusChange={(status) => updateMutation.mutate({
+                    status,
+                    nextAction: reviewComment,
+                    file: reviewFile,
+                  })}
+                  statusContext="qa"
+                  reviewFile={reviewFile}
+                  onReviewFileChange={setReviewFile}
+                  embedded
+                />
+              ) : (
+                <div className="validation-empty-state large">
+                  Selecciona un defecto para revisar sus detalles.
+                </div>
+              )}
+            </main>
+
+            <main className="validation-detail-stack" style={{ display: 'none' }}>
               {selectedBug ? (
                 <div style={{ display: 'grid', gap: '16px' }}>
                   <section className="validation-panel">
@@ -380,7 +489,26 @@ function SupportQaPage() {
                     </div>
                   </section>
 
-                  {selectedBug.status === 'EN_PROCESO' && (
+                  <section className="validation-panel">
+                    <h3 style={{ fontSize: '15px', fontWeight: 'bold', margin: '0 0 12px 0' }}>Comentarios y contexto de Soporte</h3>
+                    {isLoadingSelectedBugMessages ? (
+                      <div className="validation-empty-state">Cargando comentarios...</div>
+                    ) : visibleSelectedBugMessages.length === 0 ? (
+                      <div className="validation-empty-state">Sin comentarios de soporte registrados.</div>
+                    ) : (
+                      <div style={{ display: 'grid', gap: '12px' }}>
+                        {visibleSelectedBugMessages.map((message) => (
+                          <article key={message.id} style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '12px', background: '#fff' }}>
+                            <strong style={{ display: 'block', color: '#0f172a', marginBottom: '4px' }}>{message.autorNombre || (message.autorTipo === 'SOPORTE' ? 'Soporte RepuesTop' : selectedBug.reporterName)}</strong>
+                            <p style={{ margin: 0, whiteSpace: 'pre-wrap', color: '#334155' }}>{message.mensaje}</p>
+                            <small style={{ display: 'block', marginTop: '8px', color: '#64748b' }}>{formatDate(message.createdAt)}</small>
+                          </article>
+                        ))}
+                      </div>
+                    )}
+                  </section>
+
+                  {selectedBug.status === 'PENDIENTE_VENDEDOR' && (
                     <section className="validation-panel">
                       <h3 style={{ fontSize: '15px', fontWeight: 'bold', margin: '0 0 12px 0' }}>Registrar revisión de QA</h3>
                       <div style={{ display: 'grid', gap: '12px' }}>
@@ -410,10 +538,10 @@ function SupportQaPage() {
                             type="button"
                             style={{ backgroundColor: 'var(--violet)' }}
                             disabled={updateMutation.isPending || !reviewComment.trim()}
-                            onClick={() => updateMutation.mutate({ status: 'PENDIENTE_VENDEDOR', nextAction: reviewComment, file: reviewFile })}
+                            onClick={() => updateMutation.mutate({ status: 'PENDIENTE_COMPRADOR', nextAction: reviewComment, file: reviewFile })}
                           >
                             <UiIcon name="alert" />
-                            Con observación
+                            Con observaciones
                           </button>
                           <button
                             className="primary-button"
@@ -461,7 +589,7 @@ function SupportQaPage() {
                 <th style={{ textAlign: 'left', padding: '12px 8px', color: '#475569', fontSize: '13px', fontWeight: 'bold' }}>Entorno</th>
                 <th style={{ textAlign: 'left', padding: '12px 8px', color: '#475569', fontSize: '13px', fontWeight: 'bold' }}>Criticidad</th>
                 <th style={{ textAlign: 'left', padding: '12px 8px', color: '#475569', fontSize: '13px', fontWeight: 'bold' }}>Fecha Creación</th>
-                <th style={{ textAlign: 'left', padding: '12px 8px', color: '#475569', fontSize: '13px', fontWeight: 'bold' }}>Documento</th>
+                <th style={{ textAlign: 'center', padding: '12px 8px', color: '#475569', fontSize: '13px', fontWeight: 'bold' }}>Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -491,28 +619,44 @@ function SupportQaPage() {
                     </span>
                   </td>
                   <td style={{ padding: '12px 8px' }}>{formatDate(bug.createdAt)}</td>
-                  <td style={{ padding: '12px 8px' }}>
-                    {bug.documentoUrl ? (
-                      <button
-                        className="link-button"
-                        type="button"
-                        style={{ background: 'none', border: 'none', padding: 0, color: 'var(--blue)', textDecoration: 'underline', cursor: 'pointer', fontWeight: 'bold' }}
-                        onClick={() => {
-                          const url = resolveDocumentUrl(bug.documentoUrl);
-                          if (url) window.open(url, '_blank');
-                        }}
-                      >
-                        Ver adjunto
-                      </button>
-                    ) : (
-                      '-'
-                    )}
+                  <td style={{ padding: '12px 8px', textAlign: 'center' }}>
+                    <button
+                      className="row-action"
+                      type="button"
+                      onClick={() => setSelectedBugId(bug.id)}
+                      title="Ver detalles"
+                    >
+                      <UiIcon name="arrowRight" />
+                    </button>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+      )}
+
+      {qaTab === 'resueltos' && selectedBugView && (
+        <SupportTicketDetailModal
+          ticket={selectedBugView}
+          isLoading={isLoading || isLoadingSelectedBugDetail}
+          isUpdating={updateMutation.isPending}
+          notes={reviewComment}
+          onNotesChange={setReviewComment}
+          onClose={() => {
+            setSelectedBugId(null);
+            setReviewComment('');
+            setReviewFile(null);
+          }}
+          onStatusChange={(status) => updateMutation.mutate({
+            status,
+            nextAction: reviewComment,
+            file: reviewFile,
+          })}
+          statusContext="qa"
+          reviewFile={reviewFile}
+          onReviewFileChange={setReviewFile}
+        />
       )}
 
       {createModalOpen && (
@@ -809,6 +953,10 @@ export default function SupportPage() {
     enabled: isSupportOperator && activeTab === 'qa-reports',
   });
 
+  const visibleSupportQaReports = useMemo(() => {
+    return qaReportsData?.content.filter((ticket) => ticket.status !== 'RESUELTO') ?? [];
+  }, [qaReportsData]);
+
   // Query de sellers para el selector del nuevo ticket
   const { data: sellersData } = useQuery({
     queryKey: ['support-sellers-lookup'],
@@ -874,6 +1022,8 @@ export default function SupportPage() {
       queryClient.invalidateQueries({ queryKey: ['support-workspace'] });
       queryClient.invalidateQueries({ queryKey: ['support-tickets'] });
       queryClient.invalidateQueries({ queryKey: ['support-tickets-global'] });
+      queryClient.invalidateQueries({ queryKey: ['support-qa-reports'] });
+      queryClient.invalidateQueries({ queryKey: ['support-ticket-messages', updated.id] });
       queryClient.setQueryData(['support-ticket-detail', updated.id], updated);
       setSelectedTicket((current) => (current?.id === updated.id ? { ...current, ...updated } : current));
       setNextActionNotes('');
@@ -1097,7 +1247,7 @@ export default function SupportPage() {
                             </span>
                             <strong>{ticket.externalId}</strong>
                           </div>
-                          <Badge text={STATUS_LABELS[ticket.status]} variant={STATUS_TONES[ticket.status]} />
+                          <Badge text={getStatusLabel(ticket.status, ticket.origin === 'QA')} variant={STATUS_TONES[ticket.status]} />
                         </div>
                         
                         <span style={{ fontSize: '13px', fontWeight: '500', color: 'var(--ink)' }}>{ticket.reason}</span>
@@ -1133,9 +1283,9 @@ export default function SupportPage() {
               <span>Estado</span>
               <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }}>
                 <option value="All">Todos</option>
-                {Object.entries(STATUS_LABELS)
-                  .filter(([val]) => val !== 'PENDIENTE_VENDEDOR' && val !== 'PENDIENTE_COMPRADOR')
-                  .map(([val, label]) => <option key={val} value={val}>{label}</option>)}
+                {SUPPORT_QA_STATUS_FILTER_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
               </select>
             </label>
             <label className="validation-filter-field" style={{ flex: '1 1 170px', margin: 0 }}>
@@ -1162,34 +1312,41 @@ export default function SupportPage() {
 
           <div className="panel" style={{ overflow: 'hidden' }}>
             <div className="table-wrap">
-              <table style={{ tableLayout: 'fixed', width: '100%' }}>
+              <table className="support-qa-table">
+                <colgroup>
+                  {Array.from({ length: 8 }).map((_, index) => <col key={index} />)}
+                </colgroup>
                 <thead>
                   <tr>
-                    <th style={{ width: '12%' }}>Reporte</th>
-                    <th style={{ width: '10%' }}>Fecha</th>
-                    <th style={{ width: '15%' }}>QA</th>
-                    <th style={{ width: '18%' }}>Plataforma</th>
-                    <th style={{ width: '27%' }}>Bug reportado</th>
-                    <th style={{ width: '10%' }}>Prioridad</th>
-                    <th style={{ width: '10%' }}>Estado</th>
-                    <th style={{ width: '8%', textAlign: 'center' }}>Acciones</th>
+                    <th>Reporte</th>
+                    <th>Fecha</th>
+                    <th>QA</th>
+                    <th>Plataforma</th>
+                    <th>Bug reportado</th>
+                    <th>Prioridad</th>
+                    <th>Estado</th>
+                    <th className="support-qa-actions-heading">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
                   {isLoadingQaReports ? (
                     <tr><td colSpan={8} style={{ textAlign: 'center', padding: '32px' }}>Cargando reportes QA...</td></tr>
-                  ) : !qaReportsData || qaReportsData.content.length === 0 ? (
+                  ) : visibleSupportQaReports.length === 0 ? (
                     <tr><td colSpan={8} style={{ textAlign: 'center', padding: '32px', color: 'var(--text-secondary)' }}>No hay reportes QA para los filtros seleccionados.</td></tr>
-                  ) : qaReportsData.content.map((ticket) => (
+                  ) : visibleSupportQaReports.map((ticket) => (
                     <tr key={ticket.id}>
                       <td><strong>{ticket.externalId}</strong></td>
                       <td>{formatDate(ticket.createdAt)}</td>
                       <td>{ticket.reporterName}</td>
                       <td>{ticket.platform ? <Badge text={PLATFORM_LABELS[ticket.platform]} variant={PLATFORM_TONES[ticket.platform]} /> : 'General'}</td>
-                      <td style={{ maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ticket.reason}</td>
+                      <td><span className="support-qa-truncate" title={ticket.reason}>{ticket.reason}</span></td>
                       <td><Badge text={PRIORITY_LABELS[ticket.priority]} variant={PRIORITY_TONES[ticket.priority]} /></td>
-                      <td><Badge text={STATUS_LABELS[ticket.status]} variant={STATUS_TONES[ticket.status]} /></td>
-                      <td style={{ textAlign: 'center' }}>
+                      <td className="support-qa-status-cell">
+                        <span className={`support-qa-status-badge ${QA_STATUS_TONE_CLASSES[ticket.status]}`}>
+                          {getStatusLabel(ticket.status, true)}
+                        </span>
+                      </td>
+                      <td className="support-qa-actions-cell">
                         <button className="row-action" type="button" onClick={() => setSelectedTicket(ticket)} title="Ver detalles">
                           <UiIcon name="arrowRight" />
                         </button>
@@ -1327,7 +1484,7 @@ export default function SupportPage() {
                           <Badge text={PRIORITY_LABELS[ticket.priority]} variant={PRIORITY_TONES[ticket.priority]} />
                         </td>
                         <td>
-                          <Badge text={STATUS_LABELS[ticket.status]} variant={STATUS_TONES[ticket.status]} />
+                          <Badge text={getStatusLabel(ticket.status, ticket.origin === 'QA')} variant={STATUS_TONES[ticket.status]} />
                         </td>
                         <td><small>{ticket.sla || 'N/A'}</small></td>
                         <td style={{ textAlign: 'center' }}>
@@ -1375,6 +1532,7 @@ export default function SupportPage() {
             status,
             nextAction: nextActionNotes.trim() || undefined,
           })}
+          statusContext="support"
         />
       )}
 

@@ -24,8 +24,8 @@ interface AuthState {
 }
 
 interface AuthContextValue extends AuthState {
-  login: (username: string, password: string) => Promise<void>;
-  loginWithGoogle: (idToken: string) => Promise<void>;
+  login: (username: string, password: string, keepSession?: boolean) => Promise<void>;
+  loginWithGoogle: (idToken: string, keepSession?: boolean) => Promise<void>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
 }
@@ -56,7 +56,6 @@ function mapUser(response: BackofficeLoginResponse): UserSummaryResponse | null 
     fullName: usuario.nombre,
     initials: usuario.nombre.substring(0, 2).toUpperCase(),
     role: mapRole(usuario.rol),
-    permissions: [],
   };
 }
 
@@ -65,7 +64,6 @@ function mapCurrentUser(response: UserSummaryResponse | BackofficeUserResponse):
     return {
       ...response,
       role: mapRole(response.role),
-      permissions: response.permissions ?? [],
     };
   }
 
@@ -75,7 +73,6 @@ function mapCurrentUser(response: UserSummaryResponse | BackofficeUserResponse):
     fullName: response.nombre,
     initials: response.nombre.substring(0, 2).toUpperCase(),
     role: mapRole(response.rol),
-    permissions: [],
   };
 }
 
@@ -87,6 +84,22 @@ function clearAuthHeader() {
   delete apiClient.defaults.headers.common['Authorization'];
 }
 
+function getStoredToken() {
+  return localStorage.getItem(ACCESS_TOKEN_STORAGE_KEY) ?? sessionStorage.getItem(ACCESS_TOKEN_STORAGE_KEY);
+}
+
+function storeToken(token: string, keepSession = false) {
+  const primaryStorage = keepSession ? localStorage : sessionStorage;
+  const secondaryStorage = keepSession ? sessionStorage : localStorage;
+  secondaryStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
+  primaryStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, token);
+}
+
+function clearStoredToken() {
+  localStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
+  sessionStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>({
     user: null,
@@ -96,7 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     async function restoreSession() {
-      const token = localStorage.getItem(ACCESS_TOKEN_STORAGE_KEY);
+      const token = getStoredToken();
 
       if (!token) {
         setState((current) => ({ ...current, isLoading: false }));
@@ -113,7 +126,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           isLoading: false,
         });
       } catch (error) {
-        localStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
+        clearStoredToken();
         clearAuthHeader();
         setState({
           user: null,
@@ -125,7 +138,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     void restoreSession();
   }, []);
 
-  const login = useCallback(async (username: string, password: string) => {
+  const login = useCallback(async (username: string, password: string, keepSession = false) => {
     const response = await apiClient.post<BackofficeLoginResponse>('/auth/login', {
       email: username.trim(),
       password,
@@ -139,7 +152,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error('Respuesta de autenticación inválida');
     }
 
-    localStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, token);
+    storeToken(token, keepSession);
     setAuthHeader(token);
     const currentUser = await apiClient.get<UserSummaryResponse | BackofficeUserResponse>('/auth/me');
     setState({
@@ -149,7 +162,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const loginWithGoogle = useCallback(async (idToken: string) => {
+  const loginWithGoogle = useCallback(async (idToken: string, keepSession = false) => {
     const response = await apiClient.post<BackofficeLoginResponse>('/auth/google', { idToken });
 
     const token = response.data.token ?? response.data.accessToken;
@@ -159,7 +172,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error('Respuesta de autenticación inválida');
     }
 
-    localStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, token);
+    storeToken(token, keepSession);
     setAuthHeader(token);
     const currentUser = await apiClient.get<UserSummaryResponse | BackofficeUserResponse>('/auth/me');
     setState({
@@ -170,7 +183,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
-    localStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
+    clearStoredToken();
     clearAuthHeader();
     setState({
       user: null,

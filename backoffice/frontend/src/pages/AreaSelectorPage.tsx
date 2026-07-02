@@ -81,6 +81,7 @@ export default function AreaSelectorPage() {
   const handleLogout = async () => {
     setProfileMenuOpen(false);
     await logout();
+    navigate('/login', { replace: true });
   };
 
   return (

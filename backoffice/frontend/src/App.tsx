@@ -14,6 +14,8 @@ import AuditPage from '@/components/audit/AuditPage';
 import ReportsPage from '@/components/reports/ReportsPage';
 import PermissionsConfigPage from '@/pages/PermissionsConfigPage';
 import { Role } from '@/types/auth';
+import { hasBackofficePermission } from '@/hooks/usePermissions';
+import type { BackofficeArea } from '@/types/auth';
 
 function RequireAuth({ children }: { children: JSX.Element }) {
   const { isAuthenticated } = useAuth();
@@ -39,15 +41,27 @@ function RequireSuperAdmin({ children }: { children: JSX.Element }) {
   return children;
 }
 
-export default function App() {
-  const { isAuthenticated } = useAuth();
+function RequireArea({ area, children }: { area: BackofficeArea; children: JSX.Element }) {
+  const { user, isAuthenticated } = useAuth();
 
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (!hasBackofficePermission(user, area)) {
+    return <Navigate to="/" replace />;
+  }
+
+  return children;
+}
+
+export default function App() {
   return (
     <Routes>
-      <Route path="/login" element={isAuthenticated ? <Navigate to="/" replace /> : <LoginPage />} />
+      <Route path="/login" element={<LoginPage />} />
       <Route path="/" element={<RequireAuth><AreaSelectorPage /></RequireAuth>} />
       <Route path="/configuracion" element={<RequireSuperAdmin><PermissionsConfigPage /></RequireSuperAdmin>} />
-      <Route path="/administracion" element={<RequireAuth><AppShell /></RequireAuth>}>
+      <Route path="/administracion" element={<RequireArea area="ADMINISTRACION_CONTABLE"><AppShell /></RequireArea>}>
         <Route index element={<AdminFinancePage />} />
         <Route path="resumen" element={<AdminFinancePage />} />
         <Route path="pedidos" element={<AdminFinancePage />} />
@@ -55,9 +69,9 @@ export default function App() {
         <Route path="gastos" element={<AdminFinancePage />} />
         <Route path="retiros" element={<AdminFinancePage />} />
       </Route>
-      <Route path="/soporte/*" element={<RequireAuth><AppShell noSidebar><SupportPage /></AppShell></RequireAuth>} />
+      <Route path="/soporte/*" element={<RequireArea area="SOPORTE"><AppShell noSidebar><SupportPage /></AppShell></RequireArea>} />
       <Route path="/confianza/*" element={
-        <RequireAuth>
+        <RequireArea area="MEDIACION_CONFIANZA">
           <AppShell>
             <Routes>
               <Route index element={<DashboardPage />} />
@@ -69,7 +83,7 @@ export default function App() {
               <Route path="reports" element={<ReportsPage />} />
             </Routes>
           </AppShell>
-        </RequireAuth>
+        </RequireArea>
       } />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

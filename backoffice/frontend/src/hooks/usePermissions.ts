@@ -16,9 +16,19 @@ export function hasBackofficePermission(
 ) {
   if (!user) return false;
   if (user.role === Role.SUPER_ADMIN) return true;
-  return (user.permissions ?? []).some((permission) => (
-    permission.area === area && (!slot || permission.slot === slot)
-  ));
+
+  if (Array.isArray(user.permissions)) {
+    return user.permissions.some((permission) => (
+      permission.area === area && (!slot || permission.slot === slot)
+    ));
+  }
+
+  if (user.role === Role.ADMIN) return true;
+  if (user.role === Role.OPERATOR) {
+    return area === 'SOPORTE' && (!slot || slot === 'OPERADOR');
+  }
+
+  return false;
 }
 
 export function usePermissions() {
