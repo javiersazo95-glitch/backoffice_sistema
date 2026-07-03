@@ -141,8 +141,9 @@ function SupportQaPage() {
   const [newDescription, setNewDescription] = useState('');
   const [newPlatform, setNewPlatform] = useState<TicketPlatform>('APP_MOBILE');
   const [newPriority, setNewPriority] = useState<TicketPriority>('MEDIA');
-  const [newEntorno, setNewEntorno] = useState('');
+  const [newEntorno, setNewEntorno] = useState('Entorno QA');
   const [newFile, setNewFile] = useState<File | null>(null);
+  const [isCreatingDefect, setIsCreatingDefect] = useState(false);
 
   // States for review
   const [reviewComment, setReviewComment] = useState('');
@@ -162,7 +163,7 @@ function SupportQaPage() {
     onSuccess: () => {
       setNewTitle('');
       setNewDescription('');
-      setNewEntorno('');
+      setNewEntorno('Entorno QA');
       setNewFile(null);
       setNewPlatform('APP_MOBILE');
       setNewPriority('MEDIA');
@@ -174,7 +175,7 @@ function SupportQaPage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: async ({ status, nextAction, file }: { status: TicketStatus; nextAction: string; file: File | null }) => {
+    mutationFn: async ({ status, nextAction, file }: { status: TicketStatus; nextAction?: string; file: File | null }) => {
       let docUrl = undefined;
       if (file) {
         const uploadResult = await supportApi.uploadDocument(file);
@@ -187,7 +188,7 @@ function SupportQaPage() {
         documentoUrl: docUrl
       });
     },
-    onSuccess: (updated) => {
+    onSuccess: (updated, variables) => {
       queryClient.setQueryData(['support-ticket-detail', updated.id], updated);
       queryClient.invalidateQueries({ queryKey: ['qa-reports'] });
       queryClient.invalidateQueries({ queryKey: ['support-ticket-detail', updated.id] });
@@ -198,7 +199,7 @@ function SupportQaPage() {
       }
       setReviewComment('');
       setReviewFile(null);
-      showToast('Revisión registrada con éxito');
+      showToast(variables.nextAction ? 'Revisión registrada con éxito' : 'Documento adjuntado con éxito');
     },
     onError: (error: any) => showToast(error.message || 'No se pudo registrar la revisión'),
   });
@@ -383,7 +384,7 @@ function SupportQaPage() {
                       {formatDate(bug.createdAt)}
                     </span>
                     <span className="validation-request-footer">
-                      <span>
+                      <span className={`validation-request-environment${bug.entorno?.toLowerCase().includes('qa') ? ' env-qa' : bug.entorno?.toLowerCase().includes('producci') ? ' env-prod' : ''}`}>
                         <UiIcon name="shield" />
                         {bug.entorno || 'No especificado'}
                       </span>
@@ -417,6 +418,10 @@ function SupportQaPage() {
                   statusContext="qa"
                   reviewFile={reviewFile}
                   onReviewFileChange={setReviewFile}
+                  onAttachDocument={(file) => updateMutation.mutate({
+                    status: selectedBugView.status,
+                    file,
+                  })}
                   embedded
                 />
               ) : (
@@ -499,7 +504,9 @@ function SupportQaPage() {
                       <div style={{ display: 'grid', gap: '12px' }}>
                         {visibleSelectedBugMessages.map((message) => (
                           <article key={message.id} style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '12px', background: '#fff' }}>
-                            <strong style={{ display: 'block', color: '#0f172a', marginBottom: '4px' }}>{message.autorNombre || (message.autorTipo === 'SOPORTE' ? 'Soporte RepuesTop' : selectedBug.reporterName)}</strong>
+                            <strong style={{ display: 'block', color: '#0f172a', marginBottom: '4px' }}>
+                              {message.autorNombre || (message.autorTipo === 'SOPORTE' ? (selectedBug.origin === 'QA' ? 'QA RepuesTop' : 'Soporte RepuesTop') : selectedBug.reporterName)}
+                            </strong>
                             <p style={{ margin: 0, whiteSpace: 'pre-wrap', color: '#334155' }}>{message.mensaje}</p>
                             <small style={{ display: 'block', marginTop: '8px', color: '#64748b' }}>{formatDate(message.createdAt)}</small>
                           </article>
@@ -656,6 +663,10 @@ function SupportQaPage() {
           statusContext="qa"
           reviewFile={reviewFile}
           onReviewFileChange={setReviewFile}
+          onAttachDocument={(file) => updateMutation.mutate({
+            status: selectedBugView.status,
+            file,
+          })}
         />
       )}
 
@@ -683,11 +694,14 @@ function SupportQaPage() {
             <form
               onSubmit={async (e) => {
                 e.preventDefault();
+                if (isCreatingDefect || createMutation.isPending) return;
                 if (!newTitle.trim() || !newDescription.trim() || !newEntorno.trim()) {
                   showToast('Por favor completa los campos obligatorios');
                   return;
                 }
 
+                setIsCreatingDefect(true);
+                let didStartCreate = false;
                 try {
                   let docUrl = undefined;
                   if (newFile) {
@@ -695,7 +709,8 @@ function SupportQaPage() {
                     docUrl = uploadResult.url;
                   }
 
-                  createMutation.mutate({
+                  didStartCreate = true;
+                  await createMutation.mutateAsync({
                     reason: newTitle.trim(),
                     lastMessage: newDescription.trim(),
                     category: 'FALLA_TECNICA',
@@ -709,7 +724,11 @@ function SupportQaPage() {
                     entorno: newEntorno.trim()
                   });
                 } catch (error: any) {
-                  showToast(error.message || 'Error al subir el archivo');
+                  if (!didStartCreate) {
+                    showToast(error.message || 'Error al registrar el defecto');
+                  }
+                } finally {
+                  setIsCreatingDefect(false);
                 }
               }}
               style={{ padding: '20px', display: 'grid', gap: '14px' }}
@@ -759,14 +778,16 @@ function SupportQaPage() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <label style={{ display: 'grid', gap: '6px' }}>
                   <span style={{ fontSize: '13px', fontWeight: 'bold' }}>Entorno *</span>
-                  <input
-                    type="text"
+                  <select
                     value={newEntorno}
                     onChange={e => setNewEntorno(e.target.value)}
-                    placeholder="Ej: Staging, Producción, Local"
                     required
                     style={{ padding: '10px', border: '1px solid #d9e3f0', borderRadius: '8px', font: 'inherit' }}
-                  />
+                  >
+                    <option value="Entorno QA">Entorno QA</option>
+                    <option value="Local">Local</option>
+                    <option value="Producción">Producción</option>
+                  </select>
                 </label>
 
                 <label style={{ display: 'grid', gap: '6px' }}>
@@ -802,10 +823,10 @@ function SupportQaPage() {
                 <button
                   type="submit"
                   className="primary-button"
-                  disabled={createMutation.isPending}
+                  disabled={isCreatingDefect || createMutation.isPending}
                 >
                   <UiIcon name="alert" />
-                  {createMutation.isPending ? 'Registrando...' : 'Registrar Defecto'}
+                  {isCreatingDefect || createMutation.isPending ? 'Registrando...' : 'Registrar Defecto'}
                 </button>
               </div>
             </form>
@@ -1016,9 +1037,15 @@ export default function SupportPage() {
   });
 
   const updateStatusMutation = useMutation({
-    mutationFn: ({ id, status, nextAction }: { id: number; status: TicketStatus; nextAction?: string }) =>
-      supportApi.updateTicketStatus(id, { status, nextAction }),
-    onSuccess: (updated) => {
+    mutationFn: async ({ id, status, nextAction, file }: { id: number; status: TicketStatus; nextAction?: string; file?: File }) => {
+      let docUrl = undefined;
+      if (file) {
+        const uploadResult = await supportApi.uploadDocument(file);
+        docUrl = uploadResult.url;
+      }
+      return supportApi.updateTicketStatus(id, { status, nextAction, documentoUrl: docUrl });
+    },
+    onSuccess: (updated, variables) => {
       queryClient.invalidateQueries({ queryKey: ['support-workspace'] });
       queryClient.invalidateQueries({ queryKey: ['support-tickets'] });
       queryClient.invalidateQueries({ queryKey: ['support-tickets-global'] });
@@ -1027,7 +1054,7 @@ export default function SupportPage() {
       queryClient.setQueryData(['support-ticket-detail', updated.id], updated);
       setSelectedTicket((current) => (current?.id === updated.id ? { ...current, ...updated } : current));
       setNextActionNotes('');
-      showToast('Estado del ticket actualizado');
+      showToast(variables.file ? 'Documento adjuntado con éxito' : 'Estado del ticket actualizado');
     },
     onError: (err: any) => {
       showToast(err.message || 'Error al actualizar ticket');
@@ -1531,6 +1558,11 @@ export default function SupportPage() {
             id: selectedTicket.id,
             status,
             nextAction: nextActionNotes.trim() || undefined,
+          })}
+          onAttachDocument={(file) => updateStatusMutation.mutate({
+            id: selectedTicket.id,
+            status: (selectedTicketDetail ?? selectedTicket).status,
+            file,
           })}
           statusContext="support"
         />

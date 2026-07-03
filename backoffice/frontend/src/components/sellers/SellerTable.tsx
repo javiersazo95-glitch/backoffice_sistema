@@ -52,7 +52,7 @@ export default function SellerTable({
               <th>RUT</th>
               <th>Ciudad</th>
               <th>ESTADO DE CUENTA</th>
-              <th>Esperando vendedor</th>
+              <th>En disputa</th>
               <th>Fecha de ingreso</th>
               <th>Mediaciones</th>
               <th>Acciones</th>

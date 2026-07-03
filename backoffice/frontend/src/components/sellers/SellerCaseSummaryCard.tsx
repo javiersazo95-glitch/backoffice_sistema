@@ -53,7 +53,7 @@ export default function SellerCaseSummaryCard({
   nextAction,
   onPrimaryAction,
 }: SellerCaseSummaryCardProps) {
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(false);
   const visibleOrder = orderId && orderId !== 'N/A' ? orderId : 'Sin pedido asociado';
   const subtitleParts = [visibleOrder, stage, amount].filter(Boolean);
   const headerSubtitle = subtitleParts.join(' · ');

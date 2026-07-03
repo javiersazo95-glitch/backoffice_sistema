@@ -67,6 +67,22 @@ export function buildDocumentDownloadName(documentType: string, documentUrl?: st
   return `${normalized || 'documento'}${extension ? `.${extension}` : ''}`;
 }
 
+export function getDocumentFileName(documentUrl?: string, fallback = 'documento') {
+  if (!documentUrl) return fallback;
+
+  try {
+    const url = new URL(resolveDocumentUrl(documentUrl) ?? documentUrl, getAbsoluteApiBaseUrl());
+    const explicitName = url.searchParams.get('filename');
+    if (explicitName) return explicitName;
+
+    const lastSegment = decodeURIComponent(url.pathname.split('/').pop() || '');
+    return lastSegment.replace(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}_/i, '') || fallback;
+  } catch {
+    const lastSegment = documentUrl.split('?')[0]?.split('/').pop() || '';
+    return lastSegment.replace(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}_/i, '') || fallback;
+  }
+}
+
 export async function downloadDocument(documentUrl?: string, fileName = 'documento') {
   const resolvedUrl = resolveDocumentUrl(documentUrl);
   if (!resolvedUrl) return false;

@@ -9,11 +9,14 @@ import type {
   TicketResponse,
   TicketStatus,
   TicketMessage,
+  TicketAttachment,
 } from '@/api/support';
 import * as supportApi from '@/api/support';
 import * as permissionsApi from '@/api/permissions';
 import type { PermissionUser } from '@/api/permissions';
-import { resolveDocumentUrl } from '@/utils/documentUrls';
+import { downloadDocument, getDocumentFileName, resolveDocumentUrl } from '@/utils/documentUrls';
+import { resolveProfileImageUrl } from '@/api/client';
+import { useAuth } from '@/context/AuthContext';
 
 const PLATFORM_LABELS: Record<TicketPlatform, string> = {
   ADMINISTRACION_CONTABLE: 'Administración Contable',
@@ -191,7 +194,23 @@ function getStatusOptions(ticket: TicketResponse, statusContext: StatusContext):
   });
 }
 
-function Avatar({ name, size = 24 }: { name: string; size?: number }) {
+function Avatar({ name, size = 24, imageUrl }: { name: string; size?: number; imageUrl?: string | null }) {
+  const [imageFailed, setImageFailed] = useState(false);
+  const resolvedUrl = !imageFailed ? resolveProfileImageUrl(imageUrl) : null;
+
+  if (resolvedUrl) {
+    return (
+      <img
+        className="jira-avatar jira-avatar-image"
+        style={{ width: size, height: size }}
+        src={resolvedUrl}
+        alt={name}
+        title={name}
+        onError={() => setImageFailed(true)}
+      />
+    );
+  }
+
   return (
     <span
       className="jira-avatar"
@@ -223,16 +242,18 @@ interface Props {
   statusContext?: StatusContext;
   reviewFile?: File | null;
   onReviewFileChange?: (file: File | null) => void;
+  onAttachDocument?: (file: File) => void;
   embedded?: boolean;
 }
 
 export default function SupportTicketDetailModal({
-  ticket, isLoading, isUpdating, notes, onNotesChange, onClose, onStatusChange, statusContext, reviewFile, onReviewFileChange, embedded = false,
+  ticket, isLoading, isUpdating, notes, onNotesChange, onClose, onStatusChange, statusContext, reviewFile, onReviewFileChange, onAttachDocument, embedded = false,
 }: Props) {
+  const { user } = useAuth();
   const isQa = ticket.origin === 'QA';
   const resolvedStatusContext = statusContext ?? (isQa ? 'qa' : 'support');
   const canQaReview = isQa && resolvedStatusContext === 'qa' && ticket.status === 'PENDIENTE_VENDEDOR';
-  const currentActorName = isQa && resolvedStatusContext === 'qa' ? 'QA RepuesTop' : 'Soporte RepuesTop';
+  const currentActorName = user?.fullName || (isQa ? 'QA RepuesTop' : 'Soporte RepuesTop');
   const [messages, setMessages] = useState<TicketMessage[]>([]);
   const [messagesLoading, setMessagesLoading] = useState(true);
   const [replyText, setReplyText] = useState('');
@@ -243,9 +264,10 @@ export default function SupportTicketDetailModal({
   const [operatorsLoading, setOperatorsLoading] = useState(false);
   const [selectedAssignee, setSelectedAssignee] = useState<PermissionUser | null>(() => getStoredAssignee(ticket.id));
   const [reviewPopupOpen, setReviewPopupOpen] = useState(false);
+  const [attachments, setAttachments] = useState<TicketAttachment[]>([]);
+  const [attachmentsLoading, setAttachmentsLoading] = useState(true);
   const statusMenuRef = useRef<HTMLDivElement>(null);
   const assigneeMenuRef = useRef<HTMLDivElement>(null);
-  const originalDocUrlRef = useRef<string | undefined>(ticket.documentoUrl);
 
   useEffect(() => {
     async function loadMessages() {
@@ -261,6 +283,21 @@ export default function SupportTicketDetailModal({
     }
     void loadMessages();
   }, [ticket.id]);
+
+  useEffect(() => {
+    async function loadAttachments() {
+      setAttachmentsLoading(true);
+      try {
+        const data = await supportApi.getTicketAttachments(ticket.id);
+        setAttachments(data);
+      } catch {
+        setAttachments([]);
+      } finally {
+        setAttachmentsLoading(false);
+      }
+    }
+    void loadAttachments();
+  }, [ticket.id, ticket.documentoUrl]);
 
 
   useEffect(() => {
@@ -394,40 +431,67 @@ export default function SupportTicketDetailModal({
               </section>
             )}
 
-            {(() => {
-              const currentDocUrl = ticket.documentoUrl ? resolveDocumentUrl(ticket.documentoUrl) : null;
-              const currentDocName = ticket.documentoUrl ? ticket.documentoUrl.split('/').pop() || 'evidencia.pdf' : null;
-              const originalResolvedUrl = originalDocUrlRef.current ? resolveDocumentUrl(originalDocUrlRef.current) : null;
-              const originalDocName = originalDocUrlRef.current ? originalDocUrlRef.current.split('/').pop() || 'evidencia-original.pdf' : null;
-              const hasReviewDoc = currentDocUrl && originalDocUrlRef.current && originalDocUrlRef.current !== ticket.documentoUrl;
-              const totalDocs = (currentDocUrl ? 1 : 0) + (hasReviewDoc ? 1 : 0);
-              if (!currentDocUrl && !originalResolvedUrl) return null;
-              return (
-                <section className="jira-section">
-                  <h2 className="jira-section-title">Adjuntos <span className="jira-count-badge">{totalDocs}</span></h2>
-                  {currentDocUrl && (
-                    <button type="button" className="jira-attachment-card" onClick={() => window.open(currentDocUrl, '_blank')}>
-                      <span className="jira-attachment-icon"><UiIcon name="document" /></span>
-                      <span className="jira-attachment-meta">
-                        <strong>{currentDocName}</strong>
-                        <span>{hasReviewDoc ? 'Evidencia de revisión QA · Bucket privado' : 'Documento de evidencia · Bucket privado'}</span>
-                      </span>
-                      <span className="jira-attachment-download"><UiIcon name="download" /></span>
-                    </button>
-                  )}
-                  {hasReviewDoc && originalResolvedUrl && (
-                    <button type="button" className="jira-attachment-card" style={{ marginTop: 8 }} onClick={() => window.open(originalResolvedUrl, '_blank')}>
-                      <span className="jira-attachment-icon"><UiIcon name="document" /></span>
-                      <span className="jira-attachment-meta">
-                        <strong>{originalDocName}</strong>
-                        <span>Evidencia original del defecto · Bucket privado</span>
-                      </span>
-                      <span className="jira-attachment-download"><UiIcon name="download" /></span>
-                    </button>
-                  )}
-                </section>
-              );
-            })()}
+            {(attachmentsLoading || attachments.length > 0 || onAttachDocument) && (
+              <section className="jira-section">
+                <h2 className="jira-section-title">Adjuntos <span className="jira-count-badge">{attachments.length}</span></h2>
+                {attachmentsLoading ? (
+                  <div className="jira-empty-text">Cargando adjuntos…</div>
+                ) : (
+                  attachments.map((attachment, index) => {
+                    const resolvedUrl = resolveDocumentUrl(attachment.url);
+                    const rawName = attachment.nombreArchivo || getDocumentFileName(attachment.url, 'documento');
+                    const fileName = rawName.replace(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}_/i, '');
+                    if (!resolvedUrl) return null;
+                    return (
+                      <div
+                        key={attachment.id}
+                        className="jira-attachment-card"
+                        style={{ marginTop: index > 0 ? 8 : 0 }}
+                        onClick={() => window.open(resolvedUrl, '_blank')}
+                      >
+                        <span className="jira-attachment-icon"><UiIcon name="document" /></span>
+                        <span className="jira-attachment-meta">
+                          <strong>{fileName}</strong>
+                          <span>{attachment.descripcion || 'Documento de evidencia'} · Bucket privado</span>
+                        </span>
+                        <div className="jira-attachment-actions" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            type="button"
+                            className="jira-attachment-action-btn"
+                            title="Visualizar archivo"
+                            onClick={() => window.open(resolvedUrl, '_blank')}
+                          >
+                            <UiIcon name="eye" />
+                          </button>
+                          <button
+                            type="button"
+                            className="jira-attachment-action-btn"
+                            title="Descargar archivo"
+                            onClick={() => void downloadDocument(attachment.url, fileName)}
+                          >
+                            <UiIcon name="download" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+                {onAttachDocument && (
+                  <label className="jira-file-control" style={{ marginTop: attachmentsLoading || attachments.length > 0 ? 12 : 0 }}>
+                    <span>Adjuntar documento</span>
+                    <input
+                      type="file"
+                      disabled={isUpdating}
+                      onChange={(event) => {
+                        const file = event.target.files?.[0];
+                        if (file) onAttachDocument(file);
+                        event.currentTarget.value = '';
+                      }}
+                    />
+                  </label>
+                )}
+              </section>
+            )}
 
             <section className="jira-section">
               <div className="jira-activity-tabs">
@@ -468,14 +532,17 @@ export default function SupportTicketDetailModal({
                   <div className="jira-comment-empty">Todavía no hay comentarios en este issue.</div>
                 ) : (
                   [...visibleMessages].reverse().map((msg) => {
-                    const authorName = msg.autorNombre || (msg.autorTipo === 'SOPORTE' ? 'Soporte' : 'Usuario');
+                    const authorName = msg.autorNombre || (msg.autorTipo === 'SOPORTE' ? (isQa ? 'QA RepuesTop' : 'Soporte') : 'Usuario');
+                    const roleLabel = msg.autorRol || (msg.autorTipo === 'SOPORTE' ? (isQa ? 'QA' : 'Equipo') : null);
                     return (
                       <div key={msg.id} className="jira-comment">
-                        <Avatar name={authorName} size={32} />
+                        <Avatar name={authorName} size={32} imageUrl={msg.autorAvatarUrl} />
                         <div className="jira-comment-content">
                           <div className="jira-comment-head">
                             <strong>{authorName}</strong>
-                            {msg.autorTipo === 'SOPORTE' && <span className="jira-role-chip">Equipo</span>}
+                            {roleLabel && (
+                              <span className={`jira-role-chip ${msg.autorTipo === 'SOPORTE' ? '' : 'jira-role-chip-user'}`}>{roleLabel}</span>
+                            )}
                             <span className="jira-comment-time" title={formatDateTime(msg.createdAt)}>{timeAgo(msg.createdAt)}</span>
                           </div>
                           <div className="jira-comment-text">{msg.mensaje}</div>

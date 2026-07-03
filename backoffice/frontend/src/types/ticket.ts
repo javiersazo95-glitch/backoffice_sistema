@@ -20,6 +20,7 @@ export interface TicketResponse {
   id: number;
   externalId: string;
   sellerId: number;
+  sellerName?: string;
   status: TicketStatus;
   priority: TicketPriority;
   sla: string;

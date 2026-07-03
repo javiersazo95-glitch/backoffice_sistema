@@ -4,9 +4,7 @@ import { MediationResponse, MediationStatus, type MediationDetailResponse, type 
 import Badge from '@/components/shared/Badge';
 import UiIcon from '@/components/shared/UiIcon';
 import { formatCurrency, formatDateTime, mediationStatusDisplay } from '@/utils/formatters';
-import { mediationNoteTypeIcon, mediationNoteTypeLabel, mediationNoteTypeTone } from '@/utils/mediationNotes';
-import { getReportsBySellerId } from '@/api/reports';
-import { getTickets } from '@/api/support';
+import { getReports } from '@/api/reports';
 import { resolveProfileImageUrl } from '@/api/client';
 import mediatorProfileImage from '@/assets/mediator-profile.jpg';
 
@@ -89,54 +87,64 @@ interface UnifiedNote {
   reporterType?: string;
   source?: string;
   externalId?: string;
+  reportedParty: 'COMPRADOR' | 'VENDEDOR';
 }
 
 function buildUnifiedHistory(
   item: MediationModalItem,
-  reports: { id: number; idExterno?: string; reportanteName: string; motivo: string; descripcion: string; fechaCreacion: string }[],
-  tickets: { id: number; externalId: string; orderId: string; sellerId: number; reason: string; lastMessage: string; createdAt: string; reporterType?: string; reporterName?: string }[],
+  reports: any[],
+  buyerName: string,
 ): UnifiedNote[] {
-  const noteEntries: UnifiedNote[] = [...(item.messages ?? [])].map((message, idx) => ({
-    id: `note-${message.id ?? idx}`,
-    type: 'note',
-    date: message.createdAt,
-    title: mediationNoteTypeLabel(message.noteType ?? 'seguimiento'),
-    text: message.text,
-    author: message.author,
-    noteType: message.noteType ?? message.type ?? 'seguimiento',
-  }));
+  const sellerName = item.sellerName || 'Tienda';
+  const formatSellerName = (name: string) => {
+    const trimmed = name.trim();
+    if (trimmed.toLowerCase().startsWith('tienda')) return trimmed;
+    return `tienda ${trimmed}`;
+  };
 
-  const relatedTickets = tickets.filter((ticket) => {
-    const matchesOrder = !!(ticket.orderId && ticket.orderId === item.orderId);
-    const matchesSeller = !!(ticket.sellerId && ticket.sellerId === item.sellerId);
-    return (matchesOrder || matchesSeller) && (ticket.reporterType === 'COMPRADOR' || ticket.reporterType === 'VENDEDOR');
+  const filteredReports = reports.filter((report) => {
+    // 1. Report received by the seller (reported is the seller)
+    const reportedIsSeller = report.reportadoType === 'VENDEDOR' && (
+      String(report.reportadoId) === String(item.sellerId) || 
+      report.reportadoName?.trim().toLowerCase() === sellerName.trim().toLowerCase() ||
+      sellerName.trim().toLowerCase().includes(report.reportadoName?.trim().toLowerCase() ?? '') ||
+      report.reportadoName?.trim().toLowerCase().includes(sellerName.trim().toLowerCase() ?? '')
+    );
+
+    // 2. Report received by the buyer (reported is the buyer)
+    const reportedIsBuyer = report.reportadoType === 'COMPRADOR' && (
+      report.reportadoName?.trim().toLowerCase() === buyerName.trim().toLowerCase() ||
+      buyerName.trim().toLowerCase().includes(report.reportadoName?.trim().toLowerCase() ?? '') ||
+      report.reportadoName?.trim().toLowerCase().includes(buyerName.trim().toLowerCase())
+    );
+
+    return reportedIsSeller || reportedIsBuyer;
   });
 
-  const ticketEntries: UnifiedNote[] = relatedTickets.map((ticket) => ({
-    id: `ticket-${ticket.id}`,
-    type: 'report',
-    date: ticket.createdAt,
-    title: `Reporte de ${ticket.reporterType === 'VENDEDOR' ? 'Tienda' : 'Comprador'}`,
-    text: `Motivo: ${ticket.reason}\nDetalle: ${ticket.lastMessage || 'Sin detalles adicionales.'}`,
-    author: ticket.reporterName || (ticket.reporterType === 'VENDEDOR' ? 'Tienda' : 'Comprador'),
-    reporterType: ticket.reporterType,
-    source: 'Canal de Ayuda',
-    externalId: ticket.externalId,
-  }));
+  const reportEntries: UnifiedNote[] = filteredReports.map((report) => {
+    const reportedParty = report.reportadoType;
+    const reporterName = report.reportanteName || (report.reportanteType === 'COMPRADOR' ? buyerName : sellerName);
+    const title = reportedParty === 'VENDEDOR'
+      ? `${reporterName} hizo un reporte a ${formatSellerName(sellerName)}`
+      : `${formatSellerName(reporterName)} hizo un reporte a ${buyerName}`;
 
-  const reportEntries: UnifiedNote[] = reports.map((report) => ({
-    id: `report-${report.id}`,
-    type: 'report',
-    date: report.fechaCreacion,
-    title: 'Reporte al vendedor',
-    text: `Motivo: ${report.motivo}\nDetalle: ${report.descripcion}`,
-    author: report.reportanteName || 'Comprador',
-    reporterType: 'COMPRADOR',
-    source: 'Reporte de Usuario',
-    externalId: report.idExterno,
-  }));
+    const isTicket = report.idExterno?.startsWith('TCK-');
 
-  return [...noteEntries, ...ticketEntries, ...reportEntries].sort(
+    return {
+      id: `report-${report.id}`,
+      type: 'report',
+      date: report.fechaCreacion,
+      title,
+      text: `Motivo: ${report.motivo}\nDetalle: ${report.descripcion}`,
+      author: reporterName,
+      reporterType: report.reportanteType,
+      source: isTicket ? 'Canal de Ayuda' : 'Reporte de Usuario',
+      externalId: report.idExterno,
+      reportedParty,
+    };
+  });
+
+  return reportEntries.sort(
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
   );
 }
@@ -328,23 +336,19 @@ export default function MediationDetail({
   const [resolutionReason, setResolutionReason] = useState('');
   const [documentFile, setDocumentFile] = useState<File | null>(null);
   const [decision, setDecision] = useState<'resolve' | 'block'>('resolve');
+  const [historyFilter, setHistoryFilter] = useState<string>('all');
 
   useEffect(() => {
     if (!isOpen) return;
     setResolutionReason('');
     setDocumentFile(null);
     setDecision('resolve');
+    setHistoryFilter('all');
   }, [isOpen, item?.id]);
 
-  const { data: reportsData } = useQuery({
-    queryKey: ['seller-reports-for-mediation-detail', item?.sellerId],
-    queryFn: () => getReportsBySellerId(item?.sellerId ?? 0),
-    enabled: !!item && isOpen,
-  });
-
-  const { data: ticketsData } = useQuery({
-    queryKey: ['support-tickets-for-mediation-detail', item?.id],
-    queryFn: () => getTickets({ page: 0, size: 500 }),
+  const { data: allReportsData } = useQuery({
+    queryKey: ['all-reports-for-mediation-detail'],
+    queryFn: () => getReports({ size: 1000 }),
     enabled: !!item && isOpen,
   });
 
@@ -374,9 +378,17 @@ export default function MediationDetail({
   const blockingCode = item?.blockingMediationExternalId || (item?.blockingMediationId ? `MED-${item.blockingMediationId}` : '');
 
   const unifiedHistory = useMemo(
-    () => item ? buildUnifiedHistory(item, reportsData ?? [], (ticketsData?.content ?? []) as any) : [],
-    [item, reportsData, ticketsData],
+    () => item ? buildUnifiedHistory(item, allReportsData?.content ?? [], buyerName) : [],
+    [item, allReportsData, buyerName],
   );
+
+  const filteredHistory = useMemo(() => {
+    return unifiedHistory.filter((entry) => {
+      if (historyFilter === 'seller') return entry.reportedParty === 'VENDEDOR';
+      if (historyFilter === 'buyer') return entry.reportedParty === 'COMPRADOR';
+      return true;
+    });
+  }, [unifiedHistory, historyFilter]);
 
   if (!isOpen || !item) return null;
 
@@ -602,34 +614,28 @@ export default function MediationDetail({
           </section>
 
           <section className="mediation-resolution-summary mediation-notes-summary">
-            <div className="mediation-resolution-summary-head">
-              <UiIcon name="note" />
-              <strong>Notas del historial</strong>
+            <div className="mediation-resolution-summary-head" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <UiIcon name="document" />
+                <strong>Historial de reportes</strong>
+              </div>
+              <select
+                className="select compact"
+                value={historyFilter}
+                onChange={(e) => setHistoryFilter(e.target.value)}
+                style={{ width: 'auto', padding: '4px 8px', fontSize: '12px', background: 'transparent', border: '1px solid rgba(0,0,0,0.1)', borderRadius: '6px', cursor: 'pointer' }}
+                aria-label="Filtrar reportes"
+              >
+                <option value="all">Todos los reportes</option>
+                <option value="seller">Reportes al Vendedor</option>
+                <option value="buyer">Reportes al Comprador</option>
+              </select>
             </div>
-            {unifiedHistory.length ? (
+            {filteredHistory.length ? (
               <div className="mediation-notes-list">
-                {unifiedHistory.map((entry) => {
-                  if (entry.type === 'note') {
-                    const noteType = entry.noteType ?? 'seguimiento';
-                    const tone = mediationNoteTypeTone(noteType);
-                    return (
-                      <article className={`mediation-note-item ${tone}`} key={entry.id}>
-                        <span className={`mediation-note-item-icon ${tone}`}>
-                          <UiIcon name={mediationNoteTypeIcon(noteType)} />
-                        </span>
-                        <div className="mediation-note-item-body">
-                          <div className="mediation-note-item-head">
-                            <strong>{entry.title}</strong>
-                            <time>{formatDateTime(entry.date)}</time>
-                          </div>
-                          <p>{entry.text}</p>
-                          <small>{entry.author || 'Equipo interno'} · Solo equipo interno</small>
-                        </div>
-                      </article>
-                    );
-                  }
-                  const tone = entry.reporterType === 'VENDEDOR' ? 'orange' : 'blue';
-                  const icon = entry.reporterType === 'VENDEDOR' ? 'alert' : 'document';
+                {filteredHistory.map((entry) => {
+                  const tone = entry.reportedParty === 'COMPRADOR' ? 'orange' : 'blue';
+                  const icon = entry.reportedParty === 'COMPRADOR' ? 'user' : 'users';
                   const isUserReport = entry.source === 'Reporte de Usuario';
                   return (
                     <article className={`mediation-note-item ${tone}`} key={entry.id}>
@@ -638,9 +644,12 @@ export default function MediationDetail({
                       </span>
                       <div className="mediation-note-item-body">
                         <div className="mediation-note-item-head">
-                          <strong>{entry.title}</strong>
+                          <strong>{entry.reportedParty === 'COMPRADOR' ? 'Reporte al Comprador' : 'Reporte al Vendedor'}</strong>
                           <time>{formatDateTime(entry.date)}</time>
                         </div>
+                        <p style={{ fontWeight: 650, fontSize: '13px', marginTop: '2px', marginBottom: '6px', color: '#1e293b' }}>
+                          {entry.title}
+                        </p>
                         <p style={{ whiteSpace: 'pre-line' }}>{entry.text}</p>
                         <small>
                           {entry.author} · {isUserReport ? 'Reporte de Usuario' : 'Canal de Ayuda'}
@@ -652,8 +661,8 @@ export default function MediationDetail({
               </div>
             ) : (
               <div className="mediation-notes-empty">
-                <UiIcon name="note" />
-                <p>No hay notas ni reportes registrados en el historial de esta mediación.</p>
+                <UiIcon name="document" />
+                <p>No se encontraron reportes con el filtro seleccionado.</p>
               </div>
             )}
           </section>

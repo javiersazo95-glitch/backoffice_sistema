@@ -39,6 +39,7 @@ export interface TicketResponse {
   id: number;
   externalId: string;
   sellerId?: number;
+  sellerName?: string;
   status: TicketStatus;
   priority: TicketPriority;
   category: TicketCategory;
@@ -64,7 +65,17 @@ export interface TicketMessage {
   id: number;
   autorTipo: 'USUARIO' | 'SOPORTE';
   autorNombre?: string;
+  autorRol?: string;
+  autorAvatarUrl?: string;
   mensaje: string;
+  createdAt: string;
+}
+
+export interface TicketAttachment {
+  id: number;
+  url: string;
+  nombreArchivo?: string;
+  descripcion?: string;
   createdAt: string;
 }
 
@@ -134,19 +145,22 @@ export async function getTicketMessages(ticketId: number): Promise<TicketMessage
   return response.data;
 }
 
+export async function getTicketAttachments(ticketId: number): Promise<TicketAttachment[]> {
+  const response = await apiClient.get<TicketAttachment[]>(`/support/tickets/${ticketId}/attachments`);
+  return response.data;
+}
+
 export async function sendTicketMessage(ticketId: number, data: { autorTipo: string; autorNombre?: string; mensaje: string }): Promise<TicketMessage> {
   const response = await apiClient.post<TicketMessage>(`/support/tickets/${ticketId}/messages`, data);
   return response.data;
 }
 
-export async function uploadDocument(file: File, folder: string = 'qa-docs'): Promise<{ url: string; path: string }> {
+export async function uploadDocument(file: File, folder: string = 'qa-docs'): Promise<{ url: string; path: string; filename?: string }> {
   const formData = new FormData();
   formData.append('file', file);
-  formData.append('folder', folder);
-  const response = await apiClient.post<{ url: string; path: string }>('/uploads/upload', formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data',
-    },
+  const response = await apiClient.post<{ url: string; path: string; filename?: string }>('/uploads/upload', formData, {
+    params: { folder },
+    headers: { 'Content-Type': undefined },
   });
   return response.data;
 }

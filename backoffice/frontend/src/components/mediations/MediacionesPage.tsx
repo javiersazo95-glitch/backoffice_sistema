@@ -30,7 +30,6 @@ import {
   MediationNoteModal,
   MediationNotesHistoryModal,
   CaseResolutionModal,
-  MediationInitFeedbackOverlay,
   ResolvedCaseTimelineModal,
   BlockedAccountHistoryModal,
   AppealReviewModal,
@@ -193,8 +192,6 @@ export default function MediacionesPage() {
   const [initModalOpen, setInitModalOpen] = useState(false);
   const [noteModalOpen, setNoteModalOpen] = useState(false);
   const [notesHistoryModalOpen, setNotesHistoryModalOpen] = useState(false);
-  const [noteFeedbackOpen, setNoteFeedbackOpen] = useState(false);
-  const [noteFeedbackTitle, setNoteFeedbackTitle] = useState('Nota registrada');
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
   const [reactivateModalOpen, setReactivateModalOpen] = useState(false);
   const [resolvedTimelineOpen, setResolvedTimelineOpen] = useState(false);
@@ -280,12 +277,6 @@ export default function MediacionesPage() {
     }),
     [activeMediationsData?.totalElements, resolvedCases?.content?.length, resolvedCases?.totalElements, waitingData?.totalElements],
   );
-
-  useEffect(() => {
-    if (!noteFeedbackOpen) return;
-    const timeout = window.setTimeout(() => setNoteFeedbackOpen(false), 1800);
-    return () => window.clearTimeout(timeout);
-  }, [noteFeedbackOpen]);
 
   useEffect(() => {
     const action = searchParams.get('action');
@@ -388,11 +379,8 @@ export default function MediacionesPage() {
         { mediationId: id, messageId: editingNote?.messageId ?? noteIndex, data: { message: note, type: noteType, isInternal: true } },
         {
           onSuccess: () => {
-            setNoteModalOpen(false);
             setEditingNote(null);
-            setNotesHistoryModalOpen(true);
-            setNoteFeedbackTitle('Nota actualizada');
-            setNoteFeedbackOpen(true);
+            showToast('Nota actualizada');
           },
         },
       );
@@ -401,11 +389,8 @@ export default function MediacionesPage() {
         { mediationId: id, data: { message: note, type: noteType, isInternal: true } },
         {
           onSuccess: () => {
-            setNoteModalOpen(false);
             setEditingNote(null);
-            setNotesHistoryModalOpen(true);
-            setNoteFeedbackTitle('Nota registrada');
-            setNoteFeedbackOpen(true);
+            showToast('Nota registrada');
           },
         },
       );
@@ -618,6 +603,9 @@ export default function MediacionesPage() {
         item={mediationDetail || null}
         editingNote={editingNote}
         onSubmit={handleAddNote}
+        onEditNote={(index) => handleEditNote(selectedId!, index)}
+        onDeleteNote={handleDeleteNote}
+        onCancelEdit={() => setEditingNote(null)}
       />
 
       <MediationNotesHistoryModal
@@ -631,15 +619,6 @@ export default function MediacionesPage() {
         item={mediationDetail || null}
         onEditNote={handleEditNote}
         onDeleteNote={handleDeleteNote}
-      />
-
-      <MediationInitFeedbackOverlay
-        isOpen={noteFeedbackOpen}
-        label={noteFeedbackTitle}
-        message="La nota quedó registrada en el historial interno del caso."
-        status="success"
-        title={noteFeedbackTitle}
-        onClose={() => setNoteFeedbackOpen(false)}
       />
 
       <CaseResolutionModal

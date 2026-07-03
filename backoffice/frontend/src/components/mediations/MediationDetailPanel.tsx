@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { MediationResponse, MediationStatus } from '@/types/mediation';
 import Badge from '@/components/shared/Badge';
 import DetailRow from '@/components/shared/DetailRow';
@@ -39,6 +40,14 @@ export default function MediationDetailPanel({
   const blockingCode = item.blockingMediationExternalId || (item.blockingMediationId ? `MED-${item.blockingMediationId}` : '');
   const buyerName = resolveBuyerName(item);
 
+  const daysElapsed = useMemo(() => {
+    if (!item?.createdAt) return '0';
+    const createdDate = new Date(item.createdAt);
+    const currentDate = new Date();
+    const diffTime = currentDate.getTime() - createdDate.getTime();
+    const diffDays = Math.max(0, Math.floor(diffTime / (1000 * 60 * 60 * 24)));
+    return `${diffDays}`;
+  }, [item?.createdAt]);
 
   return (
     <aside className="side-panel">
@@ -62,7 +71,7 @@ export default function MediationDetailPanel({
         <DetailRow label="Etapa del pedido" value={item.stage} />
         <DetailRow label="Responsable" value={item.owner} />
         <DetailRow label="Monto" value={item.amount} />
-        <DetailRow label="Tiempo transcurrido" value={item.elapsed} />
+        <DetailRow label="Días transcurridos" value={daysElapsed} />
       </div>
 
       {item.accountBlocked && (
@@ -100,10 +109,10 @@ export default function MediationDetailPanel({
         )}
 
         <ActionRow icon="note" onClick={() => onOpenNote(item.id)}>
-          Dejar nota
+          Notas
         </ActionRow>
         <ActionRow icon="audit" onClick={() => onOpenNotesHistory(item.id)}>
-          Historial de notas
+          Historial de reportes
         </ActionRow>
         {canBlock && (
           <ActionRow icon="shieldX" variant="danger" onClick={() => onBlockAccount(item.id)}>
