@@ -87,6 +87,14 @@ const loginStyles = `
   width: 100%;
   max-width: 380px;
 }
+.login-brand-logo {
+  width: min(220px, 58vw);
+  height: auto;
+  max-height: 96px;
+  object-fit: contain;
+  display: block;
+  margin-bottom: 8px;
+}
 
 /* ── Mobile ── */
 @media (max-width: 768px) {
@@ -251,9 +259,9 @@ export default function LoginPage() {
           {/* Logo */}
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 36 }}>
             <img
-              src="/assets/repuestop-logo-cropped.jpg"
+              className="login-brand-logo"
+              src="/assets/repuestop-logo.jpg"
               alt="RepuesTop"
-              style={{ height: 64, objectFit: 'contain', marginBottom: 8 }}
             />
           </div>
 
@@ -518,4 +526,3 @@ function LockIcon() {
     </svg>
   );
 }
-

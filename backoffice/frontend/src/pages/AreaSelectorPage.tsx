@@ -126,7 +126,7 @@ export default function AreaSelectorPage() {
       <aside className="area-selector-brand">
         <div className="area-selector-brand-top">
           <div className="area-selector-brand-logo">
-            <img className="area-selector-brand-logo-image" src="/assets/repuestop-logo-cropped.jpg" alt="RepuesTop" />
+            <img className="area-selector-brand-logo-image" src="/assets/repuestop-logo.jpg" alt="RepuesTop" />
           </div>
 
           <h1 className="area-selector-brand-title">

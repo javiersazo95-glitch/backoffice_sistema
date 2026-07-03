@@ -5217,6 +5217,7 @@ tr.is-active {
 
 .validation-request-card {
   width: 100%;
+  height: auto;
   min-height: 116px;
   display: grid;
   gap: 6px;
@@ -5236,9 +5237,11 @@ tr.is-active {
 
 .validation-request-title-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 12px;
+  min-width: 0;
 }
 
 .validation-request-footer {
@@ -5250,13 +5253,21 @@ tr.is-active {
 }
 
 .validation-request-title-row strong {
+  flex: 1 1 100%;
   min-width: 0;
-  overflow: hidden;
   color: #13223b;
   font-size: 14px;
   font-weight: 800;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  word-break: normal;
+}
+
+.validation-request-title-row .status-pill {
+  flex: 0 1 auto;
+  max-width: 100%;
+  white-space: normal;
 }
 
 .validation-request-meta {
@@ -17181,8 +17192,9 @@ body:has(.area-selector-shell) {
 
 .area-selector-brand-logo-image {
   display: block;
-  width: 172px;
-  height: 64px;
+  width: min(220px, 100%);
+  height: auto;
+  max-height: 96px;
   object-fit: contain;
   object-position: left center;
 }
