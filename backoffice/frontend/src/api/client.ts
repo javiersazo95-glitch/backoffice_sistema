@@ -10,6 +10,8 @@ export const normalizeApiBaseUrl = (baseUrl?: string) => {
 
   return trimmedBaseUrl.endsWith('/api/v1')
     ? trimmedBaseUrl
+    : trimmedBaseUrl.endsWith('/api')
+      ? `${trimmedBaseUrl}/v1`
     : `${trimmedBaseUrl}/api/v1`;
 };
 
