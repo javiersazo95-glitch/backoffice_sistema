@@ -65,7 +65,7 @@ export function getSettlementId(orderId: string): string {
 
 export function getSettlements(orders: Order[], statuses: Record<string, SettlementStatus>): Settlement[] {
   return orders
-    .filter((order) => order.status === 'Recibido')
+    .filter((order) => order.status === 'Recibido' || order.status === 'Finalizado')
     .map((order) => {
       const subtotal = Number(order.subtotalPublicado ?? order.total);
       const buyerCommission = Number(order.comisionComprador ?? Math.min(MAX_COMMISSION, Math.max(MIN_COMMISSION, Math.round(subtotal * COMMISSION_RATE))));
