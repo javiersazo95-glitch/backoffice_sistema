@@ -6,8 +6,10 @@ const SYNC_EVENT = 'repuestop:manual-mediation-status-overrides-changed';
 
 export type ManualMediationStatusOverrides = Record<number, MediationStatus>;
 
-export function normalizeVisibleMediationStatus(status: MediationStatus): MediationStatus {
-  return status === MediationStatus.ESCALADO ? MediationStatus.ESPERANDO_VENDEDOR : status;
+export function normalizeVisibleMediationStatus(status: MediationStatus, mediationStarted?: boolean): MediationStatus {
+  if (status === MediationStatus.ESCALADO) return MediationStatus.ESPERANDO_VENDEDOR;
+  if (status === MediationStatus.EN_MEDIACION && !mediationStarted) return MediationStatus.ESPERANDO_VENDEDOR;
+  return status;
 }
 
 function readOverrides(): ManualMediationStatusOverrides {
@@ -32,15 +34,15 @@ function writeOverrides(overrides: ManualMediationStatusOverrides) {
   window.dispatchEvent(new Event(SYNC_EVENT));
 }
 
-export function applyManualMediationStatus<T extends { id: number; status: MediationStatus }>(
+export function applyManualMediationStatus<T extends { id: number; status: MediationStatus; mediationStarted?: boolean }>(
   item: T,
   overrides: ManualMediationStatusOverrides,
 ): T {
-  const status = normalizeVisibleMediationStatus(overrides[item.id] ?? item.status);
+  const status = normalizeVisibleMediationStatus(overrides[item.id] ?? item.status, item.mediationStarted);
   return status === item.status ? item : { ...item, status };
 }
 
-export function applyManualMediationStatusToActiveCases<T extends { id: number; status: MediationStatus }>(
+export function applyManualMediationStatusToActiveCases<T extends { id: number; status: MediationStatus; mediationStarted?: boolean }>(
   item: T,
   overrides: ManualMediationStatusOverrides,
 ): T {

@@ -250,7 +250,7 @@ export default function MediacionesPage() {
   ]);
   const mediations = (data?.content ?? [])
     .map((item) => {
-      const overridden = { ...item, status: normalizeVisibleMediationStatus(item.status) };
+      const overridden = { ...item, status: normalizeVisibleMediationStatus(item.status, item.mediationStarted) };
       return {
         ...overridden,
         displayStatus: mediationStatusDisplay(overridden.status, overridden.accountBlocked),
@@ -261,7 +261,7 @@ export default function MediacionesPage() {
       ? (() => {
         const source = mediationDetail || mediations.find((m) => m.id === selectedId) || null;
         if (!source) return null;
-        const overridden = { ...source, status: normalizeVisibleMediationStatus(source.status) };
+        const overridden = { ...source, status: normalizeVisibleMediationStatus(source.status, source.mediationStarted) };
         return {
           ...overridden,
           displayStatus: mediationStatusDisplay(overridden.status, overridden.accountBlocked),
