@@ -67,14 +67,14 @@ export function getSettlements(orders: Order[], statuses: Record<string, Settlem
   return orders
     .filter((order) => order.status === 'Recibido')
     .map((order) => {
-      const subtotal = order.total;
-      const buyerCommission = Math.min(MAX_COMMISSION, Math.max(MIN_COMMISSION, Math.round(subtotal * COMMISSION_RATE)));
+      const subtotal = Number(order.subtotalPublicado ?? order.total);
+      const buyerCommission = Number(order.comisionComprador ?? Math.min(MAX_COMMISSION, Math.max(MIN_COMMISSION, Math.round(subtotal * COMMISSION_RATE))));
       const sellerCommission = Math.min(MAX_COMMISSION, Math.max(MIN_COMMISSION, Math.round(subtotal * COMMISSION_RATE)));
-      const totalCommission = buyerCommission + sellerCommission;
-      const saleTotal = subtotal + buyerCommission;
+      const saleTotal = Number(order.total ?? subtotal + buyerCommission);
       const gatewayRate = GATEWAY_RATE * (1 + GATEWAY_IVA);
-      const gatewayFee = Math.round(saleTotal * gatewayRate);
-      const netSettlement = totalCommission - gatewayFee;
+      const gatewayFee = Number(order.comisionPagoFlow ?? Math.round((subtotal + buyerCommission) * gatewayRate));
+      const grossEarnings = buyerCommission + sellerCommission + gatewayFee;
+      const netSettlement = Number(order.liquidacionServicio ?? grossEarnings - gatewayFee);
       const paidAmount = subtotal - sellerCommission;
       const settlementId = getSettlementId(order.id);
       return {
@@ -83,10 +83,17 @@ export function getSettlements(orders: Order[], statuses: Record<string, Settlem
         seller: order.seller,
         orderId: order.id,
         saleTotal,
-        commission: totalCommission,
+        saleDetail: order.totalVentaDetalle ?? {
+          'Valor publicado por el vendedor': subtotal,
+          'Comision comprador RepuesTop': buyerCommission,
+          'Comision de pago PagoFlow': gatewayFee,
+        },
+        saleTooltip: order.totalVentaTooltip,
+        commission: grossEarnings,
         buyerCommission,
         sellerCommission,
         gatewayFee,
+        gatewayTooltip: order.comisionPagoTooltip,
         netSettlement,
         paidAmount,
         status: statuses[settlementId] ?? 'Completada',

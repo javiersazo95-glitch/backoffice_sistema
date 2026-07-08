@@ -973,7 +973,7 @@ export default function AdminFinancePage() {
 
           <section className="summary-kpi-grid">
             <article className="summary-kpi tone-blue"><span><UiIcon name="wallet" />Ventas</span><strong>{formatMoney(totalCollected)}</strong><p>{summaryOrders.length} pedidos · promedio por pedido {formatMoney(avgTicket)}</p></article>
-            <article className="summary-kpi tone-green"><span><UiIcon name="percent" />Comisión</span><strong>{formatMoney(summaryCommission)}</strong><p>{summarySettlements.length} liquidaciones · {commissionRate}% del vendido</p></article>
+            <article className="summary-kpi tone-green"><span><UiIcon name="percent" />Ganancias</span><strong>{formatMoney(summaryCommission)}</strong><p>{summarySettlements.length} liquidaciones · {commissionRate}% del vendido</p></article>
             <article className={`summary-kpi tone-${summaryCashAvailable < 0 ? 'red' : 'cyan'}`}><span><UiIcon name="bank" />Caja</span><strong>{formatMoney(summaryCashAvailable)}</strong><p>{formatMoney(summaryCashFund)} base · {formatMoney(summaryExpenseTotal)} gastos</p></article>
             <article className="summary-kpi tone-purple"><span><UiIcon name="wallet" />Socios</span><strong>{formatMoney(summaryPartnerAvailable)}</strong><p>Saldo total socios · retirado {formatMoney(summaryPartnerWithdrawn)}</p></article>
           </section>
@@ -982,7 +982,7 @@ export default function AdminFinancePage() {
             <section className="summary-panel summary-panel-wide">
               <div className="panel-title"><h2>Flujo de caja del periodo</h2><span className="summary-panel-note">70% caja · 30% socios</span></div>
               <div className="cash-flow-list">
-                <article><div><span>Comisión cobrada</span><strong>{formatMoney(summaryCommission)}</strong></div><i><b style={{ width: `${getBarWidth(summaryCommission, Math.max(summaryCommission, flowMax))}%` }} /></i></article>
+                <article><div><span>Ganancia neta</span><strong>{formatMoney(summaryCommission)}</strong></div><i><b style={{ width: `${getBarWidth(summaryCommission, Math.max(summaryCommission, flowMax))}%` }} /></i></article>
                 <article><div><span>Caja para operar</span><strong>{formatMoney(summaryCashFund)}</strong></div><i><b style={{ width: `${getBarWidth(summaryCashFund, flowMax)}%` }} /></i></article>
                 <article className="danger"><div><span>Gastos del periodo</span><strong>{formatMoney(summaryExpenseTotal)}</strong></div><i><b style={{ width: `${getBarWidth(summaryExpenseTotal, flowMax)}%` }} /></i></article>
                 <article className={summaryCashAvailable < 0 ? 'danger' : 'success'}><div><span>Saldo operacional</span><strong>{formatMoney(summaryCashAvailable)}</strong></div><i><b style={{ width: `${getBarWidth(Math.abs(summaryCashAvailable), flowMax)}%` }} /></i></article>
@@ -1123,12 +1123,12 @@ export default function AdminFinancePage() {
         <>
           <div className="metric-grid compact">
             <MetricCard label="Total generado" value={formatMoney(totalGenerated)} tone="blue" description={`${selectedSettlementRows.length} registros sumados`} iconName="wallet" />
-            <MetricCard label="Comisión cobrada" value={formatMoney(totalCommission)} tone="green" description="5% mín. $690 máx. $9.990" iconName="percent" />
-            <MetricCard label="Caja RepuesTop" value={formatMoney(cashFund)} tone="amber" description="70% de comisión" iconName="bank" />
-            <MetricCard label="Disponible retiro" value={formatMoney(withdrawalAvailable)} tone="violet" description="30% de comisión" iconName="wallet" />
+            <MetricCard label="Ganancia neta" value={formatMoney(totalCommission)} tone="green" description="5% mín. $690 máx. $9.990" iconName="percent" />
+            <MetricCard label="Caja RepuesTop" value={formatMoney(cashFund)} tone="amber" description="70% de ganancia neta" iconName="bank" />
+            <MetricCard label="Disponible retiro" value={formatMoney(withdrawalAvailable)} tone="violet" description="30% de ganancia neta" iconName="wallet" />
           </div>
 
-          <div className="notice"><UiIcon name="note" />Solo se muestran ventas donde RepuesTop ya cobró exitosamente su comisión.</div>
+          <div className="notice"><UiIcon name="note" />Solo se muestran ventas donde RepuesTop ya cobró exitosamente la venta.</div>
 
           <section className="table-shell">
             <div className="table-toolbar">
@@ -1138,7 +1138,7 @@ export default function AdminFinancePage() {
               <thead>
                 <tr>
                   <SelectionHeader view="liquidaciones" sourceIds={filteredSettlements.map((settlement) => settlement.id)} selected={selectedRows.liquidaciones} onToggle={toggleMassSelection} />
-                  <th>ID liquidación</th><th>Fecha</th><th>Vendedor</th><th>Pedidos asociados</th><th>Venta total</th><th>Comisión RepuesTop</th><th>Monto liquidado</th><th>Estado</th><th>Acciones</th>
+                  <th>ID liquidación</th><th>Fecha</th><th>Vendedor</th><th>Pedidos asociados</th><th>Venta total</th><th>Ganancias de la venta</th><th>Ganancia neta</th><th>Estado</th><th>Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -1149,7 +1149,22 @@ export default function AdminFinancePage() {
                     <td>{formatDate(settlement.date)}</td>
                     <td>{settlement.seller}</td>
                     <td>{settlement.orderId}</td>
-                    <td className="value-cell">{formatMoney(settlement.saleTotal)}</td>
+                    <td className="value-cell tooltip-container">
+                      <span className="tooltip-trigger-value">
+                        {formatMoney(settlement.saleTotal)}
+                        <UiIcon name="info" />
+                      </span>
+                      <div className="tooltip-content">
+                        <div className="tooltip-arrow"></div>
+                        <div className="tooltip-body">
+                          {Object.entries(settlement.saleDetail).map(([label, value]) => (
+                            <div className="tooltip-row" key={label}><span>{label}</span><span>{formatMoney(value)}</span></div>
+                          ))}
+                          <div className="tooltip-divider"></div>
+                          <div className="tooltip-row total"><span>Total de la venta</span><span>{formatMoney(settlement.saleTotal)}</span></div>
+                        </div>
+                      </div>
+                    </td>
                     <td className="value-cell tooltip-container">
                       <span className="tooltip-trigger-value">
                         {formatMoney(settlement.commission)}
@@ -1158,10 +1173,11 @@ export default function AdminFinancePage() {
                       <div className="tooltip-content">
                         <div className="tooltip-arrow"></div>
                         <div className="tooltip-body">
-                          <div className="tooltip-row"><span>Comisión comprador</span><span>{formatMoney(settlement.buyerCommission)}</span></div>
-                          <div className="tooltip-row"><span>Comisión vendedor</span><span>{formatMoney(settlement.sellerCommission)}</span></div>
+                          <div className="tooltip-row"><span>Comprador (precio inflado)</span><span>{formatMoney(settlement.buyerCommission)}</span></div>
+                          <div className="tooltip-row"><span>Vendedor (descuento)</span><span>{formatMoney(settlement.sellerCommission)}</span></div>
+                          <div className="tooltip-row"><span>PagoFlow pagado por comprador</span><span>{formatMoney(settlement.gatewayFee)}</span></div>
                           <div className="tooltip-divider"></div>
-                          <div className="tooltip-row total"><span>Total comisiones</span><span>{formatMoney(settlement.commission)}</span></div>
+                          <div className="tooltip-row total"><span>Ganancias de la venta</span><span>{formatMoney(settlement.commission)}</span></div>
                         </div>
                       </div>
                     </td>
@@ -1173,11 +1189,10 @@ export default function AdminFinancePage() {
                       <div className="tooltip-content">
                         <div className="tooltip-arrow"></div>
                         <div className="tooltip-body">
-                          <div className="tooltip-row"><span>Comisión comprador</span><span>{formatMoney(settlement.buyerCommission)}</span></div>
-                          <div className="tooltip-row"><span>Comisión vendedor</span><span>{formatMoney(settlement.sellerCommission)}</span></div>
-                          <div className="tooltip-row"><span>Comisión MercadoPago</span><span>-{formatMoney(settlement.gatewayFee)}</span></div>
+                          <div className="tooltip-row"><span>Ganancias de la venta</span><span>{formatMoney(settlement.commission)}</span></div>
+                          <div className="tooltip-row"><span>Comisión PagoFlow</span><span>-{formatMoney(settlement.gatewayFee)}</span></div>
                           <div className="tooltip-divider"></div>
-                          <div className="tooltip-row total"><span>Liquidación neta</span><span>{formatMoney(settlement.netSettlement)}</span></div>
+                          <div className="tooltip-row total"><span>Ganancia neta</span><span>{formatMoney(settlement.netSettlement)}</span></div>
                         </div>
                       </div>
                     </td>
@@ -1207,7 +1222,7 @@ export default function AdminFinancePage() {
         <>
           <div className="metric-grid compact">
             <MetricCard label="Total gastos generados" value={formatMoney(expenseTotal)} tone="amber" description={`${selectedExpenseRows.length} registros sumados`} iconName="receipt" />
-            <MetricCard label="Caja RepuesTop" value={formatMoney(cashFund)} tone="amber" description="70% de comisión" iconName="bank" />
+            <MetricCard label="Caja RepuesTop" value={formatMoney(cashFund)} tone="amber" description="70% de ganancia neta" iconName="bank" />
             <MetricCard label="Saldo en caja" value={formatMoney(cashBalance)} tone={cashBalance < 0 ? 'red' : 'green'} description={cashBalance < 0 ? `Déficit: faltan ${formatMoney(Math.abs(cashBalance))}` : 'Caja saludable'} iconName="wallet" />
             <MetricCard label="Comprobantes" value={filteredExpenses.filter((expense) => Boolean(expense.receipt)).length} tone="violet" description="Adjuntos registrados" iconName="document" />
           </div>
@@ -1257,7 +1272,7 @@ export default function AdminFinancePage() {
       {activeView === 'retiros' && (
         <>
           <div className="metric-grid compact withdrawal-metric-row">
-            <MetricCard label="Disponible retiro" value={formatMoney(withdrawalAvailable)} tone="violet" description="30% de comisión" iconName="wallet" />
+            <MetricCard label="Disponible retiro" value={formatMoney(withdrawalAvailable)} tone="violet" description="30% de ganancia neta" iconName="wallet" />
             {PARTNERS.map((partner, index) => (
               <MetricCard
                 key={partner}
@@ -1465,24 +1480,24 @@ export default function AdminFinancePage() {
               <div>
                 <span>{selectedDetailSettlement.seller}</span>
                 <strong>{formatMoney(selectedDetailSettlement.netSettlement)}</strong>
-                <p>Liquidación neta después de MercadoPago</p>
+                <p>Liquidación neta después de PagoFlow</p>
               </div>
               <span className={`status-pill ${slug(selectedDetailSettlement.status)}`}>{selectedDetailSettlement.status}</span>
             </section>
 
             <section className="settlement-stat-grid">
               <article><span>Venta total</span><strong>{formatMoney(selectedDetailSettlement.saleTotal)}</strong></article>
-              <article><span>Comisión comprador</span><strong>{formatMoney(selectedDetailSettlement.buyerCommission)}</strong></article>
-              <article><span>Comisión vendedor</span><strong>{formatMoney(selectedDetailSettlement.sellerCommission)}</strong></article>
-              <article className="danger"><span>MercadoPago</span><strong>-{formatMoney(selectedDetailSettlement.gatewayFee)}</strong></article>
+              <article><span>Comprador (precio inflado)</span><strong>{formatMoney(selectedDetailSettlement.buyerCommission)}</strong></article>
+              <article><span>Vendedor (descuento)</span><strong>{formatMoney(selectedDetailSettlement.sellerCommission)}</strong></article>
+              <article><span>PagoFlow pagado por comprador</span><strong>{formatMoney(selectedDetailSettlement.gatewayFee)}</strong></article>
             </section>
 
             <section className="settlement-net-card">
-              <div><span>Total comisiones</span><strong>{formatMoney(selectedDetailSettlement.commission)}</strong></div>
+              <div><span>Ganancias de la venta</span><strong>{formatMoney(selectedDetailSettlement.commission)}</strong></div>
               <UiIcon name="minus" />
-              <div><span>MercadoPago</span><strong>{formatMoney(selectedDetailSettlement.gatewayFee)}</strong></div>
+              <div><span>Comisión PagoFlow</span><strong>{formatMoney(selectedDetailSettlement.gatewayFee)}</strong></div>
               <UiIcon name="arrowRight" />
-              <div className="success"><span>Monto liquidado</span><strong>{formatMoney(selectedDetailSettlement.netSettlement)}</strong></div>
+              <div className="success"><span>Ganancia neta</span><strong>{formatMoney(selectedDetailSettlement.netSettlement)}</strong></div>
             </section>
 
             <dl className="settlement-meta">
