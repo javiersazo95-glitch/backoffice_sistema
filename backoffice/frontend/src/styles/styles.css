@@ -13669,32 +13669,69 @@ tr.is-active {
   color: var(--green);
   background: var(--green-soft);
 }
-.status-pill.en-disputa,
-.status-pill.cancelado,
-.status-pill.finalizado,
-.status-select.en-disputa {
+.status-pill.finalizado {
   color: var(--red);
   background: var(--red-soft);
 }
+
+.status-pill.en-disputa,
+.status-select.en-disputa {
+  color: #b93815;
+  background: #fff4ed;
+  border-color: #f9b29a;
+}
+
+.status-pill.cancelado,
+.status-pill.cancelado-parcialmente {
+  color: #7a271a;
+  background: #fee4e2;
+  border-color: #fda29b;
+}
+
+.status-pill.cancelado {
+  color: #912018;
+  background: #fef3f2;
+  border-color: #fda29b;
+}
+
+.amount-with-tooltip {
+  cursor: help;
+  text-decoration: underline dotted #b42318;
+  text-underline-offset: 3px;
+}
+
 
 .status-pill.en-mediacion {
   color: var(--violet);
   background: var(--violet-soft);
 }
 
-.status-pill.pendiente,
 .status-pill.procesado,
-.status-pill.enviado,
 .status-pill.pagado,
-.status-pill.en-preparacion,
-.status-pill.preparando,
 .status-pill.esperando-al-vendedor,
-.status-pill.esperando-vendedor,
-.status-select.pendiente,
-.status-select.procesado,
-.status-select.enviado {
+.status-pill.esperando-vendedor {
   color: var(--amber);
   background: var(--amber-soft);
+}
+
+.status-pill.en-preparacion,
+.status-pill.preparando {
+  color: #44546f;
+  background: #ffffff;
+  border-color: #dfe1e6;
+}
+
+.status-pill.pendiente,
+.status-select.pendiente,
+.status-select.procesado {
+  color: #44546f;
+  background: #dfe1e6;
+}
+
+.status-pill.enviado,
+.status-select.enviado {
+  color: #0052cc;
+  background: #deebff;
 }
 
 .receipt-link {

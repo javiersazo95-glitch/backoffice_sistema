@@ -1093,7 +1093,22 @@ export default function AdminFinancePage() {
                     <td>{order.buyer}</td>
                     <td>{order.seller}</td>
                     <td>{order.product}</td>
-                    <td>{formatMoney(order.total)}</td>
+                    <td className={order.cancellationTooltip ? 'value-cell tooltip-container' : undefined}>
+                      {order.cancellationTooltip ? (
+                        <>
+                          <span className="tooltip-trigger-value">
+                            {formatMoney(order.total)}
+                            <UiIcon name="info" />
+                          </span>
+                          <div className="tooltip-content">
+                            <div className="tooltip-arrow"></div>
+                            <div className="tooltip-body">
+                              <div className="tooltip-row">{order.cancellationTooltip}</div>
+                            </div>
+                          </div>
+                        </>
+                      ) : formatMoney(order.total)}
+                    </td>
                     <td>
                       <span className={`status-pill ${slug(order.status)}`}>
                         {order.status}

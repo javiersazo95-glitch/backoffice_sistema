@@ -1,6 +1,6 @@
 export type AdminView = 'resumen' | 'pedidos' | 'liquidaciones' | 'gastos' | 'retiros';
 
-export type OrderStatus = 'Pendiente' | 'Preparando' | 'Enviado' | 'Recibido' | 'Finalizado' | 'En mediación' | 'En disputa';
+export type OrderStatus = 'Pendiente' | 'Preparando' | 'Enviado' | 'Recibido' | 'Finalizado' | 'En mediación' | 'En disputa' | 'Cancelado' | 'Cancelado parcialmente';
 
 export type SettlementStatus = 'Completada' | 'Enviado' | 'En disputa' | 'Cancelado';
 
@@ -23,6 +23,7 @@ export interface Order {
   status: OrderStatus;
   updatedAt: string;
   liquidado?: boolean;
+  cancellationTooltip?: string;
 }
 
 export interface Expense {
