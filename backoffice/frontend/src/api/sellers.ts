@@ -9,6 +9,7 @@ import type {
   SellerFilterRequest,
   SellerDocumentResponse,
   SellerBlockHistoryResponse,
+  SellerRetiroResponse,
 } from '@/types/seller';
 import type { TicketResponse } from '@/types/ticket';
 import type { ValidationResponse } from '@/types/validation';
@@ -133,6 +134,11 @@ export async function getSellerReports(id: number): Promise<ReportResponse[]> {
 
 export async function getSellerTickets(id: number): Promise<TicketResponse[]> {
   const response = await apiClient.get<TicketResponse[]>(`/sellers/${id}/tickets`);
+  return response.data;
+}
+
+export async function getSellerRetiros(id: number): Promise<SellerRetiroResponse[]> {
+  const response = await apiClient.get<SellerRetiroResponse[]>(`/sellers/${id}/retiros`);
   return response.data;
 }
 

@@ -37,6 +37,7 @@ const navSections = [
       { path: '/administracion/liquidaciones', label: 'Liquidaciones', badge: 0, icon: 'clipboard' },
       { path: '/administracion/gastos', label: 'Gastos', badge: 0, icon: 'receipt' },
       { path: '/administracion/retiros', label: 'Historial de Retiros', badge: 0, icon: 'wallet' },
+      { path: '/administracion/pago-proveedores', label: 'Pago a proveedores', badge: 0, icon: 'wallet' },
     ],
   },
   {

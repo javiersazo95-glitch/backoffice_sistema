@@ -149,3 +149,36 @@ export interface DateFilter {
 export type DateFilters = Record<AdminView, DateFilter>;
 
 export type SelectedRows = Record<'pedidos' | 'liquidaciones' | 'gastos', Set<string>>;
+
+export interface RetiroAdminResponse {
+  retiroId: number;
+  nombreTienda: string;
+  rut: string;
+  razonSocial: string;
+  banco: string;
+  tipoCuenta: string;
+  numeroCuenta: string;
+  monto: number;
+  email: string;
+  fecha: string;
+  estado: string;
+  fechaEfectiva: string;
+}
+
+export interface RetiroPedidoItem {
+  pedidoId: number;
+  nombrePedido: string;
+  fecha: string;
+  cantidadVendida: number;
+  valor: number;
+}
+
+export interface RetiroDetalleResponse {
+  retiroId: number;
+  fechaSolicitud: string;
+  cantidadPedidos: number;
+  montoTotal: number;
+  estado: string;
+  fechaEfectiva: string;
+  pedidos: RetiroPedidoItem[];
+}

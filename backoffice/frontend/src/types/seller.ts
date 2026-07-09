@@ -41,6 +41,8 @@ export interface SellerResponse {
   cargo?: string;
   owner?: string;
   userProfileUrl?: string | null;
+  // Razón social registrada para el retiro de dinero (giro comercial del vendedor)
+  razonSocial?: string | null;
   // Cuenta bancaria real del vendedor
   bankName?: string | null;
   bankAccountHolderName?: string | null;
@@ -69,6 +71,15 @@ export interface SellerBlockHistoryResponse {
   status?: string | null;
   source: string;
   createdAt: string;
+}
+
+export interface SellerRetiroResponse {
+  retiroId: number;
+  fechaSolicitud: string;
+  cantidadPedidos: number;
+  montoTotal: number;
+  estado: string;
+  fechaEfectiva: string;
 }
 
 export interface SellerDocumentResponse {

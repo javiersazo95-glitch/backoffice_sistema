@@ -78,3 +78,11 @@ export function useSellerDocuments(id: number) {
     enabled: !!id,
   });
 }
+
+export function useSellerRetiros(id: number) {
+  return useQuery({
+    queryKey: ['seller-retiros', id],
+    queryFn: () => sellersApi.getSellerRetiros(id),
+    enabled: !!id,
+  });
+}

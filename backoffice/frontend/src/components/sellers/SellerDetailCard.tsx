@@ -11,6 +11,7 @@ import { getSellerOperationalStatus, getSellerStatusLabel, getSellerStatusTone }
 import { resolveProfileImageUrl } from '@/api/client';
 
 const getBankDetails = (seller: SellerResponse) => ({
+  razonSocial: seller.razonSocial || 'No registrado',
   bank: seller.bankName || 'No registrado',
   accountType: seller.bankAccountType || 'No registrado',
   accountNumber: seller.bankAccountNumber || 'No registrado',
@@ -240,6 +241,10 @@ export default function SellerDetailCard({
               </button>
             </div>
             <div className="case-modal-body" style={{ display: 'grid', gap: '12px', padding: '16px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '8px', borderBottom: '1px solid #f1f3f4', paddingBottom: '8px' }}>
+                <span style={{ color: '#5f6368', fontSize: '12px' }}>Razón social</span>
+                <strong style={{ fontSize: '13px' }}>{getBankDetails(seller).razonSocial}</strong>
+              </div>
               <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '8px', borderBottom: '1px solid #f1f3f4', paddingBottom: '8px' }}>
                 <span style={{ color: '#5f6368', fontSize: '12px' }}>Banco</span>
                 <strong style={{ fontSize: '13px' }}>{getBankDetails(seller).bank}</strong>

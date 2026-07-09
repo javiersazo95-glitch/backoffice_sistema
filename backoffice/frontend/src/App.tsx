@@ -4,6 +4,7 @@ import { useAuth } from '@/context/AuthContext';
 import AreaSelectorPage from '@/pages/AreaSelectorPage';
 import LoginPage from '@/pages/LoginPage';
 import AdminFinancePage from '@/modules/administration/AdminFinancePage';
+import PagoProveedoresPage from '@/modules/administration/PagoProveedoresPage';
 import SupportPage from '@/modules/support/SupportPage';
 import DashboardPage from '@/components/dashboard/DashboardPage';
 import SellersPage from '@/components/sellers/SellersPage';
@@ -68,6 +69,7 @@ export default function App() {
         <Route path="liquidaciones" element={<AdminFinancePage />} />
         <Route path="gastos" element={<AdminFinancePage />} />
         <Route path="retiros" element={<AdminFinancePage />} />
+        <Route path="pago-proveedores" element={<PagoProveedoresPage />} />
       </Route>
       <Route path="/soporte/*" element={<RequireArea area="SOPORTE"><AppShell noSidebar><SupportPage /></AppShell></RequireArea>} />
       <Route path="/confianza/*" element={

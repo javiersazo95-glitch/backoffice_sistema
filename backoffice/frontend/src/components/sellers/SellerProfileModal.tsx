@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { getSellerBlockHistory, getSellerReports } from '@/api/sellers';
-import type { SellerBlockHistoryResponse, SellerDetailResponse } from '@/types/seller';
+import { getSellerBlockHistory, getSellerReports, getSellerRetiros } from '@/api/sellers';
+import type { SellerBlockHistoryResponse, SellerDetailResponse, SellerRetiroResponse } from '@/types/seller';
 import type { ImpactMediation } from '@/types/cases';
 import type { MediationSummaryResponse } from '@/types/mediation';
 import type { ReportResponse } from '@/types/report';
@@ -31,6 +31,18 @@ function formatDate(date: string, locale: Intl.LocalesArgument = 'es-CL') {
 
 function sellerLetterAvatar(name: string) {
   return name.substring(0, 2).toUpperCase();
+}
+
+function formatCLP(value: number) {
+  return `$${new Intl.NumberFormat('es-CL').format(value)}`;
+}
+
+function retiroEstadoLabel(estado: string) {
+  return estado?.toUpperCase() === 'PAGADO' ? 'Depositado' : 'Solicitado';
+}
+
+function retiroEstadoVariant(estado: string) {
+  return estado?.toUpperCase() === 'PAGADO' ? 'green' : 'amber';
 }
 
 function SectionHeader({
@@ -158,6 +170,26 @@ function ReportCard({ report }: { report: ReportResponse }) {
         <small>{report.descripcion || 'Sin descripción registrada'}</small>
       </div>
       <Badge text={report.reportanteType === 'VENDEDOR' ? 'Reporta tienda' : 'Reporta comprador'} variant="red" />
+    </div>
+  );
+}
+
+function RetiroCard({ retiro }: { retiro: SellerRetiroResponse }) {
+  const isPagado = retiro.estado?.toUpperCase() === 'PAGADO';
+  return (
+    <div className="seller-profile-case-card">
+      <div
+        className="seller-profile-case-icon"
+        style={isPagado ? { backgroundColor: '#e6f4ea', color: '#137333' } : { backgroundColor: '#fef3c7', color: '#d97706' }}
+      >
+        <UiIcon name="bank" />
+      </div>
+      <div className="seller-profile-case-copy">
+        <strong>{formatCLP(retiro.montoTotal)}</strong>
+        <span>{retiro.cantidadPedidos} pedido{retiro.cantidadPedidos === 1 ? '' : 's'} · Solicitado el {formatDate(retiro.fechaSolicitud)}</span>
+        <small>Pago estimado: {formatDate(retiro.fechaEfectiva)}</small>
+      </div>
+      <Badge text={retiroEstadoLabel(retiro.estado)} variant={retiroEstadoVariant(retiro.estado)} />
     </div>
   );
 }
@@ -430,6 +462,77 @@ function SellerReportsModal({ isOpen, onClose, seller, reports, isLoading }: Sel
   );
 }
 
+interface SellerRetirosModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  seller: SellerDetailResponse | null;
+  retiros: SellerRetiroResponse[];
+  isLoading: boolean;
+}
+
+function SellerRetirosModal({ isOpen, onClose, seller, retiros, isLoading }: SellerRetirosModalProps) {
+  if (!isOpen || !seller) return null;
+
+  return (
+    <div className="case-modal-backdrop" onClick={onClose} style={{ zIndex: 1100 }}>
+      <div className="seller-documents-modal seller-active-mediations-modal" style={{ maxWidth: '950px', width: '95%' }} onClick={(e) => e.stopPropagation()}>
+        <header className="seller-documents-header">
+          <div className="seller-documents-heading">
+            <span className="seller-documents-icon" style={{ backgroundColor: '#e6f4ea', color: '#137333' }}>
+              <UiIcon name="bank" />
+            </span>
+            <div className="seller-documents-title">
+              <h2>Historial de retiros</h2>
+              <p>{seller.storeName} · {seller.externalId}</p>
+            </div>
+          </div>
+          <button className="seller-documents-close" type="button" onClick={onClose} aria-label="Cerrar">
+            <UiIcon name="close" />
+            <span>Cerrar</span>
+          </button>
+        </header>
+
+        <section className="seller-active-mediations-content" style={{ padding: '20px', maxHeight: '500px', overflowY: 'auto' }}>
+          {isLoading ? (
+            <p className="row-sub">Cargando retiros...</p>
+          ) : retiros.length ? (
+            <div className="table-wrap" style={{ marginTop: '10px' }}>
+              <table className="wide-table seller-profile-table">
+                <thead>
+                  <tr>
+                    <th>Fecha de solicitud</th>
+                    <th>Pedidos</th>
+                    <th>Monto</th>
+                    <th>Estado</th>
+                    <th>Fecha estimada de pago</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {retiros.map((retiro) => (
+                    <tr key={retiro.retiroId}>
+                      <td style={{ whiteSpace: 'nowrap' }}>{formatDate(retiro.fechaSolicitud)}</td>
+                      <td>{retiro.cantidadPedidos}</td>
+                      <td><strong>{formatCLP(retiro.montoTotal)}</strong></td>
+                      <td>
+                        <Badge text={retiroEstadoLabel(retiro.estado)} variant={retiroEstadoVariant(retiro.estado)} />
+                      </td>
+                      <td style={{ whiteSpace: 'nowrap' }}>{formatDate(retiro.fechaEfectiva)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="row-sub" style={{ textAlign: 'center', padding: '40px 0', color: '#64748b' }}>
+              La tienda no registra retiros de dinero.
+            </p>
+          )}
+        </section>
+      </div>
+    </div>
+  );
+}
+
 export default function SellerProfileModal({
   isOpen,
   onClose,
@@ -445,6 +548,7 @@ export default function SellerProfileModal({
   const [isBlockHistoryOpen, setIsBlockHistoryOpen] = useState(false);
   const [isTimelineOpen, setIsTimelineOpen] = useState(false);
   const [isReportsModalOpen, setIsReportsModalOpen] = useState(false);
+  const [isRetirosModalOpen, setIsRetirosModalOpen] = useState(false);
 
   const { data: blockHistory = [], isLoading: isBlockHistoryLoading } = useQuery({
     queryKey: ['seller-block-history', seller?.id],
@@ -458,12 +562,23 @@ export default function SellerProfileModal({
     enabled: isOpen && !!seller,
   });
 
+  const { data: sellerRetiros = [], isLoading: isSellerRetirosLoading } = useQuery({
+    queryKey: ['seller-retiros', seller?.id],
+    queryFn: () => getSellerRetiros(seller!.id),
+    enabled: isOpen && !!seller,
+  });
+
   if (!isOpen || !seller) return null;
 
   const mediatedCases = seller.mediations.map((mediation) => applyManualMediationStatus(mediation, effectiveManualStatusOverrides));
   const inProgressMediations = mediatedCases.filter((m) => m.status === 'EN_MEDIACION');
   const waitingSellerMediations = mediatedCases.filter((m) => m.status === 'ESPERANDO_VENDEDOR' || m.status === 'ESCALADO');
   const documents = seller.documents;
+
+  const sellerRetirosSorted = [...sellerRetiros].sort(
+    (a, b) => new Date(b.fechaSolicitud).getTime() - new Date(a.fechaSolicitud).getTime()
+  );
+  const sellerRetirosRecent = sellerRetirosSorted.slice(0, 3);
 
   const recentActivityRaw: Array<{ icon: string; title: string; detail: string; date: string; timestamp: number; tone: 'blue' | 'violet' | 'red' | 'green' | 'amber' }> = [
     ...waitingSellerMediations.map((mediation) => ({
@@ -647,6 +762,22 @@ export default function SellerProfileModal({
                   </button>
                 </div>
 
+                <div className="seller-profile-panel retiros-panel">
+                  <SectionHeader icon="bank" title="Historial de retiros" count={`${sellerRetiros.length}`} tone="green" />
+                  <div className="seller-profile-list">
+                    {isSellerRetirosLoading ? (
+                      <p className="row-sub">Cargando retiros...</p>
+                    ) : sellerRetirosRecent.length ? (
+                      sellerRetirosRecent.map((retiro) => <RetiroCard key={retiro.retiroId} retiro={retiro} />)
+                    ) : (
+                      <p className="row-sub">La tienda no registra retiros de dinero.</p>
+                    )}
+                  </div>
+                  <button className="profile-inline-link" type="button" onClick={() => setIsRetirosModalOpen(true)}>
+                    Ver todos los retiros <UiIcon name="arrowRight" />
+                  </button>
+                </div>
+
                 <div className="seller-profile-panel info-panel">
                   <SectionHeader icon="alert" title="Reportes de la tienda" count={`${sellerReports.length}`} tone="red" />
                   <div className="seller-profile-list" style={{ maxHeight: '200px', overflowY: 'auto' }}>
@@ -703,6 +834,14 @@ export default function SellerProfileModal({
         seller={seller}
         reports={sellerReports}
         isLoading={isSellerReportsLoading}
+      />
+
+      <SellerRetirosModal
+        isOpen={isRetirosModalOpen}
+        onClose={() => setIsRetirosModalOpen(false)}
+        seller={seller}
+        retiros={sellerRetirosSorted}
+        isLoading={isSellerRetirosLoading}
       />
     </>
   );
