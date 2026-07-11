@@ -4,6 +4,7 @@ import type {
   AdministrationBootstrapResponse,
   RetiroAdminResponse,
   RetiroDetalleResponse,
+  PagoProveedorResponse,
 } from '@/modules/administration/types';
 
 export async function getWorkspace(): Promise<AdministrationWorkspaceResponse> {
@@ -28,5 +29,20 @@ export async function getWithdrawalDetails(id: string | number): Promise<RetiroD
 
 export async function payWithdrawal(id: string | number): Promise<RetiroAdminResponse> {
   const response = await apiClient.patch<RetiroAdminResponse>(`/administration/withdrawals/${id}/pay`);
+  return response.data;
+}
+
+export async function getWithdrawalPayments(): Promise<PagoProveedorResponse[]> {
+  const response = await apiClient.get<PagoProveedorResponse[]>('/administration/withdrawal-payments');
+  return response.data;
+}
+
+export async function getWithdrawalPayment(id: string | number): Promise<PagoProveedorResponse> {
+  const response = await apiClient.get<PagoProveedorResponse>(`/administration/withdrawal-payments/${id}`);
+  return response.data;
+}
+
+export async function createWithdrawalPayment(retiroIds: number[]): Promise<PagoProveedorResponse> {
+  const response = await apiClient.post<PagoProveedorResponse>('/administration/withdrawal-payments', { retiroIds });
   return response.data;
 }

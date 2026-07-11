@@ -4,7 +4,7 @@ import * as adminApi from '@/api/administration';
 import UiIcon from '@/components/shared/UiIcon';
 import MetricCard from '@/components/shared/MetricCard';
 import { downloadFile, csvCell } from './utils';
-import type { RetiroAdminResponse, RetiroDetalleResponse } from './types';
+import type { RetiroAdminResponse, RetiroDetalleResponse, PagoProveedorResponse } from './types';
 
 // Helper to calculate Thursday-to-Wednesday cycle range
 function getCurrentCycleRange() {
@@ -61,7 +61,8 @@ export default function PagoProveedoresPage() {
   const [historyEndDate, setHistoryEndDate] = useState('');
 
   // Selected withdrawal for detail popup
-  const [selectedRetiroId, setSelectedRetiroId] = useState<number | null>(null);
+  const [selectedPagoId, setSelectedPagoId] = useState<number | null>(null);
+  const [selectedPendingRetiroId, setSelectedPendingRetiroId] = useState<number | null>(null);
 
   // Thursday to Wednesday range
   const { start: cycleStart, end: cycleEnd } = useMemo(() => getCurrentCycleRange(), []);
@@ -72,14 +73,22 @@ export default function PagoProveedoresPage() {
     queryFn: adminApi.getWithdrawals,
   });
 
-  // Fetch single withdrawal details
-  const { data: withdrawalDetails, isLoading: isLoadingDetails } = useQuery<RetiroDetalleResponse>({
-    queryKey: ['admin-withdrawal-details', selectedRetiroId],
-    queryFn: () => adminApi.getWithdrawalDetails(selectedRetiroId!),
-    enabled: selectedRetiroId !== null,
+  const { data: payments = [] } = useQuery<PagoProveedorResponse[]>({
+    queryKey: ['admin-withdrawal-payments'],
+    queryFn: adminApi.getWithdrawalPayments,
   });
 
+  const { data: paymentDetails } = useQuery<PagoProveedorResponse>({
+    queryKey: ['admin-withdrawal-payment', selectedPagoId],
+    queryFn: () => adminApi.getWithdrawalPayment(selectedPagoId!),
+    enabled: selectedPagoId !== null,
+  });
 
+  const { data: pendingRetiroDetails } = useQuery<RetiroDetalleResponse>({
+    queryKey: ['admin-withdrawal-details', selectedPendingRetiroId],
+    queryFn: () => adminApi.getWithdrawalDetails(selectedPendingRetiroId!),
+    enabled: selectedPendingRetiroId !== null,
+  });
 
   // 1. Filter withdrawals for Tab 1 (Gestión de Pagos)
   // - Shows active requests (estado "SOLICITADO" or resolveEstado showing requested)
@@ -96,10 +105,9 @@ export default function PagoProveedoresPage() {
   const handleConfirmProcesarPago = async () => {
     setProcessingBulk(true);
     try {
-      for (const w of pendingWithdrawals) {
-        await adminApi.payWithdrawal(w.retiroId);
-      }
+      await adminApi.createWithdrawalPayment(pendingWithdrawals.map((withdrawal) => withdrawal.retiroId));
       queryClient.invalidateQueries({ queryKey: ['admin-withdrawals'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-withdrawal-payments'] });
       setIsProcesarModalOpen(false);
       setActiveTab('historial');
       alert('Todos los pagos del ciclo han sido procesados y conciliados con éxito.');
@@ -113,37 +121,17 @@ export default function PagoProveedoresPage() {
   // 2. Filter withdrawals for Tab 2 (Historial de Pagos)
   // - Shows completed payouts (estado "PAGADO")
   // - Filterable by code and date
-  const paidWithdrawals = useMemo(() => {
-    return withdrawals.filter((w) => {
-      const isPaid = w.estado === 'PAGADO';
-      if (!isPaid) return false;
-
-      // Filter by Request Code
-      if (historyCodeFilter) {
-        const codeText = `RET-${String(w.retiroId).padStart(6, '0')}`;
-        if (!codeText.toLowerCase().includes(historyCodeFilter.toLowerCase()) && !String(w.retiroId).includes(historyCodeFilter)) {
-          return false;
-        }
-      }
-
-      // Filter by Date Range (using the effective payment date / fechaEfectiva or created date)
-      const dateToCheck = new Date(w.fechaEfectiva);
-      if (historyStartDate) {
-        const start = new Date(historyStartDate + 'T00:00:00');
-        if (dateToCheck < start) return false;
-      }
-      if (historyEndDate) {
-        const end = new Date(historyEndDate + 'T23:59:59');
-        if (dateToCheck > end) return false;
-      }
-
-      return true;
-    });
-  }, [withdrawals, historyCodeFilter, historyStartDate, historyEndDate]);
+  const paidPayments = useMemo(() => payments.filter((payment) => {
+    const code = `PAG-${String(payment.pagoId).padStart(6, '0')}`;
+    const date = new Date(payment.fechaPago);
+    return (!historyCodeFilter || code.toLowerCase().includes(historyCodeFilter.toLowerCase()))
+      && (!historyStartDate || date >= new Date(historyStartDate + 'T00:00:00'))
+      && (!historyEndDate || date <= new Date(historyEndDate + 'T23:59:59'));
+  }), [payments, historyCodeFilter, historyStartDate, historyEndDate]);
 
   // Total sums
   const pendingTotalAmount = useMemo(() => pendingWithdrawals.reduce((sum, w) => sum + w.monto, 0), [pendingWithdrawals]);
-  const paidTotalAmount = useMemo(() => paidWithdrawals.reduce((sum, w) => sum + w.monto, 0), [paidWithdrawals]);
+  const paidTotalAmount = useMemo(() => paidPayments.reduce((sum, payment) => sum + payment.montoTotal, 0), [paidPayments]);
 
   // CSV/Excel Export (Gestión de Pagos)
   // Excludes: request ID (codigo de solicitud), date (fecha), and store name (nombre de la tienda)
@@ -264,7 +252,7 @@ export default function PagoProveedoresPage() {
                 <thead>
                   <tr>
                     <th>Cód. Solicitud</th>
-                    <th>Tienda</th>
+                    <th>Solicitudes de retiro / Tiendas</th>
                     <th>RUT</th>
                     <th>Razón Social</th>
                     <th>Banco</th>
@@ -299,8 +287,8 @@ export default function PagoProveedoresPage() {
                             <button
                               className="action-button neutral"
                               type="button"
-                              onClick={() => setSelectedRetiroId(w.retiroId)}
-                              title="Ver detalle del pago"
+                              onClick={() => setSelectedPendingRetiroId(w.retiroId)}
+                              title="Ver detalle de la solicitud de retiro"
                             >
                               <UiIcon name="eye" />
                             </button>
@@ -333,7 +321,7 @@ export default function PagoProveedoresPage() {
             />
             <MetricCard
               label="Transferencias conciliadas"
-              value={paidWithdrawals.length}
+              value={paidPayments.length}
               tone="violet"
               description="Total transferencias ejecutadas"
               iconName="check"
@@ -347,7 +335,7 @@ export default function PagoProveedoresPage() {
               <div className="search-box-container" style={{ position: 'relative' }}>
                 <input
                   type="text"
-                  placeholder="Ej: RET-000001"
+                  placeholder="Ej: PAG-000001"
                   value={historyCodeFilter}
                   onChange={(e) => setHistoryCodeFilter(e.target.value)}
                   style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid #cddde9' }}
@@ -402,8 +390,9 @@ export default function PagoProveedoresPage() {
                 <thead>
                   <tr>
                     <th>Cód. Solicitud</th>
+                    <th>Tienda</th>
                     <th>Monto Pagado</th>
-                    <th>Fecha de Pago (Efectiva)</th>
+                    <th>Fecha de Solicitud</th>
                     <th>Estado</th>
                     <th style={{ width: '80px', textAlign: 'center' }}>Acciones</th>
                   </tr>
@@ -411,17 +400,21 @@ export default function PagoProveedoresPage() {
                 <tbody>
                   {isLoading ? (
                     <tr>
-                      <td colSpan={5} className="loading-cell">Cargando historial de pagos...</td>
+                      <td colSpan={6} className="loading-cell">Cargando historial de pagos...</td>
                     </tr>
-                  ) : paidWithdrawals.length > 0 ? (
-                    paidWithdrawals.map((w) => (
-                      <tr key={w.retiroId}>
-                        <td><strong>RET-{String(w.retiroId).padStart(6, '0')}</strong></td>
-                        <td style={{ fontWeight: 'bold', color: '#2e7d32' }}>{formatMoney(w.monto)}</td>
-                        <td>{formatDate(w.fechaEfectiva)}</td>
+                  ) : paidPayments.length > 0 ? (
+                    paidPayments.map((payment) => (
+                      <tr key={payment.pagoId}>
+                        <td>
+                          <strong>PAG-{String(payment.pagoId).padStart(6, '0')}</strong>
+                          <small style={{ display: 'block', color: '#6b7a90', marginTop: 3 }}>{payment.retiros.length} solicitudes de retiro</small>
+                        </td>
+                        <td>{payment.retiros.map((retiro) => retiro.nombreTienda).join(', ')}</td>
+                        <td style={{ fontWeight: 'bold', color: '#2e7d32' }}>{formatMoney(payment.montoTotal)}</td>
+                        <td>{formatDate(payment.fechaPago)}</td>
                         <td>
                           <span className="badge success" style={{ background: '#e8f5e9', color: '#2e7d32', padding: '4px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 'bold' }}>
-                            {w.estado}
+                            {payment.estado}
                           </span>
                         </td>
                         <td>
@@ -429,7 +422,7 @@ export default function PagoProveedoresPage() {
                             <button
                               className="action-button neutral"
                               type="button"
-                              onClick={() => setSelectedRetiroId(w.retiroId)}
+                              onClick={() => setSelectedPagoId(payment.pagoId)}
                               title="Ver detalle del pago"
                             >
                               <UiIcon name="eye" />
@@ -440,7 +433,7 @@ export default function PagoProveedoresPage() {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={5}>
+                      <td colSpan={6}>
                         <div className="empty-state">No se encontraron registros de pagos para los filtros seleccionados.</div>
                       </td>
                     </tr>
@@ -452,50 +445,94 @@ export default function PagoProveedoresPage() {
         </>
       )}
 
+      {selectedPendingRetiroId !== null && (
+        <div className="modal-backdrop" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setSelectedPendingRetiroId(null)}>
+          <div className="modal-content" style={{ background: '#fff', borderRadius: 12, width: '90%', maxWidth: 650, padding: 24 }} onClick={(event) => event.stopPropagation()}>
+            <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #eee', paddingBottom: 12 }}>
+              <h3 style={{ margin: 0 }}>Solicitud de retiro RET-{String(selectedPendingRetiroId).padStart(6, '0')}</h3>
+              <button type="button" onClick={() => setSelectedPendingRetiroId(null)} style={{ background: 'transparent', border: 0, fontSize: 20 }}>&times;</button>
+            </header>
+            {pendingRetiroDetails && (
+              <div style={{ marginTop: 18, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div><strong>Fecha de solicitud:</strong> {formatDate(pendingRetiroDetails.fechaSolicitud)}</div>
+                <div><strong>Monto solicitado:</strong> {formatMoney(pendingRetiroDetails.montoTotal)}</div>
+                <div><strong>Pedidos incluidos:</strong> {pendingRetiroDetails.cantidadPedidos}</div>
+                <div><strong>Estado:</strong> {pendingRetiroDetails.estado}</div>
+                <div style={{ gridColumn: '1 / -1', marginTop: 8 }}>
+                  <strong>Desglose de pedidos:</strong>
+                  <div style={{ maxHeight: 260, overflowY: 'auto', marginTop: 8, border: '1px solid #e2e8f0', borderRadius: 8 }}>
+                    <table className="payout-request-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                      <thead style={{ position: 'sticky', top: 0, background: '#f8fafc' }}>
+                        <tr>
+                          <th style={{ textAlign: 'left', padding: '8px 12px' }}>ID Pedido</th>
+                          <th style={{ textAlign: 'left', padding: '8px 12px' }}>Descripción</th>
+                          <th style={{ textAlign: 'left', padding: '8px 12px' }}>Fecha</th>
+                          <th style={{ textAlign: 'center', padding: '8px 12px' }}>Cantidad</th>
+                          <th style={{ textAlign: 'right', padding: '8px 12px' }}>Valor</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {pendingRetiroDetails.pedidos.map((pedido) => (
+                          <tr key={pedido.pedidoId} style={{ borderTop: '1px solid #edf2f7' }}>
+                            <td style={{ padding: '8px 12px' }}><strong>PED-{String(pedido.pedidoId).padStart(7, '0')}</strong></td>
+                            <td style={{ padding: '8px 12px' }}>{pedido.nombrePedido}</td>
+                            <td style={{ padding: '8px 12px' }}>{formatDateShort(pedido.fecha)}</td>
+                            <td style={{ textAlign: 'center', padding: '8px 12px' }}>{pedido.cantidadVendida}</td>
+                            <td style={{ textAlign: 'right', padding: '8px 12px', fontWeight: 700 }}>{formatMoney(pedido.valor)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 12, fontWeight: 700 }}>
+                    <span>Total de la solicitud:</span>
+                    <span style={{ color: '#2e7d32' }}>{formatMoney(pendingRetiroDetails.montoTotal)}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Details Popup Modal */}
-      {selectedRetiroId !== null && (
-        <div className="modal-backdrop" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setSelectedRetiroId(null)}>
+      {selectedPagoId !== null && (
+        <div className="modal-backdrop" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setSelectedPagoId(null)}>
           <div className="modal-content" style={{ background: '#fff', borderRadius: '12px', width: '90%', maxWidth: '650px', padding: '24px', boxShadow: '0 20px 40px rgba(0,0,0,0.15)', display: 'flex', flexDirection: 'column', gap: '15px' }} onClick={(e) => e.stopPropagation()}>
             <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #eee', paddingBottom: '12px' }}>
               <h3 style={{ margin: 0, fontSize: '18px' }}>
-                Detalle de Solicitud RET-{String(selectedRetiroId).padStart(6, '0')}
+                Detalle de Pago PAG-{String(selectedPagoId).padStart(6, '0')}
               </h3>
-              <button type="button" onClick={() => setSelectedRetiroId(null)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '20px' }}>&times;</button>
+              <button type="button" onClick={() => setSelectedPagoId(null)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '20px' }}>&times;</button>
             </header>
 
-            {isLoadingDetails ? (
-              <div style={{ padding: '40px 0', textAlign: 'center', color: '#6b7a90' }}>
-                Cargando desglose de pedidos...
-              </div>
-            ) : withdrawalDetails ? (
+            {paymentDetails ? (
               <>
                 <div className="payout-details-meta" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', background: '#f5f7fa', padding: '15px', borderRadius: '8px', fontSize: '13px' }}>
-                  <div><strong>Fecha Solicitud:</strong> {formatDate(withdrawalDetails.fechaSolicitud)}</div>
-                  <div><strong>Fecha Estimada Depósito:</strong> {formatDate(withdrawalDetails.fechaEfectiva)}</div>
-                  <div><strong>Cantidad de Pedidos:</strong> {withdrawalDetails.cantidadPedidos}</div>
-                  <div><strong>Monto Total Retiro:</strong> <strong style={{ color: '#075ed7' }}>{formatMoney(withdrawalDetails.montoTotal)}</strong></div>
+                  <div><strong>Solicitudes de retiro:</strong> {paymentDetails.retiros.length}</div>
+                  <div><strong>Fecha de Pago:</strong> {formatDate(paymentDetails.fechaPago)}</div>
+                  <div><strong>Estado:</strong> {paymentDetails.estado}</div>
+                  <div><strong>Monto Total Pago:</strong> <strong style={{ color: '#075ed7' }}>{formatMoney(paymentDetails.montoTotal)}</strong></div>
                 </div>
 
-                <div style={{ fontSize: '14px', fontWeight: 'bold', marginTop: '5px' }}>Pedidos incluidos en el pago:</div>
-                <div style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid #eee', borderRadius: '8px' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-                    <thead style={{ background: '#f8fafc', position: 'sticky', top: 0 }}>
+                <div style={{ fontSize: '14px', fontWeight: 'bold', marginTop: '5px' }}>Solicitudes de retiro incluidas:</div>
+                <div style={{ border: '1px solid #eee', borderRadius: '8px' }}>
+                  <table className="payout-request-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                    <thead style={{ background: '#f8fafc' }}>
                       <tr style={{ borderBottom: '1px solid #eee' }}>
-                        <th style={{ textAlign: 'left', padding: '8px 12px' }}>ID Pedido</th>
-                        <th style={{ textAlign: 'left', padding: '8px 12px' }}>Descripción</th>
-                        <th style={{ textAlign: 'left', padding: '8px 12px' }}>Fecha</th>
-                        <th style={{ textAlign: 'center', padding: '8px 12px' }}>Cant.</th>
-                        <th style={{ textAlign: 'right', padding: '8px 12px' }}>Monto Vendedor</th>
+                        <th style={{ textAlign: 'left', padding: '8px 12px' }}>Cód. Solicitud</th>
+                        <th style={{ textAlign: 'left', padding: '8px 12px' }}>Tienda</th>
+                        <th style={{ textAlign: 'left', padding: '8px 12px' }}>Fecha de Solicitud</th>
+                        <th style={{ textAlign: 'right', padding: '8px 12px' }}>Monto Pagado</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {withdrawalDetails.pedidos && withdrawalDetails.pedidos.map((pedido) => (
-                        <tr key={pedido.pedidoId} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                          <td style={{ padding: '8px 12px' }}><strong>PED-{String(pedido.pedidoId).padStart(7, '0')}</strong></td>
-                          <td style={{ padding: '8px 12px' }}>{pedido.nombrePedido}</td>
-                          <td style={{ padding: '8px 12px' }}>{formatDateShort(pedido.fecha)}</td>
-                          <td style={{ textAlign: 'center', padding: '8px 12px' }}>{pedido.cantidadVendida}</td>
-                          <td style={{ textAlign: 'right', padding: '8px 12px', fontWeight: 'bold' }}>{formatMoney(pedido.valor)}</td>
+                      {paymentDetails.retiros.map((retiro) => (
+                        <tr key={retiro.retiroId}>
+                          <td style={{ padding: '8px 12px' }}><strong>RET-{String(retiro.retiroId).padStart(6, '0')}</strong></td>
+                          <td style={{ padding: '8px 12px' }}>{retiro.nombreTienda}</td>
+                          <td style={{ padding: '8px 12px' }}>{formatDate(retiro.fecha)}</td>
+                          <td style={{ textAlign: 'right', padding: '8px 12px', fontWeight: 'bold' }}>{formatMoney(retiro.monto)}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -504,7 +541,7 @@ export default function PagoProveedoresPage() {
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderTop: '1px solid #eee', marginTop: '10px' }}>
                   <span style={{ fontWeight: 'bold', fontSize: '15px' }}>Suma Total del Pago:</span>
-                  <span style={{ fontWeight: 'bold', fontSize: '18px', color: '#2e7d32' }}>{formatMoney(withdrawalDetails.montoTotal)}</span>
+                  <span style={{ fontWeight: 'bold', fontSize: '18px', color: '#2e7d32' }}>{formatMoney(paymentDetails.montoTotal)}</span>
                 </div>
 
 

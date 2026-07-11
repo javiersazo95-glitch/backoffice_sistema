@@ -34,6 +34,7 @@ import type {
   SelectedRows,
   Settlement,
   SettlementStatus,
+  LiquidationStatus,
   StatusHistoryItem,
   Withdrawal,
 } from './types';
@@ -68,6 +69,17 @@ interface PaginationState {
   pageSize: number;
 }
 
+interface LiquidationSellerGroup {
+  key: string;
+  seller: string;
+  rut: string;
+  legalName: string;
+  email: string;
+  settlements: Settlement[];
+  total: number;
+  iva: number;
+}
+
 interface ExpenseDraft {
   id: string;
   date: string;
@@ -96,6 +108,7 @@ interface DocumentDraft {
   name: string;
   email: string;
   detail: string;
+  ivaLiquidado: string;
   pdfName?: string;
 }
 
@@ -360,6 +373,9 @@ export default function AdminFinancePage() {
   const [selectedRows, setSelectedRows] = useState<SelectedRows>(initialSelectedRows);
   const [statusHistory, setStatusHistory] = useState<Record<string, StatusHistoryItem[]>>(initialStatusHistory);
   const [settlementStatuses, setSettlementStatuses] = useState<Record<string, SettlementStatus>>({});
+  const [liquidationTab, setLiquidationTab] = useState<LiquidationStatus>('PENDIENTE_LIQUIDACION');
+  const [expandedLiquidationSellers, setExpandedLiquidationSellers] = useState<Set<string>>(new Set());
+  const [selectedLiquidationSeller, setSelectedLiquidationSeller] = useState<LiquidationSellerGroup | null>(null);
   const [issuedDocuments, setIssuedDocuments] = useState<Record<string, IssuedDocument>>({});
   const [expenseDraft, setExpenseDraft] = useState<ExpenseDraft | null>(null);
   const [orderDraft, setOrderDraft] = useState<OrderDraft | null>(null);
@@ -417,9 +433,9 @@ export default function AdminFinancePage() {
     return settlements.filter((settlement) => {
       const matchesDate = isWithinRange(settlement.date, filter.start, filter.end);
       const matchesQuery = !query || [settlement.id, settlement.seller, settlement.orderId].some((value) => normalizeText(value).includes(query));
-      return matchesDate && matchesQuery;
+      return matchesDate && matchesQuery && settlement.liquidationStatus === liquidationTab;
     });
-  }, [filters.liquidaciones, settlements]);
+  }, [filters.liquidaciones, liquidationTab, settlements]);
 
   const filteredExpenses = useMemo(() => {
     const filter = filters.gastos;
@@ -430,6 +446,28 @@ export default function AdminFinancePage() {
       return matchesDate && matchesQuery;
     });
   }, [expenses, filters.gastos]);
+
+  const enLiquidationGroups = useMemo(() => {
+    const groups = new Map<string, LiquidationSellerGroup>();
+    filteredSettlements.forEach((settlement) => {
+      const key = settlement.sellerEmail || settlement.sellerTaxId || settlement.seller;
+      const current = groups.get(key) ?? {
+        key,
+        seller: settlement.seller,
+        rut: settlement.sellerTaxId || 'Sin RUT',
+        legalName: settlement.sellerLegalName || settlement.seller,
+        email: settlement.sellerEmail || 'Sin correo',
+        settlements: [],
+        total: 0,
+        iva: 0,
+      };
+      current.settlements.push(settlement);
+      current.total += settlement.netSettlement;
+      current.iva += settlement.serviceCommissionIva;
+      groups.set(key, current);
+    });
+    return [...groups.values()];
+  }, [filteredSettlements]);
 
   const filteredWithdrawals = useMemo(
     () => withdrawals
@@ -594,11 +632,26 @@ export default function AdminFinancePage() {
     setDocumentDraft({
       orderId: order.id,
       type: existing?.type ?? 'Boleta',
-      rut: existing?.rut ?? '',
-      name: existing?.name ?? order.buyer,
-      email: existing?.email ?? '',
-      detail: existing?.detail ?? `Compra de repuesto en pedido ${order.id}`,
+      rut: existing?.rut ?? order.sellerTaxId ?? '',
+      name: existing?.name ?? order.sellerLegalName ?? order.seller,
+      email: existing?.email ?? order.sellerEmail ?? '',
+      detail: existing?.detail ?? `Comisión de servicio RepuesTop del pedido ${order.id}`,
+      ivaLiquidado: existing?.ivaLiquidado ?? String(order.ivaComisionServicio ?? 0),
       pdfName: existing?.pdfName ?? '',
+    });
+  }
+
+  function openGroupDocument(group: LiquidationSellerGroup): void {
+    const orderId = group.settlements[0]?.orderId ?? '';
+    setDocumentDraft({
+      orderId,
+      type: 'Boleta',
+      rut: group.rut === 'Sin RUT' ? '' : group.rut,
+      name: group.legalName,
+      email: group.email === 'Sin correo' ? '' : group.email,
+      detail: `Comisión de servicio RepuesTop de ${group.settlements.length} liquidación${group.settlements.length === 1 ? '' : 'es'}`,
+      ivaLiquidado: String(Math.round(group.iva)),
+      pdfName: '',
     });
   }
 
@@ -617,6 +670,7 @@ export default function AdminFinancePage() {
         name: documentDraft.name.trim(),
         email: documentDraft.email.trim(),
         detail: documentDraft.detail.trim(),
+        ivaLiquidado: documentDraft.ivaLiquidado,
         sentAt: 'Ahora',
         pdfName: documentDraft.pdfName,
       },
@@ -918,6 +972,7 @@ export default function AdminFinancePage() {
   ];
   const totalGenerated = selectedSettlementRows.reduce((sum, settlement) => sum + settlement.saleTotal, 0);
   const totalCommission = selectedSettlementRows.reduce((sum, settlement) => sum + settlement.netSettlement, 0);
+  const totalIvaAccumulated = selectedSettlementRows.reduce((sum, settlement) => sum + settlement.serviceCommissionIva, 0);
   const { cashFund, withdrawalAvailable } = getCashAllocation(totalCommission);
   const expenseTotal = getExpenseTotal(selectedExpenseRows);
   const cashBalance = cashFund - expenseTotal;
@@ -1077,6 +1132,19 @@ export default function AdminFinancePage() {
                 ))}
               </select>
             </div>
+            {false ? (
+              <table className="wide-table">
+                <thead><tr><th>Vendedor</th><th>RUT</th><th>Razón social / Nombre</th><th>Correo</th><th>Cantidad liquidaciones</th><th>Monto total acumulado</th><th>Acciones</th></tr></thead>
+                <tbody>
+                  {enLiquidationGroups.length ? enLiquidationGroups.map((group) => (
+                    <>
+                      <tr key={group.key}><td>{group.seller}</td><td>{group.rut}</td><td>{group.legalName}</td><td>{group.email}</td><td>{group.settlements.length}</td><td>{formatMoney(group.total)}</td><td><button className="action-button neutral" type="button" onClick={() => setExpandedLiquidationSellers((current) => { const next = new Set(current); next.has(group.key) ? next.delete(group.key) : next.add(group.key); return next; })} title="Ver liquidaciones"><UiIcon name="chevronDown" /></button></td></tr>
+                      {expandedLiquidationSellers.has(group.key) && <tr key={`${group.key}-details`}><td colSpan={7}><table className="wide-table"><thead><tr><th>ID liquidación</th><th>Pedido</th><th>Venta total</th><th>Ganancias de la venta</th><th>Ganancia neta</th><th>Acciones</th></tr></thead><tbody>{group.settlements.map((settlement) => <tr key={settlement.id}><td>{settlement.id}</td><td>{settlement.orderId}</td><td>{formatMoney(settlement.saleTotal)}</td><td>{formatMoney(settlement.commission)}</td><td>{formatMoney(settlement.netSettlement)}</td><td><div className="action-cell"><button className="action-button neutral" type="button" onClick={() => showSettlementDetail(settlement)} title="Ver detalle"><UiIcon name="eye" /></button>{(() => { const order = orders.find((candidate) => candidate.id === settlement.orderId); return order ? <button className={`action-button ${issuedDocuments[order.id] ? 'success' : 'issue'}`} type="button" onClick={() => openDocument(order)} title="Emitir boleta o factura"><UiIcon name={issuedDocuments[order.id] ? 'check' : 'receipt'} /></button> : null; })()}</div></td></tr>)}</tbody></table></td></tr>}
+                    </>
+                  )) : <tr><td colSpan={7}><div className="empty-state">No hay liquidaciones en curso para el rango seleccionado.</div></td></tr>}
+                </tbody>
+              </table>
+            ) : (
             <table className="wide-table">
               <thead>
                 <tr>
@@ -1119,13 +1187,13 @@ export default function AdminFinancePage() {
                       <div className="action-cell">
                         <button className="action-button neutral" type="button" onClick={() => showOrderDetail(order)} title="Ver detalle"><UiIcon name="eye" /></button>
                         <button className="action-button neutral" type="button" onClick={() => showOrderHistory(order.id)} title="Ver historial"><UiIcon name="clock" /></button>
-                        <button className={`action-button ${issuedDocuments[order.id] ? 'success' : 'issue'}`} type="button" onClick={() => openDocument(order)} title="Emitir boleta o factura"><UiIcon name={issuedDocuments[order.id] ? 'check' : 'receipt'} /></button>
                       </div>
                     </td>
                   </tr>
                 )) : <tr><td colSpan={10}><div className="empty-state">No hay pedidos para los filtros seleccionados.</div></td></tr>}
               </tbody>
             </table>
+            )}
             <div className="table-footer compact-footer">
               <span>{orderPage.rows.length} registros mostrados</span>
               <TablePager view="pedidos" state={pagination.pedidos} totalPages={orderPage.totalPages} onPage={updatePage} onPageSize={updatePageSize} />
@@ -1136,11 +1204,38 @@ export default function AdminFinancePage() {
 
       {activeView === 'liquidaciones' && (
         <>
-          <div className="metric-grid compact">
+          <div className="module-tabs" role="tablist" aria-label="Estado de liquidación">
+            {([
+              ['PENDIENTE_LIQUIDACION', 'Pendiente liquidación'],
+              ['EN_LIQUIDACION', 'En liquidación'],
+              ['LIQUIDADO', 'Liquidado'],
+            ] as const).map(([status, label]) => (
+              <button
+                key={status}
+                type="button"
+                role="tab"
+                aria-selected={liquidationTab === status}
+                className={liquidationTab === status ? 'active' : undefined}
+                onClick={() => {
+                  setLiquidationTab(status);
+                  setPagination((current) => ({ ...current, liquidaciones: { ...current.liquidaciones, page: 1 } }));
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <div className={`metric-grid compact${liquidationTab === 'EN_LIQUIDACION' ? ' liquidacion-metric-grid' : ''}`}>
             <MetricCard label="Total generado" value={formatMoney(totalGenerated)} tone="blue" description={`${selectedSettlementRows.length} registros sumados`} iconName="wallet" />
-            <MetricCard label="Ganancia neta" value={formatMoney(totalCommission)} tone="green" description="5% mín. $690 máx. $9.990" iconName="percent" />
-            <MetricCard label="Caja RepuesTop" value={formatMoney(cashFund)} tone="amber" description="70% de ganancia neta" iconName="bank" />
-            <MetricCard label="Disponible retiro" value={formatMoney(withdrawalAvailable)} tone="violet" description="30% de ganancia neta" iconName="wallet" />
+            <MetricCard label="Ganancia neta" value={formatMoney(totalCommission)} tone="green" description="Después de IVA y PagoFlow" iconName="percent" />
+            {liquidationTab === 'EN_LIQUIDACION' ? (
+              <MetricCard label="IVA acumulado" value={formatMoney(totalIvaAccumulated)} tone="amber" description="IVA de comisión acumulado" iconName="receipt" />
+            ) : (
+              <MetricCard label="Caja RepuesTop" value={formatMoney(cashFund)} tone="amber" description="70% de ganancia neta" iconName="bank" />
+            )}
+            {liquidationTab !== 'EN_LIQUIDACION' && (
+              <MetricCard label="Disponible retiro" value={formatMoney(withdrawalAvailable)} tone="violet" description="30% de ganancia neta" iconName="wallet" />
+            )}
           </div>
 
           <div className="notice"><UiIcon name="note" />Solo se muestran ventas donde RepuesTop ya cobró exitosamente la venta.</div>
@@ -1149,6 +1244,12 @@ export default function AdminFinancePage() {
             <div className="table-toolbar">
               <input className="input" type="search" placeholder="Buscar por ID, vendedor o referencia..." value={filters.liquidaciones.query} onChange={(event) => updateFilter('liquidaciones', { query: event.target.value })} />
             </div>
+            {liquidationTab === 'EN_LIQUIDACION' ? (
+              <table className="wide-table">
+                <thead><tr><th>Vendedor</th><th>RUT</th><th>Razón social / Nombre</th><th>Correo</th><th>Cantidad liquidaciones</th><th>IVA acumulado</th><th>Acciones</th></tr></thead>
+                <tbody>{enLiquidationGroups.length ? enLiquidationGroups.map((group) => <tr key={group.key}><td>{group.seller}</td><td>{group.rut}</td><td>{group.legalName}</td><td>{group.email}</td><td>{group.settlements.length}</td><td>{formatMoney(group.iva)}</td><td><div className="action-cell"><button className="action-button neutral" type="button" onClick={() => setSelectedLiquidationSeller(group)} title="Vista previa de liquidaciones"><UiIcon name="eye" /></button><button className="action-button issue" type="button" onClick={() => openGroupDocument(group)} title="Emitir boleta o factura"><UiIcon name="receipt" /></button></div></td></tr>) : <tr><td colSpan={7}><div className="empty-state">No hay liquidaciones en curso para el rango seleccionado.</div></td></tr>}</tbody>
+              </table>
+            ) : (
             <table className="wide-table">
               <thead>
                 <tr>
@@ -1188,9 +1289,9 @@ export default function AdminFinancePage() {
                       <div className="tooltip-content">
                         <div className="tooltip-arrow"></div>
                         <div className="tooltip-body">
-                          <div className="tooltip-row"><span>Comprador (precio inflado)</span><span>{formatMoney(settlement.buyerCommission)}</span></div>
-                          <div className="tooltip-row"><span>Vendedor (descuento)</span><span>{formatMoney(settlement.sellerCommission)}</span></div>
-                          <div className="tooltip-row"><span>PagoFlow pagado por comprador</span><span>{formatMoney(settlement.gatewayFee)}</span></div>
+                          <div className="tooltip-row"><span>Comisión RepuesTop</span><span>{formatMoney(settlement.serviceCommission)}</span></div>
+                          <div className="tooltip-row"><span>IVA de comisión</span><span>{formatMoney(settlement.serviceCommissionIva)}</span></div>
+                          <div className="tooltip-row"><span>Comisión PagoFlow a cargo del vendedor</span><span>{formatMoney(settlement.gatewayFeeSeller)}</span></div>
                           <div className="tooltip-divider"></div>
                           <div className="tooltip-row total"><span>Ganancias de la venta</span><span>{formatMoney(settlement.commission)}</span></div>
                         </div>
@@ -1201,19 +1302,21 @@ export default function AdminFinancePage() {
                         {formatMoney(settlement.netSettlement)}
                         <UiIcon name="info" />
                       </span>
-                      <div className="tooltip-content">
+                      <div className="tooltip-content net-settlement-tooltip">
                         <div className="tooltip-arrow"></div>
                         <div className="tooltip-body">
                           <div className="tooltip-row"><span>Ganancias de la venta</span><span>{formatMoney(settlement.commission)}</span></div>
-                          <div className="tooltip-row"><span>Comisión PagoFlow</span><span>-{formatMoney(settlement.gatewayFee)}</span></div>
+                          <div className="tooltip-row"><span>IVA de comisión RepuesTop</span><span>-{formatMoney(settlement.serviceCommissionIva)}</span></div>
+                          <div className="tooltip-row"><span>Comisión PagoFlow cobrada al vendedor</span><span>-{formatMoney(settlement.gatewayFeeSeller)}</span></div>
+                          {settlement.gatewayFeeRepuestop > 0 && <div className="tooltip-row"><span>PagoFlow de despacho local (costo RepuesTop)</span><span>-{formatMoney(settlement.gatewayFeeRepuestop)}</span></div>}
                           <div className="tooltip-divider"></div>
                           <div className="tooltip-row total"><span>Ganancia neta</span><span>{formatMoney(settlement.netSettlement)}</span></div>
                         </div>
                       </div>
                     </td>
                     <td>
-                      <span className={`status-pill ${slug(settlement.status)}`}>
-                        {settlement.status}
+                      <span className={`status-pill ${slug('Finalizado')}`}>
+                        Finalizado
                       </span>
                     </td>
                     <td>
@@ -1225,6 +1328,7 @@ export default function AdminFinancePage() {
                 )) : <tr><td colSpan={10}><div className="empty-state">No hay liquidaciones para el rango seleccionado.</div></td></tr>}
               </tbody>
             </table>
+            )}
             <div className="table-footer compact-footer">
               <span>{settlementPage.rows.length} registros mostrados</span>
               <TablePager view="liquidaciones" state={pagination.liquidaciones} totalPages={settlementPage.totalPages} onPage={updatePage} onPageSize={updatePageSize} />
@@ -1408,6 +1512,14 @@ export default function AdminFinancePage() {
         </Modal>
       )}
 
+      {selectedLiquidationSeller && (
+        <Modal title={`Liquidaciones de ${selectedLiquidationSeller.seller}`} subtitle={`${selectedLiquidationSeller.settlements.length} liquidaciones · ${formatMoney(selectedLiquidationSeller.total)}`} onClose={() => setSelectedLiquidationSeller(null)}>
+          <div className="table-shell liquidation-preview-shell"><table className="wide-table liquidation-preview-table"><thead><tr><th>ID liquidación</th><th>Pedido</th><th>Fecha</th><th>Venta total</th><th>Ganancias de la venta</th><th>Ganancia neta</th></tr></thead><tbody>
+            {selectedLiquidationSeller.settlements.map((settlement) => <tr key={settlement.id}><td>{settlement.id}</td><td>{settlement.orderId}</td><td>{formatDate(settlement.date)}</td><td>{formatMoney(settlement.saleTotal)}</td><td>{formatMoney(settlement.commission)}</td><td>{formatMoney(settlement.netSettlement)}</td></tr>)}
+          </tbody></table></div>
+        </Modal>
+      )}
+
       {documentDraft && (
         <Modal title="Emitir documento" subtitle={documentDraft.orderId} onClose={() => setDocumentDraft(null)}>
           <form className="form-grid" onSubmit={saveDocument}>
@@ -1421,6 +1533,7 @@ export default function AdminFinancePage() {
             <FieldLabel label="Razón social / Nombre"><input className="input" type="text" value={documentDraft.name} onChange={(event) => setDocumentDraft({ ...documentDraft, name: event.target.value })} required /></FieldLabel>
             <FieldLabel label="Correo de envío"><input className="input" type="email" value={documentDraft.email} onChange={(event) => setDocumentDraft({ ...documentDraft, email: event.target.value })} required /></FieldLabel>
             <FieldLabel label="Detalle"><input className="input" type="text" value={documentDraft.detail} onChange={(event) => setDocumentDraft({ ...documentDraft, detail: event.target.value })} required /></FieldLabel>
+            <FieldLabel label="IVA liquidado"><input className="input" type="number" min="0" step="1" value={documentDraft.ivaLiquidado} onChange={(event) => setDocumentDraft({ ...documentDraft, ivaLiquidado: event.target.value })} required /></FieldLabel>
             <FieldLabel label="Cargar Boleta / Factura (PDF)">
               <input
                 className="input"
@@ -1495,22 +1608,22 @@ export default function AdminFinancePage() {
               <div>
                 <span>{selectedDetailSettlement.seller}</span>
                 <strong>{formatMoney(selectedDetailSettlement.netSettlement)}</strong>
-                <p>Liquidación neta después de PagoFlow</p>
+                <p>Comisión RepuesTop después de IVA y PagoFlow</p>
               </div>
               <span className={`status-pill ${slug(selectedDetailSettlement.status)}`}>{selectedDetailSettlement.status}</span>
             </section>
 
             <section className="settlement-stat-grid">
               <article><span>Venta total</span><strong>{formatMoney(selectedDetailSettlement.saleTotal)}</strong></article>
-              <article><span>Comprador (precio inflado)</span><strong>{formatMoney(selectedDetailSettlement.buyerCommission)}</strong></article>
-              <article><span>Vendedor (descuento)</span><strong>{formatMoney(selectedDetailSettlement.sellerCommission)}</strong></article>
-              <article><span>PagoFlow pagado por comprador</span><strong>{formatMoney(selectedDetailSettlement.gatewayFee)}</strong></article>
+              <article><span>Comisión RepuesTop</span><strong>{formatMoney(selectedDetailSettlement.serviceCommission)}</strong></article>
+              <article><span>IVA de comisión</span><strong>{formatMoney(selectedDetailSettlement.serviceCommissionIva)}</strong></article>
+              <article><span>PagoFlow a cargo del vendedor</span><strong>{formatMoney(selectedDetailSettlement.gatewayFeeSeller)}</strong></article>
             </section>
 
             <section className="settlement-net-card">
               <div><span>Ganancias de la venta</span><strong>{formatMoney(selectedDetailSettlement.commission)}</strong></div>
               <UiIcon name="minus" />
-              <div><span>Comisión PagoFlow</span><strong>{formatMoney(selectedDetailSettlement.gatewayFee)}</strong></div>
+              <div><span>Deducciones: IVA y PagoFlow</span><strong>{formatMoney(selectedDetailSettlement.serviceCommissionIva + selectedDetailSettlement.gatewayFeeSeller + selectedDetailSettlement.gatewayFeeRepuestop)}</strong></div>
               <UiIcon name="arrowRight" />
               <div className="success"><span>Ganancia neta</span><strong>{formatMoney(selectedDetailSettlement.netSettlement)}</strong></div>
             </section>

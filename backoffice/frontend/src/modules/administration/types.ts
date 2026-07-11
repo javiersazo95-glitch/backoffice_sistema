@@ -3,20 +3,29 @@ export type AdminView = 'resumen' | 'pedidos' | 'liquidaciones' | 'gastos' | 're
 export type OrderStatus = 'Pendiente' | 'Preparando' | 'Enviado' | 'Recibido' | 'Finalizado' | 'En mediación' | 'En disputa' | 'Cancelado' | 'Cancelado parcialmente';
 
 export type SettlementStatus = 'Completada' | 'Enviado' | 'En disputa' | 'Cancelado';
+export type LiquidationStatus = 'PENDIENTE_LIQUIDACION' | 'EN_LIQUIDACION' | 'LIQUIDADO';
 
 export interface Order {
   id: string;
   date: string;
   buyer: string;
   seller: string;
+  sellerTaxId?: string;
+  sellerLegalName?: string;
+  sellerEmail?: string;
   product: string;
   total: number;
   subtotalPublicado?: number;
-  comisionComprador?: number;
-  comisionPagoFlow?: number;
+  comisionServicio?: number;
+  ivaComisionServicio?: number;
+  comisionPagoFlowTotal?: number;
+  comisionPagoFlowVendedor?: number;
+  comisionPagoFlowRepuestop?: number;
+  descuentosVendedor?: number;
   costoEnvio?: number;
   tasaPagoFlow?: number;
   liquidacionServicio?: number;
+  estadoLiquidacion?: LiquidationStatus;
   totalVentaDetalle?: Record<string, number>;
   totalVentaTooltip?: string;
   comisionPagoTooltip?: string;
@@ -80,16 +89,21 @@ export interface Settlement {
   id: string;
   date: string;
   seller: string;
+  sellerTaxId?: string;
+  sellerLegalName?: string;
+  sellerEmail?: string;
   orderId: string;
   saleTotal: number;
   saleDetail: Record<string, number>;
   saleTooltip?: string;
   commission: number;
-  buyerCommission: number;
-  sellerCommission: number;
-  gatewayFee: number;
+  serviceCommission: number;
+  serviceCommissionIva: number;
+  gatewayFeeSeller: number;
+  gatewayFeeRepuestop: number;
   gatewayTooltip?: string;
   netSettlement: number;
+  liquidationStatus: LiquidationStatus;
   paidAmount: number;
   status: SettlementStatus;
 }
@@ -136,6 +150,7 @@ export interface IssuedDocument {
   name: string;
   email: string;
   detail: string;
+  ivaLiquidado?: string;
   sentAt: string;
   pdfName?: string;
 }
@@ -181,4 +196,12 @@ export interface RetiroDetalleResponse {
   estado: string;
   fechaEfectiva: string;
   pedidos: RetiroPedidoItem[];
+}
+
+export interface PagoProveedorResponse {
+  pagoId: number;
+  montoTotal: number;
+  estado: string;
+  fechaPago: string;
+  retiros: RetiroAdminResponse[];
 }

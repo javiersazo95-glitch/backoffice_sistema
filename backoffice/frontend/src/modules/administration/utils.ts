@@ -1,9 +1,4 @@
 import {
-  COMMISSION_RATE,
-  MAX_COMMISSION,
-  MIN_COMMISSION,
-  GATEWAY_RATE,
-  GATEWAY_IVA,
   RECEIPT_TYPES,
   MAX_RECEIPT_SIZE,
 } from './constants';
@@ -65,36 +60,40 @@ export function getSettlementId(orderId: string): string {
 
 export function getSettlements(orders: Order[], statuses: Record<string, SettlementStatus>): Settlement[] {
   return orders
-    .filter((order) => order.status === 'Recibido' || order.status === 'Finalizado')
+    .filter((order) => order.status === 'Finalizado')
     .map((order) => {
       const subtotal = Number(order.subtotalPublicado ?? order.total);
-      const buyerCommission = Number(order.comisionComprador ?? Math.min(MAX_COMMISSION, Math.max(MIN_COMMISSION, Math.round(subtotal * COMMISSION_RATE))));
-      const sellerCommission = Math.min(MAX_COMMISSION, Math.max(MIN_COMMISSION, Math.round(subtotal * COMMISSION_RATE)));
-      const saleTotal = Number(order.total ?? subtotal + buyerCommission);
-      const gatewayRate = GATEWAY_RATE * (1 + GATEWAY_IVA);
-      const gatewayFee = Number(order.comisionPagoFlow ?? Math.round((subtotal + buyerCommission) * gatewayRate));
-      const grossEarnings = buyerCommission + sellerCommission + gatewayFee;
-      const netSettlement = Number(order.liquidacionServicio ?? grossEarnings - gatewayFee);
-      const paidAmount = subtotal - sellerCommission;
+      const saleTotal = Number(order.total ?? subtotal);
+      const serviceCommission = Number(order.comisionServicio ?? 0);
+      const serviceCommissionIva = Number(order.ivaComisionServicio ?? 0);
+      const gatewayFeeSeller = Number(order.comisionPagoFlowVendedor ?? 0);
+      const gatewayFeeRepuestop = Number(order.comisionPagoFlowRepuestop ?? 0);
+      const grossEarnings = Number(order.descuentosVendedor ?? serviceCommission + serviceCommissionIva + gatewayFeeSeller);
+      const netSettlement = Number(order.liquidacionServicio ?? serviceCommission + serviceCommissionIva);
+      const paidAmount = subtotal - grossEarnings;
       const settlementId = getSettlementId(order.id);
       return {
         id: settlementId,
         date: orderDate(order),
         seller: order.seller,
+        sellerTaxId: order.sellerTaxId,
+        sellerLegalName: order.sellerLegalName,
+        sellerEmail: order.sellerEmail,
         orderId: order.id,
         saleTotal,
         saleDetail: order.totalVentaDetalle ?? {
           'Valor publicado por el vendedor': subtotal,
-          'Comision comprador RepuesTop': buyerCommission,
-          'Comision de pago PagoFlow': gatewayFee,
+          'Costo de despacho': Number(order.costoEnvio ?? 0),
         },
         saleTooltip: order.totalVentaTooltip,
         commission: grossEarnings,
-        buyerCommission,
-        sellerCommission,
-        gatewayFee,
+        serviceCommission,
+        serviceCommissionIva,
+        gatewayFeeSeller,
+        gatewayFeeRepuestop,
         gatewayTooltip: order.comisionPagoTooltip,
         netSettlement,
+        liquidationStatus: order.estadoLiquidacion ?? 'PENDIENTE_LIQUIDACION',
         paidAmount,
         status: statuses[settlementId] ?? 'Completada',
       };

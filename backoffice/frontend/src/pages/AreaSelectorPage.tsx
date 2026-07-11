@@ -74,16 +74,14 @@ function AccessIcon({ name }: { name: AreaCard['icon'] }) {
   }
 
   return (
-    <svg className="area-selector-svg-icon" viewBox="0 0 64 64" aria-hidden="true">
-      <path d="M32 12v40" />
-      <path d="M16 22h32" />
-      <path d="M24 22 14 44" />
-      <path d="M24 22l10 22" />
-      <path d="M40 22 30 44" />
-      <path d="M40 22l10 22" />
-      <path d="M10.5 44h27c-2 4.9-6.7 8-13.5 8s-11.5-3.1-13.5-8Z" />
-      <path d="M26.5 44h27c-2 4.9-6.7 8-13.5 8s-11.5-3.1-13.5-8Z" />
-      <path d="M23 56h18" />
+    <svg className="area-selector-svg-icon area-selector-svg-icon--scale" viewBox="0 0 64 64" aria-hidden="true">
+      <defs>
+        <linearGradient id="area-selector-scale-gradient" x1="10" y1="10" x2="54" y2="56" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#8b5cf6" />
+          <stop offset="1" stopColor="#c044f2" />
+        </linearGradient>
+      </defs>
+      <path d="M32 8v52M7 22h50M20 22 7 44M25 22l7 18M39 22 32 43M44 22l13 22M7 44h20c-1.5 6-5.5 10-10 10S8.5 50 7 44ZM37 44h20c-1.5 6-5.5 10-10 10S38.5 50 37 44ZM22 60h20" />
     </svg>
   );
 }
