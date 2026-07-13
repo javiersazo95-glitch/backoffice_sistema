@@ -21,7 +21,7 @@ export function formatMoney(value: number): string {
 }
 
 export function formatDate(dateValue: string): string {
-  const [year = '', month = '', day = ''] = dateValue.split('-');
+  const [year = '', month = '', day = ''] = dateValue.slice(0, 10).split('-');
   if (!year || !month || !day) return dateValue;
   return `${day}/${month}/${year}`;
 }
@@ -71,6 +71,7 @@ export function getSettlements(orders: Order[], statuses: Record<string, Settlem
       const grossEarnings = Number(order.descuentosVendedor ?? serviceCommission + serviceCommissionIva + gatewayFeeSeller);
       const netSettlement = Number(order.liquidacionServicio ?? serviceCommission + serviceCommissionIva);
       const paidAmount = subtotal - grossEarnings;
+      const sellerPayout = Number(order.montoPagarVendedor ?? paidAmount);
       const settlementId = getSettlementId(order.id);
       return {
         id: settlementId,
@@ -93,6 +94,7 @@ export function getSettlements(orders: Order[], statuses: Record<string, Settlem
         gatewayFeeRepuestop,
         gatewayTooltip: order.comisionPagoTooltip,
         netSettlement,
+        sellerPayout,
         liquidationStatus: order.estadoLiquidacion ?? 'PENDIENTE_LIQUIDACION',
         paidAmount,
         status: statuses[settlementId] ?? 'Completada',

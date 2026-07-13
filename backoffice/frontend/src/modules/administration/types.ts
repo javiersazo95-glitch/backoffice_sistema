@@ -25,6 +25,7 @@ export interface Order {
   costoEnvio?: number;
   tasaPagoFlow?: number;
   liquidacionServicio?: number;
+  montoPagarVendedor?: number;
   estadoLiquidacion?: LiquidationStatus;
   totalVentaDetalle?: Record<string, number>;
   totalVentaTooltip?: string;
@@ -103,6 +104,7 @@ export interface Settlement {
   gatewayFeeRepuestop: number;
   gatewayTooltip?: string;
   netSettlement: number;
+  sellerPayout: number;
   liquidationStatus: LiquidationStatus;
   paidAmount: number;
   status: SettlementStatus;
@@ -178,10 +180,12 @@ export interface RetiroAdminResponse {
   fecha: string;
   estado: string;
   fechaEfectiva: string;
+  documentoLiquidacionNombre?: string;
 }
 
 export interface RetiroPedidoItem {
   pedidoId: number;
+  codigoExterno?: string;
   nombrePedido: string;
   fecha: string;
   cantidadVendida: number;
@@ -203,5 +207,7 @@ export interface PagoProveedorResponse {
   montoTotal: number;
   estado: string;
   fechaPago: string;
+  periodoInicio?: string;
+  periodoFin?: string;
   retiros: RetiroAdminResponse[];
 }

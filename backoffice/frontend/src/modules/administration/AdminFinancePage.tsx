@@ -35,6 +35,8 @@ import type {
   Settlement,
   SettlementStatus,
   LiquidationStatus,
+  PagoProveedorResponse,
+  RetiroDetalleResponse,
   StatusHistoryItem,
   Withdrawal,
 } from './types';
@@ -159,6 +161,28 @@ function getPage<T>(source: T[], pagination: PaginationState): { rows: T[]; tota
 function selectMetricRows<T>(source: T[], selected: Set<string>, getId: (row: T) => string): T[] {
   const selectedRows = source.filter((row) => selected.has(getId(row)));
   return selectedRows.length ? selectedRows : source;
+}
+
+function getLiquidationPeriod(dateValue: string): string {
+  const [year, month, day] = (dateValue.split('T')[0] ?? '').split('-').map(Number);
+  if (!year || !month || !day) return dateValue;
+  const start = new Date(year, month - 1, day);
+  start.setDate(start.getDate() - ((start.getDay() - 4 + 7) % 7));
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  const toDateString = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  return `${formatDate(toDateString(start))} - ${formatDate(toDateString(end))}`;
+}
+
+function getPaymentPeriod(dateValue: string): { start: string; end: string } {
+  const [year, month, day] = (dateValue.split('T')[0] ?? '').split('-').map(Number);
+  if (!year || !month || !day) return { start: dateValue, end: dateValue };
+  const start = new Date(year, month - 1, day);
+  start.setDate(start.getDate() - ((start.getDay() - 4 + 7) % 7));
+  const end = new Date(start);
+  end.setDate(end.getDate() + 6);
+  const toIsoDate = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  return { start: toIsoDate(start), end: toIsoDate(end) };
 }
 
 function FieldLabel({ label, children }: { label: string; children: ReactNode }) {
@@ -376,10 +400,16 @@ export default function AdminFinancePage() {
   const [liquidationTab, setLiquidationTab] = useState<LiquidationStatus>('PENDIENTE_LIQUIDACION');
   const [expandedLiquidationSellers, setExpandedLiquidationSellers] = useState<Set<string>>(new Set());
   const [selectedLiquidationSeller, setSelectedLiquidationSeller] = useState<LiquidationSellerGroup | null>(null);
+  const [selectedPaidPeriod, setSelectedPaidPeriod] = useState<string>('');
+  const [selectedPaidPayment, setSelectedPaidPayment] = useState<PagoProveedorResponse | null>(null);
+  const [paidDocumentsPayment, setPaidDocumentsPayment] = useState<PagoProveedorResponse | null>(null);
+  const [paidDetailQuery, setPaidDetailQuery] = useState('');
+  const [paidDetailSeller, setPaidDetailSeller] = useState('');
   const [issuedDocuments, setIssuedDocuments] = useState<Record<string, IssuedDocument>>({});
   const [expenseDraft, setExpenseDraft] = useState<ExpenseDraft | null>(null);
   const [orderDraft, setOrderDraft] = useState<OrderDraft | null>(null);
   const [withdrawalDraft, setWithdrawalDraft] = useState<WithdrawalDraft | null>(null);
+
   const [documentDraft, setDocumentDraft] = useState<DocumentDraft | null>(null);
   const [receiptExpense, setReceiptExpense] = useState<Expense | null>(null);
   const [reportOpen, setReportOpen] = useState(false);
@@ -391,6 +421,12 @@ export default function AdminFinancePage() {
   const { data: bootstrap } = useQuery({
     queryKey: ['administration-bootstrap'],
     queryFn: administrationApi.getBootstrap,
+  });
+  const { data: paidPayments = [] } = useQuery({ queryKey: ['withdrawal-payments'], queryFn: administrationApi.getWithdrawalPayments });
+  const { data: paidPaymentDetails = [] } = useQuery<RetiroDetalleResponse[]>({
+    queryKey: ['withdrawal-payment-details', selectedPaidPayment?.pagoId],
+    queryFn: () => Promise.all((selectedPaidPayment?.retiros ?? []).map((retiro) => administrationApi.getWithdrawalDetails(retiro.retiroId))),
+    enabled: Boolean(selectedPaidPayment),
   });
 
   const settlements = useMemo(() => getSettlements(orders, settlementStatuses), [orders, settlementStatuses]);
@@ -462,12 +498,24 @@ export default function AdminFinancePage() {
         iva: 0,
       };
       current.settlements.push(settlement);
-      current.total += settlement.netSettlement;
+      current.total += settlement.sellerPayout;
       current.iva += settlement.serviceCommissionIva;
       groups.set(key, current);
     });
     return [...groups.values()];
   }, [filteredSettlements]);
+  const paidPeriods = useMemo(() => [...new Map(paidPayments.map((payment) => {
+    const period = getPaymentPeriod(payment.fechaPago);
+    const key = `${period.start}|${period.end}`;
+    return [key, { key, ...period }];
+  })).values()], [paidPayments]);
+  const activePaidPeriod = selectedPaidPeriod || paidPeriods[0]?.key || '';
+  const paidPaymentsForPeriod = useMemo(() => paidPayments.filter((payment) => {
+    const period = getPaymentPeriod(payment.fechaPago);
+    return `${period.start}|${period.end}` === activePaidPeriod;
+  }), [activePaidPeriod, paidPayments]);
+  const paidRetiroIds = useMemo(() => new Set(paidPaymentsForPeriod.flatMap((payment) => payment.retiros.map((retiro) => retiro.retiroId))), [paidPaymentsForPeriod]);
+  const paidPeriodSettlements = useMemo(() => settlements.filter((settlement) => settlement.liquidationStatus === 'LIQUIDADO' && paidRetiroIds.size && settlement.id && isWithinRange(settlement.date, paidPeriods.find((period) => period.key === activePaidPeriod)?.start.slice(0, 10) ?? '', paidPeriods.find((period) => period.key === activePaidPeriod)?.end.slice(0, 10) ?? '')), [activePaidPeriod, paidPeriods, paidRetiroIds, settlements]);
 
   const filteredWithdrawals = useMemo(
     () => withdrawals
@@ -655,11 +703,17 @@ export default function AdminFinancePage() {
     });
   }
 
-  function saveDocument(event: FormEvent<HTMLFormElement>): void {
+  async function saveDocument(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     if (!documentDraft) return;
-    if (!documentDraft.orderId || !documentDraft.rut.trim() || !documentDraft.name.trim() || !documentDraft.email.trim() || !documentDraft.detail.trim()) {
-      window.alert('Completa tipo de documento, RUT, nombre, correo y detalle.');
+    if (!documentDraft.orderId || !documentDraft.rut.trim() || !documentDraft.name.trim() || !documentDraft.email.trim() || !documentDraft.detail.trim() || !documentDraft.pdfName?.trim()) {
+      window.alert('Completa los datos y adjunta el nombre del archivo de la boleta o factura.');
+      return;
+    }
+    try {
+      await administrationApi.saveLiquidationDocument(documentDraft.orderId, documentDraft.pdfName.trim());
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : 'No se pudo registrar la boleta o factura.');
       return;
     }
     setIssuedDocuments((current) => ({
@@ -759,6 +813,7 @@ export default function AdminFinancePage() {
     });
     pushActivity('wallet', 'Gasto eliminado', 'Se eliminó un gasto registrado');
   }
+
 
   function exportExpensesCsv(): void {
     const header = ['Fecha', 'Categoría', 'Descripción', 'Monto', 'Comprobante'];
@@ -973,6 +1028,12 @@ export default function AdminFinancePage() {
   const totalGenerated = selectedSettlementRows.reduce((sum, settlement) => sum + settlement.saleTotal, 0);
   const totalCommission = selectedSettlementRows.reduce((sum, settlement) => sum + settlement.netSettlement, 0);
   const totalIvaAccumulated = selectedSettlementRows.reduce((sum, settlement) => sum + settlement.serviceCommissionIva, 0);
+  const paidTotal = paidPaymentsForPeriod.reduce((sum, payment) => sum + payment.montoTotal, 0);
+  const paidNetProfit = paidPeriodSettlements.reduce((sum, settlement) => sum + settlement.netSettlement, 0);
+  const paidIva = paidPeriodSettlements.reduce((sum, settlement) => sum + settlement.serviceCommissionIva, 0);
+  const localDeliverySettlements = selectedSettlementRows.filter((settlement) => settlement.gatewayFeeRepuestop > 0);
+  const selectedLiquidationPeriod = selectedLiquidationSeller?.settlements[0] ? getLiquidationPeriod(selectedLiquidationSeller.settlements[0].date) : '';
+  const activeLiquidationPeriod = liquidationTab === 'EN_LIQUIDACION' && filteredSettlements[0] ? getLiquidationPeriod(filteredSettlements[0].date) : '';
   const { cashFund, withdrawalAvailable } = getCashAllocation(totalCommission);
   const expenseTotal = getExpenseTotal(selectedExpenseRows);
   const cashBalance = cashFund - expenseTotal;
@@ -1144,6 +1205,17 @@ export default function AdminFinancePage() {
                   )) : <tr><td colSpan={7}><div className="empty-state">No hay liquidaciones en curso para el rango seleccionado.</div></td></tr>}
                 </tbody>
               </table>
+            ) : (liquidationTab as string) === 'LIQUIDADO' ? (
+              <table className="wide-table">
+                <thead><tr><th>Código de pago</th><th>Fecha de pago</th><th>Vendedores</th><th>Cantidad de liquidaciones</th><th>Fecha de liquidación</th><th>Acciones</th></tr></thead>
+                <tbody>{paidPaymentsForPeriod.length ? paidPaymentsForPeriod.map((payment) => <tr key={payment.pagoId}><td>PAG-{String(payment.pagoId).padStart(6, '0')}</td><td>{formatDate(payment.fechaPago)}</td><td>{[...new Set(payment.retiros.map((retiro) => retiro.nombreTienda))].join(', ')}</td><td>{payment.retiros.length}</td><td>{formatDate(payment.periodoInicio ?? payment.fechaPago)} - {formatDate(payment.periodoFin ?? payment.fechaPago)}</td><td><div className="action-cell"><button className="action-button neutral" type="button" onClick={() => { setSelectedPaidPayment(payment); setPaidDetailQuery(''); setPaidDetailSeller(''); }} title="Ver liquidaciones del pago"><UiIcon name="eye" /></button><button className="action-button issue" type="button" onClick={() => setPaidDocumentsPayment(payment)} title="Historial de boletas"><UiIcon name="receipt" /></button></div></td></tr>) : <tr><td colSpan={6}><div className="empty-state">No hay liquidaciones pagadas para el período seleccionado.</div></td></tr>}</tbody>
+              </table>
+            ) : liquidationTab === 'LIQUIDADO' ? (
+              <table className="wide-table">
+                <thead><tr><th>Código de pago</th><th>Fecha de pago</th><th>Vendedores</th><th>Cantidad de liquidaciones</th><th>Fecha de liquidación</th><th>Acciones</th></tr></thead>
+                <tbody>{paidPaymentsForPeriod.length ? paidPaymentsForPeriod.map((payment) => <tr key={payment.pagoId}><td>PAG-{String(payment.pagoId).padStart(6, '0')}</td><td>{formatDate(payment.fechaPago)}</td><td>{[...new Set(payment.retiros.map((retiro) => retiro.nombreTienda))].join(', ')}</td><td>{payment.retiros.length}</td><td>{formatDate(payment.periodoInicio ?? payment.fechaPago)} - {formatDate(payment.periodoFin ?? payment.fechaPago)}</td><td><div className="action-cell"><button className="action-button neutral" type="button" onClick={() => { setSelectedPaidPayment(payment); setPaidDetailQuery(''); setPaidDetailSeller(''); }} title="Ver liquidaciones del pago"><UiIcon name="eye" /></button><button className="action-button issue" type="button" onClick={() => setPaidDocumentsPayment(payment)} title="Historial de boletas"><UiIcon name="receipt" /></button></div></td></tr>) : <tr><td colSpan={6}><div className="empty-state">No hay liquidaciones pagadas para el período seleccionado.</div></td></tr>}</tbody>
+              </table>
+
             ) : (
             <table className="wide-table">
               <thead>
@@ -1224,16 +1296,18 @@ export default function AdminFinancePage() {
                 {label}
               </button>
             ))}
+            {activeLiquidationPeriod && <span className="liquidation-period">Periodo de liquidación: <strong>{activeLiquidationPeriod}</strong></span>}
+            {liquidationTab === 'LIQUIDADO' && <select className="input paid-period-select" value={activePaidPeriod} onChange={(event) => setSelectedPaidPeriod(event.target.value)}>{paidPeriods.map((period) => <option key={period.key} value={period.key}>Periodo pagado: {formatDate(period.start)} - {formatDate(period.end)}</option>)}</select>}
           </div>
           <div className={`metric-grid compact${liquidationTab === 'EN_LIQUIDACION' ? ' liquidacion-metric-grid' : ''}`}>
-            <MetricCard label="Total generado" value={formatMoney(totalGenerated)} tone="blue" description={`${selectedSettlementRows.length} registros sumados`} iconName="wallet" />
-            <MetricCard label="Ganancia neta" value={formatMoney(totalCommission)} tone="green" description="Después de IVA y PagoFlow" iconName="percent" />
-            {liquidationTab === 'EN_LIQUIDACION' ? (
-              <MetricCard label="IVA acumulado" value={formatMoney(totalIvaAccumulated)} tone="amber" description="IVA de comisión acumulado" iconName="receipt" />
+            <MetricCard label={liquidationTab === 'LIQUIDADO' ? 'Monto total pagado' : 'Total generado'} value={formatMoney(liquidationTab === 'LIQUIDADO' ? paidTotal : totalGenerated)} tone="blue" description={liquidationTab === 'LIQUIDADO' ? `${paidPaymentsForPeriod.length} liquidaciones pagadas` : `${selectedSettlementRows.length} registros sumados`} iconName="wallet" />
+            <MetricCard label="Ganancia neta" value={formatMoney(liquidationTab === 'LIQUIDADO' ? paidNetProfit : totalCommission)} tone="green" description="Después de IVA de servicio y PagoFlow" iconName="percent" infoContent={liquidationTab !== 'LIQUIDADO' && localDeliverySettlements.length ? <><strong>Envíos dentro de la comuna</strong><p>La comisión de PagoFlow del valor del despacho se descuenta de la ganancia neta de RepuesTop.</p>{localDeliverySettlements.map((settlement) => <div className="metric-info-tooltip-row" key={settlement.id}><b>{settlement.orderId}</b><span>PagoFlow despacho: {formatMoney(settlement.gatewayFeeRepuestop)}</span></div>)}</> : null} />
+            {liquidationTab === 'EN_LIQUIDACION' || liquidationTab === 'LIQUIDADO' ? (
+              <MetricCard label={liquidationTab === 'LIQUIDADO' ? 'IVA pagado' : 'IVA acumulado'} value={formatMoney(liquidationTab === 'LIQUIDADO' ? paidIva : totalIvaAccumulated)} tone="amber" description="IVA de comisión acumulado" iconName="receipt" />
             ) : (
               <MetricCard label="Caja RepuesTop" value={formatMoney(cashFund)} tone="amber" description="70% de ganancia neta" iconName="bank" />
             )}
-            {liquidationTab !== 'EN_LIQUIDACION' && (
+            {liquidationTab !== 'EN_LIQUIDACION' && liquidationTab !== 'LIQUIDADO' && (
               <MetricCard label="Disponible retiro" value={formatMoney(withdrawalAvailable)} tone="violet" description="30% de ganancia neta" iconName="wallet" />
             )}
           </div>
@@ -1241,14 +1315,14 @@ export default function AdminFinancePage() {
           <div className="notice"><UiIcon name="note" />Solo se muestran ventas donde RepuesTop ya cobró exitosamente la venta.</div>
 
           <section className="table-shell">
-            <div className="table-toolbar">
-              <input className="input" type="search" placeholder="Buscar por ID, vendedor o referencia..." value={filters.liquidaciones.query} onChange={(event) => updateFilter('liquidaciones', { query: event.target.value })} />
-            </div>
+            {liquidationTab !== 'LIQUIDADO' && <div className="table-toolbar"><input className="input" type="search" placeholder="Buscar por ID, vendedor o referencia..." value={filters.liquidaciones.query} onChange={(event) => updateFilter('liquidaciones', { query: event.target.value })} /></div>}
             {liquidationTab === 'EN_LIQUIDACION' ? (
               <table className="wide-table">
                 <thead><tr><th>Vendedor</th><th>RUT</th><th>Razón social / Nombre</th><th>Correo</th><th>Cantidad liquidaciones</th><th>IVA acumulado</th><th>Acciones</th></tr></thead>
                 <tbody>{enLiquidationGroups.length ? enLiquidationGroups.map((group) => <tr key={group.key}><td>{group.seller}</td><td>{group.rut}</td><td>{group.legalName}</td><td>{group.email}</td><td>{group.settlements.length}</td><td>{formatMoney(group.iva)}</td><td><div className="action-cell"><button className="action-button neutral" type="button" onClick={() => setSelectedLiquidationSeller(group)} title="Vista previa de liquidaciones"><UiIcon name="eye" /></button><button className="action-button issue" type="button" onClick={() => openGroupDocument(group)} title="Emitir boleta o factura"><UiIcon name="receipt" /></button></div></td></tr>) : <tr><td colSpan={7}><div className="empty-state">No hay liquidaciones en curso para el rango seleccionado.</div></td></tr>}</tbody>
               </table>
+            ) : liquidationTab === 'LIQUIDADO' ? (
+              <table className="wide-table paid-liquidations-table"><thead><tr><th>Código de pago</th><th>Fecha de pago</th><th>Vendedores</th><th>Cantidad de boletas/facturas</th><th>Fecha de liquidación</th><th>Acciones</th></tr></thead><tbody>{paidPaymentsForPeriod.length ? paidPaymentsForPeriod.map((payment) => <tr key={payment.pagoId}><td>PAG-{String(payment.pagoId).padStart(6, '0')}</td><td>{formatDate(payment.fechaPago)}</td><td>{[...new Set(payment.retiros.map((retiro) => retiro.nombreTienda))].join(', ')}</td><td>{payment.retiros.length}</td><td>{formatDate(getPaymentPeriod(payment.fechaPago).start)} - {formatDate(getPaymentPeriod(payment.fechaPago).end)}</td><td><div className="action-cell"><button className="action-button neutral" type="button" onClick={() => { setSelectedPaidPayment(payment); setPaidDetailQuery(''); setPaidDetailSeller(''); }} title="Ver liquidaciones del pago"><UiIcon name="eye" /></button><button className="action-button issue" type="button" onClick={() => setPaidDocumentsPayment(payment)} title="Historial de boletas"><UiIcon name="receipt" /></button></div></td></tr>) : <tr><td colSpan={6}><div className="empty-state">No hay liquidaciones pagadas para el período seleccionado.</div></td></tr>}</tbody></table>
             ) : (
             <table className="wide-table">
               <thead>
@@ -1330,8 +1404,8 @@ export default function AdminFinancePage() {
             </table>
             )}
             <div className="table-footer compact-footer">
-              <span>{settlementPage.rows.length} registros mostrados</span>
-              <TablePager view="liquidaciones" state={pagination.liquidaciones} totalPages={settlementPage.totalPages} onPage={updatePage} onPageSize={updatePageSize} />
+              <span>{liquidationTab === 'LIQUIDADO' ? `${paidPaymentsForPeriod.length} pagos mostrados` : `${settlementPage.rows.length} registros mostrados`}</span>
+              {liquidationTab !== 'LIQUIDADO' && <TablePager view="liquidaciones" state={pagination.liquidaciones} totalPages={settlementPage.totalPages} onPage={updatePage} onPageSize={updatePageSize} />}
             </div>
           </section>
         </>
@@ -1512,11 +1586,24 @@ export default function AdminFinancePage() {
         </Modal>
       )}
 
+      {selectedPaidPayment && (
+        <Modal title={`Liquidaciones del pago PAG-${String(selectedPaidPayment.pagoId).padStart(6, '0')}`} subtitle={`${formatDate(selectedPaidPayment.periodoInicio ?? selectedPaidPayment.fechaPago)} - ${formatDate(selectedPaidPayment.periodoFin ?? selectedPaidPayment.fechaPago)}`} onClose={() => setSelectedPaidPayment(null)}>
+          <div className="table-toolbar"><input className="input" type="search" placeholder="Buscar por liquidación o pedido..." value={paidDetailQuery} onChange={(event) => setPaidDetailQuery(event.target.value)} /><select className="input" value={paidDetailSeller} onChange={(event) => setPaidDetailSeller(event.target.value)}><option value="">Todos los vendedores</option>{[...new Set(selectedPaidPayment.retiros.map((retiro) => retiro.nombreTienda))].map((seller) => <option key={seller} value={seller}>{seller}</option>)}</select></div>
+          <div className="modal-table-scroll paid-liquidation-detail"><table className="wide-table"><thead><tr><th>Código de liquidación</th><th>Vendedor</th><th>Pedido</th><th>Fecha</th><th>Valor</th></tr></thead><tbody>{selectedPaidPayment.retiros.flatMap((retiro, index) => (paidPaymentDetails[index]?.pedidos ?? []).filter((pedido) => (!paidDetailSeller || retiro.nombreTienda === paidDetailSeller) && (!paidDetailQuery || normalizeText(`${pedido.codigoExterno ?? pedido.pedidoId} ${pedido.pedidoId}`).includes(normalizeText(paidDetailQuery)))).map((pedido) => <tr key={`${retiro.retiroId}-${pedido.pedidoId}`}><td>{pedido.codigoExterno?.replace('-PED-', '-LQ-') ?? `LQ-${String(pedido.pedidoId).padStart(7, '0')}`}</td><td>{retiro.nombreTienda}</td><td>{pedido.codigoExterno ?? `PED-${String(pedido.pedidoId).padStart(7, '0')}`}</td><td>{formatDate(pedido.fecha)}</td><td>{formatMoney(pedido.valor)}</td></tr>))}</tbody></table></div>
+        </Modal>
+      )}
+
+      {paidDocumentsPayment && (
+        <Modal title="Boletas y facturas adjuntas" subtitle={`PAG-${String(paidDocumentsPayment.pagoId).padStart(6, '0')}`} onClose={() => setPaidDocumentsPayment(null)}>
+          <div className="modal-table-scroll paid-liquidation-detail"><table className="wide-table"><thead><tr><th>Vendedor</th><th>RUT</th><th>Archivo asociado</th></tr></thead><tbody>{paidDocumentsPayment.retiros.map((retiro) => <tr key={retiro.retiroId}><td>{retiro.nombreTienda}</td><td>{retiro.rut || 'Sin RUT'}</td><td>{retiro.documentoLiquidacionNombre || 'Sin archivo registrado'}</td></tr>)}</tbody></table></div>
+        </Modal>
+      )}
+
       {selectedLiquidationSeller && (
-        <Modal title={`Liquidaciones de ${selectedLiquidationSeller.seller}`} subtitle={`${selectedLiquidationSeller.settlements.length} liquidaciones · ${formatMoney(selectedLiquidationSeller.total)}`} onClose={() => setSelectedLiquidationSeller(null)}>
-          <div className="table-shell liquidation-preview-shell"><table className="wide-table liquidation-preview-table"><thead><tr><th>ID liquidación</th><th>Pedido</th><th>Fecha</th><th>Venta total</th><th>Ganancias de la venta</th><th>Ganancia neta</th></tr></thead><tbody>
-            {selectedLiquidationSeller.settlements.map((settlement) => <tr key={settlement.id}><td>{settlement.id}</td><td>{settlement.orderId}</td><td>{formatDate(settlement.date)}</td><td>{formatMoney(settlement.saleTotal)}</td><td>{formatMoney(settlement.commission)}</td><td>{formatMoney(settlement.netSettlement)}</td></tr>)}
-          </tbody></table></div>
+        <Modal title={`Liquidaciones de ${selectedLiquidationSeller.seller}`} subtitle={`${selectedLiquidationSeller.settlements.length} liquidaciones · ${formatMoney(selectedLiquidationSeller.total)} · Período: ${selectedLiquidationPeriod}`} onClose={() => setSelectedLiquidationSeller(null)}>
+          <div className="table-shell liquidation-preview-shell"><table className="wide-table liquidation-preview-table"><thead><tr><th>ID liquidación</th><th>Pedido</th><th>Fecha</th><th>Venta total</th><th>Ganancias de la venta</th><th>Ganancia neta</th><th>Monto a pagar vendedor</th><th>IVA</th></tr></thead><tbody>
+            {selectedLiquidationSeller.settlements.map((settlement) => <tr key={settlement.id}><td>{settlement.id}</td><td>{settlement.orderId}</td><td>{formatDate(settlement.date)}</td><td className="value-cell tooltip-container"><span className="tooltip-trigger-value">{formatMoney(settlement.saleTotal)}<UiIcon name="info" /></span><div className="tooltip-content"><div className="tooltip-arrow"></div><div className="tooltip-body">{Object.entries(settlement.saleDetail).map(([label, value]) => <div className="tooltip-row" key={label}><span>{label}</span><span>{formatMoney(value)}</span></div>)}<div className="tooltip-divider"></div><div className="tooltip-row total"><span>Total de la venta</span><span>{formatMoney(settlement.saleTotal)}</span></div></div></div></td><td className="value-cell tooltip-container"><span className="tooltip-trigger-value">{formatMoney(settlement.commission)}<UiIcon name="info" /></span><div className="tooltip-content"><div className="tooltip-arrow"></div><div className="tooltip-body"><div className="tooltip-row"><span>Comisión RepuesTop</span><span>{formatMoney(settlement.serviceCommission)}</span></div><div className="tooltip-row"><span>IVA de comisión</span><span>{formatMoney(settlement.serviceCommissionIva)}</span></div><div className="tooltip-row"><span>Comisión PagoFlow a cargo del vendedor</span><span>{formatMoney(settlement.gatewayFeeSeller)}</span></div><div className="tooltip-divider"></div><div className="tooltip-row total"><span>Ganancias de la venta</span><span>{formatMoney(settlement.commission)}</span></div></div></div></td><td className="value-cell tooltip-container"><span className="tooltip-trigger-value">{formatMoney(settlement.netSettlement)}<UiIcon name="info" /></span><div className="tooltip-content net-settlement-tooltip"><div className="tooltip-arrow"></div><div className="tooltip-body"><div className="tooltip-row"><span>Ganancias de la venta</span><span>{formatMoney(settlement.commission)}</span></div><div className="tooltip-row"><span>IVA de comisión RepuesTop</span><span>-{formatMoney(settlement.serviceCommissionIva)}</span></div><div className="tooltip-row"><span>Comisión PagoFlow cobrada al vendedor</span><span>-{formatMoney(settlement.gatewayFeeSeller)}</span></div>{settlement.gatewayFeeRepuestop > 0 && <div className="tooltip-row"><span>PagoFlow de despacho local (costo RepuesTop)</span><span>-{formatMoney(settlement.gatewayFeeRepuestop)}</span></div>}<div className="tooltip-divider"></div><div className="tooltip-row total"><span>Ganancia neta</span><span>{formatMoney(settlement.netSettlement)}</span></div></div></div></td><td>{formatMoney(settlement.sellerPayout)}</td><td>{formatMoney(settlement.serviceCommissionIva)}</td></tr>)}
+          </tbody><tfoot><tr><th colSpan={3}>Total acumulado</th><td>{formatMoney(selectedLiquidationSeller.settlements.reduce((total, settlement) => total + settlement.saleTotal, 0))}</td><td>{formatMoney(selectedLiquidationSeller.settlements.reduce((total, settlement) => total + settlement.commission, 0))}</td><td>{formatMoney(selectedLiquidationSeller.settlements.reduce((total, settlement) => total + settlement.netSettlement, 0))}</td><td>{formatMoney(selectedLiquidationSeller.settlements.reduce((total, settlement) => total + settlement.sellerPayout, 0))}</td><td>{formatMoney(selectedLiquidationSeller.settlements.reduce((total, settlement) => total + settlement.serviceCommissionIva, 0))}</td></tr></tfoot></table></div>
         </Modal>
       )}
 
@@ -1530,6 +1617,7 @@ export default function AdminFinancePage() {
               </select>
             </FieldLabel>
             <FieldLabel label="RUT receptor"><input className="input" type="text" value={documentDraft.rut} onChange={(event) => setDocumentDraft({ ...documentDraft, rut: event.target.value })} required /></FieldLabel>
+
             <FieldLabel label="Razón social / Nombre"><input className="input" type="text" value={documentDraft.name} onChange={(event) => setDocumentDraft({ ...documentDraft, name: event.target.value })} required /></FieldLabel>
             <FieldLabel label="Correo de envío"><input className="input" type="email" value={documentDraft.email} onChange={(event) => setDocumentDraft({ ...documentDraft, email: event.target.value })} required /></FieldLabel>
             <FieldLabel label="Detalle"><input className="input" type="text" value={documentDraft.detail} onChange={(event) => setDocumentDraft({ ...documentDraft, detail: event.target.value })} required /></FieldLabel>
@@ -1930,6 +2018,7 @@ export default function AdminFinancePage() {
                             <div
                               style={{
                                 display: 'flex',
+
                                 gap: '12px',
                                 fontSize: '11.5px',
                                 color: '#64748b',

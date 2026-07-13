@@ -46,3 +46,7 @@ export async function createWithdrawalPayment(retiroIds: number[]): Promise<Pago
   const response = await apiClient.post<PagoProveedorResponse>('/administration/withdrawal-payments', { retiroIds });
   return response.data;
 }
+
+export async function saveLiquidationDocument(pedidoId: string, nombreArchivo: string): Promise<void> {
+  await apiClient.post('/administration/liquidation-documents', { pedidoId, nombreArchivo });
+}
