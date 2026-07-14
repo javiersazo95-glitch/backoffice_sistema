@@ -913,6 +913,7 @@ export default function SupportPage() {
     queryKey: ['support-workspace'],
     queryFn: supportApi.getWorkspace,
     enabled: isSupportOperator,
+    refetchInterval: 15000,
   });
 
   const resolutionRate = useMemo(() => {
@@ -955,10 +956,12 @@ export default function SupportPage() {
       priority: priorityFilter !== 'All' ? priorityFilter : undefined,
       category: categoryFilter !== 'All' ? categoryFilter : undefined,
       platform: platformFilter !== 'All' ? platformFilter : undefined,
+      excludeClosed: true,
       page,
       size: 10,
     }),
     enabled: isSupportOperator && activeTab === 'tickets',
+    refetchInterval: 15000,
   });
 
   const { data: qaReportsData, isLoading: isLoadingQaReports } = useQuery({
@@ -1018,6 +1021,7 @@ export default function SupportPage() {
     queryFn: () => supportApi.getTicketById(selectedTicket!.id),
     enabled: isSupportOperator && selectedTicket !== null,
     placeholderData: selectedTicket ?? undefined,
+    refetchInterval: 10000,
   });
 
   // Mutaciones
@@ -1412,7 +1416,7 @@ export default function SupportPage() {
             <label className="validation-filter-field" style={{ flex: '1 1 170px', margin: 0 }}>
               <span>Estado</span>
               <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-                <option value="All">Todos</option>
+                <option value="All">Sin cerrar</option>
                 {Object.entries(STATUS_LABELS)
                   .filter(([val]) => val !== 'PENDIENTE_VENDEDOR' && val !== 'PENDIENTE_COMPRADOR')
                   .map(([val, label]) => (
@@ -1564,6 +1568,11 @@ export default function SupportPage() {
             status: (selectedTicketDetail ?? selectedTicket).status,
             file,
           })}
+          onMessageSent={() => {
+            queryClient.invalidateQueries({ queryKey: ['support-workspace'] });
+            queryClient.invalidateQueries({ queryKey: ['support-tickets'] });
+            queryClient.invalidateQueries({ queryKey: ['support-ticket-detail', selectedTicket.id] });
+          }}
           statusContext="support"
         />
       )}

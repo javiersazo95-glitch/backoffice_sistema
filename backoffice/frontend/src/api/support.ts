@@ -85,6 +85,7 @@ export interface GetTicketsParams {
   priority?: string;
   category?: string;
   platform?: TicketPlatform;
+  excludeClosed?: boolean;
   page?: number;
   size?: number;
 }

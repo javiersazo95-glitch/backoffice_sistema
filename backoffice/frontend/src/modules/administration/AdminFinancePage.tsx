@@ -127,6 +127,11 @@ interface RegisteredDocumentPreview {
   document: IssuedDocument;
 }
 
+interface PaidDocumentPreview {
+  fileName: string;
+  fileUrl: string;
+}
+
 function isIssuedDocumentComplete(document?: IssuedDocument): boolean {
   if (!document) return false;
   return Boolean(
@@ -438,6 +443,7 @@ export default function AdminFinancePage() {
 
   const [documentDraft, setDocumentDraft] = useState<DocumentDraft | null>(null);
   const [registeredDocumentPreview, setRegisteredDocumentPreview] = useState<RegisteredDocumentPreview | null>(null);
+  const [paidDocumentPreview, setPaidDocumentPreview] = useState<PaidDocumentPreview | null>(null);
   const [receiptExpense, setReceiptExpense] = useState<Expense | null>(null);
   const [reportOpen, setReportOpen] = useState(false);
   const [selectedDetailOrder, setSelectedDetailOrder] = useState<Order | null>(null);
@@ -870,6 +876,23 @@ export default function AdminFinancePage() {
     ));
     pushActivity('receipt', `${documentDraft.type} ${documentDraft.isEditing ? 'actualizada' : 'registrada'}`, `Pedido ${documentDraft.orderId} enviado a ${documentDraft.email.trim()}`);
     setDocumentDraft(null);
+  }
+
+  async function previewPaidDocument(retiroId: number, fileName?: string): Promise<void> {
+    if (!fileName) return;
+    try {
+      const fileUrl = await administrationApi.getLiquidationDocumentFile(retiroId);
+      setPaidDocumentPreview({ fileName, fileUrl });
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : 'No se pudo cargar el PDF registrado.');
+    }
+  }
+
+  function closePaidDocumentPreview(): void {
+    if (paidDocumentPreview?.fileUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(paidDocumentPreview.fileUrl);
+    }
+    setPaidDocumentPreview(null);
   }
 
 
@@ -1738,7 +1761,15 @@ export default function AdminFinancePage() {
 
       {paidDocumentsPayment && (
         <Modal title="Boletas y facturas adjuntas" subtitle={`PAG-${String(paidDocumentsPayment.pagoId).padStart(6, '0')}`} onClose={() => setPaidDocumentsPayment(null)}>
-          <div className="modal-table-scroll paid-liquidation-detail"><table className="wide-table"><thead><tr><th>Vendedor</th><th>RUT</th><th>Archivo asociado</th></tr></thead><tbody>{paidDocumentsPayment.retiros.map((retiro) => <tr key={retiro.retiroId}><td>{retiro.nombreTienda}</td><td>{retiro.rut || 'Sin RUT'}</td><td>{retiro.documentoLiquidacionNombre || 'Sin archivo registrado'}</td></tr>)}</tbody></table></div>
+          <div className="modal-table-scroll paid-liquidation-detail"><table className="wide-table"><thead><tr><th>Vendedor</th><th>RUT</th><th>Archivo asociado</th></tr></thead><tbody>{paidDocumentsPayment.retiros.map((retiro) => <tr key={retiro.retiroId}><td>{retiro.nombreTienda}</td><td>{retiro.rut || 'Sin RUT'}</td><td><button className={`action-button ${retiro.documentoLiquidacionNombre ? 'neutral' : 'disabled'}`} type="button" onClick={() => void previewPaidDocument(retiro.retiroId, retiro.documentoLiquidacionNombre)} disabled={!retiro.documentoLiquidacionNombre} title={retiro.documentoLiquidacionNombre ? `Ver ${retiro.documentoLiquidacionNombre}` : 'Sin PDF registrado'} aria-label={retiro.documentoLiquidacionNombre ? `Ver PDF de ${retiro.nombreTienda}` : `Sin PDF registrado para ${retiro.nombreTienda}`}><UiIcon name="eye" /></button></td></tr>)}</tbody></table></div>
+        </Modal>
+      )}
+
+      {paidDocumentPreview && (
+        <Modal title="PDF de boleta o factura" subtitle={paidDocumentPreview.fileName} onClose={closePaidDocumentPreview}>
+          <div className="receipt-viewer registered-document-pdf">
+            <iframe title={`Documento ${paidDocumentPreview.fileName}`} src={paidDocumentPreview.fileUrl} />
+          </div>
         </Modal>
       )}
 

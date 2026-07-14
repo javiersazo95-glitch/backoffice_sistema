@@ -88,6 +88,7 @@ const SUPPORT_STATUS_OPTIONS: TicketStatus[] = [
 
 const QA_SUPPORT_STATUS_OPTIONS: TicketStatus[] = ['ABIERTO', 'EN_PROCESO', 'PENDIENTE_VENDEDOR'];
 const QA_REVIEW_STATUS_OPTIONS: TicketStatus[] = ['PENDIENTE_COMPRADOR', 'RESUELTO'];
+const FINISHED_STATUS = new Set<TicketStatus>(['RESUELTO', 'CERRADO', 'CANCELADO']);
 
 const ASSIGNEE_STORAGE_KEY = 'repuestop.backoffice.support-assignees';
 
@@ -243,14 +244,16 @@ interface Props {
   reviewFile?: File | null;
   onReviewFileChange?: (file: File | null) => void;
   onAttachDocument?: (file: File) => void;
+  onMessageSent?: () => void;
   embedded?: boolean;
 }
 
 export default function SupportTicketDetailModal({
-  ticket, isLoading, isUpdating, notes, onNotesChange, onClose, onStatusChange, statusContext, reviewFile, onReviewFileChange, onAttachDocument, embedded = false,
+  ticket, isLoading, isUpdating, notes, onNotesChange, onClose, onStatusChange, statusContext, reviewFile, onReviewFileChange, onAttachDocument, onMessageSent, embedded = false,
 }: Props) {
   const { user } = useAuth();
   const isQa = ticket.origin === 'QA';
+  const isFinished = FINISHED_STATUS.has(ticket.status);
   const resolvedStatusContext = statusContext ?? (isQa ? 'qa' : 'support');
   const canQaReview = isQa && resolvedStatusContext === 'qa' && ticket.status === 'PENDIENTE_VENDEDOR';
   const currentActorName = user?.fullName || (isQa ? 'QA RepuesTop' : 'Soporte RepuesTop');
@@ -352,6 +355,7 @@ export default function SupportTicketDetailModal({
       });
       setMessages((prev) => [...prev, msg]);
       setReplyText('');
+      onMessageSent?.();
     } catch {
       // error handling
     } finally {
@@ -500,30 +504,40 @@ export default function SupportTicketDetailModal({
                 </button>
               </div>
 
-              <div className="jira-comment-composer">
-                <Avatar name={currentActorName} size={32} />
-                <div className="jira-comment-composer-body">
-                  <textarea
-                    value={replyText}
-                    onChange={(e) => setReplyText(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    placeholder={isQa ? 'Añade un comentario o nota de revisión…' : 'Añade un comentario para el usuario…'}
-                    rows={3}
-                    disabled={sending}
-                  />
-                  <div className="jira-comment-composer-actions">
-                    <span className="jira-hint">Ctrl/Cmd + Enter para enviar</span>
-                    <button
-                      type="button"
-                      className="jira-primary-button"
-                      disabled={!replyText.trim() || sending}
-                      onClick={handleSendReply}
-                    >
-                      {sending ? 'Enviando…' : 'Comentar'}
-                    </button>
+              {isFinished ? (
+                <div className="jira-qa-review-result s-closed">
+                  <UiIcon name="check" />
+                  <div>
+                    <strong>Consulta finalizada</strong>
+                    <p>El chat está cerrado y ya no admite nuevos mensajes.</p>
                   </div>
                 </div>
-              </div>
+              ) : (
+                <div className="jira-comment-composer">
+                  <Avatar name={currentActorName} size={32} />
+                  <div className="jira-comment-composer-body">
+                    <textarea
+                      value={replyText}
+                      onChange={(e) => setReplyText(e.target.value)}
+                      onKeyDown={handleKeyDown}
+                      placeholder={isQa ? 'Añade un comentario o nota de revisión…' : 'Añade un comentario para el usuario…'}
+                      rows={3}
+                      disabled={sending}
+                    />
+                    <div className="jira-comment-composer-actions">
+                      <span className="jira-hint">Ctrl/Cmd + Enter para enviar</span>
+                      <button
+                        type="button"
+                        className="jira-primary-button"
+                        disabled={!replyText.trim() || sending}
+                        onClick={handleSendReply}
+                      >
+                        {sending ? 'Enviando…' : 'Comentar'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="jira-comment-list">
                 {messagesLoading ? (
@@ -556,9 +570,9 @@ export default function SupportTicketDetailModal({
           </main>
 
           <aside className="jira-sidebar" aria-label="Detalles del issue">
-            {/* Estado: etiqueta fija cuando canQaReview, dropdown cuando no */}
+            {/* Los tickets de soporte cambian de estado solo por acciones del flujo. QA mantiene su selector propio. */}
             <div className="jira-status-block" ref={statusMenuRef}>
-              {canQaReview ? (
+              {canQaReview || !isQa ? (
                 <span className={`jira-status-lozenge jira-status-label ${STATUS_TONE_CLASS[ticket.status]}`}>
                   {getStatusLabel(ticket.status, isQa)}
                 </span>
