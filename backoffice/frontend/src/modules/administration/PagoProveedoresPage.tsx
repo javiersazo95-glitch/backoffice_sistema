@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { isAxiosError } from 'axios';
 import * as adminApi from '@/api/administration';
 import UiIcon from '@/components/shared/UiIcon';
 import MetricCard from '@/components/shared/MetricCard';
@@ -54,6 +55,7 @@ export default function PagoProveedoresPage() {
   const [activeTab, setActiveTab] = useState<'gestion' | 'historial'>('gestion');
   const [isProcesarModalOpen, setIsProcesarModalOpen] = useState(false);
   const [processingBulk, setProcessingBulk] = useState(false);
+  const [incompleteDocumentSellers, setIncompleteDocumentSellers] = useState<string[]>([]);
 
   // Filters for History Tab
   const [historyCodeFilter, setHistoryCodeFilter] = useState('');
@@ -105,14 +107,31 @@ export default function PagoProveedoresPage() {
   const handleConfirmProcesarPago = async () => {
     setProcessingBulk(true);
     try {
-      await adminApi.createWithdrawalPayment(pendingWithdrawals.map((withdrawal) => withdrawal.retiroId));
+      const refreshed = await refetch();
+      const latestPendingWithdrawals = (refreshed.data ?? withdrawals).filter((withdrawal) => {
+        const createdDate = new Date(withdrawal.fecha);
+        return withdrawal.estado === 'SOLICITADO' && createdDate <= cycleEnd;
+      });
+      const incompleteSellers = latestPendingWithdrawals
+        .filter((withdrawal) => !withdrawal.documentoLiquidacionCompleto)
+        .map((withdrawal) => withdrawal.nombreTienda);
+      if (incompleteSellers.length) {
+        setIncompleteDocumentSellers([...new Set(incompleteSellers)]);
+        setIsProcesarModalOpen(false);
+        return;
+      }
+
+      await adminApi.createWithdrawalPayment(latestPendingWithdrawals.map((withdrawal) => withdrawal.retiroId));
       queryClient.invalidateQueries({ queryKey: ['admin-withdrawals'] });
       queryClient.invalidateQueries({ queryKey: ['admin-withdrawal-payments'] });
       setIsProcesarModalOpen(false);
       setActiveTab('historial');
       alert('Todos los pagos del ciclo han sido procesados y conciliados con éxito.');
-    } catch (err: any) {
-      alert('Ocurrió un error al procesar los pagos: ' + err.message);
+    } catch (err: unknown) {
+      const message = isAxiosError(err) && typeof err.response?.data?.message === 'string'
+        ? err.response.data.message
+        : err instanceof Error ? err.message : 'No se pudieron procesar los pagos.';
+      alert('Ocurrió un error al procesar los pagos: ' + message);
     } finally {
       setProcessingBulk(false);
     }
@@ -592,6 +611,29 @@ export default function PagoProveedoresPage() {
               >
                 {processingBulk ? 'Procesando...' : 'Sí, confirmar pago'}
               </button>
+            </footer>
+          </div>
+        </div>
+      )}
+
+      {incompleteDocumentSellers.length > 0 && (
+        <div className="modal-backdrop" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setIncompleteDocumentSellers([])}>
+          <div className="modal-content" style={{ background: '#fff', borderRadius: 12, width: '90%', maxWidth: 520, padding: 24, boxShadow: '0 20px 40px rgba(0,0,0,.15)' }} onClick={(event) => event.stopPropagation()}>
+            <div style={{ color: '#d32f2f', display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
+              <UiIcon name="alert" style={{ width: 48, height: 48 }} />
+            </div>
+            <h3 style={{ margin: 0, textAlign: 'center', color: '#1a202c' }}>Boleta o factura pendiente</h3>
+            <p style={{ margin: '16px 0 10px', color: '#4a5568', lineHeight: 1.6 }}>
+              Falta completar el formulario de registro de boleta/factura para {incompleteDocumentSellers.length === 1 ? 'el vendedor' : 'los vendedores'}:
+            </p>
+            <ul style={{ margin: '0 0 20px', paddingLeft: 22, color: '#9b2c2c', fontWeight: 700 }}>
+              {incompleteDocumentSellers.map((seller) => <li key={seller}>{seller}</li>)}
+            </ul>
+            <div style={{ background: '#fff5f5', border: '1px solid #fed7d7', borderRadius: 8, padding: 12, color: '#9b2c2c', fontSize: 13 }}>
+              Completa todos los campos y adjunta el PDF antes de procesar el pago.
+            </div>
+            <footer style={{ display: 'flex', justifyContent: 'center', marginTop: 20 }}>
+              <button className="primary-button" type="button" onClick={() => setIncompleteDocumentSellers([])}>Entendido</button>
             </footer>
           </div>
         </div>

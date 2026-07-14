@@ -36,6 +36,7 @@ import type {
   SettlementStatus,
   LiquidationStatus,
   PagoProveedorResponse,
+  RetiroAdminResponse,
   RetiroDetalleResponse,
   StatusHistoryItem,
   Withdrawal,
@@ -80,6 +81,7 @@ interface LiquidationSellerGroup {
   settlements: Settlement[];
   total: number;
   iva: number;
+  retiroId: number | null;
 }
 
 interface ExpenseDraft {
@@ -105,6 +107,9 @@ interface OrderDraft {
 
 interface DocumentDraft {
   orderId: string;
+  orderIds: string[];
+  retiroId: number | null;
+  isEditing: boolean;
   type: string;
   rut: string;
   name: string;
@@ -112,6 +117,27 @@ interface DocumentDraft {
   detail: string;
   ivaLiquidado: string;
   pdfName?: string;
+  pdfUrl?: string;
+  pdfFile?: File;
+  originalPdfName?: string;
+}
+
+interface RegisteredDocumentPreview {
+  orderId: string;
+  document: IssuedDocument;
+}
+
+function isIssuedDocumentComplete(document?: IssuedDocument): boolean {
+  if (!document) return false;
+  return Boolean(
+    document.type.trim()
+    && document.rut.trim()
+    && document.name.trim()
+    && document.email.trim()
+    && document.detail.trim()
+    && document.ivaLiquidado?.trim()
+    && document.pdfName?.trim(),
+  );
 }
 
 interface WithdrawalDraft {
@@ -411,6 +437,7 @@ export default function AdminFinancePage() {
   const [withdrawalDraft, setWithdrawalDraft] = useState<WithdrawalDraft | null>(null);
 
   const [documentDraft, setDocumentDraft] = useState<DocumentDraft | null>(null);
+  const [registeredDocumentPreview, setRegisteredDocumentPreview] = useState<RegisteredDocumentPreview | null>(null);
   const [receiptExpense, setReceiptExpense] = useState<Expense | null>(null);
   const [reportOpen, setReportOpen] = useState(false);
   const [selectedDetailOrder, setSelectedDetailOrder] = useState<Order | null>(null);
@@ -421,6 +448,10 @@ export default function AdminFinancePage() {
   const { data: bootstrap } = useQuery({
     queryKey: ['administration-bootstrap'],
     queryFn: administrationApi.getBootstrap,
+  });
+  const { data: adminWithdrawals = [] } = useQuery<RetiroAdminResponse[]>({
+    queryKey: ['admin-withdrawals'],
+    queryFn: administrationApi.getWithdrawals,
   });
   const { data: paidPayments = [] } = useQuery({ queryKey: ['withdrawal-payments'], queryFn: administrationApi.getWithdrawalPayments });
   const { data: paidPaymentDetails = [] } = useQuery<RetiroDetalleResponse[]>({
@@ -483,6 +514,29 @@ export default function AdminFinancePage() {
     });
   }, [expenses, filters.gastos]);
 
+  const activeWithdrawals = useMemo(
+    () => adminWithdrawals.filter((withdrawal) => withdrawal.estado === 'SOLICITADO'),
+    [adminWithdrawals],
+  );
+
+  function findActiveWithdrawalId(seller: string, rut?: string, email?: string): number | null {
+    const normalizedRut = normalizeText(rut).replace(/[^0-9k]/g, '');
+    const normalizedEmail = normalizeText(email);
+    const normalizedSeller = normalizeText(seller);
+
+    const withdrawal = (normalizedEmail
+      ? activeWithdrawals.find((candidate) => normalizeText(candidate.email) === normalizedEmail)
+      : undefined)
+      ?? (normalizedRut
+        ? activeWithdrawals.find((candidate) => normalizeText(candidate.rut).replace(/[^0-9k]/g, '') === normalizedRut)
+        : undefined)
+      ?? (normalizedSeller
+        ? activeWithdrawals.find((candidate) => normalizeText(candidate.nombreTienda) === normalizedSeller)
+        : undefined);
+
+    return withdrawal?.retiroId ?? null;
+  }
+
   const enLiquidationGroups = useMemo(() => {
     const groups = new Map<string, LiquidationSellerGroup>();
     filteredSettlements.forEach((settlement) => {
@@ -496,6 +550,11 @@ export default function AdminFinancePage() {
         settlements: [],
         total: 0,
         iva: 0,
+        retiroId: findActiveWithdrawalId(
+          settlement.seller,
+          settlement.sellerTaxId,
+          settlement.sellerEmail,
+        ),
       };
       current.settlements.push(settlement);
       current.total += settlement.sellerPayout;
@@ -503,7 +562,7 @@ export default function AdminFinancePage() {
       groups.set(key, current);
     });
     return [...groups.values()];
-  }, [filteredSettlements]);
+  }, [activeWithdrawals, filteredSettlements]);
   const paidPeriods = useMemo(() => [...new Map(paidPayments.map((payment) => {
     const period = getPaymentPeriod(payment.fechaPago);
     const key = `${period.start}|${period.end}`;
@@ -675,10 +734,17 @@ export default function AdminFinancePage() {
     navigate('/administracion/pedidos');
   }
 
-  function openDocument(order: Order): void {
+  function openDocument(order: Order, isEditing = false): void {
     const existing = issuedDocuments[order.id];
+    if (existing && isIssuedDocumentComplete(existing) && !isEditing) {
+      setRegisteredDocumentPreview({ orderId: order.id, document: existing });
+      return;
+    }
     setDocumentDraft({
       orderId: order.id,
+      orderIds: [order.id],
+      retiroId: findActiveWithdrawalId(order.seller, order.sellerTaxId, order.sellerEmail),
+      isEditing: Boolean(existing),
       type: existing?.type ?? 'Boleta',
       rut: existing?.rut ?? order.sellerTaxId ?? '',
       name: existing?.name ?? order.sellerLegalName ?? order.seller,
@@ -686,50 +752,123 @@ export default function AdminFinancePage() {
       detail: existing?.detail ?? `Comisión de servicio RepuesTop del pedido ${order.id}`,
       ivaLiquidado: existing?.ivaLiquidado ?? String(order.ivaComisionServicio ?? 0),
       pdfName: existing?.pdfName ?? '',
+      pdfUrl: existing?.pdfUrl,
+      originalPdfName: existing?.pdfName,
     });
   }
 
-  function openGroupDocument(group: LiquidationSellerGroup): void {
+  function getGroupDocument(group: LiquidationSellerGroup): RegisteredDocumentPreview | null {
+    for (const settlement of group.settlements) {
+      const document = issuedDocuments[settlement.orderId];
+      if (document) return { orderId: settlement.orderId, document };
+    }
+    const withdrawal = activeWithdrawals.find((candidate) => candidate.retiroId === group.retiroId);
+    if (withdrawal && (
+      withdrawal.documentoLiquidacionNombre
+      || withdrawal.documentoLiquidacionTipo
+      || withdrawal.documentoLiquidacionRut
+      || withdrawal.documentoLiquidacionRazonSocial
+      || withdrawal.documentoLiquidacionEmail
+      || withdrawal.documentoLiquidacionDetalle
+      || withdrawal.documentoLiquidacionIva != null
+    )) {
+      return {
+        orderId: group.settlements[0]?.orderId ?? '',
+        document: {
+          type: withdrawal.documentoLiquidacionTipo ?? '',
+          rut: withdrawal.documentoLiquidacionRut ?? '',
+          name: withdrawal.documentoLiquidacionRazonSocial ?? '',
+          email: withdrawal.documentoLiquidacionEmail ?? '',
+          detail: withdrawal.documentoLiquidacionDetalle ?? '',
+          ivaLiquidado: withdrawal.documentoLiquidacionIva != null ? String(withdrawal.documentoLiquidacionIva) : '',
+          sentAt: withdrawal.fecha,
+          pdfName: withdrawal.documentoLiquidacionNombre,
+        },
+      };
+    }
+    return null;
+  }
+
+  async function openGroupDocument(group: LiquidationSellerGroup, isEditing = false): Promise<void> {
     const orderId = group.settlements[0]?.orderId ?? '';
+    const existing = getGroupDocument(group)?.document;
+    if (existing && isIssuedDocumentComplete(existing) && !isEditing) {
+      let document = existing;
+      if (!document.pdfUrl && group.retiroId !== null) {
+        try {
+          document = { ...document, pdfUrl: await administrationApi.getLiquidationDocumentFile(group.retiroId) };
+        } catch (error) {
+          window.alert(error instanceof Error ? error.message : 'No se pudo cargar el PDF registrado.');
+        }
+      }
+      setRegisteredDocumentPreview({ orderId, document });
+      return;
+    }
     setDocumentDraft({
       orderId,
-      type: 'Boleta',
-      rut: group.rut === 'Sin RUT' ? '' : group.rut,
-      name: group.legalName,
-      email: group.email === 'Sin correo' ? '' : group.email,
-      detail: `Comisión de servicio RepuesTop de ${group.settlements.length} liquidación${group.settlements.length === 1 ? '' : 'es'}`,
-      ivaLiquidado: String(Math.round(group.iva)),
-      pdfName: '',
+      orderIds: group.settlements.map((settlement) => settlement.orderId),
+      retiroId: group.retiroId,
+      isEditing: Boolean(existing),
+      type: existing?.type ?? 'Boleta',
+      rut: existing?.rut ?? (group.rut === 'Sin RUT' ? '' : group.rut),
+      name: existing?.name ?? group.legalName,
+      email: existing?.email ?? (group.email === 'Sin correo' ? '' : group.email),
+      detail: existing?.detail ?? `Comisión de servicio RepuesTop de ${group.settlements.length} liquidación${group.settlements.length === 1 ? '' : 'es'}`,
+      ivaLiquidado: existing?.ivaLiquidado ?? String(Math.round(group.iva)),
+      pdfName: existing?.pdfName ?? '',
+      pdfUrl: existing?.pdfUrl,
+      originalPdfName: existing?.pdfName,
     });
   }
 
   async function saveDocument(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     if (!documentDraft) return;
-    if (!documentDraft.orderId || !documentDraft.rut.trim() || !documentDraft.name.trim() || !documentDraft.email.trim() || !documentDraft.detail.trim() || !documentDraft.pdfName?.trim()) {
+    const hasRequiredData = documentDraft.rut.trim()
+      && documentDraft.name.trim()
+      && documentDraft.email.trim()
+      && documentDraft.detail.trim()
+      && documentDraft.ivaLiquidado.trim()
+      && documentDraft.pdfName?.trim();
+    if (!documentDraft.orderId || (!documentDraft.isEditing && !hasRequiredData)) {
       window.alert('Completa los datos y adjunta el nombre del archivo de la boleta o factura.');
       return;
     }
+    if (documentDraft.retiroId === null) {
+      window.alert('No se encontró una solicitud de retiro activa para este vendedor. Actualiza la página y verifica que el retiro siga en estado solicitado.');
+      return;
+    }
     try {
-      await administrationApi.saveLiquidationDocument(documentDraft.orderId, documentDraft.pdfName.trim());
+      await administrationApi.saveLiquidationDocument({
+        retiroId: documentDraft.retiroId,
+        tipoDocumento: documentDraft.type.trim(),
+        rut: documentDraft.rut.trim(),
+        razonSocial: documentDraft.name.trim(),
+        email: documentDraft.email.trim(),
+        detalle: documentDraft.detail.trim(),
+        ivaLiquidado: documentDraft.ivaLiquidado.trim() ? Number(documentDraft.ivaLiquidado) : null,
+        eliminarDocumento: Boolean(documentDraft.originalPdfName && !documentDraft.pdfName),
+      }, documentDraft.pdfFile);
     } catch (error) {
       window.alert(error instanceof Error ? error.message : 'No se pudo registrar la boleta o factura.');
       return;
     }
-    setIssuedDocuments((current) => ({
-      ...current,
-      [documentDraft.orderId]: {
-        type: documentDraft.type,
-        rut: documentDraft.rut.trim(),
-        name: documentDraft.name.trim(),
-        email: documentDraft.email.trim(),
-        detail: documentDraft.detail.trim(),
-        ivaLiquidado: documentDraft.ivaLiquidado,
-        sentAt: 'Ahora',
-        pdfName: documentDraft.pdfName,
-      },
-    }));
-    pushActivity('receipt', `${documentDraft.type} registrada`, `Pedido ${documentDraft.orderId} enviado a ${documentDraft.email.trim()}`);
+    const savedDocument: IssuedDocument = {
+      type: documentDraft.type,
+      rut: documentDraft.rut.trim(),
+      name: documentDraft.name.trim(),
+      email: documentDraft.email.trim(),
+      detail: documentDraft.detail.trim(),
+      ivaLiquidado: documentDraft.ivaLiquidado,
+      sentAt: 'Ahora',
+      pdfName: documentDraft.pdfName,
+      pdfUrl: documentDraft.pdfUrl,
+    };
+    setIssuedDocuments((current) => documentDraft.orderIds.reduce(
+      (next, orderId) => ({ ...next, [orderId]: savedDocument }),
+      current,
+    ));
+    pushActivity('receipt', `${documentDraft.type} ${documentDraft.isEditing ? 'actualizada' : 'registrada'}`, `Pedido ${documentDraft.orderId} enviado a ${documentDraft.email.trim()}`);
     setDocumentDraft(null);
   }
 
@@ -1200,7 +1339,7 @@ export default function AdminFinancePage() {
                   {enLiquidationGroups.length ? enLiquidationGroups.map((group) => (
                     <>
                       <tr key={group.key}><td>{group.seller}</td><td>{group.rut}</td><td>{group.legalName}</td><td>{group.email}</td><td>{group.settlements.length}</td><td>{formatMoney(group.total)}</td><td><button className="action-button neutral" type="button" onClick={() => setExpandedLiquidationSellers((current) => { const next = new Set(current); next.has(group.key) ? next.delete(group.key) : next.add(group.key); return next; })} title="Ver liquidaciones"><UiIcon name="chevronDown" /></button></td></tr>
-                      {expandedLiquidationSellers.has(group.key) && <tr key={`${group.key}-details`}><td colSpan={7}><table className="wide-table"><thead><tr><th>ID liquidación</th><th>Pedido</th><th>Venta total</th><th>Ganancias de la venta</th><th>Ganancia neta</th><th>Acciones</th></tr></thead><tbody>{group.settlements.map((settlement) => <tr key={settlement.id}><td>{settlement.id}</td><td>{settlement.orderId}</td><td>{formatMoney(settlement.saleTotal)}</td><td>{formatMoney(settlement.commission)}</td><td>{formatMoney(settlement.netSettlement)}</td><td><div className="action-cell"><button className="action-button neutral" type="button" onClick={() => showSettlementDetail(settlement)} title="Ver detalle"><UiIcon name="eye" /></button>{(() => { const order = orders.find((candidate) => candidate.id === settlement.orderId); return order ? <button className={`action-button ${issuedDocuments[order.id] ? 'success' : 'issue'}`} type="button" onClick={() => openDocument(order)} title="Emitir boleta o factura"><UiIcon name={issuedDocuments[order.id] ? 'check' : 'receipt'} /></button> : null; })()}</div></td></tr>)}</tbody></table></td></tr>}
+                      {expandedLiquidationSellers.has(group.key) && <tr key={`${group.key}-details`}><td colSpan={7}><table className="wide-table"><thead><tr><th>ID liquidación</th><th>Pedido</th><th>Venta total</th><th>Ganancias de la venta</th><th>Ganancia neta</th><th>Acciones</th></tr></thead><tbody>{group.settlements.map((settlement) => <tr key={settlement.id}><td>{settlement.id}</td><td>{settlement.orderId}</td><td>{formatMoney(settlement.saleTotal)}</td><td>{formatMoney(settlement.commission)}</td><td>{formatMoney(settlement.netSettlement)}</td><td><div className="action-cell"><button className="action-button neutral" type="button" onClick={() => showSettlementDetail(settlement)} title="Ver detalle"><UiIcon name="eye" /></button>{(() => { const order = orders.find((candidate) => candidate.id === settlement.orderId); const documentComplete = order ? isIssuedDocumentComplete(issuedDocuments[order.id]) : false; return order ? <button className={`action-button ${documentComplete ? 'success' : 'issue'}`} type="button" onClick={() => openDocument(order)} title="Emitir boleta o factura"><UiIcon name={documentComplete ? 'check' : 'receipt'} /></button> : null; })()}</div></td></tr>)}</tbody></table></td></tr>}
                     </>
                   )) : <tr><td colSpan={7}><div className="empty-state">No hay liquidaciones en curso para el rango seleccionado.</div></td></tr>}
                 </tbody>
@@ -1319,7 +1458,11 @@ export default function AdminFinancePage() {
             {liquidationTab === 'EN_LIQUIDACION' ? (
               <table className="wide-table">
                 <thead><tr><th>Vendedor</th><th>RUT</th><th>Razón social / Nombre</th><th>Correo</th><th>Cantidad liquidaciones</th><th>IVA acumulado</th><th>Acciones</th></tr></thead>
-                <tbody>{enLiquidationGroups.length ? enLiquidationGroups.map((group) => <tr key={group.key}><td>{group.seller}</td><td>{group.rut}</td><td>{group.legalName}</td><td>{group.email}</td><td>{group.settlements.length}</td><td>{formatMoney(group.iva)}</td><td><div className="action-cell"><button className="action-button neutral" type="button" onClick={() => setSelectedLiquidationSeller(group)} title="Vista previa de liquidaciones"><UiIcon name="eye" /></button><button className="action-button issue" type="button" onClick={() => openGroupDocument(group)} title="Emitir boleta o factura"><UiIcon name="receipt" /></button></div></td></tr>) : <tr><td colSpan={7}><div className="empty-state">No hay liquidaciones en curso para el rango seleccionado.</div></td></tr>}</tbody>
+                <tbody>{enLiquidationGroups.length ? enLiquidationGroups.map((group) => {
+                  const registeredDocument = getGroupDocument(group);
+                  const documentComplete = Boolean(registeredDocument && isIssuedDocumentComplete(registeredDocument.document));
+                  return <tr key={group.key}><td>{group.seller}</td><td>{group.rut}</td><td>{group.legalName}</td><td>{group.email}</td><td>{group.settlements.length}</td><td>{formatMoney(group.iva)}</td><td><div className="action-cell"><button className="action-button neutral" type="button" onClick={() => setSelectedLiquidationSeller(group)} title="Vista previa de liquidaciones"><UiIcon name="eye" /></button><button className={`action-button ${documentComplete ? 'success' : 'issue'}`} type="button" onClick={() => openGroupDocument(group)} title={documentComplete ? 'Ver boleta o factura registrada' : registeredDocument ? 'Completar boleta o factura' : 'Emitir boleta o factura'}><UiIcon name={documentComplete ? 'fileCheck' : 'receipt'} /></button>{documentComplete && <button className="action-button neutral" type="button" onClick={() => openGroupDocument(group, true)} title="Editar boleta o factura registrada"><UiIcon name="edit" /></button>}</div></td></tr>;
+                }) : <tr><td colSpan={7}><div className="empty-state">No hay liquidaciones en curso para el rango seleccionado.</div></td></tr>}</tbody>
               </table>
             ) : liquidationTab === 'LIQUIDADO' ? (
               <table className="wide-table paid-liquidations-table"><thead><tr><th>Código de pago</th><th>Fecha de pago</th><th>Vendedores</th><th>Cantidad de boletas/facturas</th><th>Fecha de liquidación</th><th>Acciones</th></tr></thead><tbody>{paidPaymentsForPeriod.length ? paidPaymentsForPeriod.map((payment) => <tr key={payment.pagoId}><td>PAG-{String(payment.pagoId).padStart(6, '0')}</td><td>{formatDate(payment.fechaPago)}</td><td>{[...new Set(payment.retiros.map((retiro) => retiro.nombreTienda))].join(', ')}</td><td>{payment.retiros.length}</td><td>{formatDate(getPaymentPeriod(payment.fechaPago).start)} - {formatDate(getPaymentPeriod(payment.fechaPago).end)}</td><td><div className="action-cell"><button className="action-button neutral" type="button" onClick={() => { setSelectedPaidPayment(payment); setPaidDetailQuery(''); setPaidDetailSeller(''); }} title="Ver liquidaciones del pago"><UiIcon name="eye" /></button><button className="action-button issue" type="button" onClick={() => setPaidDocumentsPayment(payment)} title="Historial de boletas"><UiIcon name="receipt" /></button></div></td></tr>) : <tr><td colSpan={6}><div className="empty-state">No hay liquidaciones pagadas para el período seleccionado.</div></td></tr>}</tbody></table>
@@ -1608,7 +1751,7 @@ export default function AdminFinancePage() {
       )}
 
       {documentDraft && (
-        <Modal title="Emitir documento" subtitle={documentDraft.orderId} onClose={() => setDocumentDraft(null)}>
+        <Modal title={documentDraft.isEditing ? 'Editar documento registrado' : 'Emitir documento'} subtitle={documentDraft.orderId} onClose={() => setDocumentDraft(null)}>
           <form className="form-grid" onSubmit={saveDocument}>
             <FieldLabel label="Tipo de documento">
               <select className="select" value={documentDraft.type} onChange={(event) => setDocumentDraft({ ...documentDraft, type: event.target.value })}>
@@ -1616,12 +1759,12 @@ export default function AdminFinancePage() {
                 <option>Factura</option>
               </select>
             </FieldLabel>
-            <FieldLabel label="RUT receptor"><input className="input" type="text" value={documentDraft.rut} onChange={(event) => setDocumentDraft({ ...documentDraft, rut: event.target.value })} required /></FieldLabel>
+            <FieldLabel label="RUT receptor"><input className="input" type="text" value={documentDraft.rut} onChange={(event) => setDocumentDraft({ ...documentDraft, rut: event.target.value })} required={!documentDraft.isEditing} /></FieldLabel>
 
-            <FieldLabel label="Razón social / Nombre"><input className="input" type="text" value={documentDraft.name} onChange={(event) => setDocumentDraft({ ...documentDraft, name: event.target.value })} required /></FieldLabel>
-            <FieldLabel label="Correo de envío"><input className="input" type="email" value={documentDraft.email} onChange={(event) => setDocumentDraft({ ...documentDraft, email: event.target.value })} required /></FieldLabel>
-            <FieldLabel label="Detalle"><input className="input" type="text" value={documentDraft.detail} onChange={(event) => setDocumentDraft({ ...documentDraft, detail: event.target.value })} required /></FieldLabel>
-            <FieldLabel label="IVA liquidado"><input className="input" type="number" min="0" step="1" value={documentDraft.ivaLiquidado} onChange={(event) => setDocumentDraft({ ...documentDraft, ivaLiquidado: event.target.value })} required /></FieldLabel>
+            <FieldLabel label="Razón social / Nombre"><input className="input" type="text" value={documentDraft.name} onChange={(event) => setDocumentDraft({ ...documentDraft, name: event.target.value })} required={!documentDraft.isEditing} /></FieldLabel>
+            <FieldLabel label="Correo de envío"><input className="input" type="email" value={documentDraft.email} onChange={(event) => setDocumentDraft({ ...documentDraft, email: event.target.value })} required={!documentDraft.isEditing} /></FieldLabel>
+            <FieldLabel label="Detalle"><input className="input" type="text" value={documentDraft.detail} onChange={(event) => setDocumentDraft({ ...documentDraft, detail: event.target.value })} required={!documentDraft.isEditing} /></FieldLabel>
+            <FieldLabel label="IVA liquidado"><input className="input" type="number" min="0" step="1" value={documentDraft.ivaLiquidado} onChange={(event) => setDocumentDraft({ ...documentDraft, ivaLiquidado: event.target.value })} required={!documentDraft.isEditing} /></FieldLabel>
             <FieldLabel label="Cargar Boleta / Factura (PDF)">
               <input
                 className="input"
@@ -1630,23 +1773,63 @@ export default function AdminFinancePage() {
                 onChange={(event) => {
                   const file = event.target.files?.[0];
                   if (file) {
-                    setDocumentDraft({ ...documentDraft, pdfName: file.name });
+                    setDocumentDraft({ ...documentDraft, pdfName: file.name, pdfUrl: URL.createObjectURL(file), pdfFile: file });
                   }
                 }}
-                required={!documentDraft.pdfName}
+                required={!documentDraft.isEditing && !documentDraft.pdfName}
               />
               {documentDraft.pdfName && (
-                <div style={{ marginTop: '5px', fontSize: '12px', color: '#10b981' }}>
-                  <UiIcon name="check" style={{ width: '12px', height: '12px', marginRight: '4px', display: 'inline-block', verticalAlign: 'middle' }} />
-                  Archivo cargado: <strong>{documentDraft.pdfName}</strong>
+                <div className="document-file-status">
+                  <span>
+                    <UiIcon name="check" />
+                    Archivo cargado: <strong>{documentDraft.pdfName}</strong>
+                  </span>
+                  {documentDraft.isEditing && (
+                    <button
+                      className="document-file-remove"
+                      type="button"
+                      onClick={() => setDocumentDraft({ ...documentDraft, pdfName: '', pdfUrl: undefined, pdfFile: undefined })}
+                    >
+                      <UiIcon name="trash" /> Eliminar PDF
+                    </button>
+                  )}
                 </div>
+              )}
+              {documentDraft.isEditing && !documentDraft.pdfName && (
+                <div className="document-file-empty"><UiIcon name="info" />El registro quedará sin PDF adjunto.</div>
               )}
             </FieldLabel>
             <div className="form-actions">
               <button className="secondary-button" type="button" onClick={() => setDocumentDraft(null)}>Cancelar</button>
-              <button className="primary-button" type="submit">Registrar envío</button>
+              <button className="primary-button" type="submit">{documentDraft.isEditing ? 'Guardar cambios' : 'Registrar envío'}</button>
             </div>
           </form>
+        </Modal>
+      )}
+
+      {registeredDocumentPreview && (
+        <Modal title="Documento registrado exitosamente" subtitle={registeredDocumentPreview.orderId} onClose={() => setRegisteredDocumentPreview(null)}>
+          <div className="registered-document-preview">
+            <div className="notice success"><UiIcon name="fileCheck" />El envío fue registrado correctamente.</div>
+            <dl className="registered-document-data">
+              <dt>Tipo de documento</dt><dd>{registeredDocumentPreview.document.type}</dd>
+              <dt>RUT receptor</dt><dd>{registeredDocumentPreview.document.rut}</dd>
+              <dt>Razón social / Nombre</dt><dd>{registeredDocumentPreview.document.name}</dd>
+              <dt>Correo de envío</dt><dd>{registeredDocumentPreview.document.email}</dd>
+              <dt>Detalle</dt><dd>{registeredDocumentPreview.document.detail}</dd>
+              <dt>IVA liquidado</dt><dd>{formatMoney(Number(registeredDocumentPreview.document.ivaLiquidado ?? 0))}</dd>
+              <dt>Documento</dt><dd><strong>{registeredDocumentPreview.document.pdfName ?? 'Sin archivo registrado'}</strong></dd>
+              <dt>Registrado</dt><dd>{registeredDocumentPreview.document.sentAt}</dd>
+            </dl>
+            {registeredDocumentPreview.document.pdfUrl && (
+              <div className="receipt-viewer registered-document-pdf">
+                <iframe title={`Documento ${registeredDocumentPreview.document.pdfName ?? ''}`} src={registeredDocumentPreview.document.pdfUrl} />
+              </div>
+            )}
+            <div className="form-actions">
+              <button className="primary-button" type="button" onClick={() => setRegisteredDocumentPreview(null)}>Cerrar</button>
+            </div>
+          </div>
         </Modal>
       )}
 
@@ -1900,7 +2083,7 @@ export default function AdminFinancePage() {
                   openDocument(order);
                 }}
               >
-                <UiIcon name={issuedDocuments[selectedDetailOrder.id] ? 'check' : 'receipt'} style={{ width: '15px', height: '15px' }} /> {issuedDocuments[selectedDetailOrder.id] ? 'Boleta Emitida' : 'Emitir Boleta'}
+                <UiIcon name={isIssuedDocumentComplete(issuedDocuments[selectedDetailOrder.id]) ? 'check' : 'receipt'} style={{ width: '15px', height: '15px' }} /> {isIssuedDocumentComplete(issuedDocuments[selectedDetailOrder.id]) ? 'Boleta Emitida' : 'Emitir Boleta'}
               </button>
               <button className="primary-button" type="button" onClick={() => setSelectedDetailOrder(null)}>
                 Cerrar

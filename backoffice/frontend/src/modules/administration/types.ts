@@ -155,6 +155,7 @@ export interface IssuedDocument {
   ivaLiquidado?: string;
   sentAt: string;
   pdfName?: string;
+  pdfUrl?: string;
 }
 
 export interface DateFilter {
@@ -181,6 +182,13 @@ export interface RetiroAdminResponse {
   estado: string;
   fechaEfectiva: string;
   documentoLiquidacionNombre?: string;
+  documentoLiquidacionTipo?: string;
+  documentoLiquidacionRut?: string;
+  documentoLiquidacionRazonSocial?: string;
+  documentoLiquidacionEmail?: string;
+  documentoLiquidacionDetalle?: string;
+  documentoLiquidacionIva?: number;
+  documentoLiquidacionCompleto?: boolean;
 }
 
 export interface RetiroPedidoItem {

@@ -47,6 +47,29 @@ export async function createWithdrawalPayment(retiroIds: number[]): Promise<Pago
   return response.data;
 }
 
-export async function saveLiquidationDocument(pedidoId: string, nombreArchivo: string): Promise<void> {
-  await apiClient.post('/administration/liquidation-documents', { pedidoId, nombreArchivo });
+export interface LiquidationDocumentPayload {
+  retiroId: number;
+  tipoDocumento: string;
+  rut: string;
+  razonSocial: string;
+  email: string;
+  detalle: string;
+  ivaLiquidado: number | null;
+  eliminarDocumento: boolean;
+}
+
+export async function saveLiquidationDocument(payload: LiquidationDocumentPayload, documento?: File): Promise<void> {
+  const formData = new FormData();
+  formData.append('data', new Blob([JSON.stringify(payload)], { type: 'application/json' }));
+  if (documento) formData.append('documento', documento);
+  await apiClient.post('/administration/liquidation-documents', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+}
+
+export async function getLiquidationDocumentFile(retiroId: number): Promise<string> {
+  const response = await apiClient.get<Blob>(`/administration/withdrawals/${retiroId}/liquidation-document`, {
+    responseType: 'blob',
+  });
+  return URL.createObjectURL(response.data);
 }
