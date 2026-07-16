@@ -65,6 +65,7 @@ export function getSettlements(orders: Order[], statuses: Record<string, Settlem
       const subtotal = Number(order.subtotalPublicado ?? order.total);
       const saleTotal = Number(order.total ?? subtotal);
       const serviceCommission = Number(order.comisionServicio ?? 0);
+      const serviceCommissionRate = Number(order.comisionServicioPorcentaje ?? (order.sellerFounder ? 0.05 : subtotal > 250000 ? 0.05 : subtotal > 100000 ? 0.07 : 0.10));
       const serviceCommissionIva = Number(order.ivaComisionServicio ?? 0);
       const gatewayFeeSeller = Number(order.comisionPagoFlowVendedor ?? 0);
       const gatewayFeeRepuestop = Number(order.comisionPagoFlowRepuestop ?? 0);
@@ -77,6 +78,7 @@ export function getSettlements(orders: Order[], statuses: Record<string, Settlem
         id: settlementId,
         date: orderDate(order),
         seller: order.seller,
+        sellerFounder: order.sellerFounder,
         sellerTaxId: order.sellerTaxId,
         sellerLegalName: order.sellerLegalName,
         sellerEmail: order.sellerEmail,
@@ -89,6 +91,7 @@ export function getSettlements(orders: Order[], statuses: Record<string, Settlem
         saleTooltip: order.totalVentaTooltip,
         commission: grossEarnings,
         serviceCommission,
+        serviceCommissionRate,
         serviceCommissionIva,
         gatewayFeeSeller,
         gatewayFeeRepuestop,

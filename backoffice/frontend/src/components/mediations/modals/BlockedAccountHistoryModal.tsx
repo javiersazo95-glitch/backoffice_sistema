@@ -3,6 +3,7 @@ import { useMediation } from '@/hooks/useMediations';
 import Modal from '@/components/shared/Modal';
 import Badge from '@/components/shared/Badge';
 import UiIcon from '@/components/shared/UiIcon';
+import FounderSellerName from '@/components/shared/FounderSellerName';
 import { formatDateTime } from '@/utils/formatters';
 import { resolveDocumentUrl } from '@/utils/documentUrls';
 
@@ -78,7 +79,7 @@ export default function BlockedAccountHistoryModal({ isOpen, onClose, item }: Bl
         <div className="case-modal-title">
           <span className="case-modal-kicker">Historial de la mediación</span>
           <h2>{item.externalId}</h2>
-          <p>{item.sellerName} · Pedido {item.orderId}</p>
+          <p><FounderSellerName name={item.sellerName} founder={item.sellerFounder} /> · Pedido {item.orderId}</p>
         </div>
       </div>
 
@@ -99,7 +100,7 @@ export default function BlockedAccountHistoryModal({ isOpen, onClose, item }: Bl
                 </div>
                 <div className="resolved-timeline-field">
                   <span className="resolved-timeline-field-label">Tienda</span>
-                  <span className="resolved-timeline-field-value">{item.sellerName}</span>
+                  <span className="resolved-timeline-field-value"><FounderSellerName name={item.sellerName} founder={item.sellerFounder} /></span>
                 </div>
                 {item.buyer && (
                   <div className="resolved-timeline-field">

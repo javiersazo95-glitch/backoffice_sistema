@@ -18143,3 +18143,29 @@ body:has(.area-selector-shell) {
   color: #f97316;
   stroke-width: 2.35;
 }
+.founder-badge {
+  display: inline-flex; align-items: center; gap: 4px; width: fit-content; padding: 4px 9px;
+  border: 1px solid #e4c56f; border-radius: 999px; background: #fff8dc;
+  color: #8a6112; font-size: 11px; font-weight: 800; letter-spacing: .03em;
+}
+.founder-badge .ui-icon { width: 14px; height: 14px; color: #D9A514; stroke-width: 2.2; }
+.founder-crown-icon { color: #D9A514; }
+.founder-general-card {
+  display: flex; align-items: center; justify-content: space-between; gap: 24px;
+  padding: 22px; border: 1px solid #f0dfaa; border-radius: 16px; background: #fffdf5;
+}
+.founder-general-card h3 { margin: 10px 0 4px; }
+.founder-general-card p { margin: 0; color: #64748b; }
+.founder-seller-name {
+  display: inline;
+}
+
+.founder-seller-crown {
+  display: inline-block;
+  width: 15px;
+  height: 15px;
+  margin-left: 5px;
+  color: #d9a514;
+  vertical-align: -2px;
+  flex: 0 0 auto;
+}

@@ -8,6 +8,7 @@ export interface AlertResponse {
   id: number;
   sellerId: number;
   sellerName: string;
+  sellerFounder?: boolean;
   severity: AlertSeverity;
   signalType: string;
   evidence: string;

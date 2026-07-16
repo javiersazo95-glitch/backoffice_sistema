@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as sellersApi from '@/api/sellers';
 import * as validationsApi from '@/api/validations';
 import UiIcon from '@/components/shared/UiIcon';
+import FounderSellerName from '@/components/shared/FounderSellerName';
 import { showToast } from '@/components/layout/Toast';
 import { PAGE_SIZES, STATUS_LABELS } from '@/utils/constants';
 import { SellerStatus, type SellerResponse } from '@/types/seller';
@@ -28,6 +29,7 @@ type RequiredDocumentState = RequiredDocumentDefinition & {
 type ValidationRequestGroup = {
   sellerId: number;
   sellerName: string;
+  sellerFounder: boolean;
   owner: string;
   documents: ValidationResponse[];
   requiredDocuments: RequiredDocumentState[];
@@ -168,6 +170,7 @@ function buildValidationGroups(validations: ValidationResponse[]): ValidationReq
       return {
         sellerId,
         sellerName: firstDocument?.sellerName ?? 'Vendedor sin nombre',
+        sellerFounder: Boolean(firstDocument?.sellerFounder),
         owner: firstDocument?.owner ?? 'Sin responsable',
         documents: sortedDocuments,
         requiredDocuments,
@@ -518,7 +521,7 @@ export default function ValidationsPage() {
                 onClick={() => selectGroup(group.sellerId)}
               >
                 <span className="validation-request-title-row">
-                  <strong>{group.sellerName}</strong>
+                  <strong><FounderSellerName name={group.sellerName} founder={group.sellerFounder} /></strong>
                   <StatusPill status={group.status} />
                 </span>
                 <span className="validation-request-meta">
@@ -553,7 +556,7 @@ export default function ValidationsPage() {
 
                 <div className="validation-info-grid">
                   <div className="validation-info-box">
-                    <InfoRow label="Nombre de la tienda" value={selectedGroup.sellerName} />
+                    <InfoRow label="Nombre de la tienda" value={<FounderSellerName name={selectedGroup.sellerName} founder={selectedGroup.sellerFounder} />} />
                     <InfoRow label="Rut de la empresa" value={sellerMeta.rut} />
                     <InfoRow label="Ciudad" value={sellerMeta.city} />
                     <InfoRow label="Dirección" value={sellerMeta.address} />
@@ -898,7 +901,7 @@ function PanelTitle({ icon, title, compact = false }: { icon: string; title: str
   );
 }
 
-function InfoRow({ label, value }: { label: string; value: string }) {
+function InfoRow({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="validation-info-row">
       <span>{label}</span>

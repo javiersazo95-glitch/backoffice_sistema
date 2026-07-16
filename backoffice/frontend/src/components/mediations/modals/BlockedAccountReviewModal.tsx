@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import type { MediationResponse } from '@/types/mediation';
 import Badge from '@/components/shared/Badge';
 import UiIcon from '@/components/shared/UiIcon';
+import FounderSellerName from '@/components/shared/FounderSellerName';
 import { formatCurrency, formatDateTime, mediationStatusDisplay } from '@/utils/formatters';
 
 interface BlockedAccountReviewModalProps {
@@ -57,7 +58,7 @@ export default function BlockedAccountReviewModal({
               </span>
               <div className="blocked-review-title">
                 <span className="blocked-review-kicker">Cuenta bloqueada</span>
-                <h2>{item.sellerName}</h2>
+                <h2><FounderSellerName name={item.sellerName} founder={item.sellerFounder} /></h2>
                 <p>{item.externalId} · Pedido {item.orderId}</p>
               </div>
             </div>
@@ -95,7 +96,7 @@ export default function BlockedAccountReviewModal({
               </span>
               <div>
                 <small>Tienda</small>
-                <strong>{item.sellerName}</strong>
+                <strong><FounderSellerName name={item.sellerName} founder={item.sellerFounder} /></strong>
               </div>
             </div>
             <div className="blocked-review-data-item">

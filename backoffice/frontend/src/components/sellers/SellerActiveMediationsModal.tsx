@@ -2,6 +2,7 @@ import type { SellerDetailResponse } from '@/types/seller';
 import { MediationStatus, type MediationSummaryResponse } from '@/types/mediation';
 import Badge from '@/components/shared/Badge';
 import UiIcon from '@/components/shared/UiIcon';
+import FounderSellerName from '@/components/shared/FounderSellerName';
 import { mediationStatusDisplay } from '@/utils/formatters';
 import { applyManualMediationStatus, useManualMediationStatusOverrides } from '@/utils/manualMediationStatus';
 import { useManualMediationAdminMode } from '@/utils/manualMediationAdminMode';
@@ -61,7 +62,7 @@ export default function SellerActiveMediationsModal({
             </span>
             <div className="seller-documents-title">
               <h2>Mediaciones en curso</h2>
-              <p>{seller.storeName} · {seller.externalId}</p>
+              <p><FounderSellerName name={seller.storeName} founder={seller.founder} /> · {seller.externalId}</p>
             </div>
           </div>
 

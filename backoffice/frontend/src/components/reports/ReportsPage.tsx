@@ -9,6 +9,7 @@ import DetailRow from '@/components/shared/DetailRow';
 import { formatDateTime } from '@/utils/formatters';
 import { PAGE_SIZES } from '@/utils/constants';
 import AreaHomeShortcut from '@/components/shared/AreaHomeShortcut';
+import FounderSellerName from '@/components/shared/FounderSellerName';
 
 export default function ReportsPage() {
   const [page, setPage] = useState(0);
@@ -244,7 +245,12 @@ export default function ReportsPage() {
                         <td style={{ whiteSpace: 'nowrap' }}><strong>{report.idExterno || `#${report.id}`}</strong></td>
                         <td>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                            <strong>{report.reportanteName}</strong>
+                            <strong>
+                              <FounderSellerName
+                                name={report.reportanteName}
+                                founder={report.reportanteType === 'VENDEDOR' && report.reportanteFounder}
+                              />
+                            </strong>
                             <span>{report.reportanteEmail}</span>
                             <Badge
                               text={report.reportanteType}
@@ -254,7 +260,12 @@ export default function ReportsPage() {
                         </td>
                         <td>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                            <strong>{report.reportadoName}</strong>
+                            <strong>
+                              <FounderSellerName
+                                name={report.reportadoName}
+                                founder={report.reportadoType === 'VENDEDOR' && report.reportadoFounder}
+                              />
+                            </strong>
                             <span>{report.reportadoEmail}</span>
                             <Badge
                               text={report.reportadoType}
@@ -331,7 +342,10 @@ export default function ReportsPage() {
                 <h3 style={{ marginTop: 0, marginBottom: 12, borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: 6 }}>
                   Reportante (Quién reporta)
                 </h3>
-                <DetailRow label="Nombre" value={selectedReport.reportanteName} />
+                <DetailRow
+                  label="Nombre"
+                  value={<FounderSellerName name={selectedReport.reportanteName} founder={selectedReport.reportanteType === 'VENDEDOR' && selectedReport.reportanteFounder} />}
+                />
                 <DetailRow label="Email" value={selectedReport.reportanteEmail} />
                 <DetailRow
                   label="Tipo"
@@ -348,7 +362,10 @@ export default function ReportsPage() {
                 <h3 style={{ marginTop: 0, marginBottom: 12, borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: 6 }}>
                   Reportado (Hacia quién)
                 </h3>
-                <DetailRow label="Nombre" value={selectedReport.reportadoName} />
+                <DetailRow
+                  label="Nombre"
+                  value={<FounderSellerName name={selectedReport.reportadoName} founder={selectedReport.reportadoType === 'VENDEDOR' && selectedReport.reportadoFounder} />}
+                />
                 <DetailRow label="Email" value={selectedReport.reportadoEmail} />
                 <DetailRow
                   label="Tipo"

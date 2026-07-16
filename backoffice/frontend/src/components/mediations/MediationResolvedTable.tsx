@@ -1,6 +1,7 @@
 import { ResolvedCaseResponse } from '@/types/mediation';
 import { formatDateTime } from '@/utils/formatters';
 import UiIcon from '@/components/shared/UiIcon';
+import FounderSellerName from '@/components/shared/FounderSellerName';
 
 interface MediationResolvedTableProps {
   cases: ResolvedCaseResponse[];
@@ -53,7 +54,7 @@ export default function MediationResolvedTable({
                 <tr key={item.id}>
                   <td><strong className="blue-link">{item.externalId}</strong></td>
                   <td>{item.reason}</td>
-                  <td>{item.sellerName}</td>
+                  <td><FounderSellerName name={item.sellerName} founder={item.sellerFounder} /></td>
                   <td>{item.orderId}</td>
                   <td className="resolved-table-summary">
                     <strong>{item.resolutionReason}</strong>

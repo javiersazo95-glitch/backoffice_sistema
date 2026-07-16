@@ -1,5 +1,6 @@
 import { MediationResponse } from '@/types/mediation';
 import UiIcon from '@/components/shared/UiIcon';
+import FounderSellerName from '@/components/shared/FounderSellerName';
 import Badge from '@/components/shared/Badge';
 import { mediationStatusDisplay } from '@/utils/formatters';
 
@@ -62,7 +63,7 @@ export default function MediationTableRow({
     <tr className={isSelected ? 'is-active' : ''} onClick={() => onSelect(item.id)} style={{ cursor: 'pointer' }}>
       <td><strong className="blue-link">{item.externalId}</strong></td>
       <td>{item.buyer?.trim() || item.title.replace('Comprador vs ', '').trim() || 'Comprador'}</td>
-      <td>{item.sellerName}</td>
+      <td><FounderSellerName name={item.sellerName} founder={item.sellerFounder} /></td>
       <td><strong className="blue-link">{item.orderId}</strong></td>
       <td>{item.reason}</td>
       <td style={{ textAlign: 'center' }}>

@@ -10,6 +10,7 @@ export interface ReceiptFollowupResponse {
   externalId: string;
   sellerId: number;
   sellerName: string;
+  sellerFounder?: boolean;
   orderId: string;
   amount: string;
   status: string;

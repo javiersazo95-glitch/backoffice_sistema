@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { MediationResponse, MediationStatus, type MediationDetailResponse, type MediationEvidenceResponse, type MediationMessageResponse } from '@/types/mediation';
 import Badge from '@/components/shared/Badge';
 import UiIcon from '@/components/shared/UiIcon';
+import FounderSellerName from '@/components/shared/FounderSellerName';
 import { formatCurrency, formatDateTime, mediationStatusDisplay } from '@/utils/formatters';
 import { getReports } from '@/api/reports';
 import { resolveProfileImageUrl } from '@/api/client';
@@ -452,7 +453,7 @@ export default function MediationDetail({
               </span>
               <div>
                 <small>Tienda</small>
-                <strong>{sellerName}</strong>
+                <strong><FounderSellerName name={sellerName} founder={item.sellerFounder} /></strong>
               </div>
             </div>
             <div className="mediation-summary-item">

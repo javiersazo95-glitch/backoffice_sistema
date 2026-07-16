@@ -4,6 +4,7 @@ import Modal from '@/components/shared/Modal';
 import ModalField from '@/components/shared/ModalField';
 import DocumentPreview from '@/components/shared/DocumentPreview';
 import UiIcon from '@/components/shared/UiIcon';
+import FounderSellerName from '@/components/shared/FounderSellerName';
 import { useMediation } from '@/hooks/useMediations';
 
 interface ResolvedDocumentModalProps {
@@ -133,7 +134,7 @@ export default function ResolvedDocumentModal({ isOpen, onClose, item }: Resolve
         <div className="case-modal-title">
           <span className="case-modal-kicker">Documentos del caso</span>
           <h2>Seguimiento de Documentación</h2>
-          <p>{item.externalId} · {item.sellerName}</p>
+          <p>{item.externalId} · <FounderSellerName name={item.sellerName} founder={item.sellerFounder} /></p>
         </div>
       </div>
 

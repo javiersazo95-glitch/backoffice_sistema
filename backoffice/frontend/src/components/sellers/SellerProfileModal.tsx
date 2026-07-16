@@ -7,6 +7,7 @@ import type { MediationSummaryResponse } from '@/types/mediation';
 import type { ReportResponse } from '@/types/report';
 import Badge from '@/components/shared/Badge';
 import UiIcon from '@/components/shared/UiIcon';
+import FounderSellerName from '@/components/shared/FounderSellerName';
 import { mediationStatusDisplay } from '@/utils/formatters';
 import { applyManualMediationStatus, useManualMediationStatusOverrides } from '@/utils/manualMediationStatus';
 import { resolveProfileImageUrl } from '@/api/client';
@@ -243,7 +244,7 @@ export function SellerBlockHistoryModal({ isOpen, onClose, seller, blockHistory,
             </span>
             <div className="seller-documents-title">
               <h2>Historial de bloqueos</h2>
-              <p>{seller.storeName} · {seller.externalId}</p>
+              <p><FounderSellerName name={seller.storeName} founder={seller.founder} /> · {seller.externalId}</p>
             </div>
           </div>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
@@ -327,7 +328,7 @@ function SellerTimelineModal({ isOpen, onClose, seller, recentActivity }: Seller
             </span>
             <div className="seller-documents-title">
               <h2>Línea de tiempo completa</h2>
-              <p>{seller.storeName} · {seller.externalId}</p>
+              <p><FounderSellerName name={seller.storeName} founder={seller.founder} /> · {seller.externalId}</p>
             </div>
           </div>
           <button className="seller-documents-close" type="button" onClick={onClose} aria-label="Cerrar">
@@ -378,7 +379,7 @@ function SellerReportsModal({ isOpen, onClose, seller, reports, isLoading }: Sel
             </span>
             <div className="seller-documents-title">
               <h2>Casos de reporte</h2>
-              <p>{seller.storeName} · {seller.externalId}</p>
+              <p><FounderSellerName name={seller.storeName} founder={seller.founder} /> · {seller.externalId}</p>
             </div>
           </div>
           <button className="seller-documents-close" type="button" onClick={onClose} aria-label="Cerrar">
@@ -483,7 +484,7 @@ function SellerRetirosModal({ isOpen, onClose, seller, retiros, isLoading }: Sel
             </span>
             <div className="seller-documents-title">
               <h2>Historial de retiros</h2>
-              <p>{seller.storeName} · {seller.externalId}</p>
+              <p><FounderSellerName name={seller.storeName} founder={seller.founder} /> · {seller.externalId}</p>
             </div>
           </div>
           <button className="seller-documents-close" type="button" onClick={onClose} aria-label="Cerrar">
@@ -648,7 +649,7 @@ export default function SellerProfileModal({
               <div className="seller-profile-breadcrumbs">
                 <span>Tiendas</span>
                 <UiIcon name="arrowRight" />
-                <strong>{seller.storeName}</strong>
+                <strong><FounderSellerName name={seller.storeName} founder={seller.founder} /></strong>
               </div>
 
               <div className="seller-profile-card">
@@ -659,7 +660,7 @@ export default function SellerProfileModal({
                     sellerLetterAvatar(seller.storeName)
                   )}
                 </div>
-                <h2>{seller.storeName}</h2>
+                <h2><FounderSellerName name={seller.storeName} founder={seller.founder} /></h2>
                 <span className="seller-profile-id">{seller.externalId}</span>
 
                 <div className="seller-profile-subinfo">
@@ -678,6 +679,7 @@ export default function SellerProfileModal({
 
                 <div className="seller-profile-badges">
                   <Badge text={seller.status} variant={seller.status} />
+                  {seller.founder ? <span className="founder-badge"><UiIcon name="crown" />Fundador</span> : null}
                 </div>
               </div>
 

@@ -9,6 +9,7 @@ export interface ValidationResponse {
   id: number;
   sellerId: number;
   sellerName: string;
+  sellerFounder?: boolean;
   documentType: string;
   documentUrl?: string;
   uploadedAt: string;

@@ -10,6 +10,7 @@ export interface Order {
   date: string;
   buyer: string;
   seller: string;
+  sellerFounder?: boolean;
   sellerTaxId?: string;
   sellerLegalName?: string;
   sellerEmail?: string;
@@ -17,6 +18,7 @@ export interface Order {
   total: number;
   subtotalPublicado?: number;
   comisionServicio?: number;
+  comisionServicioPorcentaje?: number;
   ivaComisionServicio?: number;
   comisionPagoFlowTotal?: number;
   comisionPagoFlowVendedor?: number;
@@ -90,6 +92,7 @@ export interface Settlement {
   id: string;
   date: string;
   seller: string;
+  sellerFounder?: boolean;
   sellerTaxId?: string;
   sellerLegalName?: string;
   sellerEmail?: string;
@@ -99,6 +102,7 @@ export interface Settlement {
   saleTooltip?: string;
   commission: number;
   serviceCommission: number;
+  serviceCommissionRate: number;
   serviceCommissionIva: number;
   gatewayFeeSeller: number;
   gatewayFeeRepuestop: number;
@@ -171,6 +175,7 @@ export type SelectedRows = Record<'pedidos' | 'liquidaciones' | 'gastos', Set<st
 export interface RetiroAdminResponse {
   retiroId: number;
   nombreTienda: string;
+  sellerFounder?: boolean;
   rut: string;
   razonSocial: string;
   banco: string;

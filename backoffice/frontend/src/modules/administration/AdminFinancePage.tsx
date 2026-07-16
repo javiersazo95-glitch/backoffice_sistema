@@ -4,6 +4,8 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import MetricCard from '@/components/shared/MetricCard';
 import UiIcon from '@/components/shared/UiIcon';
 import AreaHomeShortcut from '@/components/shared/AreaHomeShortcut';
+import FounderSellerName from '@/components/shared/FounderSellerName';
+import FounderSellerList from '@/components/shared/FounderSellerList';
 import * as administrationApi from '@/api/administration';
 import {
   EXPENSE_CATEGORIES,
@@ -67,6 +69,11 @@ import {
 type SelectableView = 'pedidos' | 'liquidaciones' | 'gastos';
 type PageView = SelectableView | 'retiros';
 
+const serviceCommissionLabel = (settlement: Settlement) =>
+  settlement.sellerFounder && Math.round(settlement.serviceCommissionRate * 100) === 5
+    ? 'Tarifa RepuesTop Fundador (5%)'
+    : `Comisión RepuesTop (${Math.round(settlement.serviceCommissionRate * 100)}%)`;
+
 interface PaginationState {
   page: number;
   pageSize: number;
@@ -75,6 +82,7 @@ interface PaginationState {
 interface LiquidationSellerGroup {
   key: string;
   seller: string;
+  sellerFounder?: boolean;
   rut: string;
   legalName: string;
   email: string;
@@ -232,7 +240,7 @@ function Modal({
   children,
   onClose,
 }: {
-  title: string;
+  title: ReactNode;
   subtitle?: string;
   badges?: ReactNode;
   children: ReactNode;
@@ -240,7 +248,7 @@ function Modal({
 }) {
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={onClose}>
-      <section className="modal-panel" role="dialog" aria-modal="true" aria-label={title} onMouseDown={(event) => event.stopPropagation()}>
+      <section className="modal-panel" role="dialog" aria-modal="true" aria-label={typeof title === 'string' ? title : 'Detalle'} onMouseDown={(event) => event.stopPropagation()}>
         <div className="modal-header">
           <div className="modal-title-block">
             <h2>{title}</h2>
@@ -550,6 +558,7 @@ export default function AdminFinancePage() {
       const current = groups.get(key) ?? {
         key,
         seller: settlement.seller,
+        sellerFounder: settlement.sellerFounder,
         rut: settlement.sellerTaxId || 'Sin RUT',
         legalName: settlement.sellerLegalName || settlement.seller,
         email: settlement.sellerEmail || 'Sin correo',
@@ -1158,12 +1167,12 @@ export default function AdminFinancePage() {
     .sort((first, second) => second.balance - first.balance);
   const lowestPartner = summaryPartnerRows[summaryPartnerRows.length - 1] ?? { partner: 'Sin datos', balance: 0 };
   const topSeller = [...summaryOrders.reduce((acc, order) => {
-    const current = acc.get(order.seller) ?? { seller: order.seller, total: 0, count: 0 };
+    const current = acc.get(order.seller) ?? { seller: order.seller, sellerFounder: order.sellerFounder, total: 0, count: 0 };
     current.total += order.total;
     current.count += 1;
     acc.set(order.seller, current);
     return acc;
-  }, new Map<string, { seller: string; total: number; count: number }>()).values()]
+  }, new Map<string, { seller: string; sellerFounder?: boolean; total: number; count: number }>()).values()]
     .sort((first, second) => second.total - first.total)[0] ?? { seller: 'Sin ventas', total: 0, count: 0 };
   const avgTicket = summaryOrders.length ? Math.round(totalCollected / summaryOrders.length) : 0;
   const completionRate = getPercent(completedSummaryOrders.length, summaryOrders.length);
@@ -1283,7 +1292,7 @@ export default function AdminFinancePage() {
 
             <section className="summary-panel">
               <div className="panel-title"><h2>Mejor frente comercial</h2><span className="summary-panel-note">{topSeller.count} pedidos</span></div>
-              <div className="seller-highlight"><span><UiIcon name="wallet" /></span><div><strong>{topSeller.seller}</strong><p>{formatMoney(topSeller.total)} vendido en el rango activo.</p></div></div>
+              <div className="seller-highlight"><span><UiIcon name="wallet" /></span><div><strong><FounderSellerName name={topSeller.seller} founder={topSeller.sellerFounder} /></strong><p>{formatMoney(topSeller.total)} vendido en el rango activo.</p></div></div>
               <dl className="compact-info-list">
                 <div><dt>Promedio por pedido</dt><dd>{formatMoney(avgTicket)}</dd></div>
                 <div><dt>Pedidos activos</dt><dd>{pendingSummaryOrders.length}</dd></div>
@@ -1361,7 +1370,7 @@ export default function AdminFinancePage() {
                 <tbody>
                   {enLiquidationGroups.length ? enLiquidationGroups.map((group) => (
                     <>
-                      <tr key={group.key}><td>{group.seller}</td><td>{group.rut}</td><td>{group.legalName}</td><td>{group.email}</td><td>{group.settlements.length}</td><td>{formatMoney(group.total)}</td><td><button className="action-button neutral" type="button" onClick={() => setExpandedLiquidationSellers((current) => { const next = new Set(current); next.has(group.key) ? next.delete(group.key) : next.add(group.key); return next; })} title="Ver liquidaciones"><UiIcon name="chevronDown" /></button></td></tr>
+                      <tr key={group.key}><td><FounderSellerName name={group.seller} founder={group.sellerFounder} /></td><td>{group.rut}</td><td>{group.legalName}</td><td>{group.email}</td><td>{group.settlements.length}</td><td>{formatMoney(group.total)}</td><td><button className="action-button neutral" type="button" onClick={() => setExpandedLiquidationSellers((current) => { const next = new Set(current); next.has(group.key) ? next.delete(group.key) : next.add(group.key); return next; })} title="Ver liquidaciones"><UiIcon name="chevronDown" /></button></td></tr>
                       {expandedLiquidationSellers.has(group.key) && <tr key={`${group.key}-details`}><td colSpan={7}><table className="wide-table"><thead><tr><th>ID liquidación</th><th>Pedido</th><th>Venta total</th><th>Ganancias de la venta</th><th>Ganancia neta</th><th>Acciones</th></tr></thead><tbody>{group.settlements.map((settlement) => <tr key={settlement.id}><td>{settlement.id}</td><td>{settlement.orderId}</td><td>{formatMoney(settlement.saleTotal)}</td><td>{formatMoney(settlement.commission)}</td><td>{formatMoney(settlement.netSettlement)}</td><td><div className="action-cell"><button className="action-button neutral" type="button" onClick={() => showSettlementDetail(settlement)} title="Ver detalle"><UiIcon name="eye" /></button>{(() => { const order = orders.find((candidate) => candidate.id === settlement.orderId); const documentComplete = order ? isIssuedDocumentComplete(issuedDocuments[order.id]) : false; return order ? <button className={`action-button ${documentComplete ? 'success' : 'issue'}`} type="button" onClick={() => openDocument(order)} title="Emitir boleta o factura"><UiIcon name={documentComplete ? 'check' : 'receipt'} /></button> : null; })()}</div></td></tr>)}</tbody></table></td></tr>}
                     </>
                   )) : <tr><td colSpan={7}><div className="empty-state">No hay liquidaciones en curso para el rango seleccionado.</div></td></tr>}
@@ -1370,12 +1379,12 @@ export default function AdminFinancePage() {
             ) : (liquidationTab as string) === 'LIQUIDADO' ? (
               <table className="wide-table">
                 <thead><tr><th>Código de pago</th><th>Fecha de pago</th><th>Vendedores</th><th>Cantidad de liquidaciones</th><th>Fecha de liquidación</th><th>Acciones</th></tr></thead>
-                <tbody>{paidPaymentsForPeriod.length ? paidPaymentsForPeriod.map((payment) => <tr key={payment.pagoId}><td>PAG-{String(payment.pagoId).padStart(6, '0')}</td><td>{formatDate(payment.fechaPago)}</td><td>{[...new Set(payment.retiros.map((retiro) => retiro.nombreTienda))].join(', ')}</td><td>{payment.retiros.length}</td><td>{formatDate(payment.periodoInicio ?? payment.fechaPago)} - {formatDate(payment.periodoFin ?? payment.fechaPago)}</td><td><div className="action-cell"><button className="action-button neutral" type="button" onClick={() => { setSelectedPaidPayment(payment); setPaidDetailQuery(''); setPaidDetailSeller(''); }} title="Ver liquidaciones del pago"><UiIcon name="eye" /></button><button className="action-button issue" type="button" onClick={() => setPaidDocumentsPayment(payment)} title="Historial de boletas"><UiIcon name="receipt" /></button></div></td></tr>) : <tr><td colSpan={6}><div className="empty-state">No hay liquidaciones pagadas para el período seleccionado.</div></td></tr>}</tbody>
+                <tbody>{paidPaymentsForPeriod.length ? paidPaymentsForPeriod.map((payment) => <tr key={payment.pagoId}><td>PAG-{String(payment.pagoId).padStart(6, '0')}</td><td>{formatDate(payment.fechaPago)}</td><td><FounderSellerList sellers={payment.retiros.map((retiro) => ({ name: retiro.nombreTienda, founder: retiro.sellerFounder }))} /></td><td>{payment.retiros.length}</td><td>{formatDate(payment.periodoInicio ?? payment.fechaPago)} - {formatDate(payment.periodoFin ?? payment.fechaPago)}</td><td><div className="action-cell"><button className="action-button neutral" type="button" onClick={() => { setSelectedPaidPayment(payment); setPaidDetailQuery(''); setPaidDetailSeller(''); }} title="Ver liquidaciones del pago"><UiIcon name="eye" /></button><button className="action-button issue" type="button" onClick={() => setPaidDocumentsPayment(payment)} title="Historial de boletas"><UiIcon name="receipt" /></button></div></td></tr>) : <tr><td colSpan={6}><div className="empty-state">No hay liquidaciones pagadas para el período seleccionado.</div></td></tr>}</tbody>
               </table>
             ) : liquidationTab === 'LIQUIDADO' ? (
               <table className="wide-table">
                 <thead><tr><th>Código de pago</th><th>Fecha de pago</th><th>Vendedores</th><th>Cantidad de liquidaciones</th><th>Fecha de liquidación</th><th>Acciones</th></tr></thead>
-                <tbody>{paidPaymentsForPeriod.length ? paidPaymentsForPeriod.map((payment) => <tr key={payment.pagoId}><td>PAG-{String(payment.pagoId).padStart(6, '0')}</td><td>{formatDate(payment.fechaPago)}</td><td>{[...new Set(payment.retiros.map((retiro) => retiro.nombreTienda))].join(', ')}</td><td>{payment.retiros.length}</td><td>{formatDate(payment.periodoInicio ?? payment.fechaPago)} - {formatDate(payment.periodoFin ?? payment.fechaPago)}</td><td><div className="action-cell"><button className="action-button neutral" type="button" onClick={() => { setSelectedPaidPayment(payment); setPaidDetailQuery(''); setPaidDetailSeller(''); }} title="Ver liquidaciones del pago"><UiIcon name="eye" /></button><button className="action-button issue" type="button" onClick={() => setPaidDocumentsPayment(payment)} title="Historial de boletas"><UiIcon name="receipt" /></button></div></td></tr>) : <tr><td colSpan={6}><div className="empty-state">No hay liquidaciones pagadas para el período seleccionado.</div></td></tr>}</tbody>
+                <tbody>{paidPaymentsForPeriod.length ? paidPaymentsForPeriod.map((payment) => <tr key={payment.pagoId}><td>PAG-{String(payment.pagoId).padStart(6, '0')}</td><td>{formatDate(payment.fechaPago)}</td><td><FounderSellerList sellers={payment.retiros.map((retiro) => ({ name: retiro.nombreTienda, founder: retiro.sellerFounder }))} /></td><td>{payment.retiros.length}</td><td>{formatDate(payment.periodoInicio ?? payment.fechaPago)} - {formatDate(payment.periodoFin ?? payment.fechaPago)}</td><td><div className="action-cell"><button className="action-button neutral" type="button" onClick={() => { setSelectedPaidPayment(payment); setPaidDetailQuery(''); setPaidDetailSeller(''); }} title="Ver liquidaciones del pago"><UiIcon name="eye" /></button><button className="action-button issue" type="button" onClick={() => setPaidDocumentsPayment(payment)} title="Historial de boletas"><UiIcon name="receipt" /></button></div></td></tr>) : <tr><td colSpan={6}><div className="empty-state">No hay liquidaciones pagadas para el período seleccionado.</div></td></tr>}</tbody>
               </table>
 
             ) : (
@@ -1393,7 +1402,7 @@ export default function AdminFinancePage() {
                     <td>{order.id}</td>
                     <td>{formatDateTime(order.date)}</td>
                     <td>{order.buyer}</td>
-                    <td>{order.seller}</td>
+                    <td><FounderSellerName name={order.seller} founder={order.sellerFounder} /></td>
                     <td>{order.product}</td>
                     <td className={order.cancellationTooltip ? 'value-cell tooltip-container' : undefined}>
                       {order.cancellationTooltip ? (
@@ -1484,11 +1493,11 @@ export default function AdminFinancePage() {
                 <tbody>{enLiquidationGroups.length ? enLiquidationGroups.map((group) => {
                   const registeredDocument = getGroupDocument(group);
                   const documentComplete = Boolean(registeredDocument && isIssuedDocumentComplete(registeredDocument.document));
-                  return <tr key={group.key}><td>{group.seller}</td><td>{group.rut}</td><td>{group.legalName}</td><td>{group.email}</td><td>{group.settlements.length}</td><td>{formatMoney(group.iva)}</td><td><div className="action-cell"><button className="action-button neutral" type="button" onClick={() => setSelectedLiquidationSeller(group)} title="Vista previa de liquidaciones"><UiIcon name="eye" /></button><button className={`action-button ${documentComplete ? 'success' : 'issue'}`} type="button" onClick={() => openGroupDocument(group)} title={documentComplete ? 'Ver boleta o factura registrada' : registeredDocument ? 'Completar boleta o factura' : 'Emitir boleta o factura'}><UiIcon name={documentComplete ? 'fileCheck' : 'receipt'} /></button>{documentComplete && <button className="action-button neutral" type="button" onClick={() => openGroupDocument(group, true)} title="Editar boleta o factura registrada"><UiIcon name="edit" /></button>}</div></td></tr>;
+                  return <tr key={group.key}><td><FounderSellerName name={group.seller} founder={group.sellerFounder} /></td><td>{group.rut}</td><td>{group.legalName}</td><td>{group.email}</td><td>{group.settlements.length}</td><td>{formatMoney(group.iva)}</td><td><div className="action-cell"><button className="action-button neutral" type="button" onClick={() => setSelectedLiquidationSeller(group)} title="Vista previa de liquidaciones"><UiIcon name="eye" /></button><button className={`action-button ${documentComplete ? 'success' : 'issue'}`} type="button" onClick={() => openGroupDocument(group)} title={documentComplete ? 'Ver boleta o factura registrada' : registeredDocument ? 'Completar boleta o factura' : 'Emitir boleta o factura'}><UiIcon name={documentComplete ? 'fileCheck' : 'receipt'} /></button>{documentComplete && <button className="action-button neutral" type="button" onClick={() => openGroupDocument(group, true)} title="Editar boleta o factura registrada"><UiIcon name="edit" /></button>}</div></td></tr>;
                 }) : <tr><td colSpan={7}><div className="empty-state">No hay liquidaciones en curso para el rango seleccionado.</div></td></tr>}</tbody>
               </table>
             ) : liquidationTab === 'LIQUIDADO' ? (
-              <table className="wide-table paid-liquidations-table"><thead><tr><th>Código de pago</th><th>Fecha de pago</th><th>Vendedores</th><th>Cantidad de boletas/facturas</th><th>Fecha de liquidación</th><th>Acciones</th></tr></thead><tbody>{paidPaymentsForPeriod.length ? paidPaymentsForPeriod.map((payment) => <tr key={payment.pagoId}><td>PAG-{String(payment.pagoId).padStart(6, '0')}</td><td>{formatDate(payment.fechaPago)}</td><td>{[...new Set(payment.retiros.map((retiro) => retiro.nombreTienda))].join(', ')}</td><td>{payment.retiros.length}</td><td>{formatDate(getPaymentPeriod(payment.fechaPago).start)} - {formatDate(getPaymentPeriod(payment.fechaPago).end)}</td><td><div className="action-cell"><button className="action-button neutral" type="button" onClick={() => { setSelectedPaidPayment(payment); setPaidDetailQuery(''); setPaidDetailSeller(''); }} title="Ver liquidaciones del pago"><UiIcon name="eye" /></button><button className="action-button issue" type="button" onClick={() => setPaidDocumentsPayment(payment)} title="Historial de boletas"><UiIcon name="receipt" /></button></div></td></tr>) : <tr><td colSpan={6}><div className="empty-state">No hay liquidaciones pagadas para el período seleccionado.</div></td></tr>}</tbody></table>
+              <table className="wide-table paid-liquidations-table"><thead><tr><th>Código de pago</th><th>Fecha de pago</th><th>Vendedores</th><th>Cantidad de boletas/facturas</th><th>Fecha de liquidación</th><th>Acciones</th></tr></thead><tbody>{paidPaymentsForPeriod.length ? paidPaymentsForPeriod.map((payment) => <tr key={payment.pagoId}><td>PAG-{String(payment.pagoId).padStart(6, '0')}</td><td>{formatDate(payment.fechaPago)}</td><td><FounderSellerList sellers={payment.retiros.map((retiro) => ({ name: retiro.nombreTienda, founder: retiro.sellerFounder }))} /></td><td>{payment.retiros.length}</td><td>{formatDate(getPaymentPeriod(payment.fechaPago).start)} - {formatDate(getPaymentPeriod(payment.fechaPago).end)}</td><td><div className="action-cell"><button className="action-button neutral" type="button" onClick={() => { setSelectedPaidPayment(payment); setPaidDetailQuery(''); setPaidDetailSeller(''); }} title="Ver liquidaciones del pago"><UiIcon name="eye" /></button><button className="action-button issue" type="button" onClick={() => setPaidDocumentsPayment(payment)} title="Historial de boletas"><UiIcon name="receipt" /></button></div></td></tr>) : <tr><td colSpan={6}><div className="empty-state">No hay liquidaciones pagadas para el período seleccionado.</div></td></tr>}</tbody></table>
             ) : (
             <table className="wide-table">
               <thead>
@@ -1503,7 +1512,7 @@ export default function AdminFinancePage() {
                     <td className="selection-cell"><input type="checkbox" checked={selectedRows.liquidaciones.has(settlement.id)} onChange={() => toggleSelection('liquidaciones', settlement.id)} aria-label={`Seleccionar liquidación ${settlement.id}`} /></td>
                     <td>{settlement.id}</td>
                     <td>{formatDate(settlement.date)}</td>
-                    <td>{settlement.seller}</td>
+                    <td><FounderSellerName name={settlement.seller} founder={settlement.sellerFounder} /></td>
                     <td>{settlement.orderId}</td>
                     <td className="value-cell tooltip-container">
                       <span className="tooltip-trigger-value">
@@ -1529,7 +1538,7 @@ export default function AdminFinancePage() {
                       <div className="tooltip-content">
                         <div className="tooltip-arrow"></div>
                         <div className="tooltip-body">
-                          <div className="tooltip-row"><span>Comisión RepuesTop</span><span>{formatMoney(settlement.serviceCommission)}</span></div>
+                          <div className="tooltip-row"><span>{serviceCommissionLabel(settlement)}</span><span>{formatMoney(settlement.serviceCommission)}</span></div>
                           <div className="tooltip-row"><span>IVA de comisión</span><span>{formatMoney(settlement.serviceCommissionIva)}</span></div>
                           <div className="tooltip-row"><span>Comisión PagoFlow a cargo del vendedor</span><span>{formatMoney(settlement.gatewayFeeSeller)}</span></div>
                           <div className="tooltip-divider"></div>
@@ -1755,13 +1764,13 @@ export default function AdminFinancePage() {
       {selectedPaidPayment && (
         <Modal title={`Liquidaciones del pago PAG-${String(selectedPaidPayment.pagoId).padStart(6, '0')}`} subtitle={`${formatDate(selectedPaidPayment.periodoInicio ?? selectedPaidPayment.fechaPago)} - ${formatDate(selectedPaidPayment.periodoFin ?? selectedPaidPayment.fechaPago)}`} onClose={() => setSelectedPaidPayment(null)}>
           <div className="table-toolbar"><input className="input" type="search" placeholder="Buscar por liquidación o pedido..." value={paidDetailQuery} onChange={(event) => setPaidDetailQuery(event.target.value)} /><select className="input" value={paidDetailSeller} onChange={(event) => setPaidDetailSeller(event.target.value)}><option value="">Todos los vendedores</option>{[...new Set(selectedPaidPayment.retiros.map((retiro) => retiro.nombreTienda))].map((seller) => <option key={seller} value={seller}>{seller}</option>)}</select></div>
-          <div className="modal-table-scroll paid-liquidation-detail"><table className="wide-table"><thead><tr><th>Código de liquidación</th><th>Vendedor</th><th>Pedido</th><th>Fecha</th><th>Valor</th></tr></thead><tbody>{selectedPaidPayment.retiros.flatMap((retiro, index) => (paidPaymentDetails[index]?.pedidos ?? []).filter((pedido) => (!paidDetailSeller || retiro.nombreTienda === paidDetailSeller) && (!paidDetailQuery || normalizeText(`${pedido.codigoExterno ?? pedido.pedidoId} ${pedido.pedidoId}`).includes(normalizeText(paidDetailQuery)))).map((pedido) => <tr key={`${retiro.retiroId}-${pedido.pedidoId}`}><td>{pedido.codigoExterno?.replace('-PED-', '-LQ-') ?? `LQ-${String(pedido.pedidoId).padStart(7, '0')}`}</td><td>{retiro.nombreTienda}</td><td>{pedido.codigoExterno ?? `PED-${String(pedido.pedidoId).padStart(7, '0')}`}</td><td>{formatDate(pedido.fecha)}</td><td>{formatMoney(pedido.valor)}</td></tr>))}</tbody></table></div>
+          <div className="modal-table-scroll paid-liquidation-detail"><table className="wide-table"><thead><tr><th>Código de liquidación</th><th>Vendedor</th><th>Pedido</th><th>Fecha</th><th>Valor</th></tr></thead><tbody>{selectedPaidPayment.retiros.flatMap((retiro, index) => (paidPaymentDetails[index]?.pedidos ?? []).filter((pedido) => (!paidDetailSeller || retiro.nombreTienda === paidDetailSeller) && (!paidDetailQuery || normalizeText(`${pedido.codigoExterno ?? pedido.pedidoId} ${pedido.pedidoId}`).includes(normalizeText(paidDetailQuery)))).map((pedido) => <tr key={`${retiro.retiroId}-${pedido.pedidoId}`}><td>{pedido.codigoExterno?.replace('-PED-', '-LQ-') ?? `LQ-${String(pedido.pedidoId).padStart(7, '0')}`}</td><td><FounderSellerName name={retiro.nombreTienda} founder={retiro.sellerFounder} /></td><td>{pedido.codigoExterno ?? `PED-${String(pedido.pedidoId).padStart(7, '0')}`}</td><td>{formatDate(pedido.fecha)}</td><td>{formatMoney(pedido.valor)}</td></tr>))}</tbody></table></div>
         </Modal>
       )}
 
       {paidDocumentsPayment && (
         <Modal title="Boletas y facturas adjuntas" subtitle={`PAG-${String(paidDocumentsPayment.pagoId).padStart(6, '0')}`} onClose={() => setPaidDocumentsPayment(null)}>
-          <div className="modal-table-scroll paid-liquidation-detail"><table className="wide-table"><thead><tr><th>Vendedor</th><th>RUT</th><th>Archivo asociado</th></tr></thead><tbody>{paidDocumentsPayment.retiros.map((retiro) => <tr key={retiro.retiroId}><td>{retiro.nombreTienda}</td><td>{retiro.rut || 'Sin RUT'}</td><td><button className={`action-button ${retiro.documentoLiquidacionNombre ? 'neutral' : 'disabled'}`} type="button" onClick={() => void previewPaidDocument(retiro.retiroId, retiro.documentoLiquidacionNombre)} disabled={!retiro.documentoLiquidacionNombre} title={retiro.documentoLiquidacionNombre ? `Ver ${retiro.documentoLiquidacionNombre}` : 'Sin PDF registrado'} aria-label={retiro.documentoLiquidacionNombre ? `Ver PDF de ${retiro.nombreTienda}` : `Sin PDF registrado para ${retiro.nombreTienda}`}><UiIcon name="eye" /></button></td></tr>)}</tbody></table></div>
+          <div className="modal-table-scroll paid-liquidation-detail"><table className="wide-table"><thead><tr><th>Vendedor</th><th>RUT</th><th>Archivo asociado</th></tr></thead><tbody>{paidDocumentsPayment.retiros.map((retiro) => <tr key={retiro.retiroId}><td><FounderSellerName name={retiro.nombreTienda} founder={retiro.sellerFounder} /></td><td>{retiro.rut || 'Sin RUT'}</td><td><button className={`action-button ${retiro.documentoLiquidacionNombre ? 'neutral' : 'disabled'}`} type="button" onClick={() => void previewPaidDocument(retiro.retiroId, retiro.documentoLiquidacionNombre)} disabled={!retiro.documentoLiquidacionNombre} title={retiro.documentoLiquidacionNombre ? `Ver ${retiro.documentoLiquidacionNombre}` : 'Sin PDF registrado'} aria-label={retiro.documentoLiquidacionNombre ? `Ver PDF de ${retiro.nombreTienda}` : `Sin PDF registrado para ${retiro.nombreTienda}`}><UiIcon name="eye" /></button></td></tr>)}</tbody></table></div>
         </Modal>
       )}
 
@@ -1774,9 +1783,9 @@ export default function AdminFinancePage() {
       )}
 
       {selectedLiquidationSeller && (
-        <Modal title={`Liquidaciones de ${selectedLiquidationSeller.seller}`} subtitle={`${selectedLiquidationSeller.settlements.length} liquidaciones · ${formatMoney(selectedLiquidationSeller.total)} · Período: ${selectedLiquidationPeriod}`} onClose={() => setSelectedLiquidationSeller(null)}>
+        <Modal title={<>Liquidaciones de <FounderSellerName name={selectedLiquidationSeller.seller} founder={selectedLiquidationSeller.sellerFounder} /></>} subtitle={`${selectedLiquidationSeller.settlements.length} liquidaciones · ${formatMoney(selectedLiquidationSeller.total)} · Período: ${selectedLiquidationPeriod}`} onClose={() => setSelectedLiquidationSeller(null)}>
           <div className="table-shell liquidation-preview-shell"><table className="wide-table liquidation-preview-table"><thead><tr><th>ID liquidación</th><th>Pedido</th><th>Fecha</th><th>Venta total</th><th>Ganancias de la venta</th><th>Ganancia neta</th><th>Monto a pagar vendedor</th><th>IVA</th></tr></thead><tbody>
-            {selectedLiquidationSeller.settlements.map((settlement) => <tr key={settlement.id}><td>{settlement.id}</td><td>{settlement.orderId}</td><td>{formatDate(settlement.date)}</td><td className="value-cell tooltip-container"><span className="tooltip-trigger-value">{formatMoney(settlement.saleTotal)}<UiIcon name="info" /></span><div className="tooltip-content"><div className="tooltip-arrow"></div><div className="tooltip-body">{Object.entries(settlement.saleDetail).map(([label, value]) => <div className="tooltip-row" key={label}><span>{label}</span><span>{formatMoney(value)}</span></div>)}<div className="tooltip-divider"></div><div className="tooltip-row total"><span>Total de la venta</span><span>{formatMoney(settlement.saleTotal)}</span></div></div></div></td><td className="value-cell tooltip-container"><span className="tooltip-trigger-value">{formatMoney(settlement.commission)}<UiIcon name="info" /></span><div className="tooltip-content"><div className="tooltip-arrow"></div><div className="tooltip-body"><div className="tooltip-row"><span>Comisión RepuesTop</span><span>{formatMoney(settlement.serviceCommission)}</span></div><div className="tooltip-row"><span>IVA de comisión</span><span>{formatMoney(settlement.serviceCommissionIva)}</span></div><div className="tooltip-row"><span>Comisión PagoFlow a cargo del vendedor</span><span>{formatMoney(settlement.gatewayFeeSeller)}</span></div><div className="tooltip-divider"></div><div className="tooltip-row total"><span>Ganancias de la venta</span><span>{formatMoney(settlement.commission)}</span></div></div></div></td><td className="value-cell tooltip-container"><span className="tooltip-trigger-value">{formatMoney(settlement.netSettlement)}<UiIcon name="info" /></span><div className="tooltip-content net-settlement-tooltip"><div className="tooltip-arrow"></div><div className="tooltip-body"><div className="tooltip-row"><span>Ganancias de la venta</span><span>{formatMoney(settlement.commission)}</span></div><div className="tooltip-row"><span>IVA de comisión RepuesTop</span><span>-{formatMoney(settlement.serviceCommissionIva)}</span></div><div className="tooltip-row"><span>Comisión PagoFlow cobrada al vendedor</span><span>-{formatMoney(settlement.gatewayFeeSeller)}</span></div>{settlement.gatewayFeeRepuestop > 0 && <div className="tooltip-row"><span>PagoFlow de despacho local (costo RepuesTop)</span><span>-{formatMoney(settlement.gatewayFeeRepuestop)}</span></div>}<div className="tooltip-divider"></div><div className="tooltip-row total"><span>Ganancia neta</span><span>{formatMoney(settlement.netSettlement)}</span></div></div></div></td><td>{formatMoney(settlement.sellerPayout)}</td><td>{formatMoney(settlement.serviceCommissionIva)}</td></tr>)}
+            {selectedLiquidationSeller.settlements.map((settlement) => <tr key={settlement.id}><td>{settlement.id}</td><td>{settlement.orderId}</td><td>{formatDate(settlement.date)}</td><td className="value-cell tooltip-container"><span className="tooltip-trigger-value">{formatMoney(settlement.saleTotal)}<UiIcon name="info" /></span><div className="tooltip-content"><div className="tooltip-arrow"></div><div className="tooltip-body">{Object.entries(settlement.saleDetail).map(([label, value]) => <div className="tooltip-row" key={label}><span>{label}</span><span>{formatMoney(value)}</span></div>)}<div className="tooltip-divider"></div><div className="tooltip-row total"><span>Total de la venta</span><span>{formatMoney(settlement.saleTotal)}</span></div></div></div></td><td className="value-cell tooltip-container"><span className="tooltip-trigger-value">{formatMoney(settlement.commission)}<UiIcon name="info" /></span><div className="tooltip-content"><div className="tooltip-arrow"></div><div className="tooltip-body"><div className="tooltip-row"><span>{serviceCommissionLabel(settlement)}</span><span>{formatMoney(settlement.serviceCommission)}</span></div><div className="tooltip-row"><span>IVA de comisión</span><span>{formatMoney(settlement.serviceCommissionIva)}</span></div><div className="tooltip-row"><span>Comisión PagoFlow a cargo del vendedor</span><span>{formatMoney(settlement.gatewayFeeSeller)}</span></div><div className="tooltip-divider"></div><div className="tooltip-row total"><span>Ganancias de la venta</span><span>{formatMoney(settlement.commission)}</span></div></div></div></td><td className="value-cell tooltip-container"><span className="tooltip-trigger-value">{formatMoney(settlement.netSettlement)}<UiIcon name="info" /></span><div className="tooltip-content net-settlement-tooltip"><div className="tooltip-arrow"></div><div className="tooltip-body"><div className="tooltip-row"><span>Ganancias de la venta</span><span>{formatMoney(settlement.commission)}</span></div><div className="tooltip-row"><span>IVA de comisión RepuesTop</span><span>-{formatMoney(settlement.serviceCommissionIva)}</span></div><div className="tooltip-row"><span>Comisión PagoFlow cobrada al vendedor</span><span>-{formatMoney(settlement.gatewayFeeSeller)}</span></div>{settlement.gatewayFeeRepuestop > 0 && <div className="tooltip-row"><span>PagoFlow de despacho local (costo RepuesTop)</span><span>-{formatMoney(settlement.gatewayFeeRepuestop)}</span></div>}<div className="tooltip-divider"></div><div className="tooltip-row total"><span>Ganancia neta</span><span>{formatMoney(settlement.netSettlement)}</span></div></div></div></td><td>{formatMoney(settlement.sellerPayout)}</td><td>{formatMoney(settlement.serviceCommissionIva)}</td></tr>)}
           </tbody><tfoot><tr><th colSpan={3}>Total acumulado</th><td>{formatMoney(selectedLiquidationSeller.settlements.reduce((total, settlement) => total + settlement.saleTotal, 0))}</td><td>{formatMoney(selectedLiquidationSeller.settlements.reduce((total, settlement) => total + settlement.commission, 0))}</td><td>{formatMoney(selectedLiquidationSeller.settlements.reduce((total, settlement) => total + settlement.netSettlement, 0))}</td><td>{formatMoney(selectedLiquidationSeller.settlements.reduce((total, settlement) => total + settlement.sellerPayout, 0))}</td><td>{formatMoney(selectedLiquidationSeller.settlements.reduce((total, settlement) => total + settlement.serviceCommissionIva, 0))}</td></tr></tfoot></table></div>
         </Modal>
       )}
@@ -1908,7 +1917,7 @@ export default function AdminFinancePage() {
             <section className="settlement-hero">
               <span className="settlement-hero-icon"><UiIcon name="clipboard" /></span>
               <div>
-                <span>{selectedDetailSettlement.seller}</span>
+                <span><FounderSellerName name={selectedDetailSettlement.seller} founder={selectedDetailSettlement.sellerFounder} /></span>
                 <strong>{formatMoney(selectedDetailSettlement.netSettlement)}</strong>
                 <p>Comisión RepuesTop después de IVA y PagoFlow</p>
               </div>
@@ -1917,7 +1926,7 @@ export default function AdminFinancePage() {
 
             <section className="settlement-stat-grid">
               <article><span>Venta total</span><strong>{formatMoney(selectedDetailSettlement.saleTotal)}</strong></article>
-              <article><span>Comisión RepuesTop</span><strong>{formatMoney(selectedDetailSettlement.serviceCommission)}</strong></article>
+              <article><span>{serviceCommissionLabel(selectedDetailSettlement)}</span><strong>{formatMoney(selectedDetailSettlement.serviceCommission)}</strong></article>
               <article><span>IVA de comisión</span><strong>{formatMoney(selectedDetailSettlement.serviceCommissionIva)}</strong></article>
               <article><span>PagoFlow a cargo del vendedor</span><strong>{formatMoney(selectedDetailSettlement.gatewayFeeSeller)}</strong></article>
             </section>
@@ -1932,7 +1941,7 @@ export default function AdminFinancePage() {
 
             <dl className="settlement-meta">
               <div><dt>Fecha</dt><dd>{formatDate(selectedDetailSettlement.date)}</dd></div>
-              <div><dt>Vendedor</dt><dd>{selectedDetailSettlement.seller}</dd></div>
+              <div><dt>Vendedor</dt><dd><FounderSellerName name={selectedDetailSettlement.seller} founder={selectedDetailSettlement.sellerFounder} /></dd></div>
               <div><dt>ID liquidación</dt><dd>{selectedDetailSettlement.id}</dd></div>
               <div><dt>Pedido asociado</dt><dd>{selectedDetailSettlement.orderId}</dd></div>
             </dl>
@@ -2080,7 +2089,7 @@ export default function AdminFinancePage() {
 
                   <dt style={{ color: '#64748b', fontSize: '13px', fontWeight: 600 }}>Vendedor:</dt>
                   <dd style={{ margin: 0, color: '#334155', fontSize: '13px', fontWeight: 650 }}>
-                    {selectedDetailOrder.seller}
+                    <FounderSellerName name={selectedDetailOrder.seller} founder={selectedDetailOrder.sellerFounder} />
                   </dd>
 
                   <dt style={{ color: '#64748b', fontSize: '13px', fontWeight: 600 }}>Producto:</dt>

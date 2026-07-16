@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { MediationDetailResponse } from '@/types/mediation';
 import UiIcon from '@/components/shared/UiIcon';
+import FounderSellerName from '@/components/shared/FounderSellerName';
 import { formatDateTime, mediationStatusDisplay } from '@/utils/formatters';
 import { useQuery } from '@tanstack/react-query';
 import { getReports } from '@/api/reports';
@@ -157,7 +158,7 @@ export default function MediationNotesHistoryModal(props: MediationNotesHistoryM
 
         <section className="notes-history-intro">
           <h3>{item.externalId}</h3>
-          <p>{item.sellerName} · {item.reason}</p>
+          <p><FounderSellerName name={item.sellerName} founder={item.sellerFounder} /> · {item.reason}</p>
           <span className="notes-history-private-pill">
             <UiIcon name="lock" /> Solo equipo de mediación
           </span>

@@ -51,6 +51,7 @@ export default function UiIcon({ name, className = '', style }: UiIconProps) {
     flag: '<path d="M6 3v18" /><path d="M6 4h10l-1.5 3L16 10H6" />',
     cart: '<circle cx="9" cy="20" r="1" /><circle cx="17" cy="20" r="1" /><path d="M3 4h2l2.5 11h9.8l2-8H7" />',
     cube: '<path d="m12 2 8 4v12l-8 4-8-4V6l8-4Z" /><path d="M12 2v20" /><path d="M4 6l8 4 8-4" />',
+    crown: '<path d="m2 4 3 12h14l3-12-6 7-4-7-4 7-6-7Z" /><path d="M5 20h14" />',
     scale: '<path d="m16 16 3-7 3 7c-.9.7-1.9 1-3 1s-2.1-.3-3-1Z" /><path d="m2 16 3-7 3 7c-.9.7-1.9 1-3 1s-2.1-.3-3-1Z" /><path d="M7 21h10" /><path d="M12 3v18" /><path d="M3 9h18" />',
     selectAll: '<rect x="4" y="4" width="16" height="16" rx="2" /><path d="m8 12 2.5 2.5L16 9" />',
     search: '<circle cx="11" cy="11" r="7" /><path d="m20 20-4-4" />',

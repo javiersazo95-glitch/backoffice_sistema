@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { MediationResponse } from '@/types/mediation';
 import UiIcon from '@/components/shared/UiIcon';
+import FounderSellerName from '@/components/shared/FounderSellerName';
 import Badge from '@/components/shared/Badge';
 import { mediationStatusDisplay } from '@/utils/formatters';
 
@@ -106,7 +107,7 @@ export default function BlockedAccountsTable({
                     <td>
                       <Badge text={getBlockedStatusLabel(item.blockedAccountStatus)} variant={getBlockedStatusVariant(item.blockedAccountStatus)} />
                     </td>
-                    <td>{item.sellerName}</td>
+                    <td><FounderSellerName name={item.sellerName} founder={item.sellerFounder} /></td>
                     <td>{item.orderId}</td>
                     <td className="resolved-table-summary">
                       <strong>{item.escalationReason || item.reason || 'Motivo no informado'}</strong>

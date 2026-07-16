@@ -5,6 +5,7 @@ import DetailRow from '@/components/shared/DetailRow';
 import ActionRow from '@/components/shared/ActionRow';
 import QuickActions from '@/components/shared/QuickActions';
 import UiIcon from '@/components/shared/UiIcon';
+import FounderSellerName from '@/components/shared/FounderSellerName';
 import { mediationStatusDisplay } from '@/utils/formatters';
 
 interface MediationDetailPanelProps {
@@ -64,7 +65,7 @@ export default function MediationDetailPanel({
 
 
       <div className="side-section">
-        <DetailRow label="Tienda" value={item.sellerName} />
+        <DetailRow label="Tienda" value={<FounderSellerName name={item.sellerName} founder={item.sellerFounder} />} />
         <DetailRow label="Comprador" value={buyerName} />
         <DetailRow label="Pedido" value={item.orderId} />
         <DetailRow label="Motivo" value={item.reason} />

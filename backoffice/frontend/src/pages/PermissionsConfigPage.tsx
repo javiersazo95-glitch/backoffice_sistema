@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import UiIcon from '@/components/shared/UiIcon';
 import { showToast } from '@/components/layout/Toast';
 import * as permissionsApi from '@/api/permissions';
+import * as foundersApi from '@/api/founders';
 import type { BackofficeArea, BackofficePermission, BackofficePermissionSlot } from '@/types/auth';
 
 const AREA_LABELS: Record<BackofficeArea, string> = {
@@ -51,7 +52,7 @@ function permissionText(permissions: BackofficePermission[]) {
 export default function PermissionsConfigPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<'permisos' | 'usuarios'>('permisos');
+  const [activeTab, setActiveTab] = useState<'permisos' | 'usuarios' | 'fundador'>('permisos');
   const [searchEmail, setSearchEmail] = useState('');
   const [selectedUser, setSelectedUser] = useState<permissionsApi.PermissionUser | null>(null);
   const [draftPermissions, setDraftPermissions] = useState<BackofficePermission[]>([]);
@@ -60,6 +61,33 @@ export default function PermissionsConfigPage() {
   const [slotFilter, setSlotFilter] = useState<BackofficePermissionSlot | 'All'>('All');
   const [page, setPage] = useState(0);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [founderSearch, setFounderSearch] = useState('');
+  const [founderFilter, setFounderFilter] = useState<'ALL' | 'FOUNDER' | 'NON_FOUNDER'>('ALL');
+  const [founderPage, setFounderPage] = useState(0);
+
+  const { data: founderConfig } = useQuery({
+    queryKey: ['founder-config'],
+    queryFn: foundersApi.getFounderConfig,
+    enabled: activeTab === 'fundador',
+  });
+
+  const { data: founderData, isLoading: founderLoading } = useQuery({
+    queryKey: ['founder-sellers', founderSearch, founderFilter, founderPage],
+    queryFn: () => foundersApi.listFounders({ search: founderSearch || undefined, status: founderFilter, page: founderPage, size: 10 }),
+    enabled: activeTab === 'fundador',
+  });
+
+  const founderConfigMutation = useMutation({
+    mutationFn: foundersApi.updateFounderConfig,
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['founder-config'] }); showToast('Ranura general actualizada'); },
+    onError: (error: any) => showToast(error.message || 'No se pudo actualizar la ranura general'),
+  });
+
+  const founderMutation = useMutation({
+    mutationFn: ({ sellerId, founder }: { sellerId: number; founder: boolean }) => foundersApi.setFounder(sellerId, founder),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['founder-sellers'] }); showToast('Condición Fundador actualizada'); },
+    onError: (error: any) => showToast(error.message || 'No se pudo actualizar al vendedor'),
+  });
 
   const { data: suggestions = [] } = useQuery({
     queryKey: ['permission-user-search', searchEmail],
@@ -137,6 +165,10 @@ export default function PermissionsConfigPage() {
           <button className={activeTab === 'usuarios' ? 'active' : ''} type="button" onClick={() => setActiveTab('usuarios')}>
             <UiIcon name="users" />
             Usuarios
+          </button>
+          <button className={activeTab === 'fundador' ? 'active' : ''} type="button" onClick={() => setActiveTab('fundador')}>
+            <UiIcon name="crown" className="founder-crown-icon" />
+            Fundador
           </button>
         </nav>
 
@@ -228,7 +260,7 @@ export default function PermissionsConfigPage() {
               </button>
             </div>
           </div>
-        ) : (
+        ) : activeTab === 'usuarios' ? (
           <div className="permissions-workspace">
             <section className="permissions-config-header">
               <h2>Usuarios con permisos</h2>
@@ -315,6 +347,58 @@ export default function PermissionsConfigPage() {
                 </div>
               </div>
             )}
+          </div>
+        ) : (
+          <div className="permissions-workspace">
+            <section className="permissions-config-header">
+              <h2>Vendedores Fundadores</h2>
+              <p>Administra el beneficio comercial para nuevos registros o vendedores específicos.</p>
+            </section>
+
+            <article className="founder-general-card">
+              <div>
+                <span className="founder-badge"><UiIcon name="crown" />Fundador</span>
+                <h3>Ranura general</h3>
+                <p>Los vendedores que se registren mientras esté activa recibirán la condición Fundador.</p>
+              </div>
+              <label className="role-toggle-label">
+                <input type="checkbox" checked={founderConfig?.founderForNewSellers ?? false}
+                  disabled={!founderConfig || founderConfigMutation.isPending}
+                  onChange={(event) => founderConfigMutation.mutate(event.target.checked)} />
+                <span className="role-toggle-switch" />
+              </label>
+            </article>
+
+            <div className="validation-filters permissions-user-filters">
+              <label className="validation-search-field"><UiIcon name="search" />
+                <input type="search" value={founderSearch} onChange={(event) => { setFounderSearch(event.target.value); setFounderPage(0); }} placeholder="Usuario, tienda o correo..." />
+              </label>
+              <label className="validation-filter-field"><span>Condición</span>
+                <select value={founderFilter} onChange={(event) => { setFounderFilter(event.target.value as typeof founderFilter); setFounderPage(0); }}>
+                  <option value="ALL">Todos</option><option value="FOUNDER">Fundadores</option><option value="NON_FOUNDER">No fundadores</option>
+                </select>
+              </label>
+            </div>
+
+            <div className="panel"><div className="table-wrap"><table><thead><tr>
+              <th>Vendedor</th><th>Correo</th><th>Registro</th><th>Antigüedad</th><th>Fundador</th>
+            </tr></thead><tbody>
+              {founderLoading ? <tr><td colSpan={5}>Cargando vendedores...</td></tr>
+                : !founderData?.content.length ? <tr><td colSpan={5}>No hay vendedores para los filtros seleccionados.</td></tr>
+                : founderData.content.map((seller) => <tr key={seller.sellerId}>
+                  <td><strong>{seller.storeName}</strong><br /><span className="muted">{seller.userName}</span></td>
+                  <td>{seller.email}</td><td>{new Date(seller.registeredAt).toLocaleDateString('es-CL')}</td>
+                  <td>{seller.founder ? `${seller.founderDays} días` : '—'}</td>
+                  <td><label className="role-toggle-label"><input type="checkbox" checked={seller.founder}
+                    disabled={founderMutation.isPending}
+                    onChange={(event) => founderMutation.mutate({ sellerId: seller.sellerId, founder: event.target.checked })} />
+                    <span className="role-toggle-switch" /></label></td>
+                </tr>)}
+            </tbody></table></div></div>
+            {founderData && founderData.totalPages > 1 ? <div className="table-pagination"><span>Página {founderPage + 1} de {founderData.totalPages}</span><div>
+              <button className="page-button" disabled={founderPage === 0} onClick={() => setFounderPage((value) => value - 1)}>Anterior</button>
+              <button className="page-button" disabled={founderPage >= founderData.totalPages - 1} onClick={() => setFounderPage((value) => value + 1)}>Siguiente</button>
+            </div></div> : null}
           </div>
         )}
       </div>

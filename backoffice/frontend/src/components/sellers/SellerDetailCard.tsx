@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import UiIcon from '@/components/shared/UiIcon';
+import FounderSellerName from '@/components/shared/FounderSellerName';
 import Badge from '@/components/shared/Badge';
 import DetailRow from '@/components/shared/DetailRow';
 import QuickActions from '@/components/shared/QuickActions';
@@ -80,7 +81,7 @@ export default function SellerDetailCard({
           )}
         </div>
         <div>
-          <h2>{seller.storeName}</h2>
+          <h2><FounderSellerName name={seller.storeName} founder={seller.founder} /></h2>
           <p className="row-sub">
             RUT {seller.rut} · {seller.city}{seller.email ? ` · ${seller.email}` : ''}
           </p>
@@ -182,7 +183,7 @@ export default function SellerDetailCard({
               </div>
               <div className="case-modal-title">
                 <span className="case-modal-kicker">Cuenta bloqueada</span>
-                <h2>{seller.storeName}</h2>
+                <h2><FounderSellerName name={seller.storeName} founder={seller.founder} /></h2>
                 <p>{seller.rut} · {seller.city}</p>
               </div>
               <button className="ghost-button" type="button" onClick={() => setBlockModalOpen(false)}>
@@ -234,7 +235,7 @@ export default function SellerDetailCard({
               </div>
               <div className="case-modal-title">
                 <span className="case-modal-kicker">Datos bancarios</span>
-                <h2>{seller.storeName}</h2>
+                <h2><FounderSellerName name={seller.storeName} founder={seller.founder} /></h2>
               </div>
               <button className="ghost-button" type="button" onClick={() => setShowBankModal(false)}>
                 Cerrar

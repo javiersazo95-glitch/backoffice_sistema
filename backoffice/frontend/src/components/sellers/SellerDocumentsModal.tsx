@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
 import type { SellerDocumentResponse, SellerResponse } from '@/types/seller';
 import UiIcon from '@/components/shared/UiIcon';
+import FounderSellerName from '@/components/shared/FounderSellerName';
 import DocumentPreview from '@/components/shared/DocumentPreview';
 import { buildDocumentDownloadName, downloadDocument, resolveDocumentUrl } from '@/utils/documentUrls';
 
@@ -97,7 +98,7 @@ export default function SellerDocumentsModal({ isOpen, onClose, seller, document
             </span>
             <div className="seller-documents-title">
               <h2>Documentos del vendedor</h2>
-              <p>{seller.storeName} · {seller.externalId}</p>
+              <p><FounderSellerName name={seller.storeName} founder={seller.founder} /> · {seller.externalId}</p>
             </div>
           </div>
 

@@ -4,6 +4,8 @@ import { isAxiosError } from 'axios';
 import * as adminApi from '@/api/administration';
 import UiIcon from '@/components/shared/UiIcon';
 import MetricCard from '@/components/shared/MetricCard';
+import FounderSellerName from '@/components/shared/FounderSellerName';
+import FounderSellerList from '@/components/shared/FounderSellerList';
 import { downloadFile, csvCell } from './utils';
 import type { RetiroAdminResponse, RetiroDetalleResponse, PagoProveedorResponse } from './types';
 
@@ -292,7 +294,7 @@ export default function PagoProveedoresPage() {
                     pendingWithdrawals.map((w) => (
                       <tr key={w.retiroId}>
                         <td><strong>RET-{String(w.retiroId).padStart(6, '0')}</strong></td>
-                        <td>{w.nombreTienda}</td>
+                        <td><FounderSellerName name={w.nombreTienda} founder={w.sellerFounder} /></td>
                         <td>{w.rut}</td>
                         <td>{w.razonSocial}</td>
                         <td>{w.banco}</td>
@@ -428,7 +430,7 @@ export default function PagoProveedoresPage() {
                           <strong>PAG-{String(payment.pagoId).padStart(6, '0')}</strong>
                           <small style={{ display: 'block', color: '#6b7a90', marginTop: 3 }}>{payment.retiros.length} solicitudes de retiro</small>
                         </td>
-                        <td>{payment.retiros.map((retiro) => retiro.nombreTienda).join(', ')}</td>
+                        <td><FounderSellerList sellers={payment.retiros.map((retiro) => ({ name: retiro.nombreTienda, founder: retiro.sellerFounder }))} /></td>
                         <td style={{ fontWeight: 'bold', color: '#2e7d32' }}>{formatMoney(payment.montoTotal)}</td>
                         <td>{formatDate(payment.fechaPago)}</td>
                         <td>
@@ -549,7 +551,7 @@ export default function PagoProveedoresPage() {
                       {paymentDetails.retiros.map((retiro) => (
                         <tr key={retiro.retiroId}>
                           <td style={{ padding: '8px 12px' }}><strong>RET-{String(retiro.retiroId).padStart(6, '0')}</strong></td>
-                          <td style={{ padding: '8px 12px' }}>{retiro.nombreTienda}</td>
+                          <td style={{ padding: '8px 12px' }}><FounderSellerName name={retiro.nombreTienda} founder={retiro.sellerFounder} /></td>
                           <td style={{ padding: '8px 12px' }}>{formatDate(retiro.fecha)}</td>
                           <td style={{ textAlign: 'right', padding: '8px 12px', fontWeight: 'bold' }}>{formatMoney(retiro.monto)}</td>
                         </tr>
@@ -627,7 +629,10 @@ export default function PagoProveedoresPage() {
               Falta completar el formulario de registro de boleta/factura para {incompleteDocumentSellers.length === 1 ? 'el vendedor' : 'los vendedores'}:
             </p>
             <ul style={{ margin: '0 0 20px', paddingLeft: 22, color: '#9b2c2c', fontWeight: 700 }}>
-              {incompleteDocumentSellers.map((seller) => <li key={seller}>{seller}</li>)}
+              {incompleteDocumentSellers.map((seller) => {
+                const withdrawal = withdrawals.find((item) => item.nombreTienda === seller);
+                return <li key={seller}><FounderSellerName name={seller} founder={withdrawal?.sellerFounder} /></li>;
+              })}
             </ul>
             <div style={{ background: '#fff5f5', border: '1px solid #fed7d7', borderRadius: 8, padding: 12, color: '#9b2c2c', fontSize: 13 }}>
               Completa todos los campos y adjunta el PDF antes de procesar el pago.

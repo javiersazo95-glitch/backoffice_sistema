@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { MediationDetailResponse } from '@/types/mediation';
 import UiIcon from '@/components/shared/UiIcon';
+import FounderSellerName from '@/components/shared/FounderSellerName';
 import Badge from '@/components/shared/Badge';
 import {
   mediationNoteTypeOptions,
@@ -97,7 +98,7 @@ export default function MediationNoteModal({
             <div>
               <span className="mediation-note-kicker">Caso</span>
               <h3>{item.externalId}</h3>
-              <p>{item.sellerName} · {item.reason}</p>
+              <p><FounderSellerName name={item.sellerName} founder={item.sellerFounder} /> · {item.reason}</p>
             </div>
             <Badge text="Solo equipo interno" variant="violet" />
           </section>

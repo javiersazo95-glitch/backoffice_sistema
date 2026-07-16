@@ -10,6 +10,7 @@ import { PAGE_SIZES } from '@/utils/constants';
 import { AlertSeverity } from '@/types/alert';
 import { showToast } from '@/components/layout/Toast';
 import AreaHomeShortcut from '@/components/shared/AreaHomeShortcut';
+import FounderSellerName from '@/components/shared/FounderSellerName';
 
 export default function AlertsPage() {
   const [page, setPage] = useState(0);
@@ -118,7 +119,7 @@ export default function AlertsPage() {
                     {alerts.map((alert) => (
                       <tr key={alert.id} className={selectedId === alert.id ? 'is-active' : ''} onClick={() => setSelectedId(alert.id)} style={{ cursor: 'pointer' }}>
                         <td><Badge text={alert.severity} variant={alert.severity} /></td>
-                        <td>{alert.sellerName}</td>
+                        <td><FounderSellerName name={alert.sellerName} founder={alert.sellerFounder} /></td>
                         <td>{alert.signalType}</td>
                         <td>{alert.evidence}</td>
                         <td>{alert.action}</td>
@@ -153,7 +154,7 @@ export default function AlertsPage() {
             <div className="side-panel-head">
               <div>
                 <h2>{selectedAlert.signalType}</h2>
-                <p>{selectedAlert.sellerName}</p>
+                <p><FounderSellerName name={selectedAlert.sellerName} founder={selectedAlert.sellerFounder} /></p>
               </div>
               <Badge text={selectedAlert.severity} variant={selectedAlert.severity} />
             </div>
@@ -193,7 +194,7 @@ export default function AlertsPage() {
               {receipts.content.map((r) => (
                 <div key={r.id} className="receipt-item">
                   <div>
-                    <strong>{r.sellerName}</strong>
+                    <strong><FounderSellerName name={r.sellerName} founder={r.sellerFounder} /></strong>
                     <span>Orden {r.orderId} · {r.dueInfo}</span>
                     {r.detail && <p>{r.detail}</p>}
                   </div>

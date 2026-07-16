@@ -4,6 +4,7 @@ import Modal from '@/components/shared/Modal';
 import ModalField from '@/components/shared/ModalField';
 import Badge from '@/components/shared/Badge';
 import UiIcon from '@/components/shared/UiIcon';
+import FounderSellerName from '@/components/shared/FounderSellerName';
 import { mediationStatusDisplay } from '@/utils/formatters';
 
 interface CaseResolutionModalProps {
@@ -43,7 +44,7 @@ export default function CaseResolutionModal({ isOpen, onClose, item, mode, onSub
           <div className="case-modal-title">
             <span className="case-modal-kicker">{kicker}</span>
             <h2>{item.externalId}</h2>
-            <p>{item.sellerName} · {kind} · {item.reason}</p>
+            <p><FounderSellerName name={item.sellerName} founder={item.sellerFounder} /> · {kind} · {item.reason}</p>
           </div>
         </div>
 
@@ -64,7 +65,7 @@ export default function CaseResolutionModal({ isOpen, onClose, item, mode, onSub
           <div className="case-modal-grid">
             <ModalField label="Tipo de caso" value={kind} />
             <ModalField label="Pedido" value={item.orderId} />
-            <ModalField label="Tienda" value={item.sellerName} />
+            <ModalField label="Tienda" value={<FounderSellerName name={item.sellerName} founder={item.sellerFounder} />} />
             <ModalField label="Comprador" value={item.title.replace('Comprador vs ', '')} />
             <ModalField label="Monto" value={item.amount} />
             <ModalField label="Fecha actual" value={item.updatedAt} />

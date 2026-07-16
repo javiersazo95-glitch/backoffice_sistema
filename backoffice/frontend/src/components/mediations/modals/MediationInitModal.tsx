@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import type { MediationDetailResponse } from '@/types/mediation';
 import Badge from '@/components/shared/Badge';
 import UiIcon from '@/components/shared/UiIcon';
+import FounderSellerName from '@/components/shared/FounderSellerName';
 import { formatCurrency, mediationEscalationReason, mediationStatusDisplay } from '@/utils/formatters';
 
 interface MediationInitModalProps {
@@ -103,7 +104,7 @@ export default function MediationInitModal({ isOpen, onClose, item, onSubmit, is
               <div className="mediation-init-title">
                 <span className="mediation-init-kicker">Inicializar mediación</span>
                 <h2>{item.externalId}</h2>
-                <p>{item.sellerName} · {item.elapsed}</p>
+                <p><FounderSellerName name={item.sellerName} founder={item.sellerFounder} /> · {item.elapsed}</p>
               </div>
             </div>
 

@@ -13,6 +13,7 @@ export interface MediationResponse {
   externalId: string;
   sellerId: number;
   sellerName: string;
+  sellerFounder?: boolean;
   title: string;
   status: MediationStatus;
   displayStatus: string;
@@ -106,6 +107,7 @@ export interface ResolvedCaseResponse {
   mediationId: number;
   sellerId: number;
   sellerName: string;
+  sellerFounder?: boolean;
   buyer: string;
   orderId: string;
   reason: string;

@@ -9,6 +9,7 @@ import { PAGE_SIZES } from '@/utils/constants';
 import type { AuditFilterRequest } from '@/types/audit';
 import { AuditModule } from '@/types/audit';
 import AreaHomeShortcut from '@/components/shared/AreaHomeShortcut';
+import FounderSellerName from '@/components/shared/FounderSellerName';
 
 function formatPeriod(start: string, end: string): string {
   if (!start || !end) return 'Todo el periodo';
@@ -171,7 +172,7 @@ export default function AuditPage() {
                         </td>
                         <td>{formatDateTime(log.createdAt)}</td>
                         <td>{log.userFullName}</td>
-                        <td>{log.sellerName}</td>
+                        <td><FounderSellerName name={log.sellerName} founder={log.sellerFounder} /></td>
                         <td><Badge text={log.module} variant={moduleBadgeVariant[log.module] ?? ''} /></td>
                         <td>{log.action}</td>
                         <td>{log.detail}</td>
@@ -205,12 +206,12 @@ export default function AuditPage() {
                                       </div>
                                       <div>
                                         <h3>Contexto</h3>
-                                        <p>{expandedLog.userFullName} · {expandedLog.sellerName}</p>
+                                        <p>{expandedLog.userFullName} · <FounderSellerName name={expandedLog.sellerName} founder={expandedLog.sellerFounder} /></p>
                                       </div>
                                     </div>
                                     <div className="audit-context-meta">
                                       <span>Operador <strong>{expandedLog.userFullName}</strong></span>
-                                      <span>Vendedor <strong>{expandedLog.sellerName}</strong></span>
+                                      <span>Vendedor <strong><FounderSellerName name={expandedLog.sellerName} founder={expandedLog.sellerFounder} /></strong></span>
                                       <span>RUT <strong>{expandedLog.sellerRut}</strong></span>
                                       <span>Módulo <strong>{expandedLog.module}</strong></span>
                                     </div>

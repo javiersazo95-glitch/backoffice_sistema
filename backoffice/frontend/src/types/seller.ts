@@ -50,6 +50,8 @@ export interface SellerResponse {
   bankAccountType?: string | null;
   bankAccountNumber?: string | null;
   bankAccountUpdatedAt?: string | null;
+  founder?: boolean;
+  founderSince?: string | null;
 }
 
 export interface SellerDetailResponse extends SellerResponse {

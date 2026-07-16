@@ -3,6 +3,7 @@ import Modal from '@/components/shared/Modal';
 import ModalField from '@/components/shared/ModalField';
 import Badge from '@/components/shared/Badge';
 import UiIcon from '@/components/shared/UiIcon';
+import FounderSellerName from '@/components/shared/FounderSellerName';
 import { formatCurrency, formatDateTime } from '@/utils/formatters';
 import { resolveDocumentUrl } from '@/utils/documentUrls';
 
@@ -28,7 +29,7 @@ export default function ResolvedCaseSummaryModal({ isOpen, onClose, item }: Reso
         <div className="case-modal-title">
           <span className="case-modal-kicker">Resumen operativo</span>
           <h2>{item.externalId}</h2>
-          <p>{item.sellerName} · {item.buyer || 'Comprador no informado'}</p>
+          <p><FounderSellerName name={item.sellerName} founder={item.sellerFounder} /> · {item.buyer || 'Comprador no informado'}</p>
         </div>
       </div>
 
@@ -53,7 +54,7 @@ export default function ResolvedCaseSummaryModal({ isOpen, onClose, item }: Reso
           <ModalField label="Tipo de caso" value={item.caseKind} />
           <ModalField label="Pedido" value={item.orderId} />
           <ModalField label="Monto" value={formatCurrency(item.amount)} />
-          <ModalField label="Tienda" value={item.sellerName} />
+          <ModalField label="Tienda" value={<FounderSellerName name={item.sellerName} founder={item.sellerFounder} />} />
           <ModalField label="Comprador" value={item.buyer || 'No informado'} />
           <ModalField label="Resuelto por" value={item.resolvedBy || 'No informado'} />
           <ModalField label="Fecha de cierre" value={formatDateTime(item.createdAt)} />

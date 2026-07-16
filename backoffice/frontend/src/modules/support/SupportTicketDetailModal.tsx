@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import UiIcon from '@/components/shared/UiIcon';
+import FounderSellerName from '@/components/shared/FounderSellerName';
 import { formatDateTime } from '@/utils/formatters';
 import type {
   ReporterType,
@@ -686,7 +687,7 @@ export default function SupportTicketDetailModal({
                 </div>
               </SidebarField>
               <SidebarField icon="users" label="Reportado por">
-                <span className="jira-assignee"><Avatar name={ticket.reporterName || 'Usuario'} size={20} /> {ticket.reporterName || 'No informado'}</span>
+                <span className="jira-assignee"><Avatar name={ticket.reporterName || 'Usuario'} size={20} /> <FounderSellerName name={ticket.reporterName || 'No informado'} founder={ticket.reporterType === 'VENDEDOR' && ticket.sellerFounder} /></span>
               </SidebarField>
               {!isQa && (
                 <SidebarField icon="target" label="Tipo de reportante">

@@ -3,6 +3,7 @@ import { useMediation } from '@/hooks/useMediations';
 import Modal from '@/components/shared/Modal';
 import Badge from '@/components/shared/Badge';
 import UiIcon from '@/components/shared/UiIcon';
+import FounderSellerName from '@/components/shared/FounderSellerName';
 import { formatDateTime } from '@/utils/formatters';
 import { resolveDocumentUrl } from '@/utils/documentUrls';
 
@@ -78,7 +79,7 @@ export default function ResolvedCaseTimelineModal({ isOpen, onClose, item }: Res
         <div className="case-modal-title">
           <span className="case-modal-kicker">Línea de tiempo</span>
           <h2>{item.externalId}</h2>
-          <p>{item.sellerName} · {item.buyer || 'Comprador no informado'}</p>
+          <p><FounderSellerName name={item.sellerName} founder={item.sellerFounder} /> · {item.buyer || 'Comprador no informado'}</p>
         </div>
       </div>
 
@@ -99,7 +100,7 @@ export default function ResolvedCaseTimelineModal({ isOpen, onClose, item }: Res
                 </div>
                 <div className="resolved-timeline-field">
                   <span className="resolved-timeline-field-label">Tienda</span>
-                  <span className="resolved-timeline-field-value">{item.sellerName}</span>
+                  <span className="resolved-timeline-field-value"><FounderSellerName name={item.sellerName} founder={item.sellerFounder} /></span>
                 </div>
                 <div className="resolved-timeline-field">
                   <span className="resolved-timeline-field-label">Comprador</span>

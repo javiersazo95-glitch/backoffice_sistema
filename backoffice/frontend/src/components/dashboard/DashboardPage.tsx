@@ -7,6 +7,7 @@ import { useDashboardSummary } from '@/hooks/useDashboard';
 import Badge from '@/components/shared/Badge';
 import AreaHomeShortcut from '@/components/shared/AreaHomeShortcut';
 import UiIcon from '@/components/shared/UiIcon';
+import FounderSellerName from '@/components/shared/FounderSellerName';
 import { MediationStatus } from '@/types/mediation';
 import { formatCurrency, formatDate, formatDateTime, mediationStatusDisplay, trustLevelToSpanish } from '@/utils/formatters';
 import type { MediationResponse } from '@/types/mediation';
@@ -234,7 +235,7 @@ function MediationsPanel({ expanded, onToggle }: { expanded: boolean; onToggle: 
                 <div className="trust-feed-copy">
                   <strong>{item.externalId} · Pedido {item.orderId}</strong>
                   <span>{item.reason || item.title}</span>
-                  <small>Vendedor: {item.sellerName}</small>
+                  <small>Vendedor: <FounderSellerName name={item.sellerName} founder={item.sellerFounder} /></small>
                   <small>Texto de inicio: {item.escalationReason || item.nextAction || 'Sin texto registrado'}</small>
                   <small>Días hábiles transcurridos: {item.elapsed || 'Sin dato disponible'}</small>
                 </div>
@@ -296,7 +297,7 @@ function EscalationsPanel({ expanded, onToggle }: { expanded: boolean; onToggle:
                     <UiIcon name={tone === 'red' ? 'alert' : 'clock'} />
                   </span>
                   <div className="trust-feed-copy">
-                    <strong>{item.externalId} · {item.sellerName}</strong>
+                    <strong>{item.externalId} · <FounderSellerName name={item.sellerName} founder={item.sellerFounder} /></strong>
                     <span>{item.reason || item.title}</span>
                     <small>Esperando hace {ageDays} d · {item.elapsed || 'sin antigüedad calculada'}</small>
                     <small>Última actualización: {formatDateTime(item.updatedAt)}</small>
@@ -376,7 +377,7 @@ function ValidationsPanel({ expanded, onToggle }: { expanded: boolean; onToggle:
                   <span className={`trust-document-icon ${iconClass}`}>{customIcon}</span>
                   <div className="trust-document-copy">
                     <strong>{item.documentType}</strong>
-                    <span>{item.sellerName}</span>
+                    <span><FounderSellerName name={item.sellerName} founder={item.sellerFounder} /></span>
                     <small>Responsable: {item.owner || 'Sin responsable'} · Subido: {formatDate(item.uploadedAt)}</small>
                     <small>Vence {formatDate(item.dueAt)}</small>
                     {item.notes && <small>{item.notes}</small>}

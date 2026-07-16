@@ -5,10 +5,12 @@ export interface ReportResponse {
   reportanteName: string;
   reportanteEmail: string;
   reportanteType: 'COMPRADOR' | 'VENDEDOR';
+  reportanteFounder?: boolean;
   reportadoId: number;
   reportadoName: string;
   reportadoEmail: string;
   reportadoType: 'COMPRADOR' | 'VENDEDOR';
+  reportadoFounder?: boolean;
   conversacionId?: number;
   motivo: string;
   descripcion: string;

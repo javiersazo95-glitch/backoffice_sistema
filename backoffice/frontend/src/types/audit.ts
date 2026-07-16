@@ -12,6 +12,7 @@ export interface AuditLogResponse {
   userInitials: string;
   sellerId: number;
   sellerName: string;
+  sellerFounder?: boolean;
   sellerRut: string;
   module: AuditModule;
   action: string;

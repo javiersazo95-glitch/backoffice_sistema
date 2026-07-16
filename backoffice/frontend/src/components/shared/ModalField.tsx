@@ -1,6 +1,6 @@
 interface ModalFieldProps {
   label: string;
-  value: string | number;
+  value: React.ReactNode;
   wide?: boolean;
 }
 

@@ -6,6 +6,7 @@ import * as sellersApi from '@/api/sellers';
 import UiIcon from '@/components/shared/UiIcon';
 import AreaHomeShortcut from '@/components/shared/AreaHomeShortcut';
 import Badge from '@/components/shared/Badge';
+import FounderSellerName from '@/components/shared/FounderSellerName';
 import SupportTicketDetailModal, { getStatusLabel } from './SupportTicketDetailModal';
 import { showToast } from '@/components/layout/Toast';
 import { PAGE_SIZES } from '@/utils/constants';
@@ -505,7 +506,10 @@ function SupportQaPage() {
                         {visibleSelectedBugMessages.map((message) => (
                           <article key={message.id} style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '12px', background: '#fff' }}>
                             <strong style={{ display: 'block', color: '#0f172a', marginBottom: '4px' }}>
-                              {message.autorNombre || (message.autorTipo === 'SOPORTE' ? (selectedBug.origin === 'QA' ? 'QA RepuesTop' : 'Soporte RepuesTop') : selectedBug.reporterName)}
+                              <FounderSellerName
+                                name={message.autorNombre || (message.autorTipo === 'SOPORTE' ? (selectedBug.origin === 'QA' ? 'QA RepuesTop' : 'Soporte RepuesTop') : selectedBug.reporterName)}
+                                founder={message.autorTipo !== 'SOPORTE' && selectedBug.reporterType === 'VENDEDOR' && selectedBug.sellerFounder}
+                              />
                             </strong>
                             <p style={{ margin: 0, whiteSpace: 'pre-wrap', color: '#334155' }}>{message.mensaje}</p>
                             <small style={{ display: 'block', marginTop: '8px', color: '#64748b' }}>{formatDate(message.createdAt)}</small>
@@ -1284,7 +1288,7 @@ export default function SupportPage() {
                         <span style={{ fontSize: '13px', fontWeight: '500', color: 'var(--ink)' }}>{ticket.reason}</span>
                         
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', color: 'var(--muted)', marginTop: '4px' }}>
-                          <span>Por: {ticket.reporterName}</span>
+                          <span>Por: <FounderSellerName name={ticket.reporterName} founder={ticket.reporterType === 'VENDEDOR' && ticket.sellerFounder} /></span>
                           <span>SLA: {ticket.sla}</span>
                         </div>
                         
@@ -1368,7 +1372,7 @@ export default function SupportPage() {
                     <tr key={ticket.id}>
                       <td><strong>{ticket.externalId}</strong></td>
                       <td>{formatDate(ticket.createdAt)}</td>
-                      <td>{ticket.reporterName}</td>
+                      <td><FounderSellerName name={ticket.reporterName} founder={ticket.reporterType === 'VENDEDOR' && ticket.sellerFounder} /></td>
                       <td>{ticket.platform ? <Badge text={PLATFORM_LABELS[ticket.platform]} variant={PLATFORM_TONES[ticket.platform]} /> : 'General'}</td>
                       <td><span className="support-qa-truncate" title={ticket.reason}>{ticket.reason}</span></td>
                       <td><Badge text={PRIORITY_LABELS[ticket.priority]} variant={PRIORITY_TONES[ticket.priority]} /></td>
@@ -1496,7 +1500,7 @@ export default function SupportPage() {
                       <tr key={ticket.id}>
                         <td><strong>{ticket.externalId}</strong></td>
                         <td>{formatDate(ticket.createdAt)}</td>
-                        <td>{ticket.reporterName}</td>
+                        <td><FounderSellerName name={ticket.reporterName} founder={ticket.reporterType === 'VENDEDOR' && ticket.sellerFounder} /></td>
                         <td>{REPORTER_LABELS[ticket.reporterType]}</td>
                         <td>
                           {ticket.platform ? (
@@ -1595,7 +1599,7 @@ export default function SupportPage() {
               <div className="case-modal-grid" style={{ marginBottom: '24px' }}>
                 <div className="modal-field wide">
                   <span>Reportante</span>
-                  <strong>{selectedTicket.reporterName}</strong>
+                  <strong><FounderSellerName name={selectedTicket.reporterName} founder={selectedTicket.reporterType === 'VENDEDOR' && selectedTicket.sellerFounder} /></strong>
                 </div>
                 <div className="modal-field">
                   <span>Tipo de Usuario</span>

@@ -4,6 +4,7 @@ import { useMediation } from '@/hooks/useMediations';
 import Modal from '@/components/shared/Modal';
 import Badge from '@/components/shared/Badge';
 import UiIcon from '@/components/shared/UiIcon';
+import FounderSellerName from '@/components/shared/FounderSellerName';
 import { formatDateTime } from '@/utils/formatters';
 
 interface AppealReviewModalProps {
@@ -66,7 +67,7 @@ export default function AppealReviewModal({
         </span>
         <div className="case-modal-title">
           <span className="case-modal-kicker">Solicitud de revisión</span>
-          <h2>{item.sellerName}</h2>
+          <h2><FounderSellerName name={item.sellerName} founder={item.sellerFounder} /></h2>
           <p>{item.externalId} · Pedido {item.orderId}</p>
         </div>
         <Badge text="Solicitud de revisión" variant="appeal" />

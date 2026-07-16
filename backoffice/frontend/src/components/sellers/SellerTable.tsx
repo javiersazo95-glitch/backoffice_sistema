@@ -3,6 +3,7 @@ import { type SellerResponse } from '@/types/seller';
 import type { ImpactMediation, RiskCase } from '@/types/cases';
 import Badge from '@/components/shared/Badge';
 import UiIcon from '@/components/shared/UiIcon';
+import FounderSellerName from '@/components/shared/FounderSellerName';
 import SellerExpandedRow from './SellerExpandedRow';
 import { getSellerOperationalStatus, getSellerStatusLabel, getSellerStatusTone } from './status';
 import { formatDate } from '@/utils/formatters';
@@ -79,7 +80,7 @@ export default function SellerTable({
                               seller.storeName.substring(0, 2).toUpperCase()
                             )}
                           </span>
-                          <strong>{seller.storeName}</strong>
+                          <strong><FounderSellerName name={seller.storeName} founder={seller.founder} /></strong>
                         </span>
                       </td>
                       <td>{seller.rut}</td>
