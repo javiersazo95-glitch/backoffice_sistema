@@ -24,6 +24,7 @@ const PLATFORM_LABELS: Record<TicketPlatform, string> = {
   MEDIACION_CONFIANZA: 'Mediación y Confianza',
   APP_MOBILE: 'App Mobile RepuesTop',
   SOPORTE: 'Soporte',
+  SITIO_WEB: 'Sitio Web',
 };
 
 const PRIORITY_LABELS: Record<TicketPriority, string> = {
@@ -689,9 +690,24 @@ export default function SupportTicketDetailModal({
               <SidebarField icon="users" label="Reportado por">
                 <span className="jira-assignee"><Avatar name={ticket.reporterName || 'Usuario'} size={20} /> <FounderSellerName name={ticket.reporterName || 'No informado'} founder={ticket.reporterType === 'VENDEDOR' && ticket.sellerFounder} /></span>
               </SidebarField>
+              {ticket.correoContacto && (
+                <SidebarField icon="mail" label="Correo">
+                  <a href={`mailto:${ticket.correoContacto}`} style={{ color: '#0052CC', textDecoration: 'none' }}>{ticket.correoContacto}</a>
+                </SidebarField>
+              )}
+              {ticket.telefonoContacto && (
+                <SidebarField icon="phone" label="Teléfono">
+                  {ticket.telefonoContacto}
+                </SidebarField>
+              )}
+              {ticket.regionContacto && (
+                <SidebarField icon="map-pin" label="Ubicación">
+                  {ticket.comunaContacto}, {ticket.regionContacto}
+                </SidebarField>
+              )}
               {!isQa && (
                 <SidebarField icon="target" label="Tipo de reportante">
-                  {REPORTER_LABELS[ticket.reporterType]}
+                  {ticket.platform === 'SITIO_WEB' ? 'Consulta web' : REPORTER_LABELS[ticket.reporterType]}
                 </SidebarField>
               )}
               <SidebarField icon="flag" label="Prioridad">
