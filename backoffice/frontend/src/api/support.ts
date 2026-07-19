@@ -4,7 +4,7 @@ import type { PageResponse } from '@/types/common'; // Aseguramos usar tipos del
 export type TicketCategory = 'FALLA_TECNICA' | 'SOLICITUD_AYUDA' | 'CONSULTA';
 export type ReporterType = 'COMPRADOR' | 'VENDEDOR' | 'INTERNO';
 export type TicketPriority = 'CRITICA' | 'ALTA' | 'MEDIA' | 'BAJA';
-export type TicketPlatform = 'ADMINISTRACION_CONTABLE' | 'MEDIACION_CONFIANZA' | 'APP_MOBILE' | 'SOPORTE';
+export type TicketPlatform = 'ADMINISTRACION_CONTABLE' | 'MEDIACION_CONFIANZA' | 'APP_MOBILE' | 'SOPORTE' | 'SITIO_WEB';
 export type TicketStatus =
   | 'ABIERTO'
   | 'EN_PROCESO'
@@ -47,6 +47,10 @@ export interface TicketResponse {
   reporterType: ReporterType;
   platform?: TicketPlatform;
   reporterName: string;
+  correoContacto?: string;
+  telefonoContacto?: string;
+  regionContacto?: string;
+  comunaContacto?: string;
   sla?: string;
   reason: string;
   orderId?: string;

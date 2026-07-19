@@ -21,6 +21,7 @@ const PLATFORM_LABELS: Record<TicketPlatform, string> = {
   MEDIACION_CONFIANZA: 'Mediación y Confianza',
   APP_MOBILE: 'App Mobile RepuesTop',
   SOPORTE: 'Soporte',
+  SITIO_WEB: 'Sitio Web',
 };
 
 const PLATFORM_TONES: Record<TicketPlatform, string> = {
@@ -28,6 +29,7 @@ const PLATFORM_TONES: Record<TicketPlatform, string> = {
   MEDIACION_CONFIANZA: 'violet',
   APP_MOBILE: 'blue',
   SOPORTE: 'amber',
+  SITIO_WEB: 'orange',
 };
 
 const PRIORITY_LABELS: Record<TicketPriority, string> = {
@@ -1456,9 +1458,9 @@ export default function SupportPage() {
                 setPage(0);
               }}>
                 <option value="All">Todas</option>
-                <option value="ADMINISTRACION_CONTABLE">Administración Contable</option>
-                <option value="MEDIACION_CONFIANZA">Mediación y Confianza</option>
-                <option value="APP_MOBILE">App Mobile RepuesTop</option>
+                {Object.entries(PLATFORM_LABELS).map(([val, label]) => (
+                  <option key={val} value={val}>{label}</option>
+                ))}
               </select>
             </label>
 
@@ -1501,7 +1503,7 @@ export default function SupportPage() {
                         <td><strong>{ticket.externalId}</strong></td>
                         <td>{formatDate(ticket.createdAt)}</td>
                         <td><FounderSellerName name={ticket.reporterName} founder={ticket.reporterType === 'VENDEDOR' && ticket.sellerFounder} /></td>
-                        <td>{REPORTER_LABELS[ticket.reporterType]}</td>
+                        <td>{ticket.platform === 'SITIO_WEB' ? 'Consulta web' : REPORTER_LABELS[ticket.reporterType]}</td>
                         <td>
                           {ticket.platform ? (
                             <Badge text={PLATFORM_LABELS[ticket.platform]} variant={PLATFORM_TONES[ticket.platform]} />
@@ -1603,7 +1605,7 @@ export default function SupportPage() {
                 </div>
                 <div className="modal-field">
                   <span>Tipo de Usuario</span>
-                  <strong>{REPORTER_LABELS[selectedTicket.reporterType]}</strong>
+                  <strong>{selectedTicket.platform === 'SITIO_WEB' ? 'Consulta web' : REPORTER_LABELS[selectedTicket.reporterType]}</strong>
                 </div>
                 <div className="modal-field">
                   <span>Fecha de Creación</span>
