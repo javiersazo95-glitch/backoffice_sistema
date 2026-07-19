@@ -1,4 +1,4 @@
-import { API_BASE_URL } from '@/api/client';
+import apiClient, { API_BASE_URL } from '@/api/client';
 
 const MIME_EXTENSION_MAP: Record<string, string> = {
   'application/pdf': 'pdf',
@@ -9,6 +9,23 @@ const MIME_EXTENSION_MAP: Record<string, string> = {
   'image/gif': 'gif',
   'text/html': 'html',
 };
+
+export function getAuthToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  const token = localStorage.getItem('repuestop.backoffice.access-token') ?? sessionStorage.getItem('repuestop.backoffice.access-token');
+  if (token) return token;
+
+  const header = apiClient.defaults.headers.common['Authorization'];
+  if (typeof header === 'string' && header.startsWith('Bearer ')) {
+    return header.substring(7);
+  }
+  return null;
+}
+
+export function getAuthHeaders(): Record<string, string> {
+  const token = getAuthToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
 
 function getAbsoluteApiBaseUrl() {
   if (API_BASE_URL.startsWith('http://') || API_BASE_URL.startsWith('https://')) {
@@ -88,7 +105,9 @@ export async function downloadDocument(documentUrl?: string, fileName = 'documen
   if (!resolvedUrl) return false;
 
   try {
-    const response = await fetch(resolvedUrl);
+    const response = await fetch(resolvedUrl, {
+      headers: getAuthHeaders(),
+    });
     if (!response.ok) throw new Error('No se pudo descargar el documento.');
 
     const blob = await response.blob();
@@ -113,3 +132,39 @@ export async function downloadDocument(documentUrl?: string, fileName = 'documen
     return false;
   }
 }
+
+export async function previewDocument(documentUrl?: string) {
+  const resolvedUrl = resolveDocumentUrl(documentUrl);
+  if (!resolvedUrl) return false;
+
+  const win = window.open('about:blank', '_blank');
+
+  try {
+    const response = await fetch(resolvedUrl, {
+      headers: getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      if (win) win.close();
+      throw new Error(`Error ${response.status} al cargar el documento.`);
+    }
+
+    const blob = await response.blob();
+    const blobUrl = URL.createObjectURL(blob);
+
+    if (win) {
+      win.location.href = blobUrl;
+    } else {
+      window.open(blobUrl, '_blank');
+    }
+    return true;
+  } catch (err) {
+    if (win && !win.closed) {
+      win.close();
+    }
+    console.error('Error al previsualizar documento:', err);
+    window.open(resolvedUrl, '_blank');
+    return false;
+  }
+}
+

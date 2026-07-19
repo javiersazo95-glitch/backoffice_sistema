@@ -8,7 +8,7 @@ import { showToast } from '@/components/layout/Toast';
 import { PAGE_SIZES, STATUS_LABELS } from '@/utils/constants';
 import { SellerStatus, type SellerResponse } from '@/types/seller';
 import { ValidationStatus, type ValidationResponse } from '@/types/validation';
-import { buildDocumentDownloadName, downloadDocument, resolveDocumentUrl } from '@/utils/documentUrls';
+import { buildDocumentDownloadName, downloadDocument, previewDocument, resolveDocumentUrl } from '@/utils/documentUrls';
 
 
 type RequiredDocumentStatus = ValidationStatus | 'POR_CORREGIR';
@@ -426,9 +426,8 @@ export default function ValidationsPage() {
   }
 
   function openDocument(document: ValidationResponse) {
-    const url = resolveDocumentUrl(document.documentUrl);
-    if (url) {
-      window.open(url, '_blank');
+    if (document.documentUrl) {
+      void previewDocument(document.documentUrl);
     } else {
       showToast(`Documento "${document.documentType}" registrado en backend. No hay URL de archivo expuesta en esta API.`);
     }
@@ -778,25 +777,20 @@ export default function ValidationsPage() {
                                             <>
                                               <button
                                                 type="button"
-                                                onClick={() => {
-                                                  const resolved = resolveDocumentUrl(doc.documentUrl);
-                                                  if (resolved) window.open(resolved, '_blank');
-                                                }}
+                                                onClick={() => void previewDocument(doc.documentUrl)}
                                                 title="Previsualizar"
                                                 className="validation-doc-action-btn preview"
                                               >
                                                 <UiIcon name="eye" />
                                               </button>
-                                              <a
-                                                href={resolveDocumentUrl(doc.documentUrl)}
-                                                download
-                                                target="_blank"
-                                                rel="noopener noreferrer"
+                                              <button
+                                                type="button"
+                                                onClick={() => void downloadDocument(doc.documentUrl, buildDocumentDownloadName(doc.documentType, doc.documentUrl))}
                                                 title="Descargar"
                                                 className="validation-doc-action-btn download"
                                               >
                                                 <UiIcon name="download" />
-                                              </a>
+                                              </button>
                                             </>
                                           ) : (
                                             <span className="no-url">No disponible</span>

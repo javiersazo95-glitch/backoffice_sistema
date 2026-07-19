@@ -1,5 +1,6 @@
+import { useState, useEffect } from 'react';
 import UiIcon from './UiIcon';
-import { resolveDocumentUrl } from '@/utils/documentUrls';
+import { resolveDocumentUrl, previewDocument, getAuthHeaders } from '@/utils/documentUrls';
 
 interface DocumentPreviewProps {
   documentName: string;
@@ -113,32 +114,96 @@ export default function DocumentPreview({
   const isImage = documentType?.startsWith('image/');
   const isPdf = documentType === 'application/pdf' || /\.pdf$/i.test(documentName || '');
 
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [hasError, setHasError] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!resolvedDocumentUrl) {
+      setBlobUrl(null);
+      return;
+    }
+
+    let isMounted = true;
+    setLoading(true);
+    setHasError(false);
+
+    fetch(resolvedDocumentUrl, { headers: getAuthHeaders() })
+      .then((res) => {
+        if (!res.ok) throw new Error('Error al cargar documento');
+        return res.blob();
+      })
+      .then((blob) => {
+        if (isMounted) {
+          const url = URL.createObjectURL(blob);
+          setBlobUrl(url);
+          setLoading(false);
+        }
+      })
+      .catch((err) => {
+        console.error('Error al cargar vista previa:', err);
+        if (isMounted) {
+          setHasError(true);
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+      if (blobUrl) {
+        URL.revokeObjectURL(blobUrl);
+      }
+    };
+  }, [resolvedDocumentUrl]);
+
   const renderPreview = () => {
-    if (resolvedDocumentUrl && isImage) {
+    if (loading) {
+      return (
+        <div className="document-preview-empty">
+          <p>Cargando vista previa segura del documento...</p>
+        </div>
+      );
+    }
+
+    if (hasError) {
+      return (
+        <div className="document-preview-empty">
+          <span className="status-icon red">
+            <UiIcon name="document" />
+          </span>
+          <strong>Error al cargar el documento</strong>
+          <p>No se pudo obtener el archivo del servidor. Es posible que el recurso requiera autenticación o no exista.</p>
+        </div>
+      );
+    }
+
+    const displayUrl = blobUrl || resolvedDocumentUrl;
+
+    if (displayUrl && isImage) {
       return (
         <img
           className="document-preview-file"
-          src={resolvedDocumentUrl}
+          src={displayUrl}
           alt={documentName || 'Documento acreditador'}
         />
       );
     }
-    if (resolvedDocumentUrl && isPdf) {
+    if (displayUrl && isPdf) {
       return (
         <object
           className="document-preview-file"
-          data={resolvedDocumentUrl}
+          data={displayUrl}
           type="application/pdf"
         >
-          <iframe src={resolvedDocumentUrl} title={documentName || 'Documento acreditador'} />
+          <iframe src={displayUrl} title={documentName || 'Documento acreditador'} />
         </object>
       );
     }
-    if (resolvedDocumentUrl) {
+    if (displayUrl) {
       return (
         <iframe
           className="document-preview-file"
-          src={resolvedDocumentUrl}
+          src={displayUrl}
           title={documentName || 'Documento acreditador'}
         />
       );
@@ -161,15 +226,14 @@ export default function DocumentPreview({
           <strong>{documentName || 'Documento acreditador'}</strong>
           <span>{kind} · {resolvedDate}</span>
         </div>
-        {resolvedDocumentUrl && (
-          <a
+        {documentUrl && (
+          <button
+            type="button"
             className="secondary-button compact-link-button"
-            href={resolvedDocumentUrl}
-            target="_blank"
-            rel="noreferrer"
+            onClick={() => void previewDocument(documentUrl)}
           >
             <UiIcon name="eye" /> Abrir documento
-          </a>
+          </button>
         )}
       </div>
       <div className="document-preview-canvas">{renderPreview()}</div>

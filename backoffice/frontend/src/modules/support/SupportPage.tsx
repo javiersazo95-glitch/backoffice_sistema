@@ -14,7 +14,7 @@ import { formatDate } from '@/utils/formatters';
 import type { TicketResponse, TicketStatus, TicketPriority, TicketCategory, ReporterType, TicketPlatform, TicketMessage } from '@/api/support';
 import { useAuth } from '@/context/AuthContext';
 import { hasBackofficePermission } from '@/hooks/usePermissions';
-import { resolveDocumentUrl } from '@/utils/documentUrls';
+import { previewDocument } from '@/utils/documentUrls';
 
 const PLATFORM_LABELS: Record<TicketPlatform, string> = {
   ADMINISTRACION_CONTABLE: 'Administración Contable',
@@ -475,10 +475,7 @@ function SupportQaPage() {
                               className="link-button"
                               type="button"
                               style={{ background: 'none', border: 'none', padding: 0, color: 'var(--blue)', textDecoration: 'underline', cursor: 'pointer', textAlign: 'left', fontWeight: 'bold' }}
-                              onClick={() => {
-                                const url = resolveDocumentUrl(selectedBug.documentoUrl);
-                                if (url) window.open(url, '_blank');
-                              }}
+                              onClick={() => void previewDocument(selectedBug.documentoUrl)}
                             >
                               Ver Documento Adjunto
                             </button>

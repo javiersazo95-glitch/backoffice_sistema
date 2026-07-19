@@ -15,7 +15,7 @@ import type {
 import * as supportApi from '@/api/support';
 import * as permissionsApi from '@/api/permissions';
 import type { PermissionUser } from '@/api/permissions';
-import { downloadDocument, getDocumentFileName, resolveDocumentUrl } from '@/utils/documentUrls';
+import { downloadDocument, getDocumentFileName, previewDocument, resolveDocumentUrl } from '@/utils/documentUrls';
 import { resolveProfileImageUrl } from '@/api/client';
 import { useAuth } from '@/context/AuthContext';
 
@@ -452,7 +452,7 @@ export default function SupportTicketDetailModal({
                         key={attachment.id}
                         className="jira-attachment-card"
                         style={{ marginTop: index > 0 ? 8 : 0 }}
-                        onClick={() => window.open(resolvedUrl, '_blank')}
+                        onClick={() => void previewDocument(attachment.url)}
                       >
                         <span className="jira-attachment-icon"><UiIcon name="document" /></span>
                         <span className="jira-attachment-meta">
@@ -464,7 +464,7 @@ export default function SupportTicketDetailModal({
                             type="button"
                             className="jira-attachment-action-btn"
                             title="Visualizar archivo"
-                            onClick={() => window.open(resolvedUrl, '_blank')}
+                            onClick={() => void previewDocument(attachment.url)}
                           >
                             <UiIcon name="eye" />
                           </button>
