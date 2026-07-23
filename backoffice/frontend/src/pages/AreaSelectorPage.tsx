@@ -88,7 +88,7 @@ function AccessIcon({ name }: { name: AreaCard['icon'] }) {
 
 function BrandIllustration() {
   return (
-    <img className="area-selector-illustration" src="/assets/home-dashboard-illustration.png" alt="" aria-hidden="true" />
+    <img className="area-selector-illustration" src="/assets/repuestop-logo-cropped.jpg" alt="RepuesTop BackOffice" aria-hidden="true" />
   );
 }
 
@@ -123,10 +123,6 @@ export default function AreaSelectorPage() {
     <section className="area-selector-shell">
       <aside className="area-selector-brand">
         <div className="area-selector-brand-top">
-          <div className="area-selector-brand-logo">
-            <img className="area-selector-brand-logo-image" src="/assets/repuestop-logo.jpg" alt="RepuesTop" />
-          </div>
-
           <h1 className="area-selector-brand-title">
             Bienvenido a<br />
             RepuesTop <span>BackOffice</span>

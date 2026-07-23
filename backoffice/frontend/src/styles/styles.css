@@ -14333,9 +14333,10 @@ tr.is-active {
 }
 
 .area-selector-illustration {
-  width: 100%;
-  max-width: 310px;
+  width: 160px;
+  max-width: 100%;
   height: auto;
+  border-radius: 16px;
 }
 
 .area-selector-brand-footer {
@@ -17578,8 +17579,10 @@ body:has(.area-selector-shell) {
 
 .area-selector-illustration {
   display: block;
-  width: min(100%, 360px);
-  max-width: none;
+  width: 160px;
+  max-width: 100%;
+  height: auto;
+  border-radius: 16px;
   margin: 18px auto 0;
   opacity: .94;
 }

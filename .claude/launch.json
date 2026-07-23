@@ -2,12 +2,10 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "frontend-dev",
+      "name": "backoffice-frontend",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
-      "port": 5173,
-      "autoPort": true,
-      "cwd": "backoffice/frontend"
+      "runtimeArgs": ["run", "dev", "--prefix", "backoffice/frontend"],
+      "port": 5173
     }
   ]
 }
