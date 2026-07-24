@@ -53,22 +53,34 @@ function getRoleLabel(role?: Role | null): string {
 function AccessIcon({ name }: { name: AreaCard['icon'] }) {
   if (name === 'wallet') {
     return (
-      <svg className="area-selector-svg-icon" viewBox="0 0 64 64" aria-hidden="true">
-        <path d="M16.5 22.5h28.8c4.1 0 7.2 3.1 7.2 7.2v15.8c0 3.1-2.5 5.5-5.5 5.5H16.5c-3.1 0-5.5-2.5-5.5-5.5V28c0-3.1 2.5-5.5 5.5-5.5Z" />
-        <path d="M16.5 22.5 39.4 14c2.8-1.1 5.8 1 5.8 4v4.5" />
-        <path d="M42 33.3h10.5v11.4H42c-3.1 0-5.7-2.5-5.7-5.7s2.6-5.7 5.7-5.7Z" />
-        <path d="M44.2 39h.1" />
+      <svg className="area-selector-svg-icon area-selector-svg-icon--wallet" viewBox="0 0 64 64" aria-hidden="true">
+        <defs>
+          <linearGradient id="area-wallet-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#10b981" />
+            <stop offset="100%" stopColor="#059669" />
+          </linearGradient>
+        </defs>
+        <path d="M16.5 22.5h28.8c4.1 0 7.2 3.1 7.2 7.2v15.8c0 3.1-2.5 5.5-5.5 5.5H16.5c-3.1 0-5.5-2.5-5.5-5.5V28c0-3.1 2.5-5.5 5.5-5.5Z" stroke="url(#area-wallet-grad)" />
+        <path d="M16.5 22.5 39.4 14c2.8-1.1 5.8 1 5.8 4v4.5" stroke="url(#area-wallet-grad)" />
+        <path d="M42 33.3h10.5v11.4H42c-3.1 0-5.7-2.5-5.7-5.7s2.6-5.7 5.7-5.7Z" stroke="url(#area-wallet-grad)" />
+        <path d="M44.2 39h.1" stroke="url(#area-wallet-grad)" />
       </svg>
     );
   }
 
   if (name === 'headset') {
     return (
-      <svg className="area-selector-svg-icon" viewBox="0 0 64 64" aria-hidden="true">
-        <path d="M13.5 38.5v-6.2c0-10.8 8-19.3 18.5-19.3s18.5 8.5 18.5 19.3v6.2" />
-        <path d="M13.5 36.5h5.2c2.3 0 4.2 1.9 4.2 4.2v9.1h-5.2c-2.3 0-4.2-1.9-4.2-4.2v-9.1Z" />
-        <path d="M50.5 36.5h-5.2c-2.3 0-4.2 1.9-4.2 4.2v9.1h5.2c2.3 0 4.2-1.9 4.2-4.2v-9.1Z" />
-        <path d="M41.1 50c0 3.3-3.8 5.4-8.7 5.4" />
+      <svg className="area-selector-svg-icon area-selector-svg-icon--headset" viewBox="0 0 64 64" aria-hidden="true">
+        <defs>
+          <linearGradient id="area-headset-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#0284c7" />
+            <stop offset="100%" stopColor="#1d4ed8" />
+          </linearGradient>
+        </defs>
+        <path d="M13.5 38.5v-6.2c0-10.8 8-19.3 18.5-19.3s18.5 8.5 18.5 19.3v6.2" stroke="url(#area-headset-grad)" />
+        <path d="M13.5 36.5h5.2c2.3 0 4.2 1.9 4.2 4.2v9.1h-5.2c-2.3 0-4.2-1.9-4.2-4.2v-9.1Z" stroke="url(#area-headset-grad)" />
+        <path d="M50.5 36.5h-5.2c-2.3 0-4.2 1.9-4.2 4.2v9.1h5.2c2.3 0 4.2-1.9 4.2-4.2v-9.1Z" stroke="url(#area-headset-grad)" />
+        <path d="M41.1 50c0 3.3-3.8 5.4-8.7 5.4" stroke="url(#area-headset-grad)" />
       </svg>
     );
   }
@@ -76,12 +88,12 @@ function AccessIcon({ name }: { name: AreaCard['icon'] }) {
   return (
     <svg className="area-selector-svg-icon area-selector-svg-icon--scale" viewBox="0 0 64 64" aria-hidden="true">
       <defs>
-        <linearGradient id="area-selector-scale-gradient" x1="10" y1="10" x2="54" y2="56" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#8b5cf6" />
-          <stop offset="1" stopColor="#c044f2" />
+        <linearGradient id="area-scale-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#9333ea" />
+          <stop offset="100%" stopColor="#e11d48" />
         </linearGradient>
       </defs>
-      <path d="M32 8v52M7 22h50M20 22 7 44M25 22l7 18M39 22 32 43M44 22l13 22M7 44h20c-1.5 6-5.5 10-10 10S8.5 50 7 44ZM37 44h20c-1.5 6-5.5 10-10 10S38.5 50 37 44ZM22 60h20" />
+      <path d="M32 8v52M7 22h50M20 22 7 44M25 22l7 18M39 22 32 43M44 22l13 22M7 44h20c-1.5 6-5.5 10-10 10S8.5 50 7 44ZM37 44h20c-1.5 6-5.5 10-10 10S38.5 50 37 44ZM22 60h20" stroke="url(#area-scale-grad)" />
     </svg>
   );
 }
@@ -123,6 +135,13 @@ export default function AreaSelectorPage() {
     <section className="area-selector-shell">
       <aside className="area-selector-brand">
         <div className="area-selector-brand-top">
+          <div className="area-selector-badge-wrap">
+            <span className="area-selector-badge">
+              <span className="area-selector-pulse-dot" />
+              Sistema Activo
+            </span>
+          </div>
+
           <h1 className="area-selector-brand-title">
             Bienvenido a<br />
             RepuesTop <span>BackOffice</span>
@@ -193,13 +212,15 @@ export default function AreaSelectorPage() {
                     <UiIcon name="grip" />
                   </span>
 
-                  <span className={`area-selector-icon ${enabled ? area.accent : 'locked'}`}>
-                    {enabled ? <AccessIcon name={area.icon} /> : <UiIcon name="lock" />}
-                  </span>
-                  <span className={`area-selector-icon-underline ${enabled ? area.accent : 'locked'}`} />
+                  <div className="area-selector-card-center">
+                    <span className={`area-selector-icon ${enabled ? area.accent : 'locked'}`}>
+                      {enabled ? <AccessIcon name={area.icon} /> : <UiIcon name="lock" />}
+                    </span>
+                    <span className={`area-selector-icon-underline ${enabled ? area.accent : 'locked'}`} />
 
-                  <h3>{area.title}</h3>
-                  <p>{area.description}</p>
+                    <h3>{area.title}</h3>
+                    <p>{area.description}</p>
+                  </div>
 
                   <button
                     className={enabled ? 'primary-button area-selector-action' : 'secondary-button area-selector-action disabled-button'}

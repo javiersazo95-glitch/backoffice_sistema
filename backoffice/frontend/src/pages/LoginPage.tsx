@@ -53,14 +53,34 @@ const loginStyles = `
   50% { opacity: 0.9; transform: scale(1.3); }
 }
 
+/* ── Lock document scroll when on login page ── */
+html:has(.login-wrapper),
+body:has(.login-wrapper) {
+  overflow: hidden !important;
+  height: 100vh !important;
+  height: 100dvh !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
 /* ── Layout ── */
 .login-wrapper {
-  min-height: 100vh;
+  height: 100vh;
+  height: 100dvh;
+  width: 100vw;
+  max-width: 100%;
+  max-height: 100vh;
+  max-height: 100dvh;
   display: flex;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  overflow: hidden;
+  box-sizing: border-box;
 }
+
 .login-left {
   flex: 1;
+  height: 100%;
+  max-height: 100%;
   background: linear-gradient(135deg, #0b1d5a 0%, #0d2370 50%, #091548 100%);
   background-size: 200% 200%;
   animation: gradientShift 8s ease infinite;
@@ -68,35 +88,59 @@ const loginStyles = `
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 48px 40px;
+  padding: clamp(16px, 3vh, 40px) clamp(20px, 3vw, 40px);
   position: relative;
   overflow: hidden;
+  box-sizing: border-box;
 }
+
+.login-left-inner {
+  max-width: 460px;
+  width: 100%;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  height: 100%;
+  max-height: 100%;
+}
+
 .login-right {
   width: min(480px, 45vw);
   min-width: 360px;
+  height: 100%;
+  max-height: 100%;
   background: #fff;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 48px 40px;
+  padding: clamp(16px, 2.5vh, 40px) clamp(20px, 3vw, 40px);
   box-shadow: -8px 0 40px rgba(0,0,0,0.12);
+  overflow: hidden;
+  box-sizing: border-box;
 }
+
 .login-right-inner {
   width: 100%;
   max-width: 380px;
-}
-.login-brand-logo {
-  width: min(220px, 58vw);
-  height: auto;
-  max-height: 96px;
-  object-fit: contain;
-  display: block;
-  margin-bottom: 8px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  height: 100%;
+  max-height: 100%;
 }
 
-/* ── Mobile ── */
+.login-brand-logo {
+  width: auto;
+  max-width: min(260px, 65vw);
+  height: auto;
+  max-height: clamp(52px, 9.5vh, 88px);
+  object-fit: contain;
+  display: block;
+}
+
+/* ── Mobile & Small Screens ── */
 @media (max-width: 768px) {
   .login-left {
     display: none;
@@ -104,20 +148,37 @@ const loginStyles = `
   .login-right {
     width: 100%;
     min-width: 0;
-    padding: 40px 24px;
+    padding: clamp(16px, 3vh, 32px) clamp(16px, 4vw, 24px);
     box-shadow: none;
     background: linear-gradient(160deg, #f0f4ff 0%, #fff 60%);
-    justify-content: flex-start;
-    padding-top: 56px;
+    justify-content: center;
+    align-items: center;
   }
   .login-right-inner {
-    max-width: 100%;
+    max-width: 400px;
+    width: 100%;
   }
 }
 
-@media (max-width: 400px) {
-  .login-right {
-    padding: 40px 20px 32px;
+@media (max-height: 650px) {
+  .login-right-inner {
+    transform: scale(0.92);
+    transform-origin: center center;
+  }
+  .login-left-inner {
+    transform: scale(0.92);
+    transform-origin: center center;
+  }
+}
+
+@media (max-height: 550px) {
+  .login-right-inner {
+    transform: scale(0.82);
+    transform-origin: center center;
+  }
+  .login-left-inner {
+    transform: scale(0.82);
+    transform-origin: center center;
   }
 }
 `;
@@ -187,23 +248,23 @@ export default function LoginPage() {
         <span style={{ position: 'absolute', bottom: '15%', right: '25%', width: 4, height: 4, borderRadius: '50%', background: '#34d399', animation: 'twinkle 3.6s ease-in-out infinite 1.2s' }} />
         <span style={{ position: 'absolute', top: '80%', left: '40%', width: 3, height: 3, borderRadius: '50%', background: '#60A5FA', animation: 'twinkle 4s ease-in-out infinite 0.8s' }} />
 
-        <div style={{ maxWidth: 480, width: '100%', zIndex: 1 }}>
+        <div className="login-left-inner">
           {/* Status badge */}
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 32 }}>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 'clamp(8px, 2vh, 24px)' }}>
             <span style={{
               display: 'inline-flex',
               alignItems: 'center',
               gap: 8,
-              padding: '6px 16px',
+              padding: '4px 14px',
               border: '1px solid rgba(96,165,250,0.4)',
               borderRadius: 999,
               color: '#60A5FA',
-              fontSize: 12,
+              fontSize: 11,
               fontWeight: 600,
               letterSpacing: '0.1em',
               textTransform: 'uppercase',
             }}>
-              <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#22c55e', display: 'inline-block', animation: 'pulse 2s ease-in-out infinite' }} />
+              <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#22c55e', display: 'inline-block', animation: 'pulse 2s ease-in-out infinite' }} />
               Sistema Activo
             </span>
           </div>
@@ -211,20 +272,20 @@ export default function LoginPage() {
           {/* Title */}
           <h1 style={{
             textAlign: 'center',
-            fontSize: 'clamp(28px, 4vw, 40px)',
+            fontSize: 'clamp(22px, 3.8vh, 36px)',
             fontWeight: 800,
             color: '#fff',
-            marginBottom: 12,
+            marginBottom: 'clamp(4px, 0.8vh, 10px)',
             lineHeight: 1.2,
           }}>
             RepuesTop <span style={{ color: '#38bdf8' }}>BackOffice</span>
           </h1>
-          <p style={{ textAlign: 'center', color: 'rgba(255,255,255,0.55)', fontSize: 15, marginBottom: 40 }}>
+          <p style={{ textAlign: 'center', color: 'rgba(255,255,255,0.55)', fontSize: 'clamp(12px, 1.6vh, 15px)', marginBottom: 'clamp(14px, 3vh, 32px)' }}>
             Tres sistemas, un solo acceso
           </p>
 
           {/* Module cards */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'clamp(8px, 1.4vh, 12px)' }}>
             <div style={{ animation: 'cardFloat 4s ease-in-out infinite' }}>
               <ModuleCard
                 icon={<ChartIcon />}
@@ -257,7 +318,7 @@ export default function LoginPage() {
       <div className="login-right">
         <div className="login-right-inner">
           {/* Logo */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 36 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 'clamp(8px, 2vh, 24px)' }}>
             <img
               className="login-brand-logo"
               src="/assets/repuestop-logo.jpg"
@@ -266,10 +327,10 @@ export default function LoginPage() {
           </div>
 
           {/* Heading */}
-          <h2 style={{ fontSize: 26, fontWeight: 700, color: '#0f172a', marginBottom: 6 }}>
+          <h2 style={{ fontSize: 'clamp(20px, 2.8vh, 24px)', fontWeight: 700, color: '#0f172a', marginBottom: 4, textAlign: 'center' }}>
             Bienvenido de nuevo
           </h2>
-          <p style={{ color: '#64748b', fontSize: 14, marginBottom: 32 }}>
+          <p style={{ color: '#64748b', fontSize: 'clamp(12px, 1.5vh, 14px)', marginBottom: 'clamp(10px, 2vh, 22px)', textAlign: 'center' }}>
             Inicia sesión para acceder al panel de administración
           </p>
 
@@ -278,19 +339,19 @@ export default function LoginPage() {
               background: '#fef2f2',
               border: '1px solid #fecaca',
               borderRadius: 8,
-              padding: '10px 14px',
+              padding: '8px 12px',
               color: '#dc2626',
               fontSize: 13,
-              marginBottom: 20,
+              marginBottom: 'clamp(8px, 1.5vh, 16px)',
             }}>
               {error}
             </div>
           )}
 
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmit} style={{ width: '100%' }}>
             {/* Email */}
-            <div style={{ marginBottom: 20 }}>
-              <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#374151', marginBottom: 6 }}>
+            <div style={{ marginBottom: 'clamp(8px, 1.5vh, 16px)' }}>
+              <label style={{ display: 'block', fontSize: 'clamp(12px, 1.4vh, 13.5px)', fontWeight: 500, color: '#374151', marginBottom: 4 }}>
                 Correo electrónico
               </label>
               <div style={{ position: 'relative' }}>
@@ -309,7 +370,7 @@ export default function LoginPage() {
                   autoComplete="email"
                   style={{
                     width: '100%',
-                    padding: '11px 14px 11px 40px',
+                    padding: 'clamp(8px, 1.2vh, 10px) 14px clamp(8px, 1.2vh, 10px) 40px',
                     border: '1.5px solid #e2e8f0',
                     borderRadius: 8,
                     fontSize: 14,
@@ -325,12 +386,12 @@ export default function LoginPage() {
             </div>
 
             {/* Password */}
-            <div style={{ marginBottom: 20 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                <label style={{ fontSize: 14, fontWeight: 500, color: '#374151' }}>
+            <div style={{ marginBottom: 'clamp(8px, 1.5vh, 16px)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                <label style={{ fontSize: 'clamp(12px, 1.4vh, 13.5px)', fontWeight: 500, color: '#374151' }}>
                   Contraseña
                 </label>
-                <a href="#" style={{ fontSize: 13, color: '#2563EB', textDecoration: 'none' }}
+                <a href="#" style={{ fontSize: 'clamp(11px, 1.3vh, 13px)', color: '#2563EB', textDecoration: 'none' }}
                   onClick={(e) => e.preventDefault()}>
                   ¿Olvidaste tu contraseña?
                 </a>
@@ -351,7 +412,7 @@ export default function LoginPage() {
                   autoComplete="current-password"
                   style={{
                     width: '100%',
-                    padding: '11px 14px 11px 40px',
+                    padding: 'clamp(8px, 1.2vh, 10px) 14px clamp(8px, 1.2vh, 10px) 40px',
                     border: '1.5px solid #e2e8f0',
                     borderRadius: 8,
                     fontSize: 14,
@@ -367,7 +428,7 @@ export default function LoginPage() {
             </div>
 
             {/* Keep session */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 24 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 'clamp(10px, 1.8vh, 18px)' }}>
               <input
                 type="checkbox"
                 id="keepSession"
@@ -375,7 +436,7 @@ export default function LoginPage() {
                 onChange={(e) => setKeepSession(e.target.checked)}
                 style={{ width: 16, height: 16, accentColor: '#2563EB', cursor: 'pointer' }}
               />
-              <label htmlFor="keepSession" style={{ fontSize: 14, color: '#374151', cursor: 'pointer' }}>
+              <label htmlFor="keepSession" style={{ fontSize: 'clamp(12px, 1.4vh, 13.5px)', color: '#374151', cursor: 'pointer' }}>
                 Mantener sesión iniciada
               </label>
             </div>
@@ -386,7 +447,7 @@ export default function LoginPage() {
               disabled={loading}
               style={{
                 width: '100%',
-                padding: '13px',
+                padding: 'clamp(9px, 1.3vh, 12px)',
                 background: loading ? '#93c5fd' : '#2563EB',
                 color: '#fff',
                 border: 'none',
@@ -395,7 +456,7 @@ export default function LoginPage() {
                 fontWeight: 600,
                 cursor: loading ? 'not-allowed' : 'pointer',
                 transition: 'background 0.2s',
-                marginBottom: 20,
+                marginBottom: 'clamp(10px, 1.6vh, 16px)',
               }}
               onMouseEnter={(e) => { if (!loading) e.currentTarget.style.background = '#1d4ed8'; }}
               onMouseLeave={(e) => { if (!loading) e.currentTarget.style.background = '#2563EB'; }}
@@ -404,9 +465,9 @@ export default function LoginPage() {
             </button>
 
             {/* Divider */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 'clamp(10px, 1.6vh, 16px)' }}>
               <div style={{ flex: 1, height: 1, background: '#e2e8f0' }} />
-              <span style={{ fontSize: 13, color: '#94a3b8' }}>o continua con</span>
+              <span style={{ fontSize: 12, color: '#94a3b8' }}>o continua con</span>
               <div style={{ flex: 1, height: 1, background: '#e2e8f0' }} />
             </div>
 
@@ -425,7 +486,7 @@ export default function LoginPage() {
           </form>
 
           {/* Footer */}
-          <p style={{ textAlign: 'center', fontSize: 12, color: '#94a3b8', marginTop: 36 }}>
+          <p style={{ textAlign: 'center', fontSize: 11, color: '#94a3b8', marginTop: 'clamp(12px, 2vh, 24px)', flexShrink: 0 }}>
             © 2025 RepuesTop · Panel Administrativo · Todos los derechos reservados
           </p>
         </div>
@@ -444,16 +505,16 @@ function ModuleCard({ icon, iconBg, title, desc }: {
     <div style={{
       display: 'flex',
       alignItems: 'center',
-      gap: 16,
-      padding: '16px 20px',
+      gap: 14,
+      padding: 'clamp(8px, 1.3vh, 14px) clamp(12px, 1.8vw, 18px)',
       background: 'rgba(255,255,255,0.06)',
       border: '1px solid rgba(255,255,255,0.1)',
       borderRadius: 12,
       backdropFilter: 'blur(4px)',
     }}>
       <div style={{
-        width: 44,
-        height: 44,
+        width: 'clamp(34px, 4vh, 42px)',
+        height: 'clamp(34px, 4vh, 42px)',
         borderRadius: 10,
         background: iconBg,
         display: 'flex',
@@ -465,8 +526,8 @@ function ModuleCard({ icon, iconBg, title, desc }: {
         {icon}
       </div>
       <div>
-        <div style={{ color: '#fff', fontWeight: 600, fontSize: 14, marginBottom: 2 }}>{title}</div>
-        <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>{desc}</div>
+        <div style={{ color: '#fff', fontWeight: 600, fontSize: 'clamp(12.5px, 1.5vh, 14px)', marginBottom: 2 }}>{title}</div>
+        <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 'clamp(11px, 1.3vh, 12px)' }}>{desc}</div>
       </div>
     </div>
   );
