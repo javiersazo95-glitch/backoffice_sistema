@@ -85,7 +85,7 @@ function clearAuthHeader() {
 }
 
 function getStoredToken() {
-  return localStorage.getItem(ACCESS_TOKEN_STORAGE_KEY) ?? sessionStorage.getItem(ACCESS_TOKEN_STORAGE_KEY);
+  return sessionStorage.getItem(ACCESS_TOKEN_STORAGE_KEY) ?? localStorage.getItem(ACCESS_TOKEN_STORAGE_KEY);
 }
 
 function storeToken(token: string, keepSession = false) {
