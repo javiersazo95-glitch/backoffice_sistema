@@ -181,6 +181,17 @@ export interface RetiroAdminResponse {
   banco: string;
   tipoCuenta: string;
   numeroCuenta: string;
+  codigoRetiro?: string | null;
+  // BCI-NOMINA-001: campos para completar la nomina "Pago en Linea" de BCI.
+  idExterno?: string | null;
+  primeraSolicitud?: boolean;
+  bankCode?: number | null;
+  bankAccountHolderName?: string | null;
+  bankAccountRutNumero?: string | null;
+  bankAccountRutDv?: string | null;
+  bankAccountRegistrationType?: string | null;
+  bankAccountAliasValue?: string | null;
+  bankAccountNotificationEmail?: string | null;
   monto: number;
   email: string;
   fecha: string;
@@ -194,6 +205,11 @@ export interface RetiroAdminResponse {
   documentoLiquidacionDetalle?: string;
   documentoLiquidacionIva?: number;
   documentoLiquidacionCompleto?: boolean;
+}
+
+/** BCI-NOMINA-001: "Cuenta de Cargo" (cuenta de RepuesTop) usada en la nomina de pago BCI. */
+export interface ConfiguracionPagos {
+  cuentaCargoBci: string | null;
 }
 
 export interface RetiroPedidoItem {

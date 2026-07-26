@@ -5,6 +5,9 @@ import type {
   RetiroAdminResponse,
   RetiroDetalleResponse,
   PagoProveedorResponse,
+  ConfiguracionPagos,
+  Expense,
+  Withdrawal,
 } from '@/modules/administration/types';
 
 export async function getWorkspace(): Promise<AdministrationWorkspaceResponse> {
@@ -19,6 +22,16 @@ export async function getBootstrap(): Promise<AdministrationBootstrapResponse> {
 
 export async function getWithdrawals(): Promise<RetiroAdminResponse[]> {
   const response = await apiClient.get<RetiroAdminResponse[]>('/administration/withdrawals');
+  return response.data;
+}
+
+export async function getConfiguracionPagos(): Promise<ConfiguracionPagos> {
+  const response = await apiClient.get<ConfiguracionPagos>('/administration/configuracion-pagos');
+  return response.data;
+}
+
+export async function updateConfiguracionPagos(cuentaCargoBci: string): Promise<ConfiguracionPagos> {
+  const response = await apiClient.put<ConfiguracionPagos>('/administration/configuracion-pagos', { cuentaCargoBci });
   return response.data;
 }
 
@@ -72,4 +85,65 @@ export async function getLiquidationDocumentFile(retiroId: number): Promise<stri
     responseType: 'blob',
   });
   return URL.createObjectURL(response.data);
+}
+
+// BO-GASTOS-001: Gastos
+
+export interface ExpenseRequestPayload {
+  date: string;
+  category: string;
+  description: string;
+  amount: number;
+  eliminarReceipt: boolean;
+}
+
+export async function getExpenses(): Promise<Expense[]> {
+  const response = await apiClient.get<Expense[]>('/administration/expenses');
+  return response.data;
+}
+
+export async function createExpense(payload: ExpenseRequestPayload, documento?: File): Promise<Expense> {
+  const formData = new FormData();
+  formData.append('data', new Blob([JSON.stringify(payload)], { type: 'application/json' }));
+  if (documento) formData.append('documento', documento);
+  const response = await apiClient.post<Expense>('/administration/expenses', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return response.data;
+}
+
+export async function updateExpense(id: string, payload: ExpenseRequestPayload, documento?: File): Promise<Expense> {
+  const formData = new FormData();
+  formData.append('data', new Blob([JSON.stringify(payload)], { type: 'application/json' }));
+  if (documento) formData.append('documento', documento);
+  const response = await apiClient.put<Expense>(`/administration/expenses/${id}`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return response.data;
+}
+
+export async function deleteExpense(id: string): Promise<void> {
+  await apiClient.delete(`/administration/expenses/${id}`);
+}
+
+// BO-GASTOS-001: Historial de Retiros (socios)
+
+export interface PartnerWithdrawalRequestPayload {
+  period: string;
+  date: string;
+  beneficiary: string;
+  reason: string;
+  amount: number;
+  balanceBefore: number;
+  balanceAfter: number;
+}
+
+export async function getPartnerWithdrawals(): Promise<Withdrawal[]> {
+  const response = await apiClient.get<Withdrawal[]>('/administration/partner-withdrawals');
+  return response.data;
+}
+
+export async function createPartnerWithdrawal(payload: PartnerWithdrawalRequestPayload): Promise<Withdrawal> {
+  const response = await apiClient.post<Withdrawal>('/administration/partner-withdrawals', payload);
+  return response.data;
 }

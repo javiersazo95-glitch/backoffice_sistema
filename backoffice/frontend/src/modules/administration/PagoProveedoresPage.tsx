@@ -6,8 +6,9 @@ import UiIcon from '@/components/shared/UiIcon';
 import MetricCard from '@/components/shared/MetricCard';
 import FounderSellerName from '@/components/shared/FounderSellerName';
 import FounderSellerList from '@/components/shared/FounderSellerList';
-import { downloadFile, csvCell } from './utils';
-import type { RetiroAdminResponse, RetiroDetalleResponse, PagoProveedorResponse } from './types';
+import { downloadFile } from './utils';
+import { buildBciNominaWorkbook, BCI_NOMINA_MIME_TYPE } from './bciNominaExport';
+import type { RetiroAdminResponse, RetiroDetalleResponse, PagoProveedorResponse, ConfiguracionPagos } from './types';
 
 // Helper to calculate Thursday-to-Wednesday cycle range
 function getCurrentCycleRange() {
@@ -58,6 +59,10 @@ export default function PagoProveedoresPage() {
   const [isProcesarModalOpen, setIsProcesarModalOpen] = useState(false);
   const [processingBulk, setProcessingBulk] = useState(false);
   const [incompleteDocumentSellers, setIncompleteDocumentSellers] = useState<string[]>([]);
+  const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
+  const [cuentaCargoDraft, setCuentaCargoDraft] = useState('');
+  const [savingConfig, setSavingConfig] = useState(false);
+  const [exportingExcel, setExportingExcel] = useState(false);
 
   // Filters for History Tab
   const [historyCodeFilter, setHistoryCodeFilter] = useState('');
@@ -80,6 +85,11 @@ export default function PagoProveedoresPage() {
   const { data: payments = [] } = useQuery<PagoProveedorResponse[]>({
     queryKey: ['admin-withdrawal-payments'],
     queryFn: adminApi.getWithdrawalPayments,
+  });
+
+  const { data: configuracionPagos } = useQuery<ConfiguracionPagos>({
+    queryKey: ['admin-configuracion-pagos'],
+    queryFn: adminApi.getConfiguracionPagos,
   });
 
   const { data: paymentDetails } = useQuery<PagoProveedorResponse>({
@@ -154,39 +164,49 @@ export default function PagoProveedoresPage() {
   const pendingTotalAmount = useMemo(() => pendingWithdrawals.reduce((sum, w) => sum + w.monto, 0), [pendingWithdrawals]);
   const paidTotalAmount = useMemo(() => paidPayments.reduce((sum, payment) => sum + payment.montoTotal, 0), [paidPayments]);
 
-  // CSV/Excel Export (Gestión de Pagos)
-  // Excludes: request ID (codigo de solicitud), date (fecha), and store name (nombre de la tienda)
-  // Columns remaining: rut, razon social, banco, tipo de cuenta, numero de cuenta, monto, email
-  const handleExportExcel = () => {
+  // Export a la nomina "Pago en Linea" de BCI (mismas columnas, colores y hojas que la
+  // plantilla original), rellena con los datos bancarios registrados por cada vendedor.
+  const handleExportExcel = async () => {
     if (pendingWithdrawals.length === 0) {
       alert('No hay solicitudes pendientes en el ciclo actual para exportar.');
       return;
     }
+    const cuentaCargoBci = configuracionPagos?.cuentaCargoBci?.trim();
+    if (!cuentaCargoBci) {
+      alert('Falta configurar la "Cuenta de Cargo" antes de exportar. Usa el botón "Cuenta de cargo".');
+      setIsConfigModalOpen(true);
+      return;
+    }
 
-    const headers = [
-      'RUT',
-      'Razón Social',
-      'Banco',
-      'Tipo de Cuenta',
-      'Número de Cuenta',
-      'Monto',
-      'Email'
-    ];
+    setExportingExcel(true);
+    try {
+      const buffer = await buildBciNominaWorkbook(pendingWithdrawals, cuentaCargoBci);
+      const startStr = cycleStart.toISOString().slice(0, 10);
+      const endStr = cycleEnd.toISOString().slice(0, 10);
+      downloadFile(`Nomina_Pago_en_Linea-ciclo-${startStr}-a-${endStr}.xlsx`, buffer, BCI_NOMINA_MIME_TYPE);
+    } catch (err) {
+      alert('No se pudo generar el Excel: ' + (err instanceof Error ? err.message : 'Error desconocido.'));
+    } finally {
+      setExportingExcel(false);
+    }
+  };
 
-    const rows = pendingWithdrawals.map((w) => [
-      csvCell(w.rut),
-      csvCell(w.razonSocial),
-      csvCell(w.banco),
-      csvCell(w.tipoCuenta),
-      csvCell(w.numeroCuenta),
-      w.monto,
-      csvCell(w.email)
-    ]);
+  const openConfigModal = () => {
+    setCuentaCargoDraft(configuracionPagos?.cuentaCargoBci ?? '');
+    setIsConfigModalOpen(true);
+  };
 
-    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map((row) => row.join(','))].join('\n');
-    const startStr = cycleStart.toISOString().slice(0, 10);
-    const endStr = cycleEnd.toISOString().slice(0, 10);
-    downloadFile(`pago-proveedores-ciclo-${startStr}-a-${endStr}.csv`, csvContent, 'text/csv;charset=utf-8');
+  const handleSaveConfig = async () => {
+    setSavingConfig(true);
+    try {
+      await adminApi.updateConfiguracionPagos(cuentaCargoDraft.trim());
+      queryClient.invalidateQueries({ queryKey: ['admin-configuracion-pagos'] });
+      setIsConfigModalOpen(false);
+    } catch (err) {
+      alert('No se pudo guardar la cuenta de cargo: ' + (err instanceof Error ? err.message : 'Error desconocido.'));
+    } finally {
+      setSavingConfig(false);
+    }
   };
 
   return (
@@ -263,9 +283,14 @@ export default function PagoProveedoresPage() {
           <section className="table-shell">
             <div className="table-toolbar">
               <h2>Solicitudes del ciclo</h2>
-              <button className="primary-button" type="button" onClick={handleExportExcel} disabled={pendingWithdrawals.length === 0}>
-                <UiIcon name="download" /> Exportar Excel
-              </button>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button className="secondary-button" type="button" onClick={openConfigModal} title="Configurar la cuenta de cargo usada en el Excel de BCI">
+                  <UiIcon name="settings" /> Cuenta de cargo
+                </button>
+                <button className="primary-button" type="button" onClick={handleExportExcel} disabled={pendingWithdrawals.length === 0 || exportingExcel}>
+                  <UiIcon name="download" /> {exportingExcel ? 'Generando...' : 'Exportar Excel'}
+                </button>
+              </div>
             </div>
             
             <div className="table-wrap">
@@ -275,7 +300,6 @@ export default function PagoProveedoresPage() {
                     <th>Cód. Solicitud</th>
                     <th>Solicitudes de retiro / Tiendas</th>
                     <th>RUT</th>
-                    <th>Razón Social</th>
                     <th>Banco</th>
                     <th>Tipo Cuenta</th>
                     <th>Nº Cuenta</th>
@@ -288,7 +312,7 @@ export default function PagoProveedoresPage() {
                 <tbody>
                   {isLoading ? (
                     <tr>
-                      <td colSpan={11} className="loading-cell">Cargando solicitudes de retiros...</td>
+                      <td colSpan={10} className="loading-cell">Cargando solicitudes de retiros...</td>
                     </tr>
                   ) : pendingWithdrawals.length > 0 ? (
                     pendingWithdrawals.map((w) => (
@@ -296,7 +320,6 @@ export default function PagoProveedoresPage() {
                         <td><strong>RET-{String(w.retiroId).padStart(6, '0')}</strong></td>
                         <td><FounderSellerName name={w.nombreTienda} founder={w.sellerFounder} /></td>
                         <td>{w.rut}</td>
-                        <td>{w.razonSocial}</td>
                         <td>{w.banco}</td>
                         <td>{w.tipoCuenta}</td>
                         <td>{w.numeroCuenta}</td>
@@ -319,7 +342,7 @@ export default function PagoProveedoresPage() {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={11}>
+                      <td colSpan={10}>
                         <div className="empty-state">No hay solicitudes de retiros registradas para este ciclo.</div>
                       </td>
                     </tr>
@@ -639,6 +662,32 @@ export default function PagoProveedoresPage() {
             </div>
             <footer style={{ display: 'flex', justifyContent: 'center', marginTop: 20 }}>
               <button className="primary-button" type="button" onClick={() => setIncompleteDocumentSellers([])}>Entendido</button>
+            </footer>
+          </div>
+        </div>
+      )}
+
+      {isConfigModalOpen && (
+        <div className="modal-backdrop" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setIsConfigModalOpen(false)}>
+          <div className="modal-content" style={{ background: '#fff', borderRadius: 12, width: '90%', maxWidth: 480, padding: 24, boxShadow: '0 20px 40px rgba(0,0,0,.15)' }} onClick={(event) => event.stopPropagation()}>
+            <h3 style={{ margin: 0, color: '#1a202c' }}>Cuenta de cargo (BCI)</h3>
+            <p style={{ margin: '10px 0 16px', color: '#4a5568', fontSize: 13, lineHeight: 1.5 }}>
+              Cuenta bancaria de RepuesTop que aparecerá en la columna "Nº Cuenta de Cargo" de la nómina exportada. Se guarda una sola vez y aplica a todos los exports.
+            </p>
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#2d3748', marginBottom: 6 }}>Número de cuenta de cargo</label>
+            <input
+              type="text"
+              className="form-input"
+              value={cuentaCargoDraft}
+              onChange={(event) => setCuentaCargoDraft(event.target.value)}
+              placeholder="Ej. 78.474.031-5"
+              style={{ width: '100%', padding: '10px 12px', border: '1px solid #cbd5e0', borderRadius: 8, fontSize: 14 }}
+            />
+            <footer style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 20 }}>
+              <button className="secondary-button" type="button" onClick={() => setIsConfigModalOpen(false)} disabled={savingConfig}>Cancelar</button>
+              <button className="primary-button" type="button" onClick={handleSaveConfig} disabled={savingConfig || !cuentaCargoDraft.trim()}>
+                {savingConfig ? 'Guardando...' : 'Guardar'}
+              </button>
             </footer>
           </div>
         </div>

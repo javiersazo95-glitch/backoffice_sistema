@@ -679,7 +679,7 @@ export default function AdminFinancePage() {
     }
   }
 
-  function saveExpense(event: FormEvent<HTMLFormElement>): void {
+  async function saveExpense(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     if (!expenseDraft) return;
     const file = receiptInputRef.current?.files?.[0];
@@ -694,20 +694,25 @@ export default function AdminFinancePage() {
       return;
     }
 
-    const payload: Expense = {
-      id: expenseDraft.id || createId(),
+    const exists = Boolean(expenseDraft.id);
+    const requestPayload = {
       date: expenseDraft.date,
       category: expenseDraft.category,
       description: expenseDraft.description.trim(),
       amount,
-      receipt: file?.name || expenseDraft.receipt || undefined,
-      receiptUrl: file ? URL.createObjectURL(file) : expenseDraft.receiptUrl || undefined,
-      receiptType: file ? file.type : expenseDraft.receiptType || undefined,
+      eliminarReceipt: false,
     };
-    const exists = expenses.some((expense) => expense.id === payload.id);
-    setExpenses((current) => exists ? current.map((expense) => (expense.id === payload.id ? payload : expense)) : [payload, ...current]);
-    pushActivity('wallet', exists ? 'Gasto actualizado' : 'Gasto registrado', `${payload.category} - ${payload.description}`);
-    setExpenseDraft(null);
+
+    try {
+      const saved = exists
+        ? await administrationApi.updateExpense(expenseDraft.id, requestPayload, file)
+        : await administrationApi.createExpense(requestPayload, file);
+      setExpenses((current) => exists ? current.map((expense) => (expense.id === saved.id ? saved : expense)) : [saved, ...current]);
+      pushActivity('wallet', exists ? 'Gasto actualizado' : 'Gasto registrado', `${saved.category} - ${saved.description}`);
+      setExpenseDraft(null);
+    } catch (err) {
+      window.alert('No se pudo guardar el gasto: ' + (err instanceof Error ? err.message : 'Error desconocido.'));
+    }
   }
 
   function saveOrder(event: FormEvent<HTMLFormElement>): void {
@@ -943,7 +948,7 @@ export default function AdminFinancePage() {
     });
   }
 
-  function saveWithdrawal(event: FormEvent<HTMLFormElement>): void {
+  async function saveWithdrawal(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     if (!withdrawalDraft) return;
     const amount = Number(withdrawalDraft.amount);
@@ -957,9 +962,7 @@ export default function AdminFinancePage() {
         .reduce((sum, settlement) => sum + settlement.commission, 0),
     ).withdrawalAvailable;
     const balanceBefore = getPartnerBalances(withdrawals, partnerPool, filters.retiros.start, filters.retiros.end)[withdrawalDraft.beneficiary] ?? 0;
-    const withdrawal: Withdrawal = {
-      id: createId(),
-      type: 'partner',
+    const requestPayload = {
       period: withdrawalDraft.date.slice(0, 7),
       date: withdrawalDraft.date,
       beneficiary: withdrawalDraft.beneficiary,
@@ -968,21 +971,32 @@ export default function AdminFinancePage() {
       balanceBefore,
       balanceAfter: balanceBefore - amount,
     };
-    setWithdrawals((current) => [withdrawal, ...current]);
-    setPagination((current) => ({ ...current, retiros: { ...current.retiros, page: 1 } }));
-    pushActivity('wallet', 'Retiro registrado', `${withdrawal.beneficiary} retiró ${formatMoney(withdrawal.amount)}`);
-    setWithdrawalDraft(null);
+
+    try {
+      const saved = await administrationApi.createPartnerWithdrawal(requestPayload);
+      setWithdrawals((current) => [saved, ...current]);
+      setPagination((current) => ({ ...current, retiros: { ...current.retiros, page: 1 } }));
+      pushActivity('wallet', 'Retiro registrado', `${saved.beneficiary} retiró ${formatMoney(saved.amount)}`);
+      setWithdrawalDraft(null);
+    } catch (err) {
+      window.alert('No se pudo registrar el retiro: ' + (err instanceof Error ? err.message : 'Error desconocido.'));
+    }
   }
 
-  function deleteExpense(expenseId: string): void {
+  async function deleteExpense(expenseId: string): Promise<void> {
     if (!window.confirm('¿Eliminar este gasto? Esta acción no se puede deshacer.')) return;
-    setExpenses((current) => current.filter((expense) => expense.id !== expenseId));
-    setSelectedRows((current) => {
-      const next = new Set(current.gastos);
-      next.delete(expenseId);
-      return { ...current, gastos: next };
-    });
-    pushActivity('wallet', 'Gasto eliminado', 'Se eliminó un gasto registrado');
+    try {
+      await administrationApi.deleteExpense(expenseId);
+      setExpenses((current) => current.filter((expense) => expense.id !== expenseId));
+      setSelectedRows((current) => {
+        const next = new Set(current.gastos);
+        next.delete(expenseId);
+        return { ...current, gastos: next };
+      });
+      pushActivity('wallet', 'Gasto eliminado', 'Se eliminó un gasto registrado');
+    } catch (err) {
+      window.alert('No se pudo eliminar el gasto: ' + (err instanceof Error ? err.message : 'Error desconocido.'));
+    }
   }
 
 
