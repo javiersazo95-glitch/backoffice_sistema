@@ -16820,6 +16820,77 @@ button:disabled {
 .metric-info-tooltip-row { display: flex; justify-content: space-between; gap: 12px; padding-top: 7px; border-top: 1px solid #edf2f7; white-space: nowrap; }
 .metric-info-tooltip-row b { color: #075ed7; }
 
+.seller-list-tooltip-wrap { display: inline-flex; align-items: center; gap: 4px; }
+
+.seller-info-trigger-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  color: #075ed7;
+  padding: 2px 7px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  line-height: 1;
+}
+
+.seller-info-trigger-button:hover {
+  background: #e2e8f0;
+  border-color: #94a3b8;
+  color: #03429a;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(7, 94, 215, 0.15);
+}
+
+.seller-info-trigger-button .ui-icon {
+  width: 13px;
+  height: 13px;
+}
+
+.seller-list-tooltip {
+  position: relative;
+  display: inline-flex;
+  vertical-align: middle;
+  color: #64748b;
+  cursor: help;
+}
+
+.seller-list-tooltip .ui-icon { width: 14px; height: 14px; }
+
+.seller-list-tooltip-content {
+  position: absolute;
+  z-index: 1000;
+  left: 0;
+  bottom: calc(100% + 8px);
+  display: none;
+  width: 220px;
+  max-height: 180px;
+  overflow-y: auto;
+  padding: 10px 12px;
+  border: 1px solid #dbe5f1;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 12px 28px rgba(15, 27, 45, 0.18);
+  color: #334155;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.seller-list-tooltip:hover .seller-list-tooltip-content,
+.seller-list-tooltip:focus .seller-list-tooltip-content { display: block; }
+
+.seller-list-tooltip:hover,
+.seller-list-tooltip:focus { z-index: 1001; }
+
+.seller-list-tooltip-content > strong { display: block; margin-bottom: 6px; color: #172b4d; font-size: 12px; }
+.seller-list-tooltip-content ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.seller-list-tooltip-content li { white-space: nowrap; }
+
 .liquidation-preview-table .net-settlement-tooltip {
   top: auto;
   bottom: calc(100% + 10px);

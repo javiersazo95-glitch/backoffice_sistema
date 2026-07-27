@@ -5,7 +5,7 @@ import * as adminApi from '@/api/administration';
 import UiIcon from '@/components/shared/UiIcon';
 import MetricCard from '@/components/shared/MetricCard';
 import FounderSellerName from '@/components/shared/FounderSellerName';
-import FounderSellerList from '@/components/shared/FounderSellerList';
+import SellerListTooltip from '@/components/shared/SellerListTooltip';
 import { downloadFile } from './utils';
 import { buildBciNominaWorkbook, BCI_NOMINA_MIME_TYPE } from './bciNominaExport';
 import type { RetiroAdminResponse, RetiroDetalleResponse, PagoProveedorResponse, ConfiguracionPagos } from './types';
@@ -453,7 +453,7 @@ export default function PagoProveedoresPage() {
                           <strong>PAG-{String(payment.pagoId).padStart(6, '0')}</strong>
                           <small style={{ display: 'block', color: '#6b7a90', marginTop: 3 }}>{payment.retiros.length} solicitudes de retiro</small>
                         </td>
-                        <td><FounderSellerList sellers={payment.retiros.map((retiro) => ({ name: retiro.nombreTienda, founder: retiro.sellerFounder }))} /></td>
+                        <td><SellerListTooltip sellers={payment.retiros.map((retiro) => ({ name: retiro.nombreTienda, founder: retiro.sellerFounder }))} /></td>
                         <td style={{ fontWeight: 'bold', color: '#2e7d32' }}>{formatMoney(payment.montoTotal)}</td>
                         <td>{formatDate(payment.fechaPago)}</td>
                         <td>
@@ -573,7 +573,7 @@ export default function PagoProveedoresPage() {
                     <tbody>
                       {paymentDetails.retiros.map((retiro) => (
                         <tr key={retiro.retiroId}>
-                          <td style={{ padding: '8px 12px' }}><strong>RET-{String(retiro.retiroId).padStart(6, '0')}</strong></td>
+                          <td style={{ padding: '8px 12px' }}><strong>{retiro.codigoRetiro || `RET-${String(retiro.retiroId).padStart(6, '0')}`}</strong></td>
                           <td style={{ padding: '8px 12px' }}><FounderSellerName name={retiro.nombreTienda} founder={retiro.sellerFounder} /></td>
                           <td style={{ padding: '8px 12px' }}>{formatDate(retiro.fecha)}</td>
                           <td style={{ textAlign: 'right', padding: '8px 12px', fontWeight: 'bold' }}>{formatMoney(retiro.monto)}</td>
