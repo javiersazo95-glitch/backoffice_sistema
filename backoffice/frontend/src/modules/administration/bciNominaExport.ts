@@ -1,5 +1,5 @@
 import ExcelJS from 'exceljs';
-import type { RetiroAdminResponse } from './types';
+import type { RetiroAdminResponse, Withdrawal } from './types';
 
 // BCI-NOMINA-001: replica exacta (columnas, colores, hojas) de la plantilla
 // "Nomina_Pago_en_Linea.xlsx" de BCI, leida con openpyxl para capturar estilos y
@@ -92,6 +92,43 @@ function splitRutFallback(rut?: string | null): { numero: string; dv: string } |
   return { numero: cleaned.slice(0, -1), dv: cleaned.slice(-1) };
 }
 
+/**
+ * BO-SOCIOS-001: adapta un retiro de socio (Withdrawal) a la misma forma que
+ * buildBciNominaWorkbook espera de un retiro de vendedor, para que ambos entren en la
+ * misma nomina BCI. Usa siempre w.codigoRetiro (ej. "J-1") en vez del fallback
+ * "RET-<retiroId>" de buildBciNominaWorkbook, porque bo_retiro y bo_retiro_socio numeran
+ * sus IDs de forma independiente y podrian coincidir (ver V2026073102).
+ */
+export function socioToNominaRow(w: Withdrawal): RetiroAdminResponse {
+  return {
+    retiroId: 0,
+    nombreTienda: w.beneficiary,
+    rut: w.rut ?? '',
+    razonSocial: w.titular ?? w.beneficiary,
+    banco: w.banco ?? '',
+    tipoCuenta: w.tipoCuenta ?? '',
+    numeroCuenta: w.numeroCuenta ?? '',
+    codigoRetiro: w.codigoRetiro ?? undefined,
+    // Columna K: mensaje fijo para retiros de socio, distinto del "Pago retiro <codigo>"
+    // que usan los vendedores.
+    mensajeDestinatario: `Anticipo de Dividendos ${w.beneficiary}`,
+    // BCI-NOMINA-002: idExterno/primeraSolicitud vienen del backend (ver
+    // RetiroSocioAdminHelper.aliasPorSocio/esPrimeraSolicitud) para que el alias solo
+    // aparezca en la primera solicitud de cada socio y nunca se re-inscriba una cuenta
+    // que el banco ya tiene registrada.
+    idExterno: w.alias ?? undefined,
+    primeraSolicitud: w.primeraSolicitud ?? false,
+    bankCode: w.bankCode ?? null,
+    bankAccountHolderName: w.titular ?? w.beneficiary,
+    bankAccountNotificationEmail: w.email ?? '',
+    monto: w.amount,
+    email: w.email ?? '',
+    fecha: w.date,
+    estado: w.estado ?? 'PENDIENTE',
+    fechaEfectiva: w.fechaPago ?? '',
+  };
+}
+
 export async function buildBciNominaWorkbook(
   withdrawals: RetiroAdminResponse[],
   cuentaCargoBci: string,
@@ -133,7 +170,10 @@ export async function buildBciNominaWorkbook(
     // Los vendedores no son proveedores de RepuesTop (no le venden bienes/servicios a la
     // empresa, reciben su parte de ventas hechas en la plataforma) => "Otros Pagos", no "PRV".
     hoja1.getCell(row, 10).value = 'OTR';
-    hoja1.getCell(row, 11).value = email ? `Pago retiro ${codigoRetiro}` : '';
+    // BO-SOCIOS-001: un retiro de socio siempre trae mensajeDestinatario ya armado
+    // ("Anticipo de Dividendos <socio>", ver socioToNominaRow) y se usa tal cual, sin
+    // depender de si el socio tiene email registrado.
+    hoja1.getCell(row, 11).value = w.mensajeDestinatario ?? (email ? `Pago retiro ${codigoRetiro}` : '');
     hoja1.getCell(row, 12).value = email;
     hoja1.getCell(row, 13).value = cuentaInscritaComo;
   });

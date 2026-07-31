@@ -49,6 +49,8 @@ export interface Expense {
   receiptType?: string;
 }
 
+export type PartnerWithdrawalStatus = 'PENDIENTE' | 'PAGADO';
+
 export interface Withdrawal {
   id: string;
   type: 'partner';
@@ -59,6 +61,55 @@ export interface Withdrawal {
   amount: number;
   balanceBefore: number;
   balanceAfter: number;
+  // BO-SOCIOS-001: codigo legible (ej. "J-1"), estado de la solicitud y snapshot
+  // bancario usado en la nomina BCI.
+  codigoRetiro?: string | null;
+  // BCI-NOMINA-002 (replicado para socios): alias fijo ("Jsazo", "Echoque") y si es la
+  // primera solicitud sin pagar de ese socio; determinan la columna "Cuenta Destino
+  // inscrita como" del Excel BCI.
+  alias?: string | null;
+  primeraSolicitud?: boolean;
+  estado?: PartnerWithdrawalStatus;
+  fechaPago?: string | null;
+  rut?: string | null;
+  banco?: string | null;
+  bankCode?: number | null;
+  tipoCuenta?: string | null;
+  numeroCuenta?: string | null;
+  titular?: string | null;
+  email?: string | null;
+  documentoLiquidacionNombre?: string | null;
+  documentoLiquidacionTipo?: string | null;
+  documentoLiquidacionRut?: string | null;
+  documentoLiquidacionRazonSocial?: string | null;
+  documentoLiquidacionEmail?: string | null;
+  documentoLiquidacionDetalle?: string | null;
+  documentoLiquidacionIva?: number | null;
+  documentoLiquidacionCompleto?: boolean;
+}
+
+/** BO-SOCIOS-001: datos bancarios de un socio, para pagarle sus retiros por BCI. */
+export interface Socio {
+  id: number;
+  nombre: string;
+  rut?: string | null;
+  banco?: string | null;
+  bankCode?: number | null;
+  tipoCuenta?: string | null;
+  numeroCuenta?: string | null;
+  titular?: string | null;
+  email?: string | null;
+  tieneDatosBancarios: boolean;
+}
+
+export interface SocioRequest {
+  rut: string;
+  banco: string;
+  bankCode: number | null;
+  tipoCuenta: string;
+  numeroCuenta: string;
+  titular: string;
+  email: string;
 }
 
 export interface AdministrationBootstrapResponse {
@@ -183,6 +234,9 @@ export interface RetiroAdminResponse {
   numeroCuenta: string;
   codigoRetiro?: string | null;
   // BCI-NOMINA-001: campos para completar la nomina "Pago en Linea" de BCI.
+  // Columna K ("Mensaje Destinatario"): por defecto es "Pago retiro <codigo>" (solo si
+  // hay email); un retiro de socio la sobreescribe con "Anticipo de Dividendos <socio>".
+  mensajeDestinatario?: string | null;
   idExterno?: string | null;
   primeraSolicitud?: boolean;
   bankCode?: number | null;

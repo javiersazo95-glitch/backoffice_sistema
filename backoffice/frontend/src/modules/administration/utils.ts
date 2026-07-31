@@ -31,6 +31,31 @@ export function formatDateTime(dateValue: string): string {
   return `${formatDate(date)} ${time.slice(0, 5)}`;
 }
 
+const monthFormatter = new Intl.DateTimeFormat('es-CL', { month: 'long' });
+
+/** Nombre del mes de un "YYYY-MM", por ejemplo "Julio". El año va en su propio filtro. */
+export function formatMonthName(month: string): string {
+  const [year = '', monthPart = ''] = month.split('-');
+  const yearNumber = Number(year);
+  const monthNumber = Number(monthPart);
+  if (!yearNumber || !monthNumber) return month;
+  const label = monthFormatter.format(new Date(yearNumber, monthNumber - 1, 1));
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
+/**
+ * Primer y ultimo dia de un mes "YYYY-MM". Se calcula sobre fechas locales y se
+ * arma el string a mano (no toISOString) para no correr un dia por zona horaria.
+ */
+export function getMonthRange(month: string): { start: string; end: string } {
+  const [year = '', monthPart = ''] = month.split('-');
+  const yearNumber = Number(year);
+  const monthNumber = Number(monthPart);
+  if (!yearNumber || !monthNumber) return { start: month, end: month };
+  const lastDay = new Date(yearNumber, monthNumber, 0).getDate();
+  return { start: `${month}-01`, end: `${month}-${String(lastDay).padStart(2, '0')}` };
+}
+
 export function normalizeText(value: unknown): string {
   return String(value ?? '').trim().toLowerCase();
 }

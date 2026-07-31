@@ -62,13 +62,13 @@ export default function App() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/" element={<RequireAuth><AreaSelectorPage /></RequireAuth>} />
       <Route path="/configuracion" element={<RequireSuperAdmin><PermissionsConfigPage /></RequireSuperAdmin>} />
+      <Route path="/retiros" element={<RequireSuperAdmin><AppShell noSidebar><AdminFinancePage /></AppShell></RequireSuperAdmin>} />
       <Route path="/administracion" element={<RequireArea area="ADMINISTRACION_CONTABLE"><AppShell /></RequireArea>}>
         <Route index element={<AdminFinancePage />} />
         <Route path="resumen" element={<AdminFinancePage />} />
         <Route path="pedidos" element={<AdminFinancePage />} />
         <Route path="liquidaciones" element={<AdminFinancePage />} />
         <Route path="gastos" element={<AdminFinancePage />} />
-        <Route path="retiros" element={<AdminFinancePage />} />
         <Route path="pago-proveedores" element={<PagoProveedoresPage />} />
       </Route>
       <Route path="/soporte/*" element={<RequireArea area="SOPORTE"><AppShell noSidebar><SupportPage /></AppShell></RequireArea>} />

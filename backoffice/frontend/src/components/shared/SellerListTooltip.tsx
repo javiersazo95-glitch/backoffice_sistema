@@ -3,7 +3,7 @@ import UiIcon from '@/components/shared/UiIcon';
 import FounderSellerName from '@/components/shared/FounderSellerName';
 
 interface SellerListTooltipProps {
-  sellers: Array<{ name: string; founder?: boolean }>;
+  sellers: Array<{ name: string; founder?: boolean; isPartner?: boolean }>;
 }
 
 export default function SellerListTooltip({ sellers }: SellerListTooltipProps) {
@@ -20,7 +20,7 @@ export default function SellerListTooltip({ sellers }: SellerListTooltipProps) {
   return (
     <>
       <span className="seller-list-tooltip-wrap">
-        <FounderSellerName name={first.name} founder={first.founder} />
+        <FounderSellerName name={first.name} founder={first.founder} isPartner={first.isPartner} />
         {rest.length > 0 && (
           <button
             type="button"
@@ -29,8 +29,8 @@ export default function SellerListTooltip({ sellers }: SellerListTooltipProps) {
               e.stopPropagation();
               setIsModalOpen(true);
             }}
-            title="Ver listado de vendedores que participaron"
-            aria-label="Ver vendedores participantes"
+            title="Ver listado que participaron"
+            aria-label="Ver participantes"
           >
             <UiIcon name="info" />
             <span className="seller-info-count">+{rest.length}</span>
@@ -166,7 +166,7 @@ export default function SellerListTooltip({ sellers }: SellerListTooltipProps) {
                     >
                       {index + 1}
                     </span>
-                    <FounderSellerName name={seller.name} founder={seller.founder} />
+                    <FounderSellerName name={seller.name} founder={seller.founder} isPartner={seller.isPartner} />
                   </div>
                 </div>
               ))}

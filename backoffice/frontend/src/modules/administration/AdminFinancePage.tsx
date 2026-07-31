@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { isAxiosError } from 'axios';
 import { useLocation, useNavigate } from 'react-router-dom';
 import MetricCard from '@/components/shared/MetricCard';
 import UiIcon from '@/components/shared/UiIcon';
@@ -9,10 +10,14 @@ import FounderSellerList from '@/components/shared/FounderSellerList';
 import SellerListTooltip from '@/components/shared/SellerListTooltip';
 import * as administrationApi from '@/api/administration';
 import {
+  BANCOS_BCI,
   EXPENSE_CATEGORIES,
   ORDER_STATUS_OPTIONS,
   PARTNERS,
+  TIPO_CUENTA_OPTIONS,
   TODAY,
+  WITHDRAWAL_REASON_ACCUMULATED,
+  WITHDRAWAL_REASON_MONTHLY,
   WITHDRAWAL_REASON_OPTIONS,
 } from './constants';
 import {
@@ -41,6 +46,7 @@ import type {
   PagoProveedorResponse,
   RetiroAdminResponse,
   RetiroDetalleResponse,
+  Socio,
   StatusHistoryItem,
   Withdrawal,
 } from './types';
@@ -50,10 +56,12 @@ import {
   downloadFile,
   formatDate,
   formatDateTime,
+  formatMonthName,
   formatMoney,
   getBarWidth,
   getCashAllocation,
   getExpenseTotal,
+  getMonthRange,
   getPartnerBalances,
   getPercent,
   getSettlements,
@@ -68,7 +76,9 @@ import {
 } from './utils';
 
 type SelectableView = 'pedidos' | 'liquidaciones' | 'gastos';
-type PageView = SelectableView | 'retiros';
+type PageView = SelectableView | 'retiros' | 'ingresos';
+/** Pestañas de la vista exclusiva de socios (/retiros). */
+type PartnerTab = 'ingresos' | 'retiros';
 
 const serviceCommissionLabel = (settlement: Settlement) =>
   settlement.sellerFounder && Math.round(settlement.serviceCommissionRate * 100) === 5
@@ -161,6 +171,18 @@ interface WithdrawalDraft {
   amount: string;
 }
 
+/** BO-SOCIOS-001: formulario de datos bancarios de un socio. */
+interface SocioBancoDraft {
+  nombre: string;
+  rut: string;
+  banco: string;
+  bankCode: number | null;
+  tipoCuenta: string;
+  numeroCuenta: string;
+  titular: string;
+  email: string;
+}
+
 const DATE_PRESETS = [
   { label: 'Hoy', start: TODAY, end: TODAY },
   { label: '7 días', start: 'last7', end: TODAY },
@@ -174,6 +196,7 @@ const paginationDefaults: Record<PageView, PaginationState> = {
   liquidaciones: { page: 1, pageSize: 5 },
   gastos: { page: 1, pageSize: 5 },
   retiros: { page: 1, pageSize: 5 },
+  ingresos: { page: 1, pageSize: 5 },
 };
 
 function emptyExpenseDraft(): ExpenseDraft {
@@ -438,6 +461,7 @@ export default function AdminFinancePage() {
   const [statusHistory, setStatusHistory] = useState<Record<string, StatusHistoryItem[]>>(initialStatusHistory);
   const [settlementStatuses, setSettlementStatuses] = useState<Record<string, SettlementStatus>>({});
   const [liquidationTab, setLiquidationTab] = useState<LiquidationStatus>('PENDIENTE_LIQUIDACION');
+  const [partnerTab, setPartnerTab] = useState<PartnerTab>('ingresos');
   const [expandedLiquidationSellers, setExpandedLiquidationSellers] = useState<Set<string>>(new Set());
   const [selectedLiquidationSeller, setSelectedLiquidationSeller] = useState<LiquidationSellerGroup | null>(null);
   const [selectedPaidPeriod, setSelectedPaidPeriod] = useState<string>('');
@@ -449,6 +473,9 @@ export default function AdminFinancePage() {
   const [expenseDraft, setExpenseDraft] = useState<ExpenseDraft | null>(null);
   const [orderDraft, setOrderDraft] = useState<OrderDraft | null>(null);
   const [withdrawalDraft, setWithdrawalDraft] = useState<WithdrawalDraft | null>(null);
+  const [withdrawalError, setWithdrawalError] = useState('');
+  const [socioBancoDraft, setSocioBancoDraft] = useState<SocioBancoDraft | null>(null);
+  const [socioBancoError, setSocioBancoError] = useState('');
 
   const [documentDraft, setDocumentDraft] = useState<DocumentDraft | null>(null);
   const [registeredDocumentPreview, setRegisteredDocumentPreview] = useState<RegisteredDocumentPreview | null>(null);
@@ -469,6 +496,10 @@ export default function AdminFinancePage() {
     queryFn: administrationApi.getWithdrawals,
   });
   const { data: paidPayments = [] } = useQuery({ queryKey: ['withdrawal-payments'], queryFn: administrationApi.getWithdrawalPayments });
+  const { data: socios = [], refetch: refetchSocios } = useQuery<Socio[]>({
+    queryKey: ['administration-socios'],
+    queryFn: administrationApi.getSocios,
+  });
   const { data: paidPaymentDetails = [] } = useQuery<RetiroDetalleResponse[]>({
     queryKey: ['withdrawal-payment-details', selectedPaidPayment?.pagoId],
     queryFn: () => Promise.all((selectedPaidPayment?.retiros ?? []).map((retiro) => administrationApi.getWithdrawalDetails(retiro.retiroId))),
@@ -599,6 +630,36 @@ export default function AdminFinancePage() {
     [filters.retiros, withdrawals],
   );
 
+  // Ingresos de socios: getSettlements ya deja solo los pedidos en estado
+  // "Finalizado", que son los unicos que generan ingreso repartible.
+  const partnerIncomes = useMemo(
+    () => settlements
+      .filter((settlement) => isWithinRange(settlement.date, filters.retiros.start, filters.retiros.end))
+      .sort((first, second) => second.date.localeCompare(first.date)),
+    [filters.retiros, settlements],
+  );
+
+  // Los filtros de año y mes escriben sobre el mismo rango que ya usa la vista, para
+  // que tabla y metricas queden siempre sincronizadas con el periodo elegido. El año
+  // se deriva del mes seleccionado, asi no existe combinacion año/mes invalida.
+  const selectedIncomeMonth = filters.retiros.start.slice(0, 7);
+  const selectedIncomeYear = selectedIncomeMonth.slice(0, 4);
+  const incomeMonthsWithSales = useMemo(() => {
+    const months = new Set(settlements.map((settlement) => settlement.date.slice(0, 7)).filter(Boolean));
+    if (selectedIncomeMonth) months.add(selectedIncomeMonth);
+    // "YYYY-MM" con cero a la izquierda ordena cronologicamente incluso al cambiar de año.
+    return [...months].sort((first, second) => second.localeCompare(first));
+  }, [selectedIncomeMonth, settlements]);
+  const incomeYearOptions = useMemo(
+    () => [...new Set(incomeMonthsWithSales.map((month) => month.slice(0, 4)))]
+      .sort((first, second) => second.localeCompare(first)),
+    [incomeMonthsWithSales],
+  );
+  const incomeMonthOptions = useMemo(
+    () => incomeMonthsWithSales.filter((month) => month.startsWith(selectedIncomeYear)),
+    [incomeMonthsWithSales, selectedIncomeYear],
+  );
+
   function pushActivity(iconName: string, title: string, description: string): void {
     setActivityLogs((current) => [{ id: createId(), iconName, title, description, time: 'Ahora' }, ...current]);
   }
@@ -638,6 +699,7 @@ export default function AdminFinancePage() {
         liquidaciones: filteredSettlements.length,
         gastos: filteredExpenses.length,
         retiros: filteredWithdrawals.length,
+        ingresos: partnerIncomes.length,
       };
       const state = current[view];
       const totalPages = Math.max(1, Math.ceil(totalByView[view] / state.pageSize));
@@ -648,6 +710,18 @@ export default function AdminFinancePage() {
 
   function updatePageSize(view: PageView, pageSize: number): void {
     setPagination((current) => ({ ...current, [view]: { page: 1, pageSize } }));
+  }
+
+  function selectIncomeMonth(month: string): void {
+    updateFilter('retiros', getMonthRange(month));
+    setPagination((current) => ({ ...current, ingresos: { ...current.ingresos, page: 1 } }));
+  }
+
+  function selectIncomeYear(year: string): void {
+    // incomeMonthsWithSales viene ordenado desc, asi que el primero del año elegido
+    // es su mes con ventas mas reciente. Si ese año no tiene ventas, cae a enero.
+    const latestMonth = incomeMonthsWithSales.find((month) => month.startsWith(year));
+    selectIncomeMonth(latestMonth ?? `${year}-01`);
   }
 
 
@@ -842,6 +916,49 @@ export default function AdminFinancePage() {
     });
   }
 
+  async function openPartnerWithdrawalDocument(withdrawal: Withdrawal, isEditing = false): Promise<void> {
+    const socio = socioPorNombre(withdrawal.beneficiary);
+    const existingDoc: IssuedDocument | null = (withdrawal.documentoLiquidacionNombre || withdrawal.documentoLiquidacionRut) ? {
+      type: withdrawal.documentoLiquidacionTipo ?? 'Boleta de Honorarios',
+      rut: withdrawal.documentoLiquidacionRut ?? socio?.rut ?? '',
+      name: withdrawal.documentoLiquidacionRazonSocial ?? socio?.titular ?? withdrawal.beneficiary,
+      email: withdrawal.documentoLiquidacionEmail ?? socio?.email ?? withdrawal.email ?? '',
+      detail: withdrawal.documentoLiquidacionDetalle ?? `Retiro de libre disposición socio - ${withdrawal.beneficiary}`,
+      ivaLiquidado: withdrawal.documentoLiquidacionIva != null ? String(withdrawal.documentoLiquidacionIva) : '0',
+      sentAt: withdrawal.date,
+      pdfName: withdrawal.documentoLiquidacionNombre ?? '',
+    } : null;
+
+    if (existingDoc && isIssuedDocumentComplete(existingDoc) && !isEditing) {
+      let document = existingDoc;
+      if (!document.pdfUrl && withdrawal.id) {
+        try {
+          document = { ...document, pdfUrl: await administrationApi.getLiquidationDocumentFile(Number(withdrawal.id)) };
+        } catch (error) {
+          window.alert(error instanceof Error ? error.message : 'No se pudo cargar el PDF registrado.');
+        }
+      }
+      setRegisteredDocumentPreview({ orderId: withdrawal.codigoRetiro || `SOCIO-${withdrawal.id}`, document });
+      return;
+    }
+
+    setDocumentDraft({
+      orderId: withdrawal.codigoRetiro || `SOCIO-${withdrawal.id}`,
+      orderIds: [withdrawal.codigoRetiro || `SOCIO-${withdrawal.id}`],
+      retiroId: Number(withdrawal.id),
+      isEditing: Boolean(existingDoc),
+      type: existingDoc?.type ?? 'Boleta de Honorarios',
+      rut: existingDoc?.rut ?? (socio?.rut ?? ''),
+      name: existingDoc?.name ?? (socio?.titular ?? withdrawal.beneficiary),
+      email: existingDoc?.email ?? (socio?.email ?? withdrawal.email ?? ''),
+      detail: existingDoc?.detail ?? `Retiro de libre disposición socio - ${withdrawal.beneficiary}`,
+      ivaLiquidado: existingDoc?.ivaLiquidado ?? '0',
+      pdfName: existingDoc?.pdfName ?? '',
+      pdfUrl: undefined,
+      originalPdfName: existingDoc?.pdfName,
+    });
+  }
+
   async function saveDocument(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     if (!documentDraft) return;
@@ -856,7 +973,7 @@ export default function AdminFinancePage() {
       return;
     }
     if (documentDraft.retiroId === null) {
-      window.alert('No se encontró una solicitud de retiro activa para este vendedor. Actualiza la página y verifica que el retiro siga en estado solicitado.');
+      window.alert('No se encontró una solicitud de retiro activa para este registro. Actualiza la página y verifica que el retiro siga activo.');
       return;
     }
     try {
@@ -889,7 +1006,29 @@ export default function AdminFinancePage() {
       (next, orderId) => ({ ...next, [orderId]: savedDocument }),
       current,
     ));
-    pushActivity('receipt', `${documentDraft.type} ${documentDraft.isEditing ? 'actualizada' : 'registrada'}`, `Pedido ${documentDraft.orderId} enviado a ${documentDraft.email.trim()}`);
+    setWithdrawals((current) => current.map((w) => {
+      if (Number(w.id) === documentDraft.retiroId) {
+        return {
+          ...w,
+          documentoLiquidacionNombre: documentDraft.pdfName,
+          documentoLiquidacionTipo: documentDraft.type.trim(),
+          documentoLiquidacionRut: documentDraft.rut.trim(),
+          documentoLiquidacionRazonSocial: documentDraft.name.trim(),
+          documentoLiquidacionEmail: documentDraft.email.trim(),
+          documentoLiquidacionDetalle: documentDraft.detail.trim(),
+          documentoLiquidacionIva: documentDraft.ivaLiquidado.trim() ? Number(documentDraft.ivaLiquidado) : 0,
+          documentoLiquidacionCompleto: Boolean(
+            documentDraft.rut.trim() &&
+            documentDraft.name.trim() &&
+            documentDraft.email.trim() &&
+            documentDraft.detail.trim() &&
+            documentDraft.pdfName?.trim()
+          ),
+        };
+      }
+      return w;
+    }));
+    pushActivity('receipt', `${documentDraft.type} ${documentDraft.isEditing ? 'actualizada' : 'registrada'}`, `Documento ${documentDraft.orderId} enviado a ${documentDraft.email.trim()}`);
     setDocumentDraft(null);
   }
 
@@ -940,37 +1079,148 @@ export default function AdminFinancePage() {
     ].join('\n'));
   }
 
+  function socioPorNombre(nombre: string): Socio | undefined {
+    return socios.find((socio) => socio.nombre.toLowerCase() === nombre.toLowerCase());
+  }
+
+  /** BO-SOCIOS-001: un socio no puede solicitar un retiro nuevo si ya tiene uno pendiente. */
+  function tieneRetiroEnCurso(partner: string): boolean {
+    return withdrawals.some((w) => w.beneficiary === partner && (w.estado ?? 'PENDIENTE') === 'PENDIENTE');
+  }
+
+  /**
+   * BO-SOCIOS-001: cada motivo precarga un monto distinto.
+   * - Mensual: lo acumulado del socio en el periodo filtrado.
+   * - Acumulado: todo su saldo historico.
+   * - Parcial: vacio, lo escribe el socio.
+   */
+  function montoSugeridoPorMotivo(partner: string, reason: string): string {
+    if (reason === WITHDRAWAL_REASON_MONTHLY) {
+      return String(Math.max(0, Math.round(withdrawalPartnerBalances[partner] ?? 0)));
+    }
+    if (reason === WITHDRAWAL_REASON_ACCUMULATED) {
+      return String(Math.max(0, Math.round(allTimePartnerBalances[partner] ?? 0)));
+    }
+    return '';
+  }
+
+  /** Tope real que el socio puede retirar segun el motivo elegido. */
+  function saldoDisponible(partner: string, reason: string): number {
+    const balance = reason === WITHDRAWAL_REASON_ACCUMULATED
+      ? allTimePartnerBalances[partner] ?? 0
+      : withdrawalPartnerBalances[partner] ?? 0;
+    return Math.max(0, Math.round(balance));
+  }
+
   function openWithdrawal(): void {
+    const partner = PARTNERS[0] ?? '';
+    const reason = WITHDRAWAL_REASON_MONTHLY;
+    setWithdrawalError('');
     setWithdrawalDraft({
       date: filters.retiros.end || TODAY,
-      beneficiary: PARTNERS[0] ?? '',
-      reason: WITHDRAWAL_REASON_OPTIONS[0] ?? 'Retiro mensual socio',
-      amount: '',
+      beneficiary: partner,
+      reason,
+      amount: montoSugeridoPorMotivo(partner, reason),
     });
+  }
+
+  function updateWithdrawalDraft(next: Partial<WithdrawalDraft>): void {
+    setWithdrawalError('');
+    setWithdrawalDraft((current) => {
+      if (!current) return current;
+      const merged = { ...current, ...next };
+      // Al cambiar de socio o de motivo se recalcula el monto sugerido, salvo en
+      // "parcial" donde el monto siempre lo escribe el socio.
+      if (next.beneficiary !== undefined || next.reason !== undefined) {
+        merged.amount = montoSugeridoPorMotivo(merged.beneficiary, merged.reason);
+      }
+      return merged;
+    });
+  }
+
+  function openSocioBanco(partner: string): void {
+    const socio = socioPorNombre(partner);
+    setSocioBancoError('');
+    setSocioBancoDraft({
+      nombre: partner,
+      rut: socio?.rut ?? '',
+      banco: socio?.banco ?? '',
+      bankCode: socio?.bankCode ?? null,
+      tipoCuenta: socio?.tipoCuenta ?? TIPO_CUENTA_OPTIONS[0],
+      numeroCuenta: socio?.numeroCuenta ?? '',
+      titular: socio?.titular ?? partner,
+      email: socio?.email ?? '',
+    });
+  }
+
+  async function saveSocioBanco(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    if (!socioBancoDraft) return;
+    if (!socioBancoDraft.rut.trim() || !socioBancoDraft.banco.trim() || !socioBancoDraft.numeroCuenta.trim()) {
+      setSocioBancoError('RUT, banco y número de cuenta son obligatorios para poder pagar por la nómina BCI.');
+      return;
+    }
+    try {
+      await administrationApi.saveSocio(socioBancoDraft.nombre, {
+        rut: socioBancoDraft.rut.trim(),
+        banco: socioBancoDraft.banco.trim(),
+        bankCode: socioBancoDraft.bankCode,
+        tipoCuenta: socioBancoDraft.tipoCuenta,
+        numeroCuenta: socioBancoDraft.numeroCuenta.trim(),
+        titular: socioBancoDraft.titular.trim() || socioBancoDraft.nombre,
+        email: socioBancoDraft.email.trim(),
+      });
+      await refetchSocios();
+      pushActivity('wallet', 'Datos bancarios actualizados', `Cuenta de ${socioBancoDraft.nombre} guardada`);
+      setSocioBancoDraft(null);
+    } catch (err) {
+      setSocioBancoError('No se pudieron guardar los datos bancarios: ' + (err instanceof Error ? err.message : 'error desconocido.'));
+    }
   }
 
   async function saveWithdrawal(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     if (!withdrawalDraft) return;
     const amount = Number(withdrawalDraft.amount);
-    if (!withdrawalDraft.date || !withdrawalDraft.beneficiary || !withdrawalDraft.reason || !amount || amount <= 0) {
-      window.alert('Completa fecha, socio, motivo y un monto mayor a cero.');
+    if (!withdrawalDraft.date || !withdrawalDraft.beneficiary || !withdrawalDraft.reason) {
+      setWithdrawalError('Completa fecha, socio y motivo.');
       return;
     }
-    const partnerPool = getCashAllocation(
-      settlements
-        .filter((settlement) => isWithinRange(settlement.date, filters.retiros.start, filters.retiros.end))
-        .reduce((sum, settlement) => sum + settlement.commission, 0),
-    ).withdrawalAvailable;
-    const balanceBefore = getPartnerBalances(withdrawals, partnerPool, filters.retiros.start, filters.retiros.end)[withdrawalDraft.beneficiary] ?? 0;
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setWithdrawalError('El monto debe ser mayor a cero.');
+      return;
+    }
+
+    // BO-SOCIOS-001: sin datos bancarios el retiro no puede pagarse por la nomina BCI.
+    const socio = socioPorNombre(withdrawalDraft.beneficiary);
+    if (!socio?.tieneDatosBancarios) {
+      setWithdrawalError(`${withdrawalDraft.beneficiary} no tiene datos bancarios registrados. Regístralos desde su tarjeta antes de retirar.`);
+      return;
+    }
+
+    // BO-SOCIOS-001: no se puede solicitar un retiro nuevo mientras haya uno sin pagar.
+    if (tieneRetiroEnCurso(withdrawalDraft.beneficiary)) {
+      setWithdrawalError(`${withdrawalDraft.beneficiary} ya tiene una solicitud de retiro en curso. Debe esperar a que se procese antes de solicitar otra.`);
+      return;
+    }
+
+    // Tope duro: un socio nunca puede retirar mas de su saldo disponible.
+    const disponible = saldoDisponible(withdrawalDraft.beneficiary, withdrawalDraft.reason);
+    if (amount > disponible) {
+      setWithdrawalError(
+        `Fondos insuficientes: ${withdrawalDraft.beneficiary} tiene ${formatMoney(disponible)} disponibles y se intenta retirar ${formatMoney(amount)}.`,
+      );
+      return;
+    }
+
     const requestPayload = {
       period: withdrawalDraft.date.slice(0, 7),
       date: withdrawalDraft.date,
       beneficiary: withdrawalDraft.beneficiary,
       reason: withdrawalDraft.reason,
       amount,
-      balanceBefore,
-      balanceAfter: balanceBefore - amount,
+      balanceBefore: disponible,
+      balanceAfter: disponible - amount,
     };
 
     try {
@@ -979,8 +1229,13 @@ export default function AdminFinancePage() {
       setPagination((current) => ({ ...current, retiros: { ...current.retiros, page: 1 } }));
       pushActivity('wallet', 'Retiro registrado', `${saved.beneficiary} retiró ${formatMoney(saved.amount)}`);
       setWithdrawalDraft(null);
+      setWithdrawalError('');
     } catch (err) {
-      window.alert('No se pudo registrar el retiro: ' + (err instanceof Error ? err.message : 'Error desconocido.'));
+      // El backend revalida el tope; su mensaje es el que manda.
+      const apiMessage = isAxiosError(err) && typeof err.response?.data?.message === 'string'
+        ? err.response.data.message
+        : err instanceof Error ? err.message : 'Error desconocido.';
+      setWithdrawalError('No se pudo registrar el retiro: ' + apiMessage);
     }
   }
 
@@ -1160,6 +1415,11 @@ export default function AdminFinancePage() {
   const settlementPage = getPage(filteredSettlements, pagination.liquidaciones);
   const expensePage = getPage(filteredExpenses, pagination.gastos);
   const withdrawalPage = getPage(filteredWithdrawals, pagination.retiros);
+  const partnerIncomePage = getPage(partnerIncomes, pagination.ingresos);
+  // La ganancia neta del backend ya viene con la comision de pasarela absorbida por
+  // RepuesTop descontada y sin el IVA de la comision (que se entera al SII).
+  const partnerIncomeNet = partnerIncomes.reduce((sum, settlement) => sum + settlement.netSettlement, 0);
+  const partnerIncomeShare = getCashAllocation(partnerIncomeNet).withdrawalAvailable;
   const summarySettlements = getSettlements(summaryOrders, settlementStatuses);
   const summaryExpenses = expenses
     .filter((expense) => isWithinRange(expense.date, filters.resumen.start, filters.resumen.end))
@@ -1220,18 +1480,36 @@ export default function AdminFinancePage() {
   const localDeliverySettlements = selectedSettlementRows.filter((settlement) => settlement.gatewayFeeRepuestop > 0);
   const selectedLiquidationPeriod = selectedLiquidationSeller?.settlements[0] ? getLiquidationPeriod(selectedLiquidationSeller.settlements[0].date) : '';
   const activeLiquidationPeriod = liquidationTab === 'EN_LIQUIDACION' && filteredSettlements[0] ? getLiquidationPeriod(filteredSettlements[0].date) : '';
-  const { cashFund, withdrawalAvailable } = getCashAllocation(totalCommission);
+  const { cashFund } = getCashAllocation(totalCommission);
   const expenseTotal = getExpenseTotal(selectedExpenseRows);
   const cashBalance = cashFund - expenseTotal;
-  const withdrawalPartnerBalances = getPartnerBalances(withdrawals, withdrawalAvailable, filters.retiros.start, filters.retiros.end);
+  // BO-SOCIOS-001: el pool de socios se calcula sobre los ingresos del periodo de ESTA
+  // vista (filters.retiros). Antes salia de filteredSettlements, que depende del filtro y
+  // del sub-tab de Liquidaciones, por lo que las tarjetas mostraban $0 salvo que el tab
+  // de Liquidaciones estuviera justo en el estado que coincidia con los datos.
+  const withdrawalPartnerBalances = getPartnerBalances(withdrawals, partnerIncomeShare, filters.retiros.start, filters.retiros.end);
+  // Saldo historico (sin filtro de fecha) para el motivo "Retiro de saldo acumulado".
+  const allTimePartnerBalances = useMemo(() => {
+    const netTotal = settlements.reduce((sum, settlement) => sum + settlement.netSettlement, 0);
+    return getPartnerBalances(withdrawals, getCashAllocation(netTotal).withdrawalAvailable, '', '');
+  }, [settlements, withdrawals]);
   return (
     <>
       <input ref={orderImportRef} type="file" hidden accept=".csv,.xlsx,.xls,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onChange={handleOrderImport} />
 
       <div className="page-header">
         <div className="page-title">
-          <h1>Administración Contable</h1>
-          <p>{backendWorkspace ? `${backendWorkspace.status} · Pedidos, comisiones, liquidaciones, gastos y retiros.` : 'Pedidos, comisiones, liquidaciones y gastos internos de RepuesTop.'}</p>
+          {activeView === 'retiros' ? (
+            <>
+              <h1>Retiro de Socios</h1>
+              <p>Vista exclusiva para socios: historial y registro de retiros de libre disposición.</p>
+            </>
+          ) : (
+            <>
+              <h1>Administración Contable</h1>
+              <p>{backendWorkspace ? `${backendWorkspace.status} · Pedidos, comisiones, liquidaciones y gastos.` : 'Pedidos, comisiones, liquidaciones y gastos internos de RepuesTop.'}</p>
+            </>
+          )}
         </div>
         <div className="header-actions">
           <DateRangeControl label="Rango activo" value={filters[activeView]} onChange={(next) => updateFilter(activeView, next)} />
@@ -1269,7 +1547,6 @@ export default function AdminFinancePage() {
             <div className="summary-hero-actions">
               <button className="secondary-button" type="button" onClick={() => navigate('/administracion/liquidaciones')}><UiIcon name="clipboard" />Liquidaciones</button>
               <button className="secondary-button" type="button" onClick={() => navigate('/administracion/gastos')}><UiIcon name="wallet" />Gastos</button>
-              <button className="secondary-button" type="button" onClick={() => navigate('/administracion/retiros')}><UiIcon name="wallet" />Historial de Retiros</button>
             </div>
           </section>
 
@@ -1485,17 +1762,65 @@ export default function AdminFinancePage() {
             {activeLiquidationPeriod && <span className="liquidation-period">Periodo de liquidación: <strong>{activeLiquidationPeriod}</strong></span>}
             {liquidationTab === 'LIQUIDADO' && <select className="input paid-period-select" value={activePaidPeriod} onChange={(event) => setSelectedPaidPeriod(event.target.value)}>{paidPeriods.map((period) => <option key={period.key} value={period.key}>Periodo pagado: {formatDate(period.start)} - {formatDate(period.end)}</option>)}</select>}
           </div>
-          <div className={`metric-grid compact${liquidationTab === 'EN_LIQUIDACION' ? ' liquidacion-metric-grid' : ''}`}>
-            <MetricCard label={liquidationTab === 'LIQUIDADO' ? 'Monto total pagado' : 'Total generado'} value={formatMoney(liquidationTab === 'LIQUIDADO' ? paidTotal : totalGenerated)} tone="blue" description={liquidationTab === 'LIQUIDADO' ? `${paidPaymentsForPeriod.length} liquidaciones pagadas` : `${selectedSettlementRows.length} registros sumados`} iconName="wallet" />
-            <MetricCard label="Ganancia neta" value={formatMoney(liquidationTab === 'LIQUIDADO' ? paidNetProfit : totalCommission)} tone="green" description="Después de IVA de servicio y PagoFlow" iconName="percent" infoContent={liquidationTab !== 'LIQUIDADO' && localDeliverySettlements.length ? <><strong>Envíos dentro de la comuna</strong><p>La comisión de PagoFlow del valor del despacho se descuenta de la ganancia neta de RepuesTop.</p>{localDeliverySettlements.map((settlement) => <div className="metric-info-tooltip-row" key={settlement.id}><b>{settlement.orderId}</b><span>PagoFlow despacho: {formatMoney(settlement.gatewayFeeRepuestop)}</span></div>)}</> : null} />
-            {liquidationTab === 'EN_LIQUIDACION' || liquidationTab === 'LIQUIDADO' ? (
-              <MetricCard label={liquidationTab === 'LIQUIDADO' ? 'IVA pagado' : 'IVA acumulado'} value={formatMoney(liquidationTab === 'LIQUIDADO' ? paidIva : totalIvaAccumulated)} tone="amber" description="IVA de comisión acumulado" iconName="receipt" />
-            ) : (
-              <MetricCard label="Caja RepuesTop" value={formatMoney(cashFund)} tone="amber" description="70% de ganancia neta" iconName="bank" />
-            )}
-            {liquidationTab !== 'EN_LIQUIDACION' && liquidationTab !== 'LIQUIDADO' && (
-              <MetricCard label="Disponible retiro" value={formatMoney(withdrawalAvailable)} tone="violet" description="30% de ganancia neta" iconName="wallet" />
-            )}
+          <div className="metric-grid compact liquidacion-metric-grid">
+            <MetricCard
+              label={
+                liquidationTab === 'LIQUIDADO'
+                  ? 'Monto total pagado'
+                  : liquidationTab === 'PENDIENTE_LIQUIDACION'
+                    ? 'Total acumulado por solicitar'
+                    : 'Total generado en liquidación'
+              }
+              value={formatMoney(liquidationTab === 'LIQUIDADO' ? paidTotal : totalGenerated)}
+              tone="blue"
+              description={
+                liquidationTab === 'LIQUIDADO'
+                  ? `${paidPaymentsForPeriod.length} liquidaciones pagadas`
+                  : liquidationTab === 'PENDIENTE_LIQUIDACION'
+                    ? `${selectedSettlementRows.length} ventas acumuladas antes de solicitar retiro`
+                    : `${selectedSettlementRows.length} registros en proceso de liquidación`
+              }
+              iconName="wallet"
+            />
+            <MetricCard
+              label={
+                liquidationTab === 'PENDIENTE_LIQUIDACION'
+                  ? 'Ganancia neta por solicitar'
+                  : liquidationTab === 'EN_LIQUIDACION'
+                    ? 'Ganancia neta en liquidación'
+                    : 'Ganancia neta'
+              }
+              value={formatMoney(liquidationTab === 'LIQUIDADO' ? paidNetProfit : totalCommission)}
+              tone="green"
+              description={
+                liquidationTab === 'PENDIENTE_LIQUIDACION'
+                  ? 'Comisión RepuesTop acumulada antes de solicitar retiro'
+                  : liquidationTab === 'EN_LIQUIDACION'
+                    ? 'Comisión RepuesTop de retiros en proceso'
+                    : 'Después de IVA de servicio y PagoFlow'
+              }
+              iconName="percent"
+              infoContent={liquidationTab !== 'LIQUIDADO' && localDeliverySettlements.length ? <><strong>Envíos dentro de la comuna</strong><p>La comisión de PagoFlow del valor del despacho se descuenta de la ganancia neta de RepuesTop.</p>{localDeliverySettlements.map((settlement) => <div className="metric-info-tooltip-row" key={settlement.id}><b>{settlement.orderId}</b><span>PagoFlow despacho: {formatMoney(settlement.gatewayFeeRepuestop)}</span></div>)}</> : null}
+            />
+            <MetricCard
+              label={
+                liquidationTab === 'LIQUIDADO'
+                  ? 'IVA pagado'
+                  : liquidationTab === 'PENDIENTE_LIQUIDACION'
+                    ? 'IVA acumulado por solicitar'
+                    : 'IVA acumulado'
+              }
+              value={formatMoney(liquidationTab === 'LIQUIDADO' ? paidIva : totalIvaAccumulated)}
+              tone="amber"
+              description={
+                liquidationTab === 'PENDIENTE_LIQUIDACION'
+                  ? 'IVA de comisión acumulado antes de solicitar retiro'
+                  : liquidationTab === 'EN_LIQUIDACION'
+                    ? 'IVA de comisión acumulado de retiros en proceso'
+                    : 'IVA de comisión pagado'
+              }
+              iconName="receipt"
+            />
           </div>
 
           <div className="notice"><UiIcon name="note" />Solo se muestran ventas donde RepuesTop ya cobró exitosamente la venta.</div>
@@ -1653,51 +1978,199 @@ export default function AdminFinancePage() {
       )}
 
       {activeView === 'retiros' && (
+        <div className="module-tabs" role="tablist" aria-label="Vista de socios">
+          {([
+            ['ingresos', 'Ingresos'],
+            ['retiros', 'Retiros'],
+          ] as const).map(([tab, label]) => (
+            <button
+              key={tab}
+              type="button"
+              role="tab"
+              aria-selected={partnerTab === tab}
+              className={partnerTab === tab ? 'active' : undefined}
+              onClick={() => setPartnerTab(tab)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {activeView === 'retiros' && partnerTab === 'ingresos' && (
         <>
-          <div className="metric-grid compact withdrawal-metric-row">
-            <MetricCard label="Disponible retiro" value={formatMoney(withdrawalAvailable)} tone="violet" description="30% de ganancia neta" iconName="wallet" />
-            {PARTNERS.map((partner, index) => (
-              <MetricCard
-                key={partner}
-                label={partner}
-                value={formatMoney(withdrawalPartnerBalances[partner] ?? 0)}
-                tone={(['blue', 'green', 'violet'] as const)[index] ?? 'blue'}
-                description="Saldo real del socio"
-                iconName="wallet"
-              />
-            ))}
+          <div className="metric-grid compact">
+            <MetricCard label="Cantidad de pedidos" value={partnerIncomes.length} tone="blue" description="Pedidos finalizados en el periodo" iconName="clipboard" />
+            <MetricCard label="Total recibido" value={formatMoney(partnerIncomeShare)} tone="violet" description="30% de la ganancia neta del periodo" iconName="wallet" />
           </div>
 
-          <div className="notice"><UiIcon name="note" />Este apartado registra solo retiros de libre disposición para socios. Las tarjetas y la tabla muestran el saldo real de cada socio según sus retiros, por lo que un socio puede quedar en negativo si retiró más de lo disponible.</div>
+          <div className="notice"><UiIcon name="note" />Solo se consideran pedidos finalizados. La comisión de la pasarela de pago se muestra completa por venta; en envíos normales la asume el vendedor (se le descuenta de su liquidación), y RepuesTop solo absorbe la parte del despacho en envíos dentro de la comuna. El IVA de la comisión de servicio se entera al SII. La ganancia neta ya considera ambos, y de ella los socios reciben el 30%; el 70% restante queda en la caja de la empresa.</div>
+
+          <section className="table-shell">
+            <div className="table-toolbar">
+              <h2>Ingresos por venta</h2>
+              <select
+                className="input"
+                value={selectedIncomeMonth}
+                onChange={(event) => selectIncomeMonth(event.target.value)}
+                aria-label="Filtrar ingresos por mes"
+              >
+                {incomeMonthOptions.map((month) => <option key={month} value={month}>{formatMonthName(month)}</option>)}
+              </select>
+              <select
+                className="input"
+                value={selectedIncomeYear}
+                onChange={(event) => selectIncomeYear(event.target.value)}
+                aria-label="Filtrar ingresos por año"
+              >
+                {incomeYearOptions.map((year) => <option key={year} value={year}>{year}</option>)}
+              </select>
+            </div>
+            <table className="wide-table">
+              <thead>
+                <tr><th>Pedido</th><th>Comisión</th><th>Comisión pasarela de pago</th><th>IVA</th><th>Ganancia neta</th><th>Total recibido socios (30%)</th><th>Fecha</th></tr>
+              </thead>
+              <tbody>
+                {partnerIncomePage.rows.length ? partnerIncomePage.rows.map((settlement) => (
+                  <tr key={settlement.id}>
+                    <td>{settlement.orderId}</td>
+                    <td>{formatMoney(settlement.serviceCommission)}</td>
+                    <td>{formatMoney(settlement.gatewayFeeSeller + settlement.gatewayFeeRepuestop)}</td>
+                    <td>{formatMoney(settlement.serviceCommissionIva)}</td>
+                    <td>{formatMoney(settlement.netSettlement)}</td>
+                    <td>{formatMoney(getCashAllocation(settlement.netSettlement).withdrawalAvailable)}</td>
+                    <td>{formatDate(settlement.date)}</td>
+                  </tr>
+                )) : <tr><td colSpan={7}><div className="empty-state">No hay pedidos finalizados para este periodo.</div></td></tr>}
+              </tbody>
+            </table>
+            <div className="table-footer compact-footer">
+              <span>{partnerIncomePage.rows.length} registros mostrados</span>
+              <TablePager view="ingresos" state={pagination.ingresos} totalPages={partnerIncomePage.totalPages} onPage={updatePage} onPageSize={updatePageSize} />
+            </div>
+          </section>
+        </>
+      )}
+
+      {activeView === 'retiros' && partnerTab === 'retiros' && (
+        <>
+          <div className="metric-grid compact withdrawal-metric-row">
+            <MetricCard label="Disponible retiro" value={formatMoney(partnerIncomeShare)} tone="violet" description="30% de ganancia neta del periodo" iconName="wallet" />
+            {PARTNERS.map((partner, index) => {
+              const socio = socioPorNombre(partner);
+              return (
+                <article className="metric-card" key={partner}>
+                  <div className={`metric-icon ${(['blue', 'green', 'violet'] as const)[index] ?? 'blue'}`}>
+                    <UiIcon name="wallet" />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <h3>{partner}</h3>
+                    <strong>{formatMoney(withdrawalPartnerBalances[partner] ?? 0)}</strong>
+                    <p className="metric-description">Saldo real del socio</p>
+                    <button
+                      className="secondary-button"
+                      type="button"
+                      style={{ marginTop: 8, padding: '4px 10px', fontSize: 12 }}
+                      onClick={() => openSocioBanco(partner)}
+                      title={socio?.tieneDatosBancarios ? 'Ver o editar datos bancarios' : 'Registrar datos bancarios'}
+                    >
+                      <UiIcon name="wallet" style={{ width: 14, height: 14 }} />
+                      {socio?.tieneDatosBancarios ? 'Ver datos bancarios' : 'Registrar datos bancarios'}
+                    </button>
+                    {!socio?.tieneDatosBancarios && (
+                      <p className="metric-description" style={{ color: '#b45309', marginTop: 4 }}>
+                        Sin datos bancarios: no puede retirar.
+                      </p>
+                    )}
+                    {socio?.tieneDatosBancarios && tieneRetiroEnCurso(partner) && (
+                      <p className="metric-description" style={{ color: '#b45309', marginTop: 4 }}>
+                        Ya tiene una solicitud en curso.
+                      </p>
+                    )}
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+
+          <div className="notice"><UiIcon name="note" />Este apartado registra solo retiros de libre disposición para socios. Cada socio necesita sus datos bancarios registrados antes de poder retirar, porque esos datos se envían en la nómina BCI del pago masivo.</div>
 
           <section className="table-shell">
             <div className="table-toolbar">
               <h2>Historial de socios</h2>
+              <select
+                className="input"
+                value={selectedIncomeMonth}
+                onChange={(event) => selectIncomeMonth(event.target.value)}
+                aria-label="Filtrar retiros por mes"
+              >
+                {incomeMonthOptions.map((month) => <option key={month} value={month}>{formatMonthName(month)}</option>)}
+              </select>
+              <select
+                className="input"
+                value={selectedIncomeYear}
+                onChange={(event) => selectIncomeYear(event.target.value)}
+                aria-label="Filtrar retiros por año"
+              >
+                {incomeYearOptions.map((year) => <option key={year} value={year}>{year}</option>)}
+              </select>
               <button className="primary-button" type="button" onClick={openWithdrawal}><UiIcon name="wallet" />Registrar retiro</button>
             </div>
             <table className="wide-table">
               <thead>
-                <tr><th>Fecha</th><th>Tipo</th><th>Quién retiró</th><th>Motivo</th><th>Monto</th><th>Saldo socio</th><th>Acciones</th></tr>
+                <tr><th>Código</th><th>Fecha</th><th>Tipo</th><th>Quién retiró</th><th>Motivo</th><th>Monto</th><th>Saldo socio</th><th>Estado de la solicitud</th><th>Acciones</th></tr>
               </thead>
               <tbody>
                 {withdrawalPage.rows.length ? withdrawalPage.rows.map((withdrawal) => {
                   const partnerBalance = withdrawalPartnerBalances[withdrawal.beneficiary] ?? withdrawal.balanceAfter;
+                  const pagado = withdrawal.estado === 'PAGADO';
+                  const isDocComplete = Boolean(
+                    withdrawal.documentoLiquidacionCompleto ||
+                    (withdrawal.documentoLiquidacionNombre && withdrawal.documentoLiquidacionTipo && withdrawal.documentoLiquidacionRut)
+                  );
                   return (
                     <tr key={withdrawal.id} className={partnerBalance < 0 ? 'balance-negative' : ''}>
+                      <td><strong>{withdrawal.codigoRetiro || '—'}</strong></td>
                       <td>{formatDate(withdrawal.date)}</td>
                       <td>Libre disposición socios</td>
                       <td>{withdrawal.beneficiary}</td>
                       <td>{withdrawal.reason}</td>
                       <td>{formatMoney(withdrawal.amount)}</td>
                       <td>{formatMoney(partnerBalance)}</td>
+                      <td><span className={`status-pill ${pagado ? 'tone-green' : 'tone-amber'}`}>{pagado ? 'Pagado' : 'Pendiente'}</span></td>
                       <td>
                         <div className="action-cell">
-                          <button className="action-button neutral" type="button" onClick={() => showWithdrawalDetail(withdrawal)} title="Ver detalle"><UiIcon name="eye" /></button>
+                          <button
+                            className="action-button neutral"
+                            type="button"
+                            onClick={() => showWithdrawalDetail(withdrawal)}
+                            title="Ver detalle del retiro"
+                          >
+                            <UiIcon name="eye" />
+                          </button>
+                          <button
+                            className={`action-button ${isDocComplete ? 'success' : 'issue'}`}
+                            type="button"
+                            onClick={() => openPartnerWithdrawalDocument(withdrawal)}
+                            title={isDocComplete ? 'Ver / Editar documento tributario registrado' : 'Cargar documento tributario'}
+                          >
+                            <UiIcon name={isDocComplete ? 'fileCheck' : 'receipt'} />
+                          </button>
+                          {isDocComplete && (
+                            <button
+                              className="action-button neutral"
+                              type="button"
+                              onClick={() => openPartnerWithdrawalDocument(withdrawal, true)}
+                              title="Editar documento tributario"
+                            >
+                              <UiIcon name="edit" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
                   );
-                }) : <tr><td colSpan={7}><div className="empty-state">No hay retiros registrados para este periodo.</div></td></tr>}
+                }) : <tr><td colSpan={9}><div className="empty-state">No hay retiros registrados para este periodo.</div></td></tr>}
               </tbody>
             </table>
             <div className="table-footer compact-footer">
@@ -1753,24 +2226,148 @@ export default function AdminFinancePage() {
         </Modal>
       )}
 
-      {withdrawalDraft && (
-        <Modal title="Registrar retiro" onClose={() => setWithdrawalDraft(null)}>
-          <form className="form-grid" onSubmit={saveWithdrawal}>
-            <FieldLabel label="Fecha"><input className="input" type="date" value={withdrawalDraft.date} onChange={(event) => setWithdrawalDraft({ ...withdrawalDraft, date: event.target.value })} required /></FieldLabel>
-            <FieldLabel label="Socio">
-              <select className="select" value={withdrawalDraft.beneficiary} onChange={(event) => setWithdrawalDraft({ ...withdrawalDraft, beneficiary: event.target.value })} required>
-                {PARTNERS.map((partner) => <option key={partner}>{partner}</option>)}
+      {withdrawalDraft && (() => {
+        const socioSeleccionado = socioPorNombre(withdrawalDraft.beneficiary);
+        const disponible = saldoDisponible(withdrawalDraft.beneficiary, withdrawalDraft.reason);
+        const montoIngresado = Number(withdrawalDraft.amount);
+        const excede = Number.isFinite(montoIngresado) && montoIngresado > disponible;
+        const retiroEnCurso = tieneRetiroEnCurso(withdrawalDraft.beneficiary);
+        return (
+          <Modal title="Registrar retiro" onClose={() => { setWithdrawalDraft(null); setWithdrawalError(''); }}>
+            <form className="form-grid" onSubmit={saveWithdrawal}>
+              <FieldLabel label="Fecha"><input className="input" type="date" value={withdrawalDraft.date} onChange={(event) => updateWithdrawalDraft({ date: event.target.value })} required /></FieldLabel>
+              <FieldLabel label="Socio">
+                <select className="select" value={withdrawalDraft.beneficiary} onChange={(event) => updateWithdrawalDraft({ beneficiary: event.target.value })} required>
+                  {PARTNERS.map((partner) => <option key={partner}>{partner}</option>)}
+                </select>
+              </FieldLabel>
+              <FieldLabel label="Motivo">
+                <select className="select" value={withdrawalDraft.reason} onChange={(event) => updateWithdrawalDraft({ reason: event.target.value })} required>
+                  {WITHDRAWAL_REASON_OPTIONS.map((reason) => <option key={reason}>{reason}</option>)}
+                </select>
+              </FieldLabel>
+              <FieldLabel label={`Monto (disponible: ${formatMoney(disponible)})`}>
+                <input
+                  className="input"
+                  type="number"
+                  min="1"
+                  step="1"
+                  max={disponible || undefined}
+                  value={withdrawalDraft.amount}
+                  onChange={(event) => { setWithdrawalError(''); setWithdrawalDraft({ ...withdrawalDraft, amount: event.target.value }); }}
+                  placeholder={withdrawalDraft.reason === WITHDRAWAL_REASON_MONTHLY || withdrawalDraft.reason === WITHDRAWAL_REASON_ACCUMULATED ? String(disponible) : 'Ingresa el monto a retirar'}
+                  required
+                />
+                <small>
+                  {withdrawalDraft.reason === WITHDRAWAL_REASON_MONTHLY && 'Precargado con lo acumulado del socio en el periodo filtrado.'}
+                  {withdrawalDraft.reason === WITHDRAWAL_REASON_ACCUMULATED && 'Precargado con todo el saldo histórico del socio.'}
+                  {withdrawalDraft.reason !== WITHDRAWAL_REASON_MONTHLY && withdrawalDraft.reason !== WITHDRAWAL_REASON_ACCUMULATED && 'Retiro parcial: escribe el monto que se va a retirar.'}
+                </small>
+              </FieldLabel>
+
+              {/* BO-SOCIOS-001: comprobacion de los datos bancarios que se enviaran al banco. */}
+              <div style={{ gridColumn: '1 / -1' }}>
+                {socioSeleccionado?.tieneDatosBancarios ? (
+                  <div className="notice" style={{ margin: 0 }}>
+                    <UiIcon name="bank" />
+                    <span>
+                      <strong>Verifica los datos bancarios de {withdrawalDraft.beneficiary}:</strong><br />
+                      {socioSeleccionado.banco} · {socioSeleccionado.tipoCuenta} N° {socioSeleccionado.numeroCuenta}<br />
+                      {socioSeleccionado.titular} · RUT {socioSeleccionado.rut}
+                      {socioSeleccionado.email ? <> · {socioSeleccionado.email}</> : null}
+                      <br />
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        style={{ marginTop: 8, padding: '4px 10px', fontSize: 12 }}
+                        onClick={() => openSocioBanco(withdrawalDraft.beneficiary)}
+                      >
+                        Corregir datos bancarios
+                      </button>
+                    </span>
+                  </div>
+                ) : (
+                  <div className="notice" style={{ margin: 0, borderColor: '#fecaca', background: '#fef2f2', color: '#b91c1c' }}>
+                    <UiIcon name="alert" />
+                    <span>
+                      {withdrawalDraft.beneficiary} no tiene datos bancarios registrados.{' '}
+                      <button type="button" className="secondary-button" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => openSocioBanco(withdrawalDraft.beneficiary)}>
+                        Registrarlos ahora
+                      </button>
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {!withdrawalError && retiroEnCurso && (
+                <div style={{ gridColumn: '1 / -1', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '10px 12px', color: '#b91c1c', fontSize: 13 }}>
+                  {withdrawalDraft.beneficiary} ya tiene una solicitud de retiro en curso. Debe esperar a que se procese antes de solicitar otra.
+                </div>
+              )}
+
+              {(withdrawalError || excede) && (
+                <div style={{ gridColumn: '1 / -1', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '10px 12px', color: '#b91c1c', fontSize: 13 }}>
+                  {withdrawalError || `Fondos insuficientes: ${withdrawalDraft.beneficiary} tiene ${formatMoney(disponible)} disponibles.`}
+                </div>
+              )}
+
+              <div className="form-actions">
+                <button className="secondary-button" type="button" onClick={() => { setWithdrawalDraft(null); setWithdrawalError(''); }}>Cancelar</button>
+                <button className="primary-button" type="submit" disabled={excede || retiroEnCurso || !socioSeleccionado?.tieneDatosBancarios}>Guardar retiro</button>
+              </div>
+            </form>
+          </Modal>
+        );
+      })()}
+
+      {socioBancoDraft && (
+        <Modal title={`Datos bancarios de ${socioBancoDraft.nombre}`} onClose={() => { setSocioBancoDraft(null); setSocioBancoError(''); }}>
+          <form className="form-grid" onSubmit={saveSocioBanco}>
+            <FieldLabel label="RUT">
+              <input className="input" type="text" value={socioBancoDraft.rut} onChange={(event) => setSocioBancoDraft({ ...socioBancoDraft, rut: event.target.value })} placeholder="12.345.678-9" required />
+            </FieldLabel>
+            <FieldLabel label="Nombre del titular">
+              <input className="input" type="text" value={socioBancoDraft.titular} onChange={(event) => setSocioBancoDraft({ ...socioBancoDraft, titular: event.target.value })} placeholder="Nombre completo" required />
+            </FieldLabel>
+            <FieldLabel label="Banco">
+              <select
+                className="select"
+                value={socioBancoDraft.banco}
+                onChange={(event) => {
+                  const banco = BANCOS_BCI.find((option) => option.nombre === event.target.value);
+                  setSocioBancoDraft({ ...socioBancoDraft, banco: event.target.value, bankCode: banco?.code ?? null });
+                }}
+                required
+              >
+                <option value="">Selecciona un banco</option>
+                {BANCOS_BCI.map((banco) => <option key={banco.nombre} value={banco.nombre}>{banco.nombre}</option>)}
               </select>
             </FieldLabel>
-            <FieldLabel label="Motivo">
-              <select className="select" value={withdrawalDraft.reason} onChange={(event) => setWithdrawalDraft({ ...withdrawalDraft, reason: event.target.value })} required>
-                {WITHDRAWAL_REASON_OPTIONS.map((reason) => <option key={reason}>{reason}</option>)}
+            <FieldLabel label="Tipo de cuenta">
+              <select className="select" value={socioBancoDraft.tipoCuenta} onChange={(event) => setSocioBancoDraft({ ...socioBancoDraft, tipoCuenta: event.target.value })} required>
+                {TIPO_CUENTA_OPTIONS.map((tipo) => <option key={tipo}>{tipo}</option>)}
               </select>
             </FieldLabel>
-            <FieldLabel label="Monto"><input className="input" type="number" min="1" step="1" value={withdrawalDraft.amount} onChange={(event) => setWithdrawalDraft({ ...withdrawalDraft, amount: event.target.value })} placeholder="100000" required /></FieldLabel>
+            <FieldLabel label="Número de cuenta">
+              <input className="input" type="text" value={socioBancoDraft.numeroCuenta} onChange={(event) => setSocioBancoDraft({ ...socioBancoDraft, numeroCuenta: event.target.value })} placeholder="00012345678" required />
+            </FieldLabel>
+            <FieldLabel label="Correo de notificación">
+              <input className="input" type="email" value={socioBancoDraft.email} onChange={(event) => setSocioBancoDraft({ ...socioBancoDraft, email: event.target.value })} placeholder="socio@repuestop.cl" />
+            </FieldLabel>
+            <div style={{ gridColumn: '1 / -1' }}>
+              <div className="notice" style={{ margin: 0 }}>
+                <UiIcon name="note" />
+                Estos datos se envían en la nómina BCI del pago masivo. Cada retiro guarda una copia de ellos, así que editarlos aquí no altera retiros ya registrados.
+              </div>
+            </div>
+            {socioBancoError && (
+              <div style={{ gridColumn: '1 / -1', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '10px 12px', color: '#b91c1c', fontSize: 13 }}>
+                {socioBancoError}
+              </div>
+            )}
             <div className="form-actions">
-              <button className="secondary-button" type="button" onClick={() => setWithdrawalDraft(null)}>Cancelar</button>
-              <button className="primary-button" type="submit">Guardar retiro</button>
+              <button className="secondary-button" type="button" onClick={() => { setSocioBancoDraft(null); setSocioBancoError(''); }}>Cancelar</button>
+              <button className="primary-button" type="submit">Guardar datos bancarios</button>
             </div>
           </form>
         </Modal>

@@ -8,6 +8,8 @@ import type {
   ConfiguracionPagos,
   Expense,
   Withdrawal,
+  Socio,
+  SocioRequest,
 } from '@/modules/administration/types';
 
 export async function getWorkspace(): Promise<AdministrationWorkspaceResponse> {
@@ -145,5 +147,22 @@ export async function getPartnerWithdrawals(): Promise<Withdrawal[]> {
 
 export async function createPartnerWithdrawal(payload: PartnerWithdrawalRequestPayload): Promise<Withdrawal> {
   const response = await apiClient.post<Withdrawal>('/administration/partner-withdrawals', payload);
+  return response.data;
+}
+
+// BO-SOCIOS-001: datos bancarios de los socios y pago de sus retiros
+
+export async function getSocios(): Promise<Socio[]> {
+  const response = await apiClient.get<Socio[]>('/administration/socios');
+  return response.data;
+}
+
+export async function saveSocio(nombre: string, payload: SocioRequest): Promise<Socio> {
+  const response = await apiClient.put<Socio>(`/administration/socios/${encodeURIComponent(nombre)}`, payload);
+  return response.data;
+}
+
+export async function payPartnerWithdrawal(id: string): Promise<Withdrawal> {
+  const response = await apiClient.patch<Withdrawal>(`/administration/partner-withdrawals/${id}/pay`);
   return response.data;
 }

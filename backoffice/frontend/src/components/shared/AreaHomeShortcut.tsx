@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useState, useRef, useEffect } from 'react';
 import UiIcon from './UiIcon';
 import HelpSupportWidget from './HelpSupportWidget';
@@ -15,6 +15,7 @@ export default function AreaHomeShortcut({ className = '' }: AreaHomeShortcutPro
   const [confirmLogout, setConfirmLogout] = useState(false);
   const { user, logout } = useAuth();
   const menuRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -41,6 +42,11 @@ export default function AreaHomeShortcut({ className = '' }: AreaHomeShortcutPro
   const openLogoutConfirm = () => {
     setUserMenuOpen(false);
     setConfirmLogout(true);
+  };
+
+  const goToWithdrawals = () => {
+    setUserMenuOpen(false);
+    navigate('/retiros');
   };
 
   return (
@@ -84,6 +90,22 @@ export default function AreaHomeShortcut({ className = '' }: AreaHomeShortcutPro
               </div>
 
               <div className="user-dropdown-divider" />
+
+              {/* Retirar dinero: exclusivo de socios (super admin) */}
+              {user?.role === Role.SUPER_ADMIN && (
+                <>
+                  <button
+                    className="user-dropdown-item"
+                    type="button"
+                    onClick={goToWithdrawals}
+                  >
+                    <UiIcon name="wallet" style={{ width: 16, height: 16 }} />
+                    Retirar dinero
+                  </button>
+
+                  <div className="user-dropdown-divider" />
+                </>
+              )}
 
               {/* Help */}
               <button
