@@ -57,8 +57,8 @@ export async function getWithdrawalPayment(id: string | number): Promise<PagoPro
   return response.data;
 }
 
-export async function createWithdrawalPayment(retiroIds: number[]): Promise<PagoProveedorResponse> {
-  const response = await apiClient.post<PagoProveedorResponse>('/administration/withdrawal-payments', { retiroIds });
+export async function createWithdrawalPayment(retiroIds: number[], retiroSocioIds: number[] = []): Promise<PagoProveedorResponse> {
+  const response = await apiClient.post<PagoProveedorResponse>('/administration/withdrawal-payments', { retiroIds, retiroSocioIds });
   return response.data;
 }
 

@@ -53,6 +53,21 @@ function formatMoney(amount: number) {
   return '$' + Math.round(amount).toLocaleString('es-CL');
 }
 
+/**
+ * Los pagos creados antes de vincular bo_retiro_socio con RT_pago_proveedor no tienen
+ * `retirosSocios` en la API. En esos registros legados, fechaPago fue guardada al mismo
+ * instante que el pago, por lo que permite mostrarlos sin afectar los pagos nuevos.
+ */
+function sociosDelPago(payment: PagoProveedorResponse, partnerWithdrawals: Withdrawal[]): Withdrawal[] {
+  if (payment.retirosSocios?.length) return payment.retirosSocios;
+  const fechaPago = new Date(payment.fechaPago).getTime();
+  return partnerWithdrawals.filter((withdrawal) =>
+    withdrawal.estado === 'PAGADO'
+    && withdrawal.fechaPago
+    && Math.abs(new Date(withdrawal.fechaPago).getTime() - fechaPago) < 5 * 60 * 1000,
+  );
+}
+
 export default function PagoProveedoresPage() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<'gestion' | 'historial'>('gestion');
@@ -139,31 +154,23 @@ export default function PagoProveedoresPage() {
     });
   }, [withdrawals, cycleEnd]);
 
-  // BO-SOCIOS-001: mismo criterio de ciclo que las solicitudes de vendedores, para que
-  // "Procesar pago" siempre opere sobre lo mismo que se ve en pantalla.
+  // La fecha del retiro de socio puede ser futura (por ejemplo, cierre de mes), pero la
+  // solicitud ya está disponible para pago. A diferencia de `createdAt` de un proveedor,
+  // `date` es la fecha contable del retiro y no debe excluirlo del flujo actual.
   const pendingPartnerWithdrawals = useMemo(() => {
-    return partnerWithdrawals.filter((w) => {
-      const isPending = (w.estado ?? 'PENDIENTE') === 'PENDIENTE';
-      const createdDate = new Date(w.date);
-      return isPending && createdDate <= cycleEnd;
-    });
-  }, [partnerWithdrawals, cycleEnd]);
+    return partnerWithdrawals.filter((w) => (w.estado ?? 'PENDIENTE') === 'PENDIENTE');
+  }, [partnerWithdrawals]);
 
-  // BO-SOCIOS-001: un solo "Procesar pago" para la tabla unificada. Los retiros de
-  // vendedor y de socio se pagan por vias distintas (uno agrupado con boleta, el otro
-  // individual sin boleta), pero ambos cuelgan del mismo boton/tabla, asi que un fallo en
-  // uno no debe impedir que el otro se procese.
+  // Un solo pago contable agrupa retiros de proveedores y socios. El backend conserva el
+  // tipo y codigo propio del socio y los vincula al mismo PAG-xxxxxx.
   const handleConfirmProcesarPago = async () => {
     setProcessingBulk(true);
     const errores: string[] = [];
 
     // 1. Re-fetch y validar que todos los documentos (proveedores y socios) estén completos antes de pagar
     const refreshedPartner = await refetchPartnerWithdrawals();
-    const latestPendingPartner = (refreshedPartner.data ?? partnerWithdrawals).filter((w) => {
-      const isPending = (w.estado ?? 'PENDIENTE') === 'PENDIENTE';
-      const createdDate = new Date(w.date);
-      return isPending && createdDate <= cycleEnd;
-    });
+    const latestPendingPartner = (refreshedPartner.data ?? partnerWithdrawals)
+      .filter((w) => (w.estado ?? 'PENDIENTE') === 'PENDIENTE');
 
     const refreshedSupplier = await refetch();
     const latestPendingWithdrawals = (refreshedSupplier.data ?? withdrawals).filter((withdrawal) => {
@@ -187,32 +194,27 @@ export default function PagoProveedoresPage() {
       return;
     }
 
-    // 2. Si todos los documentos están cargados, procesar pagos de socios
-    if (latestPendingPartner.length > 0) {
+    // 2. Procesar ambos tipos en el mismo pago contable.
+    if (latestPendingWithdrawals.length > 0 || latestPendingPartner.length > 0) {
       try {
-        for (const withdrawal of latestPendingPartner) {
-          await adminApi.payPartnerWithdrawal(withdrawal.id);
+        const payment = await adminApi.createWithdrawalPayment(
+          latestPendingWithdrawals.map((withdrawal) => withdrawal.retiroId),
+          latestPendingPartner.map((withdrawal) => Number(withdrawal.id)),
+        );
+        const requestedPartnerIds = new Set(latestPendingPartner.map((withdrawal) => String(withdrawal.id)));
+        const paidPartnerIds = new Set((payment.retirosSocios ?? []).map((withdrawal) => String(withdrawal.id)));
+        const missingPartners = [...requestedPartnerIds].filter((id) => !paidPartnerIds.has(id));
+        if (missingPartners.length > 0) {
+          throw new Error('El pago fue creado, pero el backend no confirmó todos los retiros de socios. Actualiza el backend antes de volver a procesar.');
         }
+        queryClient.invalidateQueries({ queryKey: ['admin-withdrawals'] });
+        queryClient.invalidateQueries({ queryKey: ['admin-withdrawal-payments'] });
         await refetchPartnerWithdrawals();
       } catch (err: unknown) {
         const message = isAxiosError(err) && typeof err.response?.data?.message === 'string'
           ? err.response.data.message
           : err instanceof Error ? err.message : 'error desconocido.';
-        errores.push('Socios: ' + message);
-      }
-    }
-
-    // 3. Procesar pagos de proveedores
-    if (latestPendingWithdrawals.length > 0) {
-      try {
-        await adminApi.createWithdrawalPayment(latestPendingWithdrawals.map((withdrawal) => withdrawal.retiroId));
-        queryClient.invalidateQueries({ queryKey: ['admin-withdrawals'] });
-        queryClient.invalidateQueries({ queryKey: ['admin-withdrawal-payments'] });
-      } catch (err: unknown) {
-        const message = isAxiosError(err) && typeof err.response?.data?.message === 'string'
-          ? err.response.data.message
-          : err instanceof Error ? err.message : 'error desconocido.';
-        errores.push('Proveedores: ' + message);
+        errores.push('Pago: ' + message);
       }
     }
 
@@ -222,7 +224,7 @@ export default function PagoProveedoresPage() {
       alert('Se procesó parcialmente. Errores:\n' + errores.join('\n'));
     } else {
       setActiveTab('historial');
-      alert('Todos los pagos del ciclo (proveedores y socios) han sido procesados con éxito.');
+      alert('El pago del ciclo, con proveedores y socios, ha sido procesado con éxito.');
     }
   };
 
@@ -582,13 +584,7 @@ export default function PagoProveedoresPage() {
                     </tr>
                   ) : paidPayments.length > 0 ? (
                     paidPayments.map((payment) => {
-                      // Filtrar los socios pagados desde el estado global de retiros de socios
-                      const sociosPagados = partnerWithdrawals.filter((w) => {
-                        if (w.estado !== 'PAGADO' || !w.fechaPago) return false;
-                        const pDate = new Date(payment.fechaPago).getTime();
-                        const wDate = new Date(w.fechaPago).getTime();
-                        return Math.abs(pDate - wDate) < 5 * 60 * 1000;
-                      });
+                      const sociosPagados = sociosDelPago(payment, partnerWithdrawals);
                       const partnerSellers = sociosPagados.map((w) => ({ name: w.beneficiary, isPartner: true }));
 
                       return (
@@ -711,14 +707,9 @@ export default function PagoProveedoresPage() {
             </header>
 
             {paymentDetails ? (() => {
-              const sociosPagadosEnModal = partnerWithdrawals.filter((w) => {
-                if (w.estado !== 'PAGADO' || !w.fechaPago) return false;
-                const pDate = new Date(paymentDetails.fechaPago).getTime();
-                const wDate = new Date(w.fechaPago).getTime();
-                return Math.abs(pDate - wDate) < 5 * 60 * 1000;
-              });
+              const sociosPagadosEnModal = sociosDelPago(paymentDetails, partnerWithdrawals);
               const totalSolicitudes = paymentDetails.retiros.length + sociosPagadosEnModal.length;
-              const totalSuma = paymentDetails.montoTotal + sociosPagadosEnModal.reduce((sum, w) => sum + w.amount, 0);
+              const totalSuma = paymentDetails.montoTotal;
 
               return (
                 <>

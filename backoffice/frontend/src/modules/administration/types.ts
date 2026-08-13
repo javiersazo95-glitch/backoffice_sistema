@@ -293,4 +293,5 @@ export interface PagoProveedorResponse {
   periodoInicio?: string;
   periodoFin?: string;
   retiros: RetiroAdminResponse[];
+  retirosSocios: Withdrawal[];
 }
