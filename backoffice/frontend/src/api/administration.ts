@@ -1,5 +1,6 @@
 import apiClient from './client';
 import type {
+  AdvertisingOrdersResponse,
   AdministrationWorkspaceResponse,
   AdministrationBootstrapResponse,
   RetiroAdminResponse,
@@ -19,6 +20,12 @@ export async function getWorkspace(): Promise<AdministrationWorkspaceResponse> {
 
 export async function getBootstrap(): Promise<AdministrationBootstrapResponse> {
   const response = await apiClient.get<AdministrationBootstrapResponse>('/administration/bootstrap');
+  return response.data;
+}
+
+/** Compras de fichas para publicidad: alimentan el tab "Publicidad" de Pedidos. */
+export async function getAdvertisingOrders(): Promise<AdvertisingOrdersResponse> {
+  const response = await apiClient.get<AdvertisingOrdersResponse>('/administration/advertising-orders');
   return response.data;
 }
 

@@ -295,3 +295,31 @@ export interface PagoProveedorResponse {
   retiros: RetiroAdminResponse[];
   retirosSocios: Withdrawal[];
 }
+
+/** Una compra de fichas para publicar avisos, como la muestra el tab Publicidad. */
+export interface AdvertisingOrder {
+  id: number;
+  codigo: string;
+  fecha: string;
+  usuarioId: number | null;
+  comprador: string | null;
+  correo: string | null;
+  pack: string | null;
+  cantidadFichas: number;
+  montoPagado: number;
+  comisionPasarela: number;
+  montoNeto: number;
+  metodoPago: string | null;
+  referenciaPago: string | null;
+  estado: string;
+}
+
+/** Compras de publicidad más las métricas de las tarjetas superiores. */
+export interface AdvertisingOrdersResponse {
+  compras: AdvertisingOrder[];
+  cantidadPedidos: number;
+  montoAcumulado: number;
+  gananciaAcumulada: number;
+  comisionPasarelaAcumulada: number;
+  fichasVendidas: number;
+}

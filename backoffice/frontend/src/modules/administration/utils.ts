@@ -31,6 +31,24 @@ export function formatDateTime(dateValue: string): string {
   return `${formatDate(date)} ${time.slice(0, 5)}`;
 }
 
+/**
+ * Fecha y hora en el huso del navegador. A diferencia de formatDateTime, que
+ * corta el texto ISO y muestra la hora tal cual venga, esta respeta el offset:
+ * una marca en UTC se ve en la hora local en que realmente ocurrió.
+ */
+export function formatDateTimeLocal(dateValue: string): string {
+  const parsed = new Date(dateValue);
+  if (Number.isNaN(parsed.getTime())) return dateValue;
+  return parsed.toLocaleString('es-CL', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+}
+
 const monthFormatter = new Intl.DateTimeFormat('es-CL', { month: 'long' });
 
 /** Nombre del mes de un "YYYY-MM", por ejemplo "Julio". El año va en su propio filtro. */

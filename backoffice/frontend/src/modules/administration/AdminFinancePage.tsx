@@ -33,6 +33,7 @@ import {
 import type {
   ActivityLog,
   AdminView,
+  AdvertisingOrder,
   DateFilter,
   Expense,
   ImportRecord,
@@ -56,6 +57,7 @@ import {
   downloadFile,
   formatDate,
   formatDateTime,
+  formatDateTimeLocal,
   formatMonthName,
   formatMoney,
   getBarWidth,
@@ -461,6 +463,10 @@ export default function AdminFinancePage() {
   const [statusHistory, setStatusHistory] = useState<Record<string, StatusHistoryItem[]>>(initialStatusHistory);
   const [settlementStatuses, setSettlementStatuses] = useState<Record<string, SettlementStatus>>({});
   const [liquidationTab, setLiquidationTab] = useState<LiquidationStatus>('PENDIENTE_LIQUIDACION');
+  /** Tab del menú Pedidos: ventas de repuestos o compras de publicidad. */
+  const [ordersTab, setOrdersTab] = useState<'pedidos' | 'publicidad'>('pedidos');
+  const [advertisingQuery, setAdvertisingQuery] = useState('');
+  const [selectedAdvertisingOrder, setSelectedAdvertisingOrder] = useState<AdvertisingOrder | null>(null);
   const [partnerTab, setPartnerTab] = useState<PartnerTab>('ingresos');
   const [expandedLiquidationSellers, setExpandedLiquidationSellers] = useState<Set<string>>(new Set());
   const [selectedLiquidationSeller, setSelectedLiquidationSeller] = useState<LiquidationSellerGroup | null>(null);
@@ -496,6 +502,12 @@ export default function AdminFinancePage() {
     queryFn: administrationApi.getWithdrawals,
   });
   const { data: paidPayments = [] } = useQuery({ queryKey: ['withdrawal-payments'], queryFn: administrationApi.getWithdrawalPayments });
+  // Compras de fichas para publicidad: se muestran en su propio tab de Pedidos
+  // para no mezclarlas con las ventas de repuestos.
+  const { data: advertising } = useQuery({
+    queryKey: ['advertising-orders'],
+    queryFn: administrationApi.getAdvertisingOrders,
+  });
   const { data: socios = [], refetch: refetchSocios } = useQuery<Socio[]>({
     queryKey: ['administration-socios'],
     queryFn: administrationApi.getSocios,
@@ -523,6 +535,31 @@ export default function AdminFinancePage() {
     setImports(bootstrap.imports);
     setBackendWorkspace(bootstrap.workspace);
   }, [bootstrap]);
+
+  /** Compras de publicidad que calzan con la búsqueda del tab. */
+  const filteredAdvertisingOrders = useMemo(() => {
+    const rows = advertising?.compras ?? [];
+    const term = normalizeText(advertisingQuery);
+    if (!term) return rows;
+    return rows.filter((row) => [row.codigo, row.comprador, row.correo, row.pack, row.metodoPago]
+      .some((value) => normalizeText(value ?? '').includes(term)));
+  }, [advertising, advertisingQuery]);
+
+  /**
+   * Las tarjetas siguen a lo que se está viendo: si hay búsqueda se recalculan
+   * sobre lo filtrado, para que el monto de arriba cuadre con la tabla.
+   */
+  const advertisingMetrics = useMemo(() => {
+    const rows = filteredAdvertisingOrders;
+    const sum = (pick: (row: AdvertisingOrder) => number) => rows.reduce((total, row) => total + (pick(row) || 0), 0);
+    return {
+      cantidad: rows.length,
+      monto: sum((row) => row.montoPagado),
+      ganancia: sum((row) => row.montoNeto),
+      comision: sum((row) => row.comisionPasarela),
+      fichas: sum((row) => row.cantidadFichas),
+    };
+  }, [filteredAdvertisingOrders]);
 
   const filteredOrders = useMemo(() => {
     const filter = filters.pedidos;
@@ -1638,6 +1675,128 @@ export default function AdminFinancePage() {
 
       {activeView === 'pedidos' && (
         <>
+          {/* Pedidos de repuestos y compras de publicidad viven en tabs
+              separados para no confundir una cosa con la otra. */}
+          <div className="module-tabs" role="tablist" aria-label="Tipo de pedido">
+            {([
+              ['pedidos', 'Pedidos'],
+              ['publicidad', 'Publicidad'],
+            ] as const).map(([tab, label]) => (
+              <button
+                key={tab}
+                type="button"
+                role="tab"
+                aria-selected={ordersTab === tab}
+                className={ordersTab === tab ? 'active' : undefined}
+                onClick={() => setOrdersTab(tab)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+
+      {activeView === 'pedidos' && ordersTab === 'publicidad' && (
+        <>
+          <div className="metric-grid compact publicidad-metric-grid">
+            <MetricCard
+              label="Compras de fichas"
+              value={advertisingMetrics.cantidad}
+              tone="amber"
+              description={`${advertisingMetrics.fichas.toLocaleString('es-CL')} fichas vendidas`}
+              iconName="upload"
+            />
+            <MetricCard
+              label="Monto acumulado"
+              value={formatMoney(advertisingMetrics.monto)}
+              tone="blue"
+              description="Total pagado por los avisadores"
+              iconName="wallet"
+            />
+            <MetricCard
+              label="Ganancia"
+              value={formatMoney(advertisingMetrics.ganancia)}
+              tone="green"
+              description="Monto pagado menos la pasarela"
+              iconName="percent"
+            />
+            <MetricCard
+              label="Comisión pasarela"
+              value={formatMoney(advertisingMetrics.comision)}
+              tone="red"
+              description="Acumulado retenido por la pasarela de pago"
+              iconName="receipt"
+            />
+          </div>
+
+          <div className="notice"><UiIcon name="note" />Las compras de fichas financian la publicación de avisos en el Mural; no generan liquidación a vendedores.</div>
+
+          <section className="table-shell">
+            <div className="table-toolbar">
+              <input
+                className="input"
+                type="search"
+                placeholder="Buscar por código, comprador, correo o método de pago..."
+                value={advertisingQuery}
+                onChange={(event) => setAdvertisingQuery(event.target.value)}
+              />
+            </div>
+            <table className="wide-table">
+              <thead>
+                <tr>
+                  <th>Código</th><th>Fecha</th><th>Quién pagó</th><th>Correo</th><th>Fichas</th>
+                  <th>Monto pagado</th><th>Comisión pasarela</th><th>Ganancia</th><th>Método de pago</th><th>Estado</th><th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredAdvertisingOrders.length ? filteredAdvertisingOrders.map((row) => (
+                  <tr key={row.id}>
+                    <td>{row.codigo}</td>
+                    <td>{formatDateTimeLocal(row.fecha)}</td>
+                    <td>{row.comprador ?? 'Sin registrar'}</td>
+                    <td>{row.correo ?? '—'}</td>
+                    <td>{row.cantidadFichas.toLocaleString('es-CL')}</td>
+                    <td>{formatMoney(row.montoPagado)}</td>
+                    <td>{formatMoney(row.comisionPasarela)}</td>
+                    <td>{formatMoney(row.montoNeto)}</td>
+                    <td>{row.metodoPago ?? '—'}</td>
+                    <td><span className={`status-pill ${slug(row.estado)}`}>{row.estado}</span></td>
+                    <td>
+                      <div className="action-cell">
+                        <button
+                          className="action-button neutral"
+                          type="button"
+                          onClick={() => setSelectedAdvertisingOrder(row)}
+                          title="Ver resumen de la compra"
+                        >
+                          <UiIcon name="eye" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                )) : (
+                  <tr>
+                    <td colSpan={11}>
+                      <div className="empty-state">
+                        {advertisingQuery
+                          ? 'No hay compras de publicidad que coincidan con la búsqueda.'
+                          : 'Todavía no se han registrado compras de fichas para publicidad.'}
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+            <div className="table-footer compact-footer">
+              <span>{filteredAdvertisingOrders.length} registros mostrados</span>
+            </div>
+          </section>
+        </>
+      )}
+
+      {activeView === 'pedidos' && ordersTab === 'pedidos' && (
+        <>
           <div className="metric-grid compact pedidos-metric-grid">
             <MetricCard label="Monto recaudado" value={formatMoney(selectedOrderRows.reduce((sum, order) => sum + order.total, 0))} tone="blue" description="Pedidos filtrados o seleccionados" iconName="wallet" />
             <MetricCard label="Pedidos ingresados" value={selectedOrderRows.length} tone="amber" description={`${selectedOrderRows.filter((order) => order.status === 'Recibido').length} recibidos`} iconName="upload" />
@@ -2560,6 +2719,62 @@ export default function AdminFinancePage() {
 
             <div className="form-actions">
               <button className="primary-button" type="button" onClick={() => setSelectedDetailSettlement(null)}>Cerrar</button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {selectedAdvertisingOrder && (
+        <Modal
+          title={`Compra de publicidad ${selectedAdvertisingOrder.codigo}`}
+          badges={<span className={`status-pill ${slug(selectedAdvertisingOrder.estado)}`}>{selectedAdvertisingOrder.estado}</span>}
+          onClose={() => setSelectedAdvertisingOrder(null)}
+        >
+          <div className="advertising-detail">
+            {/* Lo que se busca primero: cuánto entró y cuánto quedó. */}
+            <div className="advertising-detail-highlights">
+              <div className="advertising-highlight">
+                <span>Monto pagado</span>
+                <strong>{formatMoney(selectedAdvertisingOrder.montoPagado)}</strong>
+              </div>
+              <div className="advertising-highlight negative">
+                <span>Comisión pasarela</span>
+                <strong>− {formatMoney(selectedAdvertisingOrder.comisionPasarela)}</strong>
+              </div>
+              <div className="advertising-highlight positive">
+                <span>Ganancia RepuesTop</span>
+                <strong>{formatMoney(selectedAdvertisingOrder.montoNeto)}</strong>
+              </div>
+            </div>
+
+            <div className="advertising-detail-cards">
+              <section className="advertising-detail-card">
+                <h4><UiIcon name="user" />Quién pagó</h4>
+                <dl>
+                  <div><dt>Nombre</dt><dd>{selectedAdvertisingOrder.comprador ?? 'Sin registrar'}</dd></div>
+                  <div><dt>Correo</dt><dd>{selectedAdvertisingOrder.correo ?? '—'}</dd></div>
+                  <div><dt>Usuario</dt><dd>{selectedAdvertisingOrder.usuarioId ? `#${selectedAdvertisingOrder.usuarioId}` : 'Sin sesión asociada'}</dd></div>
+                </dl>
+              </section>
+
+              <section className="advertising-detail-card">
+                <h4><UiIcon name="wallet" />Compra</h4>
+                <dl>
+                  <div><dt>Código</dt><dd>{selectedAdvertisingOrder.codigo}</dd></div>
+                  <div><dt>Fecha de pago</dt><dd>{formatDateTimeLocal(selectedAdvertisingOrder.fecha)}</dd></div>
+                  <div><dt>Pack</dt><dd>{selectedAdvertisingOrder.pack ?? '—'}</dd></div>
+                  <div><dt>Fichas</dt><dd>{selectedAdvertisingOrder.cantidadFichas.toLocaleString('es-CL')}</dd></div>
+                </dl>
+              </section>
+
+              <section className="advertising-detail-card">
+                <h4><UiIcon name="receipt" />Pago</h4>
+                <dl>
+                  <div><dt>Método</dt><dd>{selectedAdvertisingOrder.metodoPago ?? '—'}</dd></div>
+                  <div><dt>Referencia pasarela</dt><dd>{selectedAdvertisingOrder.referenciaPago ?? '—'}</dd></div>
+                  <div><dt>Estado</dt><dd><span className={`status-pill ${slug(selectedAdvertisingOrder.estado)}`}>{selectedAdvertisingOrder.estado}</span></dd></div>
+                </dl>
+              </section>
             </div>
           </div>
         </Modal>

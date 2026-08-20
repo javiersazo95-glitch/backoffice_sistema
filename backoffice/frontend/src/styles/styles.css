@@ -1443,6 +1443,11 @@ svg {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+/* Publicidad muestra cuatro métricas y deben ir siempre en una sola fila. */
+.metric-grid.compact.publicidad-metric-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .metric-grid.compact.liquidacion-metric-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
@@ -9719,6 +9724,11 @@ tr.is-active {
   .metric-grid.compact,
   .audit-metric-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* Las cuatro de publicidad se mantienen en fila, solo más angostas. */
+  .metric-grid.compact.publicidad-metric-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
   .audit-detail-grid {
@@ -18238,4 +18248,121 @@ body:has(.area-selector-shell) {
   color: #d9a514;
   vertical-align: -2px;
   flex: 0 0 auto;
+}
+
+/* ---- Resumen de una compra de publicidad (tab Publicidad de Pedidos) ---- */
+.advertising-detail {
+  display: grid;
+  gap: 18px;
+  padding: 20px;
+}
+
+.advertising-detail-highlights {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.advertising-highlight {
+  display: grid;
+  gap: 4px;
+  padding: 14px 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.advertising-highlight span {
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.advertising-highlight strong {
+  font-size: 20px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.advertising-highlight.negative {
+  border-color: #fecaca;
+  background: #fff5f5;
+}
+
+.advertising-highlight.negative strong {
+  color: #dc2626;
+}
+
+.advertising-highlight.positive {
+  border-color: #a7f3d0;
+  background: #f0fdf4;
+}
+
+.advertising-highlight.positive strong {
+  color: #047857;
+}
+
+.advertising-detail-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 14px;
+}
+
+.advertising-detail-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px;
+  background: #ffffff;
+}
+
+.advertising-detail-card h4 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+  font-size: 13px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: #1264c0;
+}
+
+.advertising-detail-card dl {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+
+.advertising-detail-card dl > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.advertising-detail-card dl > div:last-child {
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.advertising-detail-card dt {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.advertising-detail-card dd {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 720px) {
+  .advertising-detail-highlights {
+    grid-template-columns: 1fr;
+  }
 }
