@@ -323,3 +323,42 @@ export interface AdvertisingOrdersResponse {
   comisionPasarelaAcumulada: number;
   fichasVendidas: number;
 }
+
+export type CashIncomeType = 'pedido' | 'publicidad';
+
+export interface CashIncomeEntry {
+  id: string;
+  type: CashIncomeType;
+  date: string;
+  concept: string;
+  buyer: string;
+  sellerOrPack: string;
+  sellerFounder?: boolean;
+  totalSale: number;
+  commissionOrDeduction: string;
+  commissionAmount: number;
+  netProfit: number;
+  cashAmount: number;
+  orderId?: string;
+  originalOrder?: Order;
+  originalSettlement?: Settlement;
+  originalAdvertising?: AdvertisingOrder;
+}
+
+export interface PartnerIncomeEntry {
+  id: string;
+  type: 'pedido' | 'publicidad';
+  date: string;
+  concept: string;
+  sellerOrPack: string;
+  sellerFounder?: boolean;
+  commissionLabel: string;
+  gatewayFee: number;
+  iva: number;
+  netProfit: number;
+  partnerShare: number;
+  originalSettlement?: Settlement;
+  originalAdvertising?: AdvertisingOrder;
+}
+
+

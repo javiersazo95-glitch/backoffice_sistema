@@ -34,6 +34,8 @@ import type {
   ActivityLog,
   AdminView,
   AdvertisingOrder,
+  CashIncomeEntry,
+  PartnerIncomeEntry,
   DateFilter,
   Expense,
   ImportRecord,
@@ -78,9 +80,13 @@ import {
 } from './utils';
 
 type SelectableView = 'pedidos' | 'liquidaciones' | 'gastos';
-type PageView = SelectableView | 'retiros' | 'ingresos';
+type PageView = SelectableView | 'retiros' | 'ingresos' | 'caja';
 /** Pestañas de la vista exclusiva de socios (/retiros). */
 type PartnerTab = 'ingresos' | 'retiros';
+/** Pestañas del menú Caja y gastos (/administracion/gastos). */
+type CajaExpenseTab = 'caja' | 'gastos';
+/** Filtro de origen de ingresos en la tabla de Caja. */
+type CajaSourceFilter = 'todos' | 'pedidos' | 'publicidad';
 
 const serviceCommissionLabel = (settlement: Settlement) =>
   settlement.sellerFounder && Math.round(settlement.serviceCommissionRate * 100) === 5
@@ -199,6 +205,7 @@ const paginationDefaults: Record<PageView, PaginationState> = {
   gastos: { page: 1, pageSize: 5 },
   retiros: { page: 1, pageSize: 5 },
   ingresos: { page: 1, pageSize: 5 },
+  caja: { page: 1, pageSize: 10 },
 };
 
 function emptyExpenseDraft(): ExpenseDraft {
@@ -465,9 +472,14 @@ export default function AdminFinancePage() {
   const [liquidationTab, setLiquidationTab] = useState<LiquidationStatus>('PENDIENTE_LIQUIDACION');
   /** Tab del menú Pedidos: ventas de repuestos o compras de publicidad. */
   const [ordersTab, setOrdersTab] = useState<'pedidos' | 'publicidad'>('pedidos');
+  /** Tab del menú Caja y gastos: 'caja' o 'gastos'. */
+  const [cajaExpenseTab, setCajaExpenseTab] = useState<CajaExpenseTab>('caja');
+  const [cajaSourceFilter, setCajaSourceFilter] = useState<CajaSourceFilter>('todos');
+  const [cajaQuery, setCajaQuery] = useState('');
   const [advertisingQuery, setAdvertisingQuery] = useState('');
   const [selectedAdvertisingOrder, setSelectedAdvertisingOrder] = useState<AdvertisingOrder | null>(null);
   const [partnerTab, setPartnerTab] = useState<PartnerTab>('ingresos');
+  const [partnerIncomeFilter, setPartnerIncomeFilter] = useState<'todos' | 'pedidos' | 'publicidad'>('todos');
   const [expandedLiquidationSellers, setExpandedLiquidationSellers] = useState<Set<string>>(new Set());
   const [selectedLiquidationSeller, setSelectedLiquidationSeller] = useState<LiquidationSellerGroup | null>(null);
   const [selectedPaidPeriod, setSelectedPaidPeriod] = useState<string>('');
@@ -597,6 +609,123 @@ export default function AdminFinancePage() {
     });
   }, [expenses, filters.gastos]);
 
+  /** Pedidos finalizados dentro del periodo de filtro de Caja y gastos. */
+  const cajaPeriodSettlements = useMemo(() => {
+    return settlements.filter((settlement) => isWithinRange(settlement.date, filters.gastos.start, filters.gastos.end));
+  }, [filters.gastos.start, filters.gastos.end, settlements]);
+
+  /** Compras de fichas para publicidad dentro del periodo de filtro de Caja y gastos. */
+  const cajaPeriodAds = useMemo(() => {
+    const rows = advertising?.compras ?? [];
+    return rows.filter((row) => isWithinRange((row.fecha ?? '').slice(0, 10), filters.gastos.start, filters.gastos.end));
+  }, [advertising?.compras, filters.gastos.start, filters.gastos.end]);
+
+  /**
+   * Convergencia total de ingresos (pedidos y publicidad):
+   * - Pedidos: ganancia neta (5% tarifa fundador o 10%/7%/5% normal menos pasarela/IVA) -> 70% a caja.
+   * - Publicidad: total de la venta menos comisión pasarela Flow -> 70% a caja.
+   */
+  const cajaEntriesAll = useMemo<CashIncomeEntry[]>(() => {
+    const ordersMap = new Map<string, Order>(orders.map((o) => [o.id, o]));
+
+    const pedidosEntries: CashIncomeEntry[] = cajaPeriodSettlements.map((settlement) => {
+      const order = ordersMap.get(settlement.orderId) || ordersMap.get(settlement.id);
+      const commissionLabel = settlement.sellerFounder && Math.round(settlement.serviceCommissionRate * 100) === 5
+        ? 'Tarifa Fundador (5%)'
+        : `Comisión RepuesTop (${Math.round(settlement.serviceCommissionRate * 100)}%)`;
+      const netProfit = settlement.netSettlement;
+      const cashAmount = Math.round(netProfit * 0.7);
+
+      return {
+        id: settlement.orderId,
+        type: 'pedido',
+        date: settlement.date,
+        concept: order?.product ? `Repuesto: ${order.product}` : `Pedido ${settlement.orderId}`,
+        buyer: order?.buyer || 'Cliente',
+        sellerOrPack: settlement.seller,
+        sellerFounder: settlement.sellerFounder,
+        totalSale: settlement.saleTotal,
+        commissionOrDeduction: commissionLabel,
+        commissionAmount: settlement.commission,
+        netProfit,
+        cashAmount,
+        orderId: settlement.orderId,
+        originalOrder: order,
+        originalSettlement: settlement,
+      };
+    });
+
+    const publicidadEntries: CashIncomeEntry[] = cajaPeriodAds.map((ad) => {
+      const netProfit = ad.montoNeto;
+      const cashAmount = Math.round(netProfit * 0.7);
+
+      return {
+        id: ad.codigo,
+        type: 'publicidad',
+        date: ad.fecha,
+        concept: ad.pack ? `Fichas Mural: ${ad.pack} (${ad.cantidadFichas.toLocaleString('es-CL')} fichas)` : `Compra Fichas (${ad.cantidadFichas.toLocaleString('es-CL')})`,
+        buyer: ad.comprador ? `${ad.comprador}${ad.correo ? ` (${ad.correo})` : ''}` : (ad.correo || 'Avisador'),
+        sellerOrPack: ad.pack || 'Fichas Mural',
+        sellerFounder: false,
+        totalSale: ad.montoPagado,
+        commissionOrDeduction: `Comisión Flow (-${formatMoney(ad.comisionPasarela)})`,
+        commissionAmount: ad.comisionPasarela,
+        netProfit,
+        cashAmount,
+        originalAdvertising: ad,
+      };
+    });
+
+    return [...pedidosEntries, ...publicidadEntries].sort((a, b) => b.date.localeCompare(a.date));
+  }, [cajaPeriodSettlements, cajaPeriodAds, orders]);
+
+  /** Métricas de las 3 tarjetas superiores de la vista Caja. */
+  const cajaMetrics = useMemo(() => {
+    const pedidosEntries = cajaEntriesAll.filter((e) => e.type === 'pedido');
+    const publicidadEntries = cajaEntriesAll.filter((e) => e.type === 'publicidad');
+
+    const sum = (items: CashIncomeEntry[], pick: (item: CashIncomeEntry) => number) =>
+      items.reduce((total, item) => total + (pick(item) || 0), 0);
+
+    const pedidosProfit = sum(pedidosEntries, (e) => e.netProfit);
+    const pedidosCaja = sum(pedidosEntries, (e) => e.cashAmount);
+    const publicidadProfit = sum(publicidadEntries, (e) => e.netProfit);
+    const publicidadCaja = sum(publicidadEntries, (e) => e.cashAmount);
+
+    const totalProfit = pedidosProfit + publicidadProfit;
+    const totalCaja = pedidosCaja + publicidadCaja;
+
+    return {
+      totalProfit,
+      totalCaja,
+      totalCount: cajaEntriesAll.length,
+      pedidosProfit,
+      pedidosCaja,
+      pedidosCount: pedidosEntries.length,
+      publicidadProfit,
+      publicidadCaja,
+      publicidadCount: publicidadEntries.length,
+    };
+  }, [cajaEntriesAll]);
+
+  /** Entradas filtradas por el filtro de 3 botones (Todos, Pedidos, Publicidad) y buscador. */
+  const filteredCajaEntries = useMemo(() => {
+    let list = cajaEntriesAll;
+    if (cajaSourceFilter === 'pedidos') {
+      list = list.filter((e) => e.type === 'pedido');
+    } else if (cajaSourceFilter === 'publicidad') {
+      list = list.filter((e) => e.type === 'publicidad');
+    }
+
+    const term = normalizeText(cajaQuery);
+    if (!term) return list;
+
+    return list.filter((item) =>
+      [item.id, item.concept, item.buyer, item.sellerOrPack, item.commissionOrDeduction, formatMoney(item.totalSale), formatMoney(item.cashAmount)]
+        .some((val) => normalizeText(val ?? '').includes(term))
+    );
+  }, [cajaEntriesAll, cajaQuery, cajaSourceFilter]);
+
   const activeWithdrawals = useMemo(
     () => adminWithdrawals.filter((withdrawal) => withdrawal.estado === 'SOLICITADO'),
     [adminWithdrawals],
@@ -667,14 +796,110 @@ export default function AdminFinancePage() {
     [filters.retiros, withdrawals],
   );
 
-  // Ingresos de socios: getSettlements ya deja solo los pedidos en estado
-  // "Finalizado", que son los unicos que generan ingreso repartible.
-  const partnerIncomes = useMemo(
-    () => settlements
-      .filter((settlement) => isWithinRange(settlement.date, filters.retiros.start, filters.retiros.end))
-      .sort((first, second) => second.date.localeCompare(first.date)),
-    [filters.retiros, settlements],
-  );
+  /** Pedidos finalizados dentro del periodo de filtro de Retiros/Socios. */
+  const periodPartnerSettlements = useMemo(() => {
+    return settlements.filter((settlement) => isWithinRange(settlement.date, filters.retiros.start, filters.retiros.end));
+  }, [filters.retiros.start, filters.retiros.end, settlements]);
+
+  /** Compras de publicidad dentro del periodo de filtro de Retiros/Socios. */
+  const periodPartnerAds = useMemo(() => {
+    const rows = advertising?.compras ?? [];
+    return rows.filter((row) => isWithinRange((row.fecha ?? '').slice(0, 10), filters.retiros.start, filters.retiros.end));
+  }, [advertising?.compras, filters.retiros.start, filters.retiros.end]);
+
+  /**
+   * Ingresos de socios: Convergencia de pedidos finalizados y compras de fichas de publicidad.
+   * De cada ingreso neto, el 30% corresponde al pool repartible de los socios.
+   */
+  const partnerIncomesAll = useMemo<PartnerIncomeEntry[]>(() => {
+    const ordersMap = new Map<string, Order>(orders.map((o) => [o.id, o]));
+
+    const pedidosEntries: PartnerIncomeEntry[] = periodPartnerSettlements.map((settlement) => {
+      const order = ordersMap.get(settlement.orderId) || ordersMap.get(settlement.id);
+      const commissionLabel = settlement.sellerFounder && Math.round(settlement.serviceCommissionRate * 100) === 5
+        ? 'Tarifa Fundador (5%)'
+        : `Comisión (${Math.round(settlement.serviceCommissionRate * 100)}%)`;
+      const netProfit = settlement.netSettlement;
+      const partnerShare = Math.round(netProfit * 0.3);
+
+      return {
+        id: settlement.orderId,
+        type: 'pedido',
+        date: settlement.date,
+        concept: order?.product ? `Repuesto: ${order.product}` : `Pedido ${settlement.orderId}`,
+        sellerOrPack: settlement.seller,
+        sellerFounder: settlement.sellerFounder,
+        commissionLabel,
+        gatewayFee: settlement.gatewayFeeSeller + settlement.gatewayFeeRepuestop,
+        iva: settlement.serviceCommissionIva,
+        netProfit,
+        partnerShare,
+        originalSettlement: settlement,
+      };
+    });
+
+    const publicidadEntries: PartnerIncomeEntry[] = periodPartnerAds.map((ad) => {
+      const netProfit = ad.montoNeto;
+      const partnerShare = Math.round(netProfit * 0.3);
+
+      return {
+        id: ad.codigo,
+        type: 'publicidad',
+        date: ad.fecha,
+        concept: ad.pack ? `Fichas Mural: ${ad.pack} (${ad.cantidadFichas.toLocaleString('es-CL')} fichas)` : `Compra Fichas (${ad.cantidadFichas.toLocaleString('es-CL')})`,
+        sellerOrPack: ad.pack || 'Fichas Mural',
+        sellerFounder: false,
+        commissionLabel: `Comisión Flow (-${formatMoney(ad.comisionPasarela)})`,
+        gatewayFee: ad.comisionPasarela,
+        iva: 0,
+        netProfit,
+        partnerShare,
+        originalAdvertising: ad,
+      };
+    });
+
+    return [...pedidosEntries, ...publicidadEntries].sort((a, b) => b.date.localeCompare(a.date));
+  }, [periodPartnerSettlements, periodPartnerAds, orders]);
+
+  /** Métricas para las 3 tarjetas del tab Ingresos de socios. */
+  const partnerIncomeMetrics = useMemo(() => {
+    const pedidosEntries = partnerIncomesAll.filter((e) => e.type === 'pedido');
+    const publicidadEntries = partnerIncomesAll.filter((e) => e.type === 'publicidad');
+
+    const sum = (items: PartnerIncomeEntry[], pick: (item: PartnerIncomeEntry) => number) =>
+      items.reduce((total, item) => total + (pick(item) || 0), 0);
+
+    const pedidosNet = sum(pedidosEntries, (e) => e.netProfit);
+    const pedidosShare = sum(pedidosEntries, (e) => e.partnerShare);
+    const publicidadNet = sum(publicidadEntries, (e) => e.netProfit);
+    const publicidadShare = sum(publicidadEntries, (e) => e.partnerShare);
+
+    const totalNet = pedidosNet + publicidadNet;
+    const totalShare = pedidosShare + publicidadShare;
+
+    return {
+      totalNet,
+      totalShare,
+      totalCount: partnerIncomesAll.length,
+      pedidosNet,
+      pedidosShare,
+      pedidosCount: pedidosEntries.length,
+      publicidadNet,
+      publicidadShare,
+      publicidadCount: publicidadEntries.length,
+    };
+  }, [partnerIncomesAll]);
+
+  /** Entradas filtradas por el filtro rápido de 3 botones (Todos, Pedidos, Publicidad). */
+  const filteredPartnerIncomes = useMemo(() => {
+    let list = partnerIncomesAll;
+    if (partnerIncomeFilter === 'pedidos') {
+      list = list.filter((e) => e.type === 'pedido');
+    } else if (partnerIncomeFilter === 'publicidad') {
+      list = list.filter((e) => e.type === 'publicidad');
+    }
+    return list;
+  }, [partnerIncomesAll, partnerIncomeFilter]);
 
   // Los filtros de año y mes escriben sobre el mismo rango que ya usa la vista, para
   // que tabla y metricas queden siempre sincronizadas con el periodo elegido. El año
@@ -682,11 +907,14 @@ export default function AdminFinancePage() {
   const selectedIncomeMonth = filters.retiros.start.slice(0, 7);
   const selectedIncomeYear = selectedIncomeMonth.slice(0, 4);
   const incomeMonthsWithSales = useMemo(() => {
-    const months = new Set(settlements.map((settlement) => settlement.date.slice(0, 7)).filter(Boolean));
+    const months = new Set([
+      ...settlements.map((settlement) => settlement.date.slice(0, 7)),
+      ...(advertising?.compras ?? []).map((ad) => (ad.fecha ?? '').slice(0, 7)),
+    ].filter(Boolean));
     if (selectedIncomeMonth) months.add(selectedIncomeMonth);
     // "YYYY-MM" con cero a la izquierda ordena cronologicamente incluso al cambiar de año.
     return [...months].sort((first, second) => second.localeCompare(first));
-  }, [selectedIncomeMonth, settlements]);
+  }, [advertising?.compras, selectedIncomeMonth, settlements]);
   const incomeYearOptions = useMemo(
     () => [...new Set(incomeMonthsWithSales.map((month) => month.slice(0, 4)))]
       .sort((first, second) => second.localeCompare(first)),
@@ -695,6 +923,27 @@ export default function AdminFinancePage() {
   const incomeMonthOptions = useMemo(
     () => incomeMonthsWithSales.filter((month) => month.startsWith(selectedIncomeYear)),
     [incomeMonthsWithSales, selectedIncomeYear],
+  );
+
+  // Filtros de mes y año para la pestaña Caja (sincronizados con filters.gastos)
+  const selectedCajaMonth = filters.gastos.start.slice(0, 7);
+  const selectedCajaYear = selectedCajaMonth.slice(0, 4);
+  const cajaMonthsWithSales = useMemo(() => {
+    const months = new Set([
+      ...settlements.map((settlement) => settlement.date.slice(0, 7)),
+      ...(advertising?.compras ?? []).map((ad) => (ad.fecha ?? '').slice(0, 7)),
+    ].filter(Boolean));
+    if (selectedCajaMonth) months.add(selectedCajaMonth);
+    return [...months].sort((first, second) => second.localeCompare(first));
+  }, [advertising?.compras, selectedCajaMonth, settlements]);
+  const cajaYearOptions = useMemo(
+    () => [...new Set(cajaMonthsWithSales.map((month) => month.slice(0, 4)))]
+      .sort((first, second) => second.localeCompare(first)),
+    [cajaMonthsWithSales],
+  );
+  const cajaMonthOptions = useMemo(
+    () => cajaMonthsWithSales.filter((month) => month.startsWith(selectedCajaYear)),
+    [cajaMonthsWithSales, selectedCajaYear],
   );
 
   function pushActivity(iconName: string, title: string, description: string): void {
@@ -731,15 +980,16 @@ export default function AdminFinancePage() {
 
   function updatePage(view: PageView, direction: 'prev' | 'next'): void {
     setPagination((current) => {
-      const totalByView = {
+      const totalByView: Record<PageView, number> = {
         pedidos: filteredOrders.length,
         liquidaciones: filteredSettlements.length,
         gastos: filteredExpenses.length,
         retiros: filteredWithdrawals.length,
-        ingresos: partnerIncomes.length,
+        ingresos: filteredPartnerIncomes.length,
+        caja: filteredCajaEntries.length,
       };
       const state = current[view];
-      const totalPages = Math.max(1, Math.ceil(totalByView[view] / state.pageSize));
+      const totalPages = Math.max(1, Math.ceil((totalByView[view] ?? 0) / state.pageSize));
       const page = direction === 'prev' ? Math.max(1, state.page - 1) : Math.min(totalPages, state.page + 1);
       return { ...current, [view]: { ...state, page } };
     });
@@ -759,6 +1009,16 @@ export default function AdminFinancePage() {
     // es su mes con ventas mas reciente. Si ese año no tiene ventas, cae a enero.
     const latestMonth = incomeMonthsWithSales.find((month) => month.startsWith(year));
     selectIncomeMonth(latestMonth ?? `${year}-01`);
+  }
+
+  function selectCajaMonth(month: string): void {
+    updateFilter('gastos', getMonthRange(month));
+    setPagination((current) => ({ ...current, caja: { ...current.caja, page: 1 } }));
+  }
+
+  function selectCajaYear(year: string): void {
+    const latestMonth = cajaMonthsWithSales.find((month) => month.startsWith(year));
+    selectCajaMonth(latestMonth ?? `${year}-01`);
   }
 
 
@@ -1100,11 +1360,7 @@ export default function AdminFinancePage() {
   }
 
   function showWithdrawalDetail(withdrawal: Withdrawal): void {
-    const partnerPool = getCashAllocation(
-      settlements
-        .filter((settlement) => isWithinRange(settlement.date, filters.retiros.start, filters.retiros.end))
-        .reduce((sum, settlement) => sum + settlement.commission, 0),
-    ).withdrawalAvailable;
+    const partnerPool = partnerIncomeMetrics.totalShare;
     const balances = getPartnerBalances(withdrawals, partnerPool, filters.retiros.start, filters.retiros.end);
     window.alert([
       `Detalle retiro ${formatDate(withdrawal.date)}`,
@@ -1451,12 +1707,33 @@ export default function AdminFinancePage() {
   const orderPage = getPage(filteredOrders, pagination.pedidos);
   const settlementPage = getPage(filteredSettlements, pagination.liquidaciones);
   const expensePage = getPage(filteredExpenses, pagination.gastos);
+  const cajaPage = getPage(filteredCajaEntries, pagination.caja);
   const withdrawalPage = getPage(filteredWithdrawals, pagination.retiros);
-  const partnerIncomePage = getPage(partnerIncomes, pagination.ingresos);
-  // La ganancia neta del backend ya viene con la comision de pasarela absorbida por
-  // RepuesTop descontada y sin el IVA de la comision (que se entera al SII).
-  const partnerIncomeNet = partnerIncomes.reduce((sum, settlement) => sum + settlement.netSettlement, 0);
-  const partnerIncomeShare = getCashAllocation(partnerIncomeNet).withdrawalAvailable;
+  const partnerIncomePage = getPage(filteredPartnerIncomes, pagination.ingresos);
+
+  function exportCajaCsv(): void {
+    const rows = [
+      ['Tipo', 'Código', 'Fecha', 'Concepto', 'Comprador', 'Vendedor / Pack', 'Venta Total', 'Comisión / Retención', 'Ganancia Neta RepuesTop', 'Aporte Caja 70% (Sueldos y Operación)'],
+      ...filteredCajaEntries.map((entry) => [
+        entry.type === 'pedido' ? 'Pedido Repuesto' : 'Publicidad Fichas',
+        entry.id,
+        formatDateTimeLocal(entry.date),
+        entry.concept,
+        entry.buyer,
+        entry.sellerOrPack,
+        entry.totalSale,
+        entry.commissionOrDeduction,
+        entry.netProfit,
+        entry.cashAmount,
+      ]),
+    ];
+    const csv = rows.map((row) => row.map(csvCell).join(',')).join('\r\n');
+    downloadFile(`caja-repuestop-${filters.gastos.start}-${filters.gastos.end}.csv`, `\uFEFF${csv}`, 'text/csv;charset=utf-8');
+  }
+  // La ganancia neta del backend ya viene con la comisión de pasarela absorbida por
+  // RepuesTop descontada y sin el IVA de la comisión (que se entera al SII).
+  // Para los socios corresponde el 30% del total convergente (pedidos y publicidad).
+  const partnerIncomeShare = partnerIncomeMetrics.totalShare;
   const summarySettlements = getSettlements(summaryOrders, settlementStatuses);
   const summaryExpenses = expenses
     .filter((expense) => isWithinRange(expense.date, filters.resumen.start, filters.resumen.end))
@@ -1519,17 +1796,21 @@ export default function AdminFinancePage() {
   const activeLiquidationPeriod = liquidationTab === 'EN_LIQUIDACION' && filteredSettlements[0] ? getLiquidationPeriod(filteredSettlements[0].date) : '';
   const { cashFund } = getCashAllocation(totalCommission);
   const expenseTotal = getExpenseTotal(selectedExpenseRows);
-  const cashBalance = cashFund - expenseTotal;
+  const totalCajaIncome = cajaMetrics.totalCaja;
+  const cashBalance = totalCajaIncome - expenseTotal;
   // BO-SOCIOS-001: el pool de socios se calcula sobre los ingresos del periodo de ESTA
   // vista (filters.retiros). Antes salia de filteredSettlements, que depende del filtro y
   // del sub-tab de Liquidaciones, por lo que las tarjetas mostraban $0 salvo que el tab
   // de Liquidaciones estuviera justo en el estado que coincidia con los datos.
   const withdrawalPartnerBalances = getPartnerBalances(withdrawals, partnerIncomeShare, filters.retiros.start, filters.retiros.end);
-  // Saldo historico (sin filtro de fecha) para el motivo "Retiro de saldo acumulado".
+  // Saldo historico (sin filtro de fecha) para el motivo "Retiro de saldo acumulado",
+  // considerando todas las ventas de repuestos y compras de fichas de publicidad.
   const allTimePartnerBalances = useMemo(() => {
-    const netTotal = settlements.reduce((sum, settlement) => sum + settlement.netSettlement, 0);
-    return getPartnerBalances(withdrawals, getCashAllocation(netTotal).withdrawalAvailable, '', '');
-  }, [settlements, withdrawals]);
+    const ordersNet = settlements.reduce((sum, settlement) => sum + settlement.netSettlement, 0);
+    const adsNet = (advertising?.compras ?? []).reduce((sum, ad) => sum + ad.montoNeto, 0);
+    const totalNet = ordersNet + adsNet;
+    return getPartnerBalances(withdrawals, Math.round(totalNet * 0.3), '', '');
+  }, [advertising?.compras, settlements, withdrawals]);
   return (
     <>
       <input ref={orderImportRef} type="file" hidden accept=".csv,.xlsx,.xls,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onChange={handleOrderImport} />
@@ -1583,7 +1864,7 @@ export default function AdminFinancePage() {
             </div>
             <div className="summary-hero-actions">
               <button className="secondary-button" type="button" onClick={() => navigate('/administracion/liquidaciones')}><UiIcon name="clipboard" />Liquidaciones</button>
-              <button className="secondary-button" type="button" onClick={() => navigate('/administracion/gastos')}><UiIcon name="wallet" />Gastos</button>
+              <button className="secondary-button" type="button" onClick={() => navigate('/administracion/gastos')}><UiIcon name="wallet" />Caja y gastos</button>
             </div>
           </section>
 
@@ -2086,20 +2367,290 @@ export default function AdminFinancePage() {
       )}
 
       {activeView === 'gastos' && (
+        <div className="module-tabs" role="tablist" aria-label="Caja y gastos">
+          {([
+            ['caja', 'Caja'],
+            ['gastos', 'Gastos'],
+          ] as const).map(([tab, label]) => (
+            <button
+              key={tab}
+              type="button"
+              role="tab"
+              aria-selected={cajaExpenseTab === tab}
+              className={cajaExpenseTab === tab ? 'active' : undefined}
+              onClick={() => setCajaExpenseTab(tab)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {activeView === 'gastos' && cajaExpenseTab === 'caja' && (
+        <>
+          <div className="metric-grid compact">
+            <MetricCard
+              label="Todas las ganancias"
+              value={formatMoney(cajaMetrics.totalCaja)}
+              tone="green"
+              description={`70% de ${formatMoney(cajaMetrics.totalProfit)} neta total · ${cajaMetrics.totalCount} operaciones`}
+              iconName="bank"
+            />
+            <MetricCard
+              label="Pedidos"
+              value={formatMoney(cajaMetrics.pedidosCaja)}
+              tone="blue"
+              description={`70% de ${formatMoney(cajaMetrics.pedidosProfit)} neta · ${cajaMetrics.pedidosCount} pedidos`}
+              iconName="wallet"
+            />
+            <MetricCard
+              label="Publicidad"
+              value={formatMoney(cajaMetrics.publicidadCaja)}
+              tone="amber"
+              description={`70% de ${formatMoney(cajaMetrics.publicidadProfit)} neta · ${cajaMetrics.publicidadCount} compras`}
+              iconName="upload"
+            />
+          </div>
+
+          <div className="notice">
+            <UiIcon name="note" />
+            Esta caja concentra el 70% de todas las ganancias generadas (tanto por pedidos de repuestos como por compra de fichas para publicidad). Estos fondos están destinados al pago de sueldos y remuneraciones del personal y gastos operacionales de la empresa.
+          </div>
+
+          <section className="table-shell">
+            <div className="table-toolbar" style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'nowrap' }}>
+              <input
+                className="input"
+                type="search"
+                placeholder="Buscar por código, comprador, producto, pack o vendedor..."
+                style={{ flex: 1, minWidth: '180px' }}
+                value={cajaQuery}
+                onChange={(event) => {
+                  setCajaQuery(event.target.value);
+                  setPagination((current) => ({ ...current, caja: { ...current.caja, page: 1 } }));
+                }}
+              />
+              <div className="caja-filter-buttons" style={{ display: 'inline-flex', gap: '6px', alignItems: 'center', flexShrink: 0 }}>
+                <button
+                  type="button"
+                  className={cajaSourceFilter === 'todos' ? 'primary-button' : 'secondary-button'}
+                  onClick={() => {
+                    setCajaSourceFilter('todos');
+                    setPagination((current) => ({ ...current, caja: { ...current.caja, page: 1 } }));
+                  }}
+                >
+                  Todos ({cajaMetrics.totalCount})
+                </button>
+                <button
+                  type="button"
+                  className={cajaSourceFilter === 'pedidos' ? 'primary-button' : 'secondary-button'}
+                  onClick={() => {
+                    setCajaSourceFilter('pedidos');
+                    setPagination((current) => ({ ...current, caja: { ...current.caja, page: 1 } }));
+                  }}
+                >
+                  Pedidos ({cajaMetrics.pedidosCount})
+                </button>
+                <button
+                  type="button"
+                  className={cajaSourceFilter === 'publicidad' ? 'primary-button' : 'secondary-button'}
+                  onClick={() => {
+                    setCajaSourceFilter('publicidad');
+                    setPagination((current) => ({ ...current, caja: { ...current.caja, page: 1 } }));
+                  }}
+                >
+                  Publicidad ({cajaMetrics.publicidadCount})
+                </button>
+              </div>
+              <select
+                className="input"
+                style={{ width: 'auto', flexShrink: 0 }}
+                value={selectedCajaMonth}
+                onChange={(event) => selectCajaMonth(event.target.value)}
+                aria-label="Filtrar caja por mes"
+              >
+                {cajaMonthOptions.map((month) => <option key={month} value={month}>{formatMonthName(month)}</option>)}
+              </select>
+              <select
+                className="input"
+                style={{ width: 'auto', flexShrink: 0 }}
+                value={selectedCajaYear}
+                onChange={(event) => selectCajaYear(event.target.value)}
+                aria-label="Filtrar caja por año"
+              >
+                {cajaYearOptions.map((year) => <option key={year} value={year}>{year}</option>)}
+              </select>
+              <button
+                className="icon-button"
+                style={{ flexShrink: 0 }}
+                type="button"
+                onClick={exportCajaCsv}
+                title="Exportar CSV de caja"
+                aria-label="Exportar CSV de caja"
+              >
+                <UiIcon name="download" />
+              </button>
+            </div>
+            <table className="wide-table">
+              <thead>
+                <tr>
+                  <th>Origen</th>
+                  <th>Código</th>
+                  <th>Fecha</th>
+                  <th>Concepto / Detalle</th>
+                  <th>Comprador</th>
+                  <th>Venta Total</th>
+                  <th>Comisión / Retención</th>
+                  <th>Ganancia Neta</th>
+                  <th>En Caja (70%)</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {cajaPage.rows.length ? cajaPage.rows.map((entry) => (
+                  <tr key={`${entry.type}-${entry.id}`}>
+                    <td>
+                      <span className={`status-pill ${entry.type === 'pedido' ? 'finalizado' : 'preparando'}`} style={{ fontWeight: 600 }}>
+                        {entry.type === 'pedido' ? 'Pedido' : 'Publicidad'}
+                      </span>
+                    </td>
+                    <td><strong>{entry.id}</strong></td>
+                    <td>
+                      <div>{formatDate(entry.date)}</div>
+                      {entry.date.includes('T') && <small style={{ color: 'var(--muted, #64748b)', fontSize: '11px' }}>{entry.date.split('T')[1]?.slice(0, 5)}</small>}
+                    </td>
+                    <td>
+                      {entry.type === 'pedido' ? (
+                        <div>
+                          <strong>{entry.concept}</strong>
+                          <div>
+                            <small style={{ color: 'var(--muted, #64748b)' }}>Vendedor: </small>
+                            <FounderSellerName name={entry.sellerOrPack} founder={entry.sellerFounder} />
+                          </div>
+                        </div>
+                      ) : (
+                        <div>
+                          <strong>{entry.concept}</strong>
+                          <div><small style={{ color: 'var(--muted, #64748b)' }}>Pack: {entry.sellerOrPack}</small></div>
+                        </div>
+                      )}
+                    </td>
+                    <td>{entry.buyer}</td>
+                    <td>{formatMoney(entry.totalSale)}</td>
+                    <td>
+                      <span style={{ fontSize: '12px' }}>{entry.commissionOrDeduction}</span>
+                    </td>
+                    <td>
+                      <strong>{formatMoney(entry.netProfit)}</strong>
+                    </td>
+                    <td>
+                      <strong style={{ color: '#059669', fontSize: '14px' }}>{formatMoney(entry.cashAmount)}</strong>
+                    </td>
+                    <td>
+                      <div className="action-cell">
+                        {entry.type === 'pedido' && entry.originalSettlement && (
+                          <button
+                            className="action-button neutral"
+                            type="button"
+                            onClick={() => showSettlementDetail(entry.originalSettlement!)}
+                            title="Ver detalle del pedido"
+                          >
+                            <UiIcon name="eye" />
+                          </button>
+                        )}
+                        {entry.type === 'publicidad' && entry.originalAdvertising && (
+                          <button
+                            className="action-button neutral"
+                            type="button"
+                            onClick={() => setSelectedAdvertisingOrder(entry.originalAdvertising!)}
+                            title="Ver detalle de publicidad"
+                          >
+                            <UiIcon name="eye" />
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                )) : (
+                  <tr>
+                    <td colSpan={10}>
+                      <div className="empty-state">No hay registros de caja para el filtro y periodo seleccionados.</div>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+            <div className="table-footer compact-footer">
+              <span>{filteredCajaEntries.length} registros mostrados</span>
+              <TablePager view="caja" state={pagination.caja} totalPages={cajaPage.totalPages} onPage={updatePage} onPageSize={updatePageSize} />
+            </div>
+          </section>
+        </>
+      )}
+
+      {activeView === 'gastos' && cajaExpenseTab === 'gastos' && (
         <>
           <div className="metric-grid compact">
             <MetricCard label="Total gastos generados" value={formatMoney(expenseTotal)} tone="amber" description={`${selectedExpenseRows.length} registros sumados`} iconName="receipt" />
-            <MetricCard label="Caja RepuesTop" value={formatMoney(cashFund)} tone="amber" description="70% de ganancia neta" iconName="bank" />
+            <MetricCard label="Caja RepuesTop" value={formatMoney(totalCajaIncome)} tone="green" description={`70% de ${formatMoney(cajaMetrics.totalProfit)} neta total`} iconName="bank" />
             <MetricCard label="Saldo en caja" value={formatMoney(cashBalance)} tone={cashBalance < 0 ? 'red' : 'green'} description={cashBalance < 0 ? `Déficit: faltan ${formatMoney(Math.abs(cashBalance))}` : 'Caja saludable'} iconName="wallet" />
             <MetricCard label="Comprobantes" value={filteredExpenses.filter((expense) => Boolean(expense.receipt)).length} tone="violet" description="Adjuntos registrados" iconName="document" />
           </div>
 
           <section className="table-shell">
-            <div className="table-toolbar">
-              <input className="input" type="search" placeholder="Buscar por categoría, descripción o comprobante..." value={filters.gastos.query} onChange={(event) => updateFilter('gastos', { query: event.target.value })} />
-              <button className="secondary-button" type="button" onClick={() => setReportOpen(true)}><UiIcon name="document" />Generar informe</button>
-              <button className="secondary-button" type="button" onClick={exportExpensesCsv}><UiIcon name="download" />Exportar CSV</button>
-              <button className="primary-button" type="button" onClick={() => openExpense()}><UiIcon name="plus" />Registrar gasto</button>
+            <div className="table-toolbar" style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'nowrap' }}>
+              <input
+                className="input"
+                type="search"
+                placeholder="Buscar por categoría, descripción o comprobante..."
+                style={{ flex: 1, minWidth: '180px' }}
+                value={filters.gastos.query}
+                onChange={(event) => updateFilter('gastos', { query: event.target.value })}
+              />
+              <select
+                className="input"
+                style={{ width: 'auto', flexShrink: 0 }}
+                value={selectedCajaMonth}
+                onChange={(event) => selectCajaMonth(event.target.value)}
+                aria-label="Filtrar gastos por mes"
+              >
+                {cajaMonthOptions.map((month) => <option key={month} value={month}>{formatMonthName(month)}</option>)}
+              </select>
+              <select
+                className="input"
+                style={{ width: 'auto', flexShrink: 0 }}
+                value={selectedCajaYear}
+                onChange={(event) => selectCajaYear(event.target.value)}
+                aria-label="Filtrar gastos por año"
+              >
+                {cajaYearOptions.map((year) => <option key={year} value={year}>{year}</option>)}
+              </select>
+              <button
+                className="secondary-button"
+                style={{ flexShrink: 0 }}
+                type="button"
+                onClick={() => setReportOpen(true)}
+              >
+                <UiIcon name="document" />Generar informe
+              </button>
+              <button
+                className="icon-button"
+                style={{ flexShrink: 0 }}
+                type="button"
+                onClick={exportExpensesCsv}
+                title="Exportar CSV de gastos"
+                aria-label="Exportar CSV de gastos"
+              >
+                <UiIcon name="download" />
+              </button>
+              <button
+                className="primary-button"
+                style={{ flexShrink: 0 }}
+                type="button"
+                onClick={() => openExpense()}
+              >
+                <UiIcon name="plus" />Registrar gasto
+              </button>
             </div>
             <table>
               <thead>
@@ -2159,52 +2710,172 @@ export default function AdminFinancePage() {
       {activeView === 'retiros' && partnerTab === 'ingresos' && (
         <>
           <div className="metric-grid compact">
-            <MetricCard label="Cantidad de pedidos" value={partnerIncomes.length} tone="blue" description="Pedidos finalizados en el periodo" iconName="clipboard" />
-            <MetricCard label="Total recibido" value={formatMoney(partnerIncomeShare)} tone="violet" description="30% de la ganancia neta del periodo" iconName="wallet" />
+            <MetricCard
+              label="Todas las ganancias (30%)"
+              value={formatMoney(partnerIncomeMetrics.totalShare)}
+              tone="violet"
+              description={`30% de ${formatMoney(partnerIncomeMetrics.totalNet)} neta total · ${partnerIncomeMetrics.totalCount} operaciones`}
+              iconName="wallet"
+            />
+            <MetricCard
+              label="Pedidos"
+              value={formatMoney(partnerIncomeMetrics.pedidosShare)}
+              tone="blue"
+              description={`30% de ${formatMoney(partnerIncomeMetrics.pedidosNet)} neta · ${partnerIncomeMetrics.pedidosCount} pedidos`}
+              iconName="clipboard"
+            />
+            <MetricCard
+              label="Publicidad"
+              value={formatMoney(partnerIncomeMetrics.publicidadShare)}
+              tone="amber"
+              description={`30% de ${formatMoney(partnerIncomeMetrics.publicidadNet)} neta · ${partnerIncomeMetrics.publicidadCount} compras`}
+              iconName="upload"
+            />
           </div>
 
-          <div className="notice"><UiIcon name="note" />Solo se consideran pedidos finalizados. La comisión de la pasarela de pago se muestra completa por venta; en envíos normales la asume el vendedor (se le descuenta de su liquidación), y RepuesTop solo absorbe la parte del despacho en envíos dentro de la comuna. El IVA de la comisión de servicio se entera al SII. La ganancia neta ya considera ambos, y de ella los socios reciben el 30%; el 70% restante queda en la caja de la empresa.</div>
+          <div className="notice">
+            <UiIcon name="note" />
+            Este apartado concentra el 30% de las ganancias netas generadas (tanto por pedidos de repuestos finalizados como por compras de fichas para publicidad) para libre disposición y retiro de los socios. El 70% restante se mantiene en la caja de la empresa para sueldos y costos operacionales.
+          </div>
 
           <section className="table-shell">
-            <div className="table-toolbar">
-              <h2>Ingresos por venta</h2>
-              <select
-                className="input"
-                value={selectedIncomeMonth}
-                onChange={(event) => selectIncomeMonth(event.target.value)}
-                aria-label="Filtrar ingresos por mes"
-              >
-                {incomeMonthOptions.map((month) => <option key={month} value={month}>{formatMonthName(month)}</option>)}
-              </select>
-              <select
-                className="input"
-                value={selectedIncomeYear}
-                onChange={(event) => selectIncomeYear(event.target.value)}
-                aria-label="Filtrar ingresos por año"
-              >
-                {incomeYearOptions.map((year) => <option key={year} value={year}>{year}</option>)}
-              </select>
+            <div className="table-toolbar" style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'nowrap' }}>
+              <h2 style={{ margin: 0, whiteSpace: 'nowrap', flexShrink: 0 }}>Ingresos de socios</h2>
+              <div className="caja-filter-buttons" style={{ display: 'inline-flex', gap: '6px', alignItems: 'center', flexShrink: 0 }}>
+                <button
+                  type="button"
+                  className={partnerIncomeFilter === 'todos' ? 'primary-button' : 'secondary-button'}
+                  onClick={() => {
+                    setPartnerIncomeFilter('todos');
+                    setPagination((current) => ({ ...current, ingresos: { ...current.ingresos, page: 1 } }));
+                  }}
+                >
+                  Todos ({partnerIncomeMetrics.totalCount})
+                </button>
+                <button
+                  type="button"
+                  className={partnerIncomeFilter === 'pedidos' ? 'primary-button' : 'secondary-button'}
+                  onClick={() => {
+                    setPartnerIncomeFilter('pedidos');
+                    setPagination((current) => ({ ...current, ingresos: { ...current.ingresos, page: 1 } }));
+                  }}
+                >
+                  Pedidos ({partnerIncomeMetrics.pedidosCount})
+                </button>
+                <button
+                  type="button"
+                  className={partnerIncomeFilter === 'publicidad' ? 'primary-button' : 'secondary-button'}
+                  onClick={() => {
+                    setPartnerIncomeFilter('publicidad');
+                    setPagination((current) => ({ ...current, ingresos: { ...current.ingresos, page: 1 } }));
+                  }}
+                >
+                  Publicidad ({partnerIncomeMetrics.publicidadCount})
+                </button>
+              </div>
+              <div style={{ marginLeft: 'auto', display: 'inline-flex', gap: '10px', alignItems: 'center', flexShrink: 0 }}>
+                <select
+                  className="input"
+                  style={{ width: 'auto' }}
+                  value={selectedIncomeMonth}
+                  onChange={(event) => selectIncomeMonth(event.target.value)}
+                  aria-label="Filtrar ingresos por mes"
+                >
+                  {incomeMonthOptions.map((month) => <option key={month} value={month}>{formatMonthName(month)}</option>)}
+                </select>
+                <select
+                  className="input"
+                  style={{ width: 'auto' }}
+                  value={selectedIncomeYear}
+                  onChange={(event) => selectIncomeYear(event.target.value)}
+                  aria-label="Filtrar ingresos por año"
+                >
+                  {incomeYearOptions.map((year) => <option key={year} value={year}>{year}</option>)}
+                </select>
+              </div>
             </div>
             <table className="wide-table">
               <thead>
-                <tr><th>Pedido</th><th>Comisión</th><th>Comisión pasarela de pago</th><th>IVA</th><th>Ganancia neta</th><th>Total recibido socios (30%)</th><th>Fecha</th></tr>
+                <tr>
+                  <th>Origen</th>
+                  <th>Código</th>
+                  <th>Concepto / Detalle</th>
+                  <th>Comisión / Descuento</th>
+                  <th>Comisión Pasarela</th>
+                  <th>IVA</th>
+                  <th>Ganancia Neta</th>
+                  <th>Total Socios (30%)</th>
+                  <th>Fecha</th>
+                  <th>Acciones</th>
+                </tr>
               </thead>
               <tbody>
-                {partnerIncomePage.rows.length ? partnerIncomePage.rows.map((settlement) => (
-                  <tr key={settlement.id}>
-                    <td>{settlement.orderId}</td>
-                    <td>{formatMoney(settlement.serviceCommission)}</td>
-                    <td>{formatMoney(settlement.gatewayFeeSeller + settlement.gatewayFeeRepuestop)}</td>
-                    <td>{formatMoney(settlement.serviceCommissionIva)}</td>
-                    <td>{formatMoney(settlement.netSettlement)}</td>
-                    <td>{formatMoney(getCashAllocation(settlement.netSettlement).withdrawalAvailable)}</td>
-                    <td>{formatDate(settlement.date)}</td>
+                {partnerIncomePage.rows.length ? partnerIncomePage.rows.map((entry) => (
+                  <tr key={`${entry.type}-${entry.id}`}>
+                    <td>
+                      <span className={`status-pill ${entry.type === 'pedido' ? 'finalizado' : 'preparando'}`} style={{ fontWeight: 600 }}>
+                        {entry.type === 'pedido' ? 'Pedido' : 'Publicidad'}
+                      </span>
+                    </td>
+                    <td><strong>{entry.id}</strong></td>
+                    <td>
+                      {entry.type === 'pedido' ? (
+                        <div>
+                          <strong>{entry.concept}</strong>
+                          <div>
+                            <small style={{ color: 'var(--muted, #64748b)' }}>Vendedor: </small>
+                            <FounderSellerName name={entry.sellerOrPack} founder={entry.sellerFounder} />
+                          </div>
+                        </div>
+                      ) : (
+                        <div>
+                          <strong>{entry.concept}</strong>
+                          <div><small style={{ color: 'var(--muted, #64748b)' }}>Pack: {entry.sellerOrPack}</small></div>
+                        </div>
+                      )}
+                    </td>
+                    <td><span style={{ fontSize: '12px' }}>{entry.commissionLabel}</span></td>
+                    <td>{formatMoney(entry.gatewayFee)}</td>
+                    <td>{formatMoney(entry.iva)}</td>
+                    <td><strong>{formatMoney(entry.netProfit)}</strong></td>
+                    <td><strong style={{ color: '#7c3aed', fontSize: '14px' }}>{formatMoney(entry.partnerShare)}</strong></td>
+                    <td>{formatDate(entry.date)}</td>
+                    <td>
+                      <div className="action-cell">
+                        {entry.type === 'pedido' && entry.originalSettlement && (
+                          <button
+                            className="action-button neutral"
+                            type="button"
+                            onClick={() => showSettlementDetail(entry.originalSettlement!)}
+                            title="Ver detalle del pedido"
+                          >
+                            <UiIcon name="eye" />
+                          </button>
+                        )}
+                        {entry.type === 'publicidad' && entry.originalAdvertising && (
+                          <button
+                            className="action-button neutral"
+                            type="button"
+                            onClick={() => setSelectedAdvertisingOrder(entry.originalAdvertising!)}
+                            title="Ver detalle de publicidad"
+                          >
+                            <UiIcon name="eye" />
+                          </button>
+                        )}
+                      </div>
+                    </td>
                   </tr>
-                )) : <tr><td colSpan={7}><div className="empty-state">No hay pedidos finalizados para este periodo.</div></td></tr>}
+                )) : (
+                  <tr>
+                    <td colSpan={10}>
+                      <div className="empty-state">No hay ingresos registrados para el filtro y periodo seleccionados.</div>
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
             <div className="table-footer compact-footer">
-              <span>{partnerIncomePage.rows.length} registros mostrados</span>
+              <span>{filteredPartnerIncomes.length} registros mostrados</span>
               <TablePager view="ingresos" state={pagination.ingresos} totalPages={partnerIncomePage.totalPages} onPage={updatePage} onPageSize={updatePageSize} />
             </div>
           </section>

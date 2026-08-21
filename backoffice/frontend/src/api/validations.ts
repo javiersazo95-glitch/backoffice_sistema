@@ -34,3 +34,51 @@ export async function rejectValidation(id: number, notes?: string): Promise<Vali
   const response = await apiClient.patch<ValidationResponse>(`/validations/${id}/reject`, { notes });
   return response.data;
 }
+
+// ==========================================
+// Panel de Moderación del Mural de Anuncios
+// ==========================================
+
+export async function getAdValidations(): Promise<import('@/types/adValidation').AdValidationItem[]> {
+  try {
+    const response = await apiClient.get<import('@/types/adValidation').AdValidationItem[]>('/validations/anuncios');
+    return response.data;
+  } catch (error) {
+    // Fallback si la ruta admin directa no está disponible
+    const response = await apiClient.get<import('@/types/adValidation').AdValidationItem[]>('/anuncios');
+    return response.data;
+  }
+}
+
+export async function approveAdValidation(id: string | number): Promise<import('@/types/adValidation').AdValidationItem> {
+  const numericId = String(id).replace(/\D/g, '') || id;
+  try {
+    const response = await apiClient.patch<import('@/types/adValidation').AdValidationItem>(`/validations/anuncios/${numericId}/approve`);
+    return response.data;
+  } catch (error) {
+    try {
+      const response = await apiClient.post<import('@/types/adValidation').AdValidationItem>(`/validations/anuncios/${numericId}/approve`);
+      return response.data;
+    } catch {
+      const response = await apiClient.patch<import('@/types/adValidation').AdValidationItem>(`/anuncios/${numericId}/approve`);
+      return response.data;
+    }
+  }
+}
+
+export async function rejectAdValidation(id: string | number, reason: string): Promise<import('@/types/adValidation').AdValidationItem> {
+  const numericId = String(id).replace(/\D/g, '') || id;
+  const payload = { notes: reason, reason };
+  try {
+    const response = await apiClient.patch<import('@/types/adValidation').AdValidationItem>(`/validations/anuncios/${numericId}/reject`, payload);
+    return response.data;
+  } catch (error) {
+    try {
+      const response = await apiClient.post<import('@/types/adValidation').AdValidationItem>(`/validations/anuncios/${numericId}/reject`, payload);
+      return response.data;
+    } catch {
+      const response = await apiClient.patch<import('@/types/adValidation').AdValidationItem>(`/anuncios/${numericId}/reject`, payload);
+      return response.data;
+    }
+  }
+}

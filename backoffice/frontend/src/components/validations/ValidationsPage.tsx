@@ -9,6 +9,7 @@ import { PAGE_SIZES, STATUS_LABELS } from '@/utils/constants';
 import { SellerStatus, type SellerResponse } from '@/types/seller';
 import { ValidationStatus, type ValidationResponse } from '@/types/validation';
 import { buildDocumentDownloadName, downloadDocument, previewDocument, resolveDocumentUrl } from '@/utils/documentUrls';
+import AdValidationTab from './AdValidationTab';
 
 
 type RequiredDocumentStatus = ValidationStatus | 'POR_CORREGIR';
@@ -291,6 +292,7 @@ function parseObservationHistory(notes: string | undefined): ObservationHistoryI
 }
 
 export default function ValidationsPage() {
+  const [activeTab, setActiveTab] = useState<'registros' | 'anuncios'>('registros');
   const [selectedSellerId, setSelectedSellerId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ACTIVOS');
@@ -458,199 +460,226 @@ export default function ValidationsPage() {
     <section className="validation-workspace">
       <div className="validation-page-head">
         <div>
-          <h1>Solicitudes de validación</h1>
-          <p>Revisa y valida solicitudes de registro de vendedores.</p>
+          <h1>{activeTab === 'registros' ? 'Validación de registros' : 'Tablero de anuncios'}</h1>
+          <p>
+            {activeTab === 'registros'
+              ? 'Revisa y valida solicitudes de registro de vendedores y documentación KYC.'
+              : 'Modera y valida publicaciones del Mural de Anuncios (talleres, servicios y publicidad).'}
+          </p>
         </div>
         <button className="validation-help-button" type="button" aria-label="Ayuda">
           ?
         </button>
       </div>
 
-      <div className="validation-filters">
-        <label className="validation-search-field">
-          <UiIcon name="search" />
-          <input
-            type="search"
-            value={searchTerm}
-            onChange={(event) => setSearchTerm(event.target.value)}
-            placeholder="Buscar por tienda o responsable..."
-          />
-        </label>
-
-        <label className="validation-filter-field">
-          <span>Estado</span>
-          <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
-            {STATUS_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="validation-filter-field">
-          <span>Fecha</span>
-          <input type="date" value={dateFilter} onChange={(event) => setDateFilter(event.target.value)} />
-        </label>
-
-        <button className="validation-clear-button" type="button" onClick={clearFilters}>
-          <UiIcon name="filter" />
-          Limpiar filtros
+      <div className="module-tabs">
+        <button
+          type="button"
+          className={activeTab === 'registros' ? 'active' : ''}
+          onClick={() => setActiveTab('registros')}
+        >
+          <UiIcon name="fileCheck" />
+          Validación registros
+        </button>
+        <button
+          type="button"
+          className={activeTab === 'anuncios' ? 'active' : ''}
+          onClick={() => setActiveTab('anuncios')}
+        >
+          <UiIcon name="megaphone" />
+          Tablero de anuncios
         </button>
       </div>
 
-      <div className="validation-content-grid">
-        <aside className="validation-request-list" aria-label="Solicitudes de validación">
-          {isLoadingValidations && <div className="validation-empty-state">Cargando validaciones...</div>}
+      {activeTab === 'anuncios' ? (
+        <AdValidationTab />
+      ) : (
+        <>
+          <div className="validation-filters">
+            <label className="validation-search-field">
+              <UiIcon name="search" />
+              <input
+                type="search"
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                placeholder="Buscar por tienda o responsable..."
+              />
+            </label>
 
-          {!isLoadingValidations && filteredGroups.length === 0 && (
-            <div className="validation-empty-state">No hay solicitudes para los filtros seleccionados.</div>
-          )}
+            <label className="validation-filter-field">
+              <span>Estado</span>
+              <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+                {STATUS_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
 
-          {filteredGroups.map((group) => {
-            const seller = sellerById.get(group.sellerId);
-            const completed = getCompletedCount(group.requiredDocuments);
-            const isSelected = selectedGroup?.sellerId === group.sellerId;
+            <label className="validation-filter-field">
+              <span>Fecha</span>
+              <input type="date" value={dateFilter} onChange={(event) => setDateFilter(event.target.value)} />
+            </label>
 
-            return (
-              <button
-                key={group.sellerId}
-                className={`validation-request-card ${isSelected ? 'active' : ''}`}
-                type="button"
-                onClick={() => selectGroup(group.sellerId)}
-              >
-                <span className="validation-request-title-row">
-                  <strong><FounderSellerName name={group.sellerName} founder={group.sellerFounder} /></strong>
-                  <StatusPill status={group.status} />
-                </span>
-                <span className="validation-request-meta">
-                  <UiIcon name="target" />
-                  {seller?.city ?? 'Ciudad no informada'}
-                </span>
-                <span className="validation-request-date">
-                  <UiIcon name="calendar" />
-                  {group.uploadedAt ? new Date(group.uploadedAt).toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Sin fecha'}
-                </span>
-                <span className="validation-request-footer">
-                  <span>
-                    <UiIcon name="users" />
-                    {group.owner}
-                  </span>
-                  <strong>{completed} / {REQUIRED_DOCUMENTS.length}</strong>
-                </span>
-              </button>
-            );
-          })}
-        </aside>
+            <button className="validation-clear-button" type="button" onClick={clearFilters}>
+              <UiIcon name="filter" />
+              Limpiar filtros
+            </button>
+          </div>
 
-        <main className="validation-detail-stack">
-          {!selectedGroup && !isLoadingValidations && (
-            <div className="validation-empty-state large">Selecciona una solicitud para revisar sus documentos.</div>
-          )}
+          <div className="validation-content-grid">
+            <aside className="validation-request-list" aria-label="Solicitudes de validación">
+              {isLoadingValidations && <div className="validation-empty-state">Cargando validaciones...</div>}
 
-          {selectedGroup && (
-            <>
-              <section className="validation-panel">
-                <PanelTitle icon="home" title="Datos de la tienda" />
+              {!isLoadingValidations && filteredGroups.length === 0 && (
+                <div className="validation-empty-state">No hay solicitudes para los filtros seleccionados.</div>
+              )}
 
-                <div className="validation-info-grid">
-                  <div className="validation-info-box">
-                    <InfoRow label="Nombre de la tienda" value={<FounderSellerName name={selectedGroup.sellerName} founder={selectedGroup.sellerFounder} />} />
-                    <InfoRow label="Rut de la empresa" value={sellerMeta.rut} />
-                    <InfoRow label="Ciudad" value={sellerMeta.city} />
-                    <InfoRow label="Dirección" value={sellerMeta.address} />
-                    <InfoRow label="Giro comercial" value={sellerMeta.businessLine} />
-                  </div>
+              {filteredGroups.map((group) => {
+                const seller = sellerById.get(group.sellerId);
+                const completed = getCompletedCount(group.requiredDocuments);
+                const isSelected = selectedGroup?.sellerId === group.sellerId;
 
-                  <div className="validation-info-box">
-                    <PanelTitle icon="users" title="Responsable de la solicitud" compact />
-                    <InfoRow label="Nombre" value={selectedSeller?.owner ?? selectedGroup.owner} />
-                    <InfoRow label="Cargo" value={selectedSeller?.cargo ?? 'No informado'} />
-                    <InfoRow label="Correo electrónico" value={sellerMeta.email} />
-                    <InfoRow label="Teléfono" value={sellerMeta.phone} />
-                  </div>
-                </div>
-              </section>
+                return (
+                  <button
+                    key={group.sellerId}
+                    className={`validation-request-card ${isSelected ? 'active' : ''}`}
+                    type="button"
+                    onClick={() => selectGroup(group.sellerId)}
+                  >
+                    <span className="validation-request-title-row">
+                      <strong><FounderSellerName name={group.sellerName} founder={group.sellerFounder} /></strong>
+                      <StatusPill status={group.status} />
+                    </span>
+                    <span className="validation-request-meta">
+                      <UiIcon name="target" />
+                      {seller?.city ?? 'Ciudad no informada'}
+                    </span>
+                    <span className="validation-request-date">
+                      <UiIcon name="calendar" />
+                      {group.uploadedAt ? new Date(group.uploadedAt).toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Sin fecha'}
+                    </span>
+                    <span className="validation-request-footer">
+                      <span>
+                        <UiIcon name="users" />
+                        {group.owner}
+                      </span>
+                      <strong>{completed} / {REQUIRED_DOCUMENTS.length}</strong>
+                    </span>
+                  </button>
+                );
+              })}
+            </aside>
 
-              <section className="validation-panel">
-                <PanelTitle icon="document" title="Documentos requeridos" />
+            <main className="validation-detail-stack">
+              {!selectedGroup && !isLoadingValidations && (
+                <div className="validation-empty-state large">Selecciona una solicitud para revisar sus documentos.</div>
+              )}
 
-                <div className="validation-documents-summary">
-                  <strong>{uploadedRequiredDocuments.length} de {REQUIRED_DOCUMENTS.length} documentos cargados</strong>
-                  <span>
-                    {hasMissingRequiredDocuments
-                      ? `Faltan ${requiredDocuments.filter((document) => !document.document).length} por cargar.`
-                      : `Los ${REQUIRED_DOCUMENTS.length} documentos requeridos ya fueron cargados.`}
-                  </span>
-                </div>
+              {selectedGroup && (
+                <>
+                  <section className="validation-panel">
+                    <PanelTitle icon="home" title="Datos de la tienda" />
 
-                <div className="validation-documents-grid">
-                  {requiredDocuments.map((requiredDocument) => {
-                    const document = requiredDocument.document;
+                    <div className="validation-info-grid">
+                      <div className="validation-info-box">
+                        <InfoRow label="Nombre de la tienda" value={<FounderSellerName name={selectedGroup.sellerName} founder={selectedGroup.sellerFounder} />} />
+                        <InfoRow label="Rut de la empresa" value={sellerMeta.rut} />
+                        <InfoRow label="Ciudad" value={sellerMeta.city} />
+                        <InfoRow label="Dirección" value={sellerMeta.address} />
+                        <InfoRow label="Giro comercial" value={sellerMeta.businessLine} />
+                      </div>
 
-                    return (
-                      <div
-                        className={`validation-document-row${document ? ' loaded' : ' missing'}`}
-                        key={requiredDocument.key}
-                      >
-                        <div className={`validation-document-icon tone-${requiredDocument.tone}`}>
-                          <UiIcon name={requiredDocument.icon} />
-                        </div>
+                      <div className="validation-info-box">
+                        <PanelTitle icon="users" title="Responsable de la solicitud" compact />
+                        <InfoRow label="Nombre" value={selectedSeller?.owner ?? selectedGroup.owner} />
+                        <InfoRow label="Cargo" value={selectedSeller?.cargo ?? 'No informado'} />
+                        <InfoRow label="Correo electrónico" value={sellerMeta.email} />
+                        <InfoRow label="Teléfono" value={sellerMeta.phone} />
+                      </div>
+                    </div>
+                  </section>
 
-                        <div className="validation-document-card-body">
-                          <div className="validation-document-card-head">
-                            <div className="validation-document-copy">
-                              <strong>{requiredDocument.label}</strong>
-                              <span>
-                                {document
-                                  ? `Cargado como: ${document.documentType}`
-                                  : 'Aún no ha sido cargado por el vendedor'}
-                              </span>
+                  <section className="validation-panel">
+                    <PanelTitle icon="document" title="Documentos requeridos" />
+
+                    <div className="validation-documents-summary">
+                      <strong>{uploadedRequiredDocuments.length} de {REQUIRED_DOCUMENTS.length} documentos cargados</strong>
+                      <span>
+                        {hasMissingRequiredDocuments
+                          ? `Faltan ${requiredDocuments.filter((document) => !document.document).length} por cargar.`
+                          : `Los ${REQUIRED_DOCUMENTS.length} documentos requeridos ya fueron cargados.`}
+                      </span>
+                    </div>
+
+                    <div className="validation-documents-grid">
+                      {requiredDocuments.map((requiredDocument) => {
+                        const document = requiredDocument.document;
+
+                        return (
+                          <div
+                            className={`validation-document-row${document ? ' loaded' : ' missing'}`}
+                            key={requiredDocument.key}
+                          >
+                            <div className={`validation-document-icon tone-${requiredDocument.tone}`}>
+                              <UiIcon name={requiredDocument.icon} />
                             </div>
 
-                            <StatusPill status={requiredDocument.status} isLoaded={Boolean(document)} />
-                          </div>
+                            <div className="validation-document-card-body">
+                              <div className="validation-document-card-head">
+                                <div className="validation-document-copy">
+                                  <strong>{requiredDocument.label}</strong>
+                                  <span>
+                                    {document
+                                      ? `Cargado como: ${document.documentType}`
+                                      : 'Aún no ha sido cargado por el vendedor'}
+                                  </span>
+                                </div>
 
-                          <div className="validation-document-card-footer">
-                            {document ? (
-                              <div className="validation-history-doc-actions" style={{ gap: '6px' }}>
-                                <button
-                                  type="button"
-                                  onClick={() => openDocument(document)}
-                                  title="Previsualizar"
-                                  className="validation-doc-action-btn preview"
-                                >
-                                  <UiIcon name="eye" />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const url = resolveDocumentUrl(document.documentUrl);
-                                    if (url) {
-                                      void downloadDocument(
-                                        url,
-                                        buildDocumentDownloadName(document.documentType, url),
-                                      );
-                                    } else {
-                                      showToast("No se pudo iniciar la descarga: URL no disponible.");
-                                    }
-                                  }}
-                                  title="Descargar"
-                                  className="validation-doc-action-btn download"
-                                >
-                                  <UiIcon name="download" />
-                                </button>
+                                <StatusPill status={requiredDocument.status} isLoaded={Boolean(document)} />
                               </div>
-                            ) : (
-                              <span className="validation-document-placeholder">Pendiente de carga</span>
-                            )}
+
+                              <div className="validation-document-card-footer">
+                                {document ? (
+                                  <div className="validation-history-doc-actions" style={{ gap: '6px' }}>
+                                    <button
+                                      type="button"
+                                      onClick={() => openDocument(document)}
+                                      title="Previsualizar"
+                                      className="validation-doc-action-btn preview"
+                                    >
+                                      <UiIcon name="eye" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const url = resolveDocumentUrl(document.documentUrl);
+                                        if (url) {
+                                          void downloadDocument(
+                                            url,
+                                            buildDocumentDownloadName(document.documentType, url),
+                                          );
+                                        } else {
+                                          showToast("No se pudo iniciar la descarga: URL no disponible.");
+                                        }
+                                      }}
+                                      title="Descargar"
+                                      className="validation-doc-action-btn download"
+                                    >
+                                      <UiIcon name="download" />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <span className="validation-document-placeholder">Pendiente de carga</span>
+                                )}
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </section>
+                        );
+                      })}
+                    </div>
+                  </section>
 
               <section className="validation-panel validation-history-panel">
                 <div
@@ -879,6 +908,8 @@ export default function ValidationsPage() {
             <p>La validación fue aceptada correctamente.</p>
           </div>
         </div>
+      )}
+        </>
       )}
     </section>
   );

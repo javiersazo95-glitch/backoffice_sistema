@@ -30,11 +30,12 @@ export const resolveProfileImageUrl = (...candidates: Array<string | null | unde
   if (rawUrl.startsWith('//')) return `https:${rawUrl}`;
 
   const apiOrigin = getApiOrigin();
-  if (!apiOrigin) return rawUrl;
 
-  if (rawUrl.startsWith('/')) return `${apiOrigin}${rawUrl}`;
-  if (rawUrl.startsWith('api/')) return `${apiOrigin}/${rawUrl}`;
+  if (rawUrl.startsWith('/api/v1/')) return `${apiOrigin}${rawUrl}`;
+  if (rawUrl.startsWith('api/v1/')) return `${apiOrigin}/${rawUrl}`;
+  if (rawUrl.startsWith('/uploads/')) return `${apiOrigin}/api/v1${rawUrl}`;
   if (rawUrl.startsWith('uploads/')) return `${apiOrigin}/api/v1/${rawUrl}`;
+  if (rawUrl.startsWith('/') && !rawUrl.startsWith('//')) return `${apiOrigin}${rawUrl}`;
 
   return `${apiOrigin}/api/v1/uploads/r2/${rawUrl.replace(/^\/+/, '')}`;
 };
