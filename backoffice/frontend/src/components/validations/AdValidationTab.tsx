@@ -4,7 +4,7 @@ import * as validationsApi from '@/api/validations';
 import type { AdValidationItem, AdModerationStatus } from '@/types/adValidation';
 import UiIcon from '@/components/shared/UiIcon';
 import { showToast } from '@/components/layout/Toast';
-import { resolveProfileImageUrl } from '@/api/client';
+import AuthedImage from '@/components/shared/AuthedImage';
 
 const REJECT_REASON_PRESETS = [
   'Imágenes inapropiadas, de baja calidad o no corresponden al servicio ofrecido.',
@@ -483,7 +483,7 @@ export default function AdValidationTab() {
               pagedAds.map((ad) => {
                 const status = getAdStatus(ad);
                 const tierMeta = TIER_META[ad.tier] || { label: ad.tier, pillClass: 'tone-gray' };
-                const primaryImage = ad.images && ad.images.length > 0 ? resolveProfileImageUrl(ad.images[0]) : null;
+                const primaryImage = ad.images && ad.images.length > 0 ? ad.images[0] : null;
 
                 return (
                   <tr key={ad.id}>
@@ -491,12 +491,10 @@ export default function AdValidationTab() {
                     <td style={{ textAlign: 'center' }}>
                       <div className="ad-table-thumb" style={{ margin: '0 auto' }}>
                         {primaryImage ? (
-                          <img
+                          <AuthedImage
                             src={primaryImage}
                             alt={ad.title}
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).src = '/assets/repuestop-logo-cropped.jpg';
-                            }}
+                            fallbackSrc="/assets/repuestop-logo-cropped.jpg"
                           />
                         ) : (
                           <UiIcon name="megaphone" />
@@ -736,17 +734,17 @@ export default function AdValidationTab() {
                 {selectedAdForDetail.images && selectedAdForDetail.images.length > 0 ? (
                   <div className="ad-gallery-grid">
                     {selectedAdForDetail.images.map((img, idx) => {
-                      const imgUrl = resolveProfileImageUrl(img);
                       return (
                         <div
                           key={idx}
                           className="ad-gallery-item"
-                          onClick={() => setSelectedImagePreview(imgUrl)}
+                          onClick={() => setSelectedImagePreview(img)}
                           title="Clic para ver en tamaño completo"
                         >
-                          <img
-                            src={imgUrl || '/assets/repuestop-logo-cropped.jpg'}
+                          <AuthedImage
+                            src={img}
                             alt={`Imagen ${idx + 1}`}
+                            fallbackSrc="/assets/repuestop-logo-cropped.jpg"
                           />
                           <span className="ad-gallery-badge">
                             #{idx + 1}
@@ -770,17 +768,17 @@ export default function AdValidationTab() {
                   </h4>
                   <div className="ad-story-grid">
                     {selectedAdForDetail.storyImages.map((img, idx) => {
-                      const imgUrl = resolveProfileImageUrl(img);
                       return (
                         <div
                           key={idx}
                           className="ad-story-item"
-                          onClick={() => setSelectedImagePreview(imgUrl)}
+                          onClick={() => setSelectedImagePreview(img)}
                           title="Clic para ampliar historia"
                         >
-                          <img
-                            src={imgUrl || '/assets/repuestop-logo-cropped.jpg'}
+                          <AuthedImage
+                            src={img}
                             alt={`Historia ${idx + 1}`}
+                            fallbackSrc="/assets/repuestop-logo-cropped.jpg"
                           />
                         </div>
                       );
@@ -1155,9 +1153,10 @@ export default function AdValidationTab() {
             >
               ×
             </button>
-            <img
+            <AuthedImage
               src={selectedImagePreview}
               alt="Vista previa ampliada"
+              fallbackSrc="/assets/repuestop-logo-cropped.jpg"
               style={{ width: '100%', height: '100%', maxHeight: '85vh', objectFit: 'contain', display: 'block' }}
             />
           </div>
