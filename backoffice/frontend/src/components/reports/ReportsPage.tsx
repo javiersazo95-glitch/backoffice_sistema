@@ -10,12 +10,26 @@ import { formatDateTime } from '@/utils/formatters';
 import { PAGE_SIZES } from '@/utils/constants';
 import AreaHomeShortcut from '@/components/shared/AreaHomeShortcut';
 import FounderSellerName from '@/components/shared/FounderSellerName';
+import type { ReportObjectType, ReportResponse } from '@/types/report';
+
+const OBJECT_TYPE_META: Record<ReportObjectType, { label: string; tone: string }> = {
+  ANUNCIO: { label: 'Anuncio', tone: 'blue' },
+  PRODUCTO: { label: 'Producto', tone: 'violet' },
+  TIENDA: { label: 'Tienda', tone: 'green' },
+  CHAT_COTIZACION: { label: 'Chat de cotización', tone: 'amber' },
+  OTRO: { label: 'Otro', tone: '' },
+};
+
+function reportObjectType(report: ReportResponse): ReportObjectType {
+  return report.tipoObjeto ?? (report.conversacionId ? 'CHAT_COTIZACION' : 'OTRO');
+}
 
 export default function ReportsPage() {
   const [page, setPage] = useState(0);
   const [search, setSearch] = useState('');
   const [originFilter, setOriginFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
+  const [objectTypeFilter, setObjectTypeFilter] = useState('');
   const [responsibleFilter, setResponsibleFilter] = useState('');
   const [selectedReportId, setSelectedReportId] = useState<number | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
@@ -75,11 +89,12 @@ export default function ReportsPage() {
   }, [responsibleFilter, search]);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['reports', searchParam, reporterTypeParam, page],
+    queryKey: ['reports', searchParam, reporterTypeParam, objectTypeFilter, page],
     queryFn: () =>
       reportsApi.getReports({
         search: searchParam,
         reporterType: reporterTypeParam,
+        objectType: objectTypeFilter || undefined,
         page,
         size: PAGE_SIZES.MEDIATIONS,
       }),
@@ -102,8 +117,8 @@ export default function ReportsPage() {
     <>
       <div className="page-header">
         <div className="page-title">
-          <h1>Reportes de Chat</h1>
-          <p>Gestión y seguimiento de reportes realizados en chats entre compradores y vendedores</p>
+          <h1>Reportes</h1>
+          <p>Gestión de reportes enviados desde la aplicación sobre anuncios, productos, tiendas y chats de cotización</p>
         </div>
         <div className="header-actions">
           <AreaHomeShortcut />
@@ -134,6 +149,13 @@ export default function ReportsPage() {
         />
       </section>
 
+      <section className="metric-grid compact" style={{ gridTemplateColumns: 'repeat(4, minmax(0, 1fr))' }}>
+        <MetricCard label="Anuncios" value={summary?.reportesAnuncios ?? 0} tone="blue" iconName="megaphone" description="Publicaciones publicitarias reportadas" />
+        <MetricCard label="Productos" value={summary?.reportesProductos ?? 0} tone="violet" iconName="cube" description="Repuestos reportados desde su detalle" />
+        <MetricCard label="Tiendas" value={summary?.reportesTiendas ?? 0} tone="green" iconName="home" description="Perfiles de tienda reportados" />
+        <MetricCard label="Chats de cotización" value={summary?.reportesChatsCotizacion ?? 0} tone="amber" iconName="message" description="Conversaciones de cotización reportadas" />
+      </section>
+
       <div className="panel">
         <div className="panel-header">
           <h2>Lista de Reportes</h2>
@@ -144,7 +166,7 @@ export default function ReportsPage() {
           className="seller-filter-bar" 
           style={{ 
             display: 'grid',
-            gridTemplateColumns: 'minmax(200px, 2fr) minmax(150px, 1.2fr) minmax(150px, 1.2fr) minmax(150px, 1.2fr)',
+            gridTemplateColumns: 'minmax(220px, 2fr) repeat(4, minmax(140px, 1fr))',
             gap: '16px',
             alignItems: 'center',
             padding: '14px 18px',
@@ -163,6 +185,21 @@ export default function ReportsPage() {
               setPage(0);
             }}
           />
+          <select
+            className="select"
+            value={objectTypeFilter}
+            onChange={(e) => {
+              setObjectTypeFilter(e.target.value);
+              setPage(0);
+            }}
+            aria-label="Contenido reportado"
+          >
+            <option value="">Todo el contenido</option>
+            <option value="ANUNCIO">Anuncios</option>
+            <option value="PRODUCTO">Productos</option>
+            <option value="TIENDA">Tiendas</option>
+            <option value="CHAT_COTIZACION">Chats de cotización</option>
+          </select>
           <select
             className="select"
             value={originFilter}
@@ -224,6 +261,8 @@ export default function ReportsPage() {
                 <thead>
                   <tr>
                     <th style={{ width: 180 }}>ID</th>
+                    <th>Origen</th>
+                    <th>Contenido</th>
                     <th>Reportante</th>
                     <th>Reportado</th>
                     <th>Motivo</th>
@@ -235,7 +274,7 @@ export default function ReportsPage() {
                 <tbody>
                   {reports.length === 0 ? (
                     <tr>
-                      <td colSpan={7} style={{ textAlign: 'center', padding: '24px' }}>
+                      <td colSpan={9} style={{ textAlign: 'center', padding: '24px' }}>
                         No se encontraron reportes.
                       </td>
                     </tr>
@@ -243,6 +282,20 @@ export default function ReportsPage() {
                     reports.map((report) => (
                       <tr key={report.id}>
                         <td style={{ whiteSpace: 'nowrap' }}><strong>{report.idExterno || `#${report.id}`}</strong></td>
+                        <td>
+                          <Badge
+                            text={OBJECT_TYPE_META[reportObjectType(report)].label}
+                            variant={OBJECT_TYPE_META[reportObjectType(report)].tone}
+                          />
+                        </td>
+                        <td>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 150 }}>
+                            <strong>{report.objetoTitulo || OBJECT_TYPE_META[reportObjectType(report)].label}</strong>
+                            {(report.objetoId || report.conversacionId) && (
+                              <span>#{report.objetoId ?? report.conversacionId}</span>
+                            )}
+                          </div>
+                        </td>
                         <td>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                             <strong>
@@ -385,6 +438,16 @@ export default function ReportsPage() {
               </h3>
               <DetailRow label="ID de Reporte" value={selectedReport.idExterno || `#${selectedReport.id}`} />
               <DetailRow label="Fecha del Reporte" value={formatDateTime(selectedReport.fechaCreacion)} />
+              <DetailRow
+                label="Origen"
+                value={OBJECT_TYPE_META[reportObjectType(selectedReport)].label}
+              />
+              {selectedReport.objetoTitulo && (
+                <DetailRow label="Contenido reportado" value={selectedReport.objetoTitulo} />
+              )}
+              {selectedReport.objetoId && (
+                <DetailRow label="ID del contenido" value={String(selectedReport.objetoId)} />
+              )}
               <DetailRow label="Motivo" value={selectedReport.motivo} />
               {selectedReport.conversacionId && (
                 <DetailRow label="Conversación ID" value={String(selectedReport.conversacionId)} />
