@@ -37,6 +37,7 @@ const navSections = [
       { path: '/administracion/liquidaciones', label: 'Liquidaciones', badge: 0, icon: 'clipboard' },
       { path: '/administracion/gastos', label: 'Caja y gastos', badge: 0, icon: 'receipt' },
       { path: '/administracion/pago-proveedores', label: 'Pago a proveedores', badge: 0, icon: 'wallet' },
+      { path: '/administracion/pago-captadores', label: 'Pago a captadores', badge: 0, icon: 'users' },
     ],
   },
   {
@@ -45,7 +46,8 @@ const navSections = [
       { path: '/confianza', label: 'Resumen', badge: 0, icon: 'shield', exact: true },
       { path: '/confianza/validations', label: 'Validaciones', badge: 0, icon: 'fileCheck' },
       { path: '/confianza/mediations', label: 'Mediaciones', badge: 0, icon: 'scale' },
-      { path: '/confianza/sellers', label: 'Vendedores', badge: 0, icon: 'users' },
+      { path: '/confianza/sellers', label: 'Vendedores', badge: 0, icon: 'store' },
+      { path: '/confianza/captadores', label: 'Captadores', badge: 0, icon: 'users' },
       { path: '/confianza/reports', label: 'Reportes', badge: 0, icon: 'flag' },
     ],
   },

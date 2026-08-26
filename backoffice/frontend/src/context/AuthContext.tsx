@@ -24,8 +24,8 @@ interface AuthState {
 }
 
 interface AuthContextValue extends AuthState {
-  login: (username: string, password: string, keepSession?: boolean) => Promise<void>;
-  loginWithGoogle: (idToken: string, keepSession?: boolean) => Promise<void>;
+  login: (username: string, password: string, keepSession?: boolean) => Promise<UserSummaryResponse>;
+  loginWithGoogle: (idToken: string, keepSession?: boolean) => Promise<UserSummaryResponse>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
 }
@@ -37,6 +37,7 @@ function mapRole(role: string) {
   const normalizedRole = role.toUpperCase();
   if (normalizedRole === Role.SUPER_ADMIN) return Role.SUPER_ADMIN;
   if (normalizedRole === Role.ADMIN) return Role.ADMIN;
+  if (normalizedRole === Role.CAPTADOR) return Role.CAPTADOR;
   return Role.OPERATOR;
 }
 
@@ -155,11 +156,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     storeToken(token, keepSession);
     setAuthHeader(token);
     const currentUser = await apiClient.get<UserSummaryResponse | BackofficeUserResponse>('/auth/me');
+    const mapped = mapCurrentUser(currentUser.data);
     setState({
-      user: mapCurrentUser(currentUser.data),
+      user: mapped,
       isAuthenticated: true,
       isLoading: false,
     });
+    return mapped;
   }, []);
 
   const loginWithGoogle = useCallback(async (idToken: string, keepSession = false) => {
@@ -175,11 +178,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     storeToken(token, keepSession);
     setAuthHeader(token);
     const currentUser = await apiClient.get<UserSummaryResponse | BackofficeUserResponse>('/auth/me');
+    const mapped = mapCurrentUser(currentUser.data);
     setState({
-      user: mapCurrentUser(currentUser.data),
+      user: mapped,
       isAuthenticated: true,
       isLoading: false,
     });
+    return mapped;
   }, []);
 
   const logout = useCallback(async () => {

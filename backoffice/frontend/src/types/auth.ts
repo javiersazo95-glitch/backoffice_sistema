@@ -2,6 +2,7 @@ export enum Role {
   SUPER_ADMIN = 'SUPER_ADMIN',
   ADMIN = 'ADMIN',
   OPERATOR = 'OPERATOR',
+  CAPTADOR = 'CAPTADOR',
 }
 
 export type BackofficeArea = 'ADMINISTRACION_CONTABLE' | 'SOPORTE' | 'MEDIACION_CONFIANZA';

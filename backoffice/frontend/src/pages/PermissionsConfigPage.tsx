@@ -5,6 +5,7 @@ import UiIcon from '@/components/shared/UiIcon';
 import { showToast } from '@/components/layout/Toast';
 import * as permissionsApi from '@/api/permissions';
 import * as foundersApi from '@/api/founders';
+import * as capturersApi from '@/api/capturers';
 import type { BackofficeArea, BackofficePermission, BackofficePermissionSlot } from '@/types/auth';
 
 const AREA_LABELS: Record<BackofficeArea, string> = {
@@ -52,7 +53,7 @@ function permissionText(permissions: BackofficePermission[]) {
 export default function PermissionsConfigPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<'permisos' | 'usuarios' | 'fundador'>('permisos');
+  const [activeTab, setActiveTab] = useState<'permisos' | 'usuarios' | 'captadores' | 'fundador'>('permisos');
   const [searchEmail, setSearchEmail] = useState('');
   const [selectedUser, setSelectedUser] = useState<permissionsApi.PermissionUser | null>(null);
   const [draftPermissions, setDraftPermissions] = useState<BackofficePermission[]>([]);
@@ -64,6 +65,7 @@ export default function PermissionsConfigPage() {
   const [founderSearch, setFounderSearch] = useState('');
   const [founderFilter, setFounderFilter] = useState<'ALL' | 'FOUNDER' | 'NON_FOUNDER'>('ALL');
   const [founderPage, setFounderPage] = useState(0);
+  const [capturerSearch, setCapturerSearch] = useState('');
 
   const { data: founderConfig } = useQuery({
     queryKey: ['founder-config'],
@@ -106,6 +108,36 @@ export default function PermissionsConfigPage() {
     }),
     enabled: activeTab === 'usuarios',
   });
+
+  const { data: capturers = [], isLoading: isLoadingCapturers } = useQuery({
+    queryKey: ['managed-capturers'],
+    queryFn: capturersApi.listManagedCapturers,
+    enabled: activeTab === 'captadores',
+  });
+
+  const deactivateCapturerMutation = useMutation({
+    mutationFn: capturersApi.deactivateCapturer,
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['managed-capturers'] }); showToast('Cuenta de captador desactivada'); },
+    onError: (error: any) => showToast(error.response?.data?.message || 'No se pudo desactivar la cuenta'),
+  });
+  const reactivateCapturerMutation = useMutation({
+    mutationFn: capturersApi.reactivateCapturer,
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['managed-capturers'] }); showToast('Cuenta de captador reactivada'); },
+    onError: (error: any) => showToast(error.response?.data?.message || 'No se pudo reactivar la cuenta'),
+  });
+
+  const deleteCapturerMutation = useMutation({
+    mutationFn: (userId: number) => permissionsApi.deleteUserAccount(userId),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['managed-capturers'] }); showToast('Cuenta de captador eliminada'); },
+    onError: (error: any) => showToast(error.response?.data?.message || 'No se pudo eliminar la cuenta'),
+  });
+
+  const filteredCapturers = useMemo(() => {
+    const term = capturerSearch.trim().toLocaleLowerCase('es-CL');
+    if (!term) return capturers;
+    return capturers.filter((capturer) => [capturer.nombre, capturer.alias, capturer.email, capturer.rut, capturer.region, capturer.comuna]
+      .some((value) => value.toLocaleLowerCase('es-CL').includes(term)));
+  }, [capturers, capturerSearch]);
 
   const saveMutation = useMutation({
     mutationFn: () => {
@@ -163,8 +195,12 @@ export default function PermissionsConfigPage() {
             Permisos
           </button>
           <button className={activeTab === 'usuarios' ? 'active' : ''} type="button" onClick={() => setActiveTab('usuarios')}>
+            <UiIcon name="building" />
+            Empleados
+          </button>
+          <button className={activeTab === 'captadores' ? 'active' : ''} type="button" onClick={() => setActiveTab('captadores')}>
             <UiIcon name="users" />
-            Usuarios
+            Captadores
           </button>
           <button className={activeTab === 'fundador' ? 'active' : ''} type="button" onClick={() => setActiveTab('fundador')}>
             <UiIcon name="crown" className="founder-crown-icon" />
@@ -263,8 +299,8 @@ export default function PermissionsConfigPage() {
         ) : activeTab === 'usuarios' ? (
           <div className="permissions-workspace">
             <section className="permissions-config-header">
-              <h2>Usuarios con permisos</h2>
-              <p>Filtra, edita o elimina permisos registrados.</p>
+              <h2>Empleados con permisos</h2>
+              <p>Filtra, edita o elimina permisos asignados al personal.</p>
             </section>
 
             <div className="validation-filters permissions-user-filters">
@@ -347,6 +383,44 @@ export default function PermissionsConfigPage() {
                 </div>
               </div>
             )}
+          </div>
+        ) : activeTab === 'captadores' ? (
+          <div className="permissions-workspace">
+            <section className="permissions-config-header">
+              <h2>Gestión de captadores</h2>
+              <p>Administra las cuentas de captadores. Desactivar bloquea el acceso; eliminar aplica la baja definitiva de la cuenta y preserva la auditoría contable.</p>
+            </section>
+
+            <div className="validation-filters permissions-user-filters">
+              <label className="validation-search-field">
+                <UiIcon name="search" />
+                <input type="search" value={capturerSearch} onChange={(event) => setCapturerSearch(event.target.value)} placeholder="Nombre, alias, correo, RUT o ubicación..." />
+              </label>
+            </div>
+
+            <div className="panel"><div className="table-wrap"><table><thead><tr>
+              <th>Captador</th><th>Contacto</th><th>Ubicación</th><th>Estado</th><th>Acciones</th>
+            </tr></thead><tbody>
+              {isLoadingCapturers ? <tr><td colSpan={5}>Cargando captadores...</td></tr>
+                : filteredCapturers.length === 0 ? <tr><td colSpan={5}>No hay captadores para los filtros seleccionados.</td></tr>
+                : filteredCapturers.map((capturer) => <tr key={capturer.id}>
+                  <td><strong>{capturer.nombre}</strong><br /><span className="muted">@{capturer.alias} · {capturer.rut}</span></td>
+                  <td>{capturer.email}<br /><span className="muted">{capturer.telefono}</span></td>
+                  <td>{capturer.comuna}, {capturer.region}</td>
+                  <td><span className={`status-badge ${capturer.activo ? 'approved' : 'rejected'}`}>{capturer.activo ? capturer.estado : 'DESACTIVADO'}</span></td>
+                  <td><div className="seller-actions">
+                    <label className="role-toggle-label" title={capturer.activo ? 'Desactivar acceso' : 'Reactivar acceso'}>
+                      <input type="checkbox" checked={capturer.activo} disabled={deactivateCapturerMutation.isPending || reactivateCapturerMutation.isPending}
+                        onChange={(event) => { const activating = event.target.checked; const question = activating ? `¿Reactivar el acceso de @${capturer.alias}?` : `¿Desactivar el acceso de @${capturer.alias}? Mantendrá su historial y no podrá iniciar sesión.`; if (!window.confirm(question)) return; if (activating) reactivateCapturerMutation.mutate(capturer.id); else deactivateCapturerMutation.mutate(capturer.id); }} />
+                      <span className="role-toggle-switch" />
+                    </label>
+                    <button className="row-action danger" type="button" title="Eliminar cuenta" disabled={deleteCapturerMutation.isPending}
+                      onClick={() => { if (window.confirm(`¿Eliminar la cuenta de @${capturer.alias}? Esta acción desactiva sus credenciales y no se puede deshacer.`)) deleteCapturerMutation.mutate(capturer.usuarioId); }}>
+                      <UiIcon name="trash" />
+                    </button>
+                  </div></td>
+                </tr>)}
+            </tbody></table></div></div>
           </div>
         ) : (
           <div className="permissions-workspace">

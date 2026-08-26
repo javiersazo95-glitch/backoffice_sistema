@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { GoogleLogin } from '@react-oauth/google';
 import { isAxiosError } from 'axios';
 import { useAuth } from '@/context/AuthContext';
+import { Role } from '@/types/auth';
 
 function extractErrorMessage(error: unknown, fallback: string): string {
   if (isAxiosError(error) && typeof error.response?.data?.message === 'string') {
@@ -184,12 +185,14 @@ body:has(.login-wrapper) {
 `;
 
 export default function LoginPage() {
+  const [searchParams] = useSearchParams();
+  const [accessType, setAccessType] = useState<'staff' | 'capturer'>(searchParams.get('type') === 'capturer' ? 'capturer' : 'staff');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [keepSession, setKeepSession] = useState(false);
-  const { login, loginWithGoogle } = useAuth();
+  const { login, loginWithGoogle, logout } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -197,10 +200,23 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
     try {
-      await login(username, password, keepSession);
-      navigate('/', { replace: true });
+      const loggedUser = await login(username, password, keepSession);
+      if (accessType === 'capturer' && loggedUser.role !== Role.CAPTADOR) {
+        await logout();
+        throw new Error('Esta cuenta pertenece al personal. Selecciona “Personal de la empresa”.');
+      }
+      if (accessType === 'staff' && loggedUser.role === Role.CAPTADOR) {
+        await logout();
+        throw new Error('Esta cuenta es de captador. Selecciona “Captadores”.');
+      }
+      navigate(loggedUser.role === Role.CAPTADOR ? '/captador' : '/', { replace: true });
     } catch (err) {
-      setError(extractErrorMessage(err, 'Credenciales inválidas. Intente nuevamente.'));
+      const message = err instanceof Error ? err.message : extractErrorMessage(err, 'Credenciales inválidas. Intente nuevamente.');
+      if (accessType === 'capturer' && /verificar.*correo|correo.*verific/i.test(message)) {
+        navigate(`/registro-captador?email=${encodeURIComponent(username.trim().toLowerCase())}`, { replace: true });
+        return;
+      }
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -214,8 +230,8 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
     try {
-      await loginWithGoogle(credential, keepSession);
-      navigate('/', { replace: true });
+      const loggedUser = await loginWithGoogle(credential, keepSession);
+      navigate(loggedUser.role === Role.CAPTADOR ? '/captador' : '/', { replace: true });
     } catch (err) {
       setError(extractErrorMessage(err, 'No se pudo iniciar sesión con Google. Verifica que tu cuenta esté habilitada.'));
     } finally {
@@ -310,6 +326,14 @@ export default function LoginPage() {
                 desc="Revisión, mediación y resolución de casos y disputas"
               />
             </div>
+            <div style={{ animation: 'cardFloat 4s ease-in-out infinite 3.2s' }}>
+              <ModuleCard
+                icon={<UsersIcon />}
+                iconBg="linear-gradient(135deg, #f59e0b, #f97316)"
+                title="Captadores"
+                desc="Seguimiento de referidos, comisiones y gestión comercial"
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -331,8 +355,13 @@ export default function LoginPage() {
             Bienvenido de nuevo
           </h2>
           <p style={{ color: '#64748b', fontSize: 'clamp(12px, 1.5vh, 14px)', marginBottom: 'clamp(10px, 2vh, 22px)', textAlign: 'center' }}>
-            Inicia sesión para acceder al panel de administración
+            Selecciona el tipo de acceso para continuar
           </p>
+
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',padding:4,border:'1px solid #dbe3ef',borderRadius:10,marginBottom:16,background:'#f8fafc'}}>
+            <button type="button" onClick={()=>{setAccessType('staff');setError('')}} style={accessType==='staff'?accessButtonActive:accessButton}>Personal de la empresa</button>
+            <button type="button" onClick={()=>{setAccessType('capturer');setError('')}} style={accessType==='capturer'?accessButtonActive:accessButton}>Captadores</button>
+          </div>
 
           {error && (
             <div style={{
@@ -464,25 +493,19 @@ export default function LoginPage() {
               {loading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
             </button>
 
-            {/* Divider */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 'clamp(10px, 1.6vh, 16px)' }}>
-              <div style={{ flex: 1, height: 1, background: '#e2e8f0' }} />
-              <span style={{ fontSize: 12, color: '#94a3b8' }}>o continua con</span>
-              <div style={{ flex: 1, height: 1, background: '#e2e8f0' }} />
-            </div>
-
-            {/* Google button */}
-            <div style={{ display: 'flex', justifyContent: 'center' }}>
-              <GoogleLogin
-                theme="outline"
-                shape="rectangular"
-                size="large"
-                width="100%"
-                text="continue_with"
-                onSuccess={(credentialResponse) => handleGoogleSuccess(credentialResponse.credential)}
-                onError={() => setError('No se pudo iniciar sesión con Google. Intenta nuevamente.')}
-              />
-            </div>
+            {accessType === 'staff' ? <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 'clamp(10px, 1.6vh, 16px)' }}>
+                <div style={{ flex: 1, height: 1, background: '#e2e8f0' }} />
+                <span style={{ fontSize: 12, color: '#94a3b8' }}>o continúa con</span>
+                <div style={{ flex: 1, height: 1, background: '#e2e8f0' }} />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'center' }}>
+                <GoogleLogin theme="outline" shape="rectangular" size="large" width="100%" text="continue_with" onSuccess={(credentialResponse) => handleGoogleSuccess(credentialResponse.credential)} onError={() => setError('No se pudo iniciar sesión con Google. Intenta nuevamente.')} />
+              </div>
+            </> : <div style={{border:'1px solid #bfdbfe',background:'#eff6ff',borderRadius:10,padding:12,textAlign:'center'}}>
+              <strong style={{display:'block',fontSize:13,color:'#153e75'}}>¿Aún no eres captador?</strong>
+              <button type="button" onClick={()=>navigate('/registro-captador')} style={{...accessButtonActive,width:'100%',marginTop:9,border:'1px solid #2563eb'}}>Registrarse como captador</button>
+            </div>}
           </form>
 
           {/* Footer */}
@@ -494,6 +517,9 @@ export default function LoginPage() {
     </div>
   );
 }
+
+const accessButton: React.CSSProperties = {border:0,background:'transparent',padding:'10px 8px',borderRadius:8,color:'#64748b',fontWeight:600,cursor:'pointer'};
+const accessButtonActive: React.CSSProperties = {...accessButton,background:'#2563eb',color:'#fff',boxShadow:'0 3px 8px rgba(37,99,235,.2)'};
 
 function ModuleCard({ icon, iconBg, title, desc }: {
   icon: React.ReactNode;
@@ -568,6 +594,10 @@ function ShieldIcon() {
       <polyline points="9 12 11 14 15 10"/>
     </svg>
   );
+}
+
+function UsersIcon() {
+  return <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>;
 }
 
 function EmailIcon() {

@@ -10,6 +10,8 @@ import { SellerStatus, type SellerResponse } from '@/types/seller';
 import { ValidationStatus, type ValidationResponse } from '@/types/validation';
 import { buildDocumentDownloadName, downloadDocument, previewDocument, resolveDocumentUrl } from '@/utils/documentUrls';
 import AdValidationTab from './AdValidationTab';
+import CapturerValidationTab from './CapturerValidationTab';
+import ServiceValidationTab from './ServiceValidationTab';
 
 
 type RequiredDocumentStatus = ValidationStatus | 'POR_CORREGIR';
@@ -292,7 +294,7 @@ function parseObservationHistory(notes: string | undefined): ObservationHistoryI
 }
 
 export default function ValidationsPage() {
-  const [activeTab, setActiveTab] = useState<'registros' | 'anuncios'>('registros');
+  const [activeTab, setActiveTab] = useState<'registros' | 'captadores' | 'servicios' | 'anuncios'>('registros');
   const [selectedSellerId, setSelectedSellerId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ACTIVOS');
@@ -460,11 +462,9 @@ export default function ValidationsPage() {
     <section className="validation-workspace">
       <div className="validation-page-head">
         <div>
-          <h1>{activeTab === 'registros' ? 'Validación de registros' : 'Tablero de anuncios'}</h1>
+          <h1>{{registros:'Validación de registros',captadores:'Registros captadores',servicios:'Servicios automotrices',anuncios:'Tablero de anuncios'}[activeTab]}</h1>
           <p>
-            {activeTab === 'registros'
-              ? 'Revisa y valida solicitudes de registro de vendedores y documentación KYC.'
-              : 'Modera y valida publicaciones del Mural de Anuncios (talleres, servicios y publicidad).'}
+            {{registros:'Revisa y valida solicitudes de registro de vendedores y documentación KYC.',captadores:'Aprueba o rechaza las postulaciones de nuevos captadores.',servicios:'Revisa la acreditación legal independiente de talleres y servicios automotrices.',anuncios:'Modera y valida publicaciones del Mural de Anuncios (talleres, servicios y publicidad).'}[activeTab]}
           </p>
         </div>
         <button className="validation-help-button" type="button" aria-label="Ayuda">
@@ -481,6 +481,8 @@ export default function ValidationsPage() {
           <UiIcon name="fileCheck" />
           Validación registros
         </button>
+        <button type="button" className={activeTab === 'captadores' ? 'active' : ''} onClick={() => setActiveTab('captadores')}><UiIcon name="users" />Registros captadores</button>
+        <button type="button" className={activeTab === 'servicios' ? 'active' : ''} onClick={() => setActiveTab('servicios')}><UiIcon name="tools" />Servicios automotrices</button>
         <button
           type="button"
           className={activeTab === 'anuncios' ? 'active' : ''}
@@ -491,7 +493,7 @@ export default function ValidationsPage() {
         </button>
       </div>
 
-      {activeTab === 'anuncios' ? (
+      {activeTab === 'captadores' ? <CapturerValidationTab /> : activeTab === 'servicios' ? <ServiceValidationTab /> : activeTab === 'anuncios' ? (
         <AdValidationTab />
       ) : (
         <>

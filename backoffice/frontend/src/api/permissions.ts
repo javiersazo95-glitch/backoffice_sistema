@@ -49,3 +49,7 @@ export async function deleteUserPermission(userId: number, permissionId: number)
   const response = await apiClient.delete<PermissionUser>(`/backoffice/permissions/users/${userId}/permissions/${permissionId}`);
   return response.data;
 }
+
+export async function deleteUserAccount(userId: number): Promise<void> {
+  await apiClient.delete(`/auth/users/${userId}`);
+}
