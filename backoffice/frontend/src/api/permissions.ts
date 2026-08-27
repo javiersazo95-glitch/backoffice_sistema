@@ -11,6 +11,7 @@ export interface PermissionUser {
   active?: boolean;
   emailVerified?: boolean;
   invitationStatus?: 'PENDIENTE' | 'ACEPTADO' | 'RECHAZADO';
+  invitationEmailSent?: boolean;
   permissions: BackofficePermission[];
   /** Campos opcionales devueltos por bajas lógicas en el backend. */
   deleted?: boolean;
@@ -52,6 +53,11 @@ export async function updateUserPermissions(userId: number, permissions: Backoff
 
 export async function inviteEmployee(data: InviteEmployeeRequest): Promise<PermissionUser> {
   const response = await apiClient.post<PermissionUser>('/backoffice/permissions/invitations', data);
+  return response.data;
+}
+
+export async function resendEmployeeInvitation(userId: number): Promise<PermissionUser> {
+  const response = await apiClient.post<PermissionUser>(`/backoffice/permissions/users/${userId}/resend-invitation`);
   return response.data;
 }
 

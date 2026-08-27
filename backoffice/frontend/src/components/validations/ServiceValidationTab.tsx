@@ -366,9 +366,14 @@ export default function ServiceValidationTab() {
                           <strong style={{ color: '#334155' }}>{d.label}</strong>
                           <span style={{ color: name ? '#16a34a' : '#94a3b8' }}>{name || 'No cargado'}</span>
                           {name && (
-                            <button className="secondary-button" type="button" style={{ padding: '5px 10px', fontSize: 12 }} onClick={() => void api.downloadServiceDocument(detail.id, d.tipo, name)}>
-                              <UiIcon name="download" style={{ width: 13, height: 13 }} /> Ver documento
-                            </button>
+                            <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+                              <button className="secondary-button" type="button" style={{ padding: '5px 10px', fontSize: 12 }} onClick={() => void api.viewServiceDocument(detail.id, d.tipo).catch((error: unknown) => showToast(error instanceof Error ? error.message : `No se pudo ver ${d.label.toLowerCase()}.`))}>
+                                <UiIcon name="eye" style={{ width: 13, height: 13 }} /> Ver
+                              </button>
+                              <button className="secondary-button" type="button" style={{ padding: '5px 10px', fontSize: 12 }} onClick={() => void api.downloadServiceDocument(detail.id, d.tipo, name).catch(() => showToast(`No se pudo descargar ${d.label.toLowerCase()}.`))}>
+                                <UiIcon name="download" style={{ width: 13, height: 13 }} /> Descargar
+                              </button>
+                            </div>
                           )}
                         </div>
                       );

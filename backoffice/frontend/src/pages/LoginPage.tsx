@@ -209,7 +209,7 @@ body:has(.login-wrapper) {
 export default function LoginPage() {
   const [searchParams] = useSearchParams();
   const [accessType, setAccessType] = useState<'staff' | 'capturer'>(searchParams.get('type') === 'capturer' ? 'capturer' : 'staff');
-  const [username, setUsername] = useState('');
+  const [username, setUsername] = useState(() => searchParams.get('email')?.trim().toLowerCase() || '');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
@@ -219,6 +219,8 @@ export default function LoginPage() {
   const navigate = useNavigate();
 
   const isVerifiedParam = searchParams.get('verified') === '1';
+  const applicationReceived = searchParams.get('application') === 'received';
+  const existingCapturerAccount = searchParams.get('existing') === '1';
 
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -239,7 +241,9 @@ export default function LoginPage() {
       }
       navigate(loggedUser.role === Role.CAPTADOR ? '/captador' : '/', { replace: true });
     } catch (err) {
-      const message = err instanceof Error ? err.message : extractErrorMessage(err, 'Credenciales inválidas. Intente nuevamente.');
+      const message = isAxiosError(err)
+        ? extractErrorMessage(err, 'Credenciales inválidas. Intente nuevamente.')
+        : err instanceof Error ? err.message : 'Credenciales inválidas. Intente nuevamente.';
       if (accessType === 'capturer' && /verificar.*correo|correo.*verific/i.test(message)) {
         navigate(`/registro-captador?email=${encodeURIComponent(username.trim().toLowerCase())}`, { replace: true });
         return;
@@ -441,6 +445,23 @@ export default function LoginPage() {
               gap: 8,
             }}>
               <span>✓ Correo verificado con éxito. Ya puedes ingresar.</span>
+            </div>
+          )}
+
+          {applicationReceived && (
+            <div style={{
+              background: '#eff6ff',
+              border: '1px solid #bfdbfe',
+              borderRadius: 8,
+              padding: '10px 14px',
+              color: '#1d4ed8',
+              fontSize: 13,
+              lineHeight: 1.45,
+              marginBottom: 14,
+            }}>
+              {existingCapturerAccount
+                ? '✓ Postulación registrada en tu cuenta existente. Ingresa con la contraseña que ya usabas; la contraseña del formulario fue validada, no reemplazada.'
+                : '✓ Postulación registrada. Ingresa para revisar su estado.'}
             </div>
           )}
 

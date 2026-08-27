@@ -12,6 +12,43 @@ export async function requestWithdrawal(monto:number,boleta:File){const form=new
 export const listCapturers=async()=> (await apiClient.get<CapturerProfile[]>('/validations/capturers')).data;
 export const getCapturedBusinesses=async(id:number,periodo?:string)=> (await apiClient.get<CapturedBusinesses>(`/validations/capturers/${id}/captured-businesses`,{params:{periodo}})).data;
 export const getAdminCapturerRanking=async(id:number,modalidad:string,periodo:string)=> (await apiClient.get<CapturerRanking>(`/validations/capturers/${id}/ranking`,{params:{modalidad,periodo}})).data;
+
+async function getValidationDocument(path:string):Promise<Blob>{
+  const response=await apiClient.get<Blob>(path,{responseType:'blob'});
+  return response.data;
+}
+
+function saveDocument(blob:Blob,nombre:string){
+  const url=URL.createObjectURL(blob);
+  const anchor=document.createElement('a');
+  anchor.href=url;
+  anchor.download=nombre||'documento';
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.setTimeout(()=>URL.revokeObjectURL(url),1_000);
+}
+
+async function previewDocument(path:string){
+  const preview=window.open('','_blank');
+  if(!preview) throw new Error('El navegador bloqueó la vista previa. Habilita las ventanas emergentes e inténtalo nuevamente.');
+
+  preview.opener=null;
+  preview.document.title='Cargando documento';
+  preview.document.body.textContent='Cargando documento…';
+  try{
+    const blob=await getValidationDocument(path);
+    const url=URL.createObjectURL(blob);
+    preview.location.replace(url);
+    window.setTimeout(()=>URL.revokeObjectURL(url),60_000);
+  }catch(error){
+    preview.close();
+    throw error;
+  }
+}
+
+export async function viewCapturerDocument(id:number,tipo:string){return previewDocument(`/validations/capturers/${id}/documents/${tipo}`);}
+export async function downloadCapturerDocument(id:number,tipo:string,nombre:string){saveDocument(await getValidationDocument(`/validations/capturers/${id}/documents/${tipo}`),nombre);}
 export const listManagedCapturers=async()=> (await apiClient.get<CapturerProfile[]>('/backoffice/capturers',{params:{includeDeleted:false}})).data;
 export const deactivateCapturer=async(id:number)=> (await apiClient.patch<CapturerProfile>(`/backoffice/capturers/${id}/deactivate`)).data;
 export const reactivateCapturer=async(id:number)=> (await apiClient.patch<CapturerProfile>(`/backoffice/capturers/${id}/reactivate`)).data;
@@ -19,7 +56,8 @@ export const approveCapturer=async(id:number)=> (await apiClient.patch<CapturerP
 export const rejectCapturer=async(id:number,motivo:string)=> (await apiClient.patch<CapturerProfile>(`/validations/capturers/${id}/reject`,{motivo})).data;
 export const listServices=async()=> (await apiClient.get<AutomotiveServiceReview[]>('/validations/automotive-services')).data;
 export const decideService=async(id:number,action:'approve'|'request-correction'|'reject',notas='')=> (await apiClient.patch<AutomotiveServiceReview>(`/validations/automotive-services/${id}/${action}`,action==='approve'?undefined:{notas})).data;
-export async function downloadServiceDocument(id:number,tipo:string,nombre:string){const response=await apiClient.get(`/validations/automotive-services/${id}/documents/${tipo}`,{responseType:'blob'});const url=URL.createObjectURL(response.data);const anchor=document.createElement('a');anchor.href=url;anchor.download=nombre||'documento';anchor.click();URL.revokeObjectURL(url);}
+export async function viewServiceDocument(id:number,tipo:string){return previewDocument(`/validations/automotive-services/${id}/documents/${tipo}`);}
+export async function downloadServiceDocument(id:number,tipo:string,nombre:string){saveDocument(await getValidationDocument(`/validations/automotive-services/${id}/documents/${tipo}`),nombre);}
 export const listCapturerWithdrawals=async()=> (await apiClient.get<CapturerWithdrawal[]>('/administration/capturer-withdrawals')).data;
 export const payCapturerWithdrawal=async(id:number)=> (await apiClient.patch<CapturerWithdrawal>(`/administration/capturer-withdrawals/${id}/pay`)).data;
 export const rejectCapturerWithdrawal=async(id:number,motivo:string)=> (await apiClient.patch<CapturerWithdrawal>(`/administration/capturer-withdrawals/${id}/reject`,{motivo})).data;

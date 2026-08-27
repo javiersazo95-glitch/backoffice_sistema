@@ -14,7 +14,7 @@ export default function CapturersPage() {
   const [region, setRegion] = useState("TODAS");
   const [comuna, setComuna] = useState("TODAS");
   const [tipo, setTipo] = useState("TODAS");
-  const [order, setOrder] = useState("RECIENTES");
+  const [order, setOrder] = useState("RANKING");
   const [perPage, setPerPage] = useState(10);
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<CapturerProfile | null>(null);
@@ -333,7 +333,7 @@ export default function CapturersPage() {
                     setRegion("TODAS");
                     setComuna("TODAS");
                     setTipo("TODAS");
-                    setOrder("RECIENTES");
+                    setOrder("RANKING");
                   }}
                 >
                   <UiIcon name="filter" />
@@ -346,7 +346,7 @@ export default function CapturersPage() {
               <Insight
                 tone="blue"
                 icon="crown"
-                title="Mejor captador del mes"
+                title="Mejor captador global"
                 value={mejorPerfil?.nombre || mejor?.alias || "—"}
                 foot={
                   mejor
@@ -851,7 +851,7 @@ function CaptacionesView({ all }: { all: CapturerProfile[] }) {
         <Stat
           icon="barChart"
           tone="blue"
-          label="Ventas generadas"
+          label="Monto base generado"
           value={formatCurrency(totalVentas)}
           foot="Total de los negocios captados"
         />
@@ -909,7 +909,7 @@ function CaptacionesView({ all }: { all: CapturerProfile[] }) {
             ["RECIENTES", "Más recientes"],
             ["ANTIGUOS", "Más antiguos"],
             ["INGRESO", "Mayor ingreso"],
-            ["VENTAS", "Mayores ventas"],
+            ["VENTAS", "Mayor monto base"],
             ["COMUNA", "Comuna A-Z"],
           ]}
         />
@@ -947,7 +947,7 @@ function CaptacionesView({ all }: { all: CapturerProfile[] }) {
                 <th>Casas</th>
                 <th>Servicios</th>
                 <th>Total</th>
-                <th>Ventas generadas</th>
+                <th>Monto base generado</th>
                 <th>Ingreso captadores</th>
                 <th>Captadores</th>
                 <th>Volumen</th>
@@ -1041,7 +1041,7 @@ function CaptacionesView({ all }: { all: CapturerProfile[] }) {
                 <th>Región</th>
                 <th>Comuna</th>
                 <th>Captado por</th>
-                <th>Ventas generadas</th>
+                <th>Monto base generado</th>
                 <th>Ingreso captador</th>
                 <th>Estado</th>
                 <th>Fecha registro</th>
@@ -1263,7 +1263,7 @@ function Select({
 
 function Modal({ c, close }: { c: CapturerProfile; close: () => void }) {
   const [tab, setTab] = useState("general");
-  const [mode, setMode] = useState("REGIONAL");
+  const [mode, setMode] = useState("GLOBAL");
   const [period, setPeriod] = useState(new Date().toISOString().slice(0, 7));
   const [businessType, setBusinessType] = useState("TODOS");
   const [businessSearch, setBusinessSearch] = useState("");
@@ -1462,7 +1462,7 @@ function CaptureSection({
             "Servicios captados",
             all.filter((x) => x.tipo === "SERVICIO").length,
           ],
-          ["Ventas del período", formatMoney(sales)],
+          ["Monto base del período", formatMoney(sales)],
           ["Ingresos del captador", formatMoney(income)],
         ].map(([l, v]) => (
           <div className="cps-capture-metric" key={String(l)}>
@@ -1511,7 +1511,7 @@ function CaptureSection({
               <th>Negocio</th>
               <th>Tipo</th>
               <th>Ubicación</th>
-              <th>Ventas</th>
+              <th>Monto base</th>
               <th>Ingreso captador</th>
               <th>Estado</th>
             </tr>

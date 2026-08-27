@@ -485,6 +485,31 @@ export default function CapturerValidationTab() {
                   </dl>
                 </div>
               </div>
+
+              <div className="ad-modal-detail-card">
+                <h4><UiIcon name="document" /> Documentos de postulación</h4>
+                <div style={{ display: 'grid', gap: 9 }}>
+                  {([
+                    ['antecedentes', 'Certificado de antecedentes', detail.antecedentesNombre],
+                    ['carnet-frente', 'Carnet de identidad · frente', detail.carnetFrenteNombre],
+                    ['carnet-reverso', 'Carnet de identidad · reverso', detail.carnetReversoNombre],
+                  ] as const).map(([tipo, label, nombre]) => (
+                    <div key={tipo} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '9px 10px', border: '1px solid #e2e8f0', borderRadius: 8 }}>
+                      <div style={{ minWidth: 0 }}><strong style={{ display: 'block', fontSize: 13 }}>{label}</strong><span className="muted" style={{ overflowWrap: 'anywhere' }}>{nombre || 'No adjuntado'}</span></div>
+                      {nombre && (
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                          <button className="secondary-button" type="button" onClick={() => void api.viewCapturerDocument(detail.id, tipo).catch((error: unknown) => showToast(error instanceof Error ? error.message : `No se pudo ver ${label.toLowerCase()}.`))}>
+                            <UiIcon name="eye" /> Ver
+                          </button>
+                          <button className="secondary-button" type="button" onClick={() => void api.downloadCapturerDocument(detail.id, tipo, nombre).catch(() => showToast(`No se pudo descargar ${label.toLowerCase()}.`))}>
+                            <UiIcon name="download" /> Descargar
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
 
             <div style={{ padding: '14px 20px', background: '#f8fafc', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>

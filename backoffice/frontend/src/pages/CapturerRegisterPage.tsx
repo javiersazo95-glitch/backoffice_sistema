@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { isAxiosError } from 'axios';
 import apiClient from '@/api/client';
 import { formatRut, validateRut } from '@/utils/rut';
 import { formatChileanPhone, toInternationalChileanPhone } from '@/utils/phone';
@@ -7,6 +8,14 @@ import DocumentUploader, { DocumentUploadItem } from '@/components/capturer/Docu
 import { useAuth } from '@/context/AuthContext';
 
 type Place = { id: string | number; nombre: string };
+
+function registrationErrorMessage(error: unknown, fallback: string): string {
+  if (isAxiosError(error)) {
+    if (typeof error.response?.data?.message === 'string') return error.response.data.message;
+    if (!error.response) return 'No hubo respuesta del servidor. Revisa la conexión con el backend de dev e intenta nuevamente.';
+  }
+  return error instanceof Error && error.message ? error.message : fallback;
+}
 
 interface CapturerFormState {
   nombre: string;
@@ -173,26 +182,39 @@ export default function CapturerRegisterPage() {
         telefono: phonePayload || form.telefono,
         regionId: Number(form.regionId),
         comunaId: Number(form.comunaId),
-        documentosAdjuntos: {
-          antecedentesNombre: antecedentesDoc.file.name,
-          carnetFrenteNombre: carnetFrenteDoc.file.name,
-          carnetReversoNombre: carnetReversoDoc.file.name,
-        },
       };
 
-      const response = await apiClient.post<{ verificationCode?: string; pendingEmailVerification?: boolean }>(
+      const requestData = new FormData();
+      requestData.append('data', JSON.stringify(payload));
+      requestData.append('antecedentes', antecedentesDoc.file);
+      requestData.append('carnetFrente', carnetFrenteDoc.file);
+      requestData.append('carnetReverso', carnetReversoDoc.file);
+
+      const response = await apiClient.post<{
+        verificationCode?: string;
+        pendingEmailVerification?: boolean;
+        emailSent?: boolean;
+        existingAccount?: boolean;
+        email?: string;
+        message?: string;
+      }>(
         '/auth/register/capturer',
-        payload
+        requestData,
+        { headers: { 'Content-Type': 'multipart/form-data' } },
       );
 
       if (response.data.pendingEmailVerification === false) {
-        navigate('/login?type=capturer&application=received', { replace: true });
+        const email = response.data.email || form.email.trim().toLowerCase();
+        navigate(`/login?type=capturer&application=received&existing=${response.data.existingAccount ? '1' : '0'}&email=${encodeURIComponent(email)}`, { replace: true });
         return;
       }
       setLocalVerificationCode(response.data.verificationCode || '');
       setPendingEmail(form.email.trim().toLowerCase());
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'No se pudo completar el registro de postulación.');
+      if (response.data.emailSent === false) {
+        setError(response.data.message || 'La postulación se registró, pero no pudimos enviar el código de verificación.');
+      }
+    } catch (err: unknown) {
+      setError(registrationErrorMessage(err, 'No se pudo completar el registro de postulación.'));
     } finally {
       setBusy(false);
     }
@@ -203,13 +225,14 @@ export default function CapturerRegisterPage() {
     setBusy(true);
     setError('');
     try {
-      const response = await apiClient.post<{ verificationCode?: string }>('/auth/register/resend-code', {
+      const response = await apiClient.post<{ verificationCode?: string; emailSent?: boolean; message?: string }>('/auth/register/resend-code', {
         email: pendingEmail,
       });
       setLocalVerificationCode(response.data.verificationCode || '');
       setResendCooldown(60);
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'No se pudo reenviar el código de verificación.');
+      if (response.data.emailSent === false) setError(response.data.message || 'No se pudo reenviar el código de verificación.');
+    } catch (err: unknown) {
+      setError(registrationErrorMessage(err, 'No se pudo reenviar el código de verificación.'));
     } finally {
       setBusy(false);
     }
@@ -231,8 +254,8 @@ export default function CapturerRegisterPage() {
       } catch {
         navigate('/login?type=capturer&verified=1', { replace: true });
       }
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Código de verificación inválido o vencido.');
+    } catch (err: unknown) {
+      setError(registrationErrorMessage(err, 'Código de verificación inválido o vencido.'));
     } finally {
       setBusy(false);
     }

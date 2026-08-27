@@ -18,7 +18,7 @@ const baseLevel:Level=levels[0]!;
 export default function CapturerPortalPage(){
  const qc=useQueryClient(); const navigate=useNavigate(); const {pathname}=useLocation();
  const section=pathname.startsWith('/captador/comisiones')?'COMISIONES':pathname.startsWith('/captador/ranking')?'RANKING':pathname.startsWith('/captador/retiros')?'FINANZAS':'RESUMEN';
- const [mode,setMode]=useState<'REGIONAL'|'GLOBAL'>('REGIONAL');
+ const [mode,setMode]=useState<'REGIONAL'|'GLOBAL'>('GLOBAL');
  const [period,setPeriod]=useState(new Date().toISOString().slice(0,7));
  const [estadoFiltro,setEstadoFiltro]=useState('TODOS');
  const [bank,setBank]=useState<BankForm>({banco:'',bankCode:'',tipoCuenta:'',numeroCuenta:'',titular:'',email:''});

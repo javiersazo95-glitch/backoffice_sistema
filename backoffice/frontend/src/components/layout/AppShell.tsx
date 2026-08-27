@@ -3,7 +3,6 @@ import type { ReactNode } from 'react';
 import { Outlet } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import Sidebar from './Sidebar';
-import Toast from './Toast';
 import HelpSupportWidget from '@/components/shared/HelpSupportWidget';
 
 export default function AppShell({ children, noSidebar }: { children?: ReactNode; noSidebar?: boolean }) {
@@ -16,7 +15,6 @@ export default function AppShell({ children, noSidebar }: { children?: ReactNode
         <main className="content" style={{ maxWidth: '1440px', margin: '0 auto', padding: '24px' }}>
           {children ?? <Outlet />}
         </main>
-        <Toast />
       </div>
     );
   }
@@ -54,7 +52,6 @@ export default function AppShell({ children, noSidebar }: { children?: ReactNode
         {children ?? <Outlet />}
       </main>
       <HelpSupportWidget />
-      <Toast />
     </div>
   );
 }

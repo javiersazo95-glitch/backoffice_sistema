@@ -78,6 +78,7 @@ export default function PermissionsConfigPage() {
   const [inviteName, setInviteName] = useState('');
   const [inviteEmail, setInviteEmail] = useState('');
   const [invitePermissions, setInvitePermissions] = useState<BackofficePermission[]>([]);
+  const [inviteFeedback, setInviteFeedback] = useState<{ tone: 'success' | 'warning' | 'error'; text: string } | null>(null);
   const [usersSearch, setUsersSearch] = useState('');
   const [areaFilter, setAreaFilter] = useState<BackofficeArea | 'All'>('All');
   const [slotFilter, setSlotFilter] = useState<BackofficePermissionSlot | 'All'>('All');
@@ -165,12 +166,41 @@ export default function PermissionsConfigPage() {
 
   const inviteMutation = useMutation({
     mutationFn: () => permissionsApi.inviteEmployee({ fullName: inviteName, email: inviteEmail, permissions: invitePermissions }),
-    onSuccess: () => {
+    onSuccess: (invited) => {
+      const emailWasSent = invited.invitationEmailSent !== false;
+      const text = emailWasSent
+        ? `Invitación enviada a ${invited.email} y permisos registrados.`
+        : `La cuenta de ${invited.email} quedó registrada, pero el correo no fue enviado. Revisa RESEND_API_KEY en dev.`;
+      setInviteFeedback({ tone: emailWasSent ? 'success' : 'warning', text });
       setInviteName(''); setInviteEmail(''); setInvitePermissions([]);
+      setPage(0);
       queryClient.invalidateQueries({ queryKey: ['permission-users'] });
-      showToast('Invitación enviada y permisos registrados');
+      showToast(text);
+      setActiveTab('usuarios');
     },
-    onError: (error: any) => showToast(error.response?.data?.message || error.message || 'No se pudo invitar al empleado'),
+    onError: (error: any) => {
+      const text = error.response?.data?.message || error.message || 'No se pudo invitar al empleado';
+      setInviteFeedback({ tone: 'error', text });
+      showToast(text);
+    },
+  });
+
+  const resendInvitationMutation = useMutation({
+    mutationFn: permissionsApi.resendEmployeeInvitation,
+    onSuccess: (invited) => {
+      const emailWasSent = invited.invitationEmailSent !== false;
+      const text = emailWasSent
+        ? `Invitación reenviada a ${invited.email}.`
+        : `La invitación de ${invited.email} sigue pendiente, pero el correo no fue enviado. Revisa RESEND_API_KEY en dev.`;
+      setInviteFeedback({ tone: emailWasSent ? 'success' : 'warning', text });
+      queryClient.invalidateQueries({ queryKey: ['permission-users'] });
+      showToast(text);
+    },
+    onError: (error: any) => {
+      const text = error.response?.data?.message || error.message || 'No se pudo reenviar la invitación';
+      setInviteFeedback({ tone: 'error', text });
+      showToast(text);
+    },
   });
 
   const deleteMutation = useMutation({
@@ -222,6 +252,14 @@ export default function PermissionsConfigPage() {
             Fundador
           </button>
         </nav>
+
+        {inviteFeedback && (
+          <div className={`employee-invite-feedback ${inviteFeedback.tone}`} role={inviteFeedback.tone === 'error' ? 'alert' : 'status'}>
+            <UiIcon name={inviteFeedback.tone === 'success' ? 'check' : 'alert'} />
+            <span>{inviteFeedback.text}</span>
+            <button type="button" onClick={() => setInviteFeedback(null)} aria-label="Cerrar aviso"><UiIcon name="close" /></button>
+          </div>
+        )}
 
         {activeTab === 'permisos' ? (
           <div className="permissions-workspace">
@@ -345,7 +383,21 @@ export default function PermissionsConfigPage() {
                       <tr key={user.id}>
                         <td><strong>{user.email}</strong></td>
                         <td>{user.fullName}</td>
-                        <td><span className={`employee-invitation-status ${invitationStatus(user).value.toLowerCase()}`}>{invitationStatus(user).label}</span></td>
+                        <td>
+                          <div className="employee-invitation-cell">
+                            <span className={`employee-invitation-status ${invitationStatus(user).value.toLowerCase()}`}>{invitationStatus(user).label}</span>
+                            {invitationStatus(user).value === 'PENDIENTE' && (
+                              <button
+                                className="employee-resend-button"
+                                type="button"
+                                disabled={resendInvitationMutation.isPending}
+                                onClick={() => resendInvitationMutation.mutate(user.id)}
+                              >
+                                <UiIcon name="mail" /> Reenviar
+                              </button>
+                            )}
+                          </div>
+                        </td>
                         <td>
                           <div className="permission-chip-list">
                             {user.permissions.length === 0 ? (
