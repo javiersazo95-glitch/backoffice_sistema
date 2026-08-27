@@ -8,6 +8,20 @@ export interface PermissionUser {
   fullName: string;
   initials: string;
   role: string;
+  active?: boolean;
+  emailVerified?: boolean;
+  invitationStatus?: 'PENDIENTE' | 'ACEPTADO' | 'RECHAZADO';
+  permissions: BackofficePermission[];
+  /** Campos opcionales devueltos por bajas lógicas en el backend. */
+  deleted?: boolean;
+  eliminado?: boolean;
+  deletedAt?: string | null;
+  eliminadoEn?: string | null;
+}
+
+export interface InviteEmployeeRequest {
+  fullName: string;
+  email: string;
   permissions: BackofficePermission[];
 }
 
@@ -20,7 +34,9 @@ export interface ListPermissionUsersParams {
 }
 
 export async function searchUsers(email: string): Promise<PermissionUser[]> {
-  const response = await apiClient.get<PermissionUser[]>('/backoffice/permissions/users/search', { params: { email } });
+  const response = await apiClient.get<PermissionUser[]>('/backoffice/permissions/users/search', {
+    params: { email, includeDeleted: false },
+  });
   return response.data;
 }
 
@@ -34,10 +50,16 @@ export async function updateUserPermissions(userId: number, permissions: Backoff
   return response.data;
 }
 
+export async function inviteEmployee(data: InviteEmployeeRequest): Promise<PermissionUser> {
+  const response = await apiClient.post<PermissionUser>('/backoffice/permissions/invitations', data);
+  return response.data;
+}
+
 export async function listPermissionUsers(params: ListPermissionUsersParams): Promise<PageResponse<PermissionUser>> {
   const response = await apiClient.get<PageResponse<PermissionUser>>('/backoffice/permissions/users', {
     params: {
       ...params,
+      includeDeleted: false,
       area: params.area === 'All' ? undefined : params.area,
       slot: params.slot === 'All' ? undefined : params.slot,
     },

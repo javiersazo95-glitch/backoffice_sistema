@@ -12,7 +12,7 @@ export async function requestWithdrawal(monto:number,boleta:File){const form=new
 export const listCapturers=async()=> (await apiClient.get<CapturerProfile[]>('/validations/capturers')).data;
 export const getCapturedBusinesses=async(id:number,periodo?:string)=> (await apiClient.get<CapturedBusinesses>(`/validations/capturers/${id}/captured-businesses`,{params:{periodo}})).data;
 export const getAdminCapturerRanking=async(id:number,modalidad:string,periodo:string)=> (await apiClient.get<CapturerRanking>(`/validations/capturers/${id}/ranking`,{params:{modalidad,periodo}})).data;
-export const listManagedCapturers=async()=> (await apiClient.get<CapturerProfile[]>('/backoffice/capturers')).data;
+export const listManagedCapturers=async()=> (await apiClient.get<CapturerProfile[]>('/backoffice/capturers',{params:{includeDeleted:false}})).data;
 export const deactivateCapturer=async(id:number)=> (await apiClient.patch<CapturerProfile>(`/backoffice/capturers/${id}/deactivate`)).data;
 export const reactivateCapturer=async(id:number)=> (await apiClient.patch<CapturerProfile>(`/backoffice/capturers/${id}/reactivate`)).data;
 export const approveCapturer=async(id:number)=> (await apiClient.patch<CapturerProfile>(`/validations/capturers/${id}/approve`)).data;
@@ -24,5 +24,9 @@ export const listCapturerWithdrawals=async()=> (await apiClient.get<CapturerWith
 export const payCapturerWithdrawal=async(id:number)=> (await apiClient.patch<CapturerWithdrawal>(`/administration/capturer-withdrawals/${id}/pay`)).data;
 export const rejectCapturerWithdrawal=async(id:number,motivo:string)=> (await apiClient.patch<CapturerWithdrawal>(`/administration/capturer-withdrawals/${id}/reject`,{motivo})).data;
 export const getCapturerConfig=async()=> (await apiClient.get<CapturerConfig>('/validations/capturers/config')).data;
+// Config del programa visible para el propio captador (mismos valores que administra
+// Confianza y Mediación). Se usa para que las tarjetas informativas del portal reflejen
+// siempre la configuración vigente de puntaje y comisiones.
+export const getCapturerProgramConfig=async()=> (await apiClient.get<CapturerConfig>('/captadores/me/config')).data;
 export const saveCapturerConfig=async(data:CapturerConfig)=> (await apiClient.put<CapturerConfig>('/validations/capturers/config',data)).data;
 export async function downloadCapturerReceipt(id:number,nombre:string){const response=await apiClient.get(`/administration/capturer-withdrawals/${id}/receipt`,{responseType:'blob'});const url=URL.createObjectURL(response.data);const anchor=document.createElement('a');anchor.href=url;anchor.download=nombre||'boleta-captador.pdf';anchor.click();URL.revokeObjectURL(url);}

@@ -2,9 +2,10 @@ import { useEffect,useRef,useState } from 'react';
 import type { ReactNode } from 'react';
 import { useLocation,useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
+import { resolveProfileImageUrl } from '@/api/client';
 
 type Alert={label:string;detail:string;to:string};
-type Props={alias?:string;region?:string;comuna?:string;alerts?:Alert[];children:ReactNode};
+type Props={alias?:string;region?:string;comuna?:string;fotoPerfil?:string|null;alerts?:Alert[];children:ReactNode};
 
 const navItems:Array<{to:string;label:string;icon:ReactNode}>=[
  {to:'/captador',label:'Resumen',icon:<HomeIcon/>},
@@ -14,7 +15,7 @@ const navItems:Array<{to:string;label:string;icon:ReactNode}>=[
  {to:'/captador/cuenta',label:'Mi cuenta',icon:<UserIcon/>},
 ];
 
-export default function CapturerLayout({alias,region,comuna,alerts=[],children}:Props){
+export default function CapturerLayout({alias,region,comuna,fotoPerfil,alerts=[],children}:Props){
  const navigate=useNavigate(); const {pathname}=useLocation(); const {logout}=useAuth();
  const [menu,setMenu]=useState(false); const [bell,setBell]=useState(false); const [drawer,setDrawer]=useState(false);
  const root=useRef<HTMLDivElement>(null);
@@ -22,6 +23,7 @@ export default function CapturerLayout({alias,region,comuna,alerts=[],children}:
  const go=(to:string)=>{setMenu(false);setBell(false);setDrawer(false);navigate(to);};
  async function exit(){setMenu(false);await logout();navigate('/login?type=capturer',{replace:true});}
  const initial=(alias||'C').charAt(0).toUpperCase();
+ const avatarUrl=resolveProfileImageUrl(fotoPerfil);
  return <div className="cap-root" ref={root}>
   <style>{css}</style>
   <aside className={drawer?'cap-side cap-side-open':'cap-side'}>
@@ -59,7 +61,7 @@ export default function CapturerLayout({alias,region,comuna,alerts=[],children}:
      </div>
      <div className="cap-pop-wrap">
       <button type="button" aria-label="Abrir menú de usuario" aria-expanded={menu} className="cap-user" onClick={()=>{setMenu(v=>!v);setBell(false);}}>
-       <span className="cap-avatar" aria-hidden="true">{initial}</span>
+       <span className="cap-avatar" aria-hidden="true">{avatarUrl?<img src={avatarUrl} alt="" onError={e=>{(e.currentTarget as HTMLImageElement).style.display='none';}}/>:initial}</span>
        <span className="cap-user-text"><strong>{alias||'Captador'}</strong><small>Captador</small></span>
        <ChevronIcon/>
       </button>
@@ -124,7 +126,8 @@ const css=`
 .cap-badge{position:absolute;top:-6px;right:-6px;min-width:19px;height:19px;padding:0 5px;display:grid;place-items:center;border-radius:999px;background:#e11d48;color:#fff;font-size:11px;font-weight:800}
 .cap-user{display:flex;align-items:center;gap:9px;padding:5px 10px 5px 5px;border:1px solid var(--cap-line);border-radius:12px;background:#fff;color:var(--cap-ink);font:inherit;cursor:pointer}
 .cap-user:hover{background:#f4f7fb}
-.cap-avatar{display:grid;place-items:center;width:32px;height:32px;border-radius:50%;background:linear-gradient(140deg,#0a1f52,#1c62e8);color:#fff;font-weight:800}
+.cap-avatar{display:grid;place-items:center;width:32px;height:32px;border-radius:50%;background:linear-gradient(140deg,#0a1f52,#1c62e8);color:#fff;font-weight:800;overflow:hidden;flex:0 0 auto}
+.cap-avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%}
 .cap-user-text{display:grid;text-align:left;line-height:1.15}
 .cap-user-text strong{font-size:13.5px}
 .cap-user-text small{font-size:11.5px;color:var(--cap-muted)}

@@ -45,23 +45,43 @@ function togglePermission(permissions: BackofficePermission[], area: BackofficeA
   return [...withoutConflicts, { area, slot }];
 }
 
-function permissionText(permissions: BackofficePermission[]) {
-  if (permissions.length === 0) return 'Sin permisos';
-  return permissions.map((permission) => `${AREA_LABELS[permission.area]} · ${SLOT_LABELS[permission.slot]}`).join(', ');
+type DeletionState = {
+  email?: string | null;
+  deleted?: boolean;
+  eliminado?: boolean;
+  deletedAt?: string | null;
+  eliminadoEn?: string | null;
+  estado?: string;
+};
+
+function isDeleted(record: DeletionState) {
+  const status = record.estado?.trim().toUpperCase();
+  const email = record.email?.trim().toLowerCase() ?? '';
+  return record.deleted === true
+    || record.eliminado === true
+    || record.deletedAt != null
+    || record.eliminadoEn != null
+    || status === 'ELIMINADO'
+    || status === 'DELETED'
+    || /^deleted-user-\d+@deleted\.repuestop\.local$/.test(email);
+}
+
+function invitationStatus(user: permissionsApi.PermissionUser) {
+  const status = user.invitationStatus ?? (!user.active ? 'RECHAZADO' : !user.emailVerified ? 'PENDIENTE' : 'ACEPTADO');
+  return { value: status, label: status === 'PENDIENTE' ? 'Pendiente' : status === 'RECHAZADO' ? 'Rechazado' : 'Aceptado' };
 }
 
 export default function PermissionsConfigPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<'permisos' | 'usuarios' | 'captadores' | 'fundador'>('permisos');
-  const [searchEmail, setSearchEmail] = useState('');
-  const [selectedUser, setSelectedUser] = useState<permissionsApi.PermissionUser | null>(null);
-  const [draftPermissions, setDraftPermissions] = useState<BackofficePermission[]>([]);
+  const [inviteName, setInviteName] = useState('');
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [invitePermissions, setInvitePermissions] = useState<BackofficePermission[]>([]);
   const [usersSearch, setUsersSearch] = useState('');
   const [areaFilter, setAreaFilter] = useState<BackofficeArea | 'All'>('All');
   const [slotFilter, setSlotFilter] = useState<BackofficePermissionSlot | 'All'>('All');
   const [page, setPage] = useState(0);
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [founderSearch, setFounderSearch] = useState('');
   const [founderFilter, setFounderFilter] = useState<'ALL' | 'FOUNDER' | 'NON_FOUNDER'>('ALL');
   const [founderPage, setFounderPage] = useState(0);
@@ -91,12 +111,6 @@ export default function PermissionsConfigPage() {
     onError: (error: any) => showToast(error.message || 'No se pudo actualizar al vendedor'),
   });
 
-  const { data: suggestions = [] } = useQuery({
-    queryKey: ['permission-user-search', searchEmail],
-    queryFn: () => permissionsApi.searchUsers(searchEmail),
-    enabled: searchEmail.trim().length >= 2 && !selectedUser,
-  });
-
   const { data: usersData, isLoading: isLoadingUsers } = useQuery({
     queryKey: ['permission-users', usersSearch, areaFilter, slotFilter, page],
     queryFn: () => permissionsApi.listPermissionUsers({
@@ -114,6 +128,16 @@ export default function PermissionsConfigPage() {
     queryFn: capturersApi.listManagedCapturers,
     enabled: activeTab === 'captadores',
   });
+
+  const permissionUsers = useMemo(
+    () => usersData?.content.filter((user) => !isDeleted(user)) ?? [],
+    [usersData],
+  );
+
+  const founderSellers = useMemo(
+    () => founderData?.content.filter((seller) => !isDeleted({ email: seller.email })) ?? [],
+    [founderData],
+  );
 
   const deactivateCapturerMutation = useMutation({
     mutationFn: capturersApi.deactivateCapturer,
@@ -134,23 +158,19 @@ export default function PermissionsConfigPage() {
 
   const filteredCapturers = useMemo(() => {
     const term = capturerSearch.trim().toLocaleLowerCase('es-CL');
-    if (!term) return capturers;
-    return capturers.filter((capturer) => [capturer.nombre, capturer.alias, capturer.email, capturer.rut, capturer.region, capturer.comuna]
+    return capturers.filter((capturer) => !isDeleted(capturer as unknown as Record<string, unknown>))
+      .filter((capturer) => !term || [capturer.nombre, capturer.alias, capturer.email, capturer.rut, capturer.region, capturer.comuna]
       .some((value) => value.toLocaleLowerCase('es-CL').includes(term)));
   }, [capturers, capturerSearch]);
 
-  const saveMutation = useMutation({
-    mutationFn: () => {
-      if (!selectedUser) throw new Error('Selecciona un usuario');
-      return permissionsApi.updateUserPermissions(selectedUser.id, draftPermissions);
-    },
-    onSuccess: (updatedUser) => {
-      setSelectedUser(updatedUser);
-      setDraftPermissions(updatedUser.permissions ?? []);
+  const inviteMutation = useMutation({
+    mutationFn: () => permissionsApi.inviteEmployee({ fullName: inviteName, email: inviteEmail, permissions: invitePermissions }),
+    onSuccess: () => {
+      setInviteName(''); setInviteEmail(''); setInvitePermissions([]);
       queryClient.invalidateQueries({ queryKey: ['permission-users'] });
-      setShowSuccessModal(true);
+      showToast('Invitación enviada y permisos registrados');
     },
-    onError: (error: any) => showToast(error.message || 'No se pudieron guardar los permisos'),
+    onError: (error: any) => showToast(error.response?.data?.message || error.message || 'No se pudo invitar al empleado'),
   });
 
   const deleteMutation = useMutation({
@@ -163,18 +183,13 @@ export default function PermissionsConfigPage() {
     onError: (error: any) => showToast(error.message || 'No se pudo eliminar el permiso'),
   });
 
-  const selectedSummary = useMemo(() => selectedUser ? permissionText(draftPermissions) : 'Selecciona un correo para editar permisos', [draftPermissions, selectedUser]);
-
-  const selectUser = (user: permissionsApi.PermissionUser) => {
-    setSelectedUser(user);
-    setSearchEmail(user.email);
-    setDraftPermissions(user.permissions ?? []);
-  };
-
-  const editUser = async (user: permissionsApi.PermissionUser) => {
-    const fullUser = await permissionsApi.getUserPermissions(user.id);
-    setActiveTab('permisos');
-    selectUser(fullUser);
+  const isInviting = Boolean(inviteName.trim() || inviteEmail.trim());
+  const activePermissions = invitePermissions;
+  const inviteInitials = inviteName.trim()
+    ? inviteName.trim().split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase()).join('')
+    : '?';
+  const toggleActivePermission = (area: BackofficeArea, slot: BackofficePermissionSlot) => {
+    setInvitePermissions((current) => togglePermission(current, area, slot));
   };
 
   return (
@@ -210,49 +225,43 @@ export default function PermissionsConfigPage() {
 
         {activeTab === 'permisos' ? (
           <div className="permissions-workspace">
-            <section className="permissions-config-header">
-              <h2>Asignación por correo</h2>
-              <p>Busca un usuario registrado y activa las ranuras permitidas para cada área.</p>
+            <section className="permissions-hero">
+              <div>
+                <span className="permissions-eyebrow"><UiIcon name="shield" /> Control de acceso</span>
+                <h2>Permisos del equipo</h2>
+                <p>Administra quién puede entrar al Backoffice y a qué áreas puede acceder.</p>
+              </div>
+              <div className="permissions-hero-note">
+                <span>Acceso protegido</span>
+                <strong>Solo usuarios autorizados</strong>
+              </div>
             </section>
 
-            <div className="permission-search-panel">
-              <label className="validation-search-field">
-                <UiIcon name="search" />
-                <input
-                  type="search"
-                  value={searchEmail}
-                  onChange={(event) => {
-                    setSearchEmail(event.target.value);
-                    setSelectedUser(null);
-                    setDraftPermissions([]);
-                  }}
-                  placeholder="Buscar correo registrado..."
-                />
-              </label>
-
-              {!selectedUser && suggestions.length > 0 && (
-                <div className="permission-suggestions">
-                  {suggestions.map((user) => (
-                    <button key={user.id} type="button" onClick={() => selectUser(user)}>
-                      <span className="profile-badge">{user.initials}</span>
-                      <span>
-                        <strong>{user.email}</strong>
-                        <small>{user.fullName}</small>
-                      </span>
-                    </button>
-                  ))}
+            <div className="permission-entry-grid invite-only">
+              <section className="permission-entry-card invite-card">
+                <div className="permission-entry-heading"><span className="permission-entry-icon"><UiIcon name="users" /></span><div><h3>Invitar empleado</h3><p>Crea una cuenta y envía un enlace de activación.</p></div></div>
+                <div className="invite-fields">
+                  <input value={inviteName} onChange={e => setInviteName(e.target.value)} placeholder="Nombre completo" />
+                  <input type="email" value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} placeholder="correo@empresa.cl" />
                 </div>
-              )}
+                <small>{invitePermissions.length ? `${invitePermissions.length} permiso${invitePermissions.length === 1 ? '' : 's'} seleccionado${invitePermissions.length === 1 ? '' : 's'} para la invitación.` : 'Selecciona al menos un permiso más abajo para habilitar el envío.'}</small>
+                <button className="primary-button invite-submit" type="button" disabled={!inviteName.trim() || !inviteEmail.trim() || !invitePermissions.length || inviteMutation.isPending} onClick={() => inviteMutation.mutate()}>
+                  {inviteMutation.isPending ? 'Enviando…' : 'Enviar invitación'}
+                </button>
+              </section>
             </div>
 
-            <div className="permission-selected-summary">
-              <span className="seller-profile-section-icon blue"><UiIcon name="shield" /></span>
+            <div className={`permission-selected-summary ${isInviting ? 'has-user' : ''}`}>
+              <span className="permission-user-avatar">{inviteInitials}</span>
               <div>
-                <strong>{selectedUser?.email ?? 'Sin usuario seleccionado'}</strong>
-                <p>{selectedSummary}</p>
+                <span className="summary-label">Empleado seleccionado</span>
+                <strong>{inviteName.trim() || 'Nuevo empleado'}</strong>
+                <p>{inviteEmail.trim() || 'Ingresa el correo del nuevo empleado.'}</p>
               </div>
+              <span className="summary-permission-count">{activePermissions.length} {activePermissions.length === 1 ? 'permiso' : 'permisos'}</span>
             </div>
 
+            <div className="permission-section-title"><div><h3>Áreas habilitadas</h3><p>Estos permisos se asignarán al empleado invitado.</p></div><span>{activePermissions.length}/4 seleccionados</span></div>
             <div className="permissions-config-grid">
               {PERMISSION_GROUPS.map((group) => (
                 <article key={group.area} className="permissions-config-card">
@@ -270,9 +279,9 @@ export default function PermissionsConfigPage() {
                         <label className="role-toggle-label">
                           <input
                             type="checkbox"
-                            disabled={!selectedUser}
-                            checked={hasPermission(draftPermissions, group.area, slot)}
-                            onChange={() => setDraftPermissions((current) => togglePermission(current, group.area, slot))}
+                            disabled={!isInviting}
+                            checked={hasPermission(activePermissions, group.area, slot)}
+                            onChange={() => toggleActivePermission(group.area, slot)}
                           />
                           <span className="role-toggle-switch" />
                           <span className="role-toggle-text">
@@ -287,20 +296,12 @@ export default function PermissionsConfigPage() {
               ))}
             </div>
 
-            <div className="permissions-config-actions">
-              <button className="secondary-button" type="button" onClick={() => selectedUser && setDraftPermissions(selectedUser.permissions ?? [])} disabled={!selectedUser}>
-                Revertir
-              </button>
-              <button className="primary-button" type="button" onClick={() => saveMutation.mutate()} disabled={!selectedUser || saveMutation.isPending}>
-                Guardar permisos
-              </button>
-            </div>
           </div>
         ) : activeTab === 'usuarios' ? (
           <div className="permissions-workspace">
             <section className="permissions-config-header">
               <h2>Empleados con permisos</h2>
-              <p>Filtra, edita o elimina permisos asignados al personal.</p>
+              <p>Consulta los permisos asignados al personal y revoca accesos cuando corresponda.</p>
             </section>
 
             <div className="validation-filters permissions-user-filters">
@@ -331,19 +332,20 @@ export default function PermissionsConfigPage() {
                     <tr>
                       <th>Correo</th>
                       <th>Usuario</th>
+                      <th>Estado</th>
                       <th>Permisos registrados</th>
-                      <th style={{ width: 130 }}>Acciones</th>
                     </tr>
                   </thead>
                   <tbody>
                     {isLoadingUsers ? (
                       <tr><td colSpan={4}>Cargando usuarios...</td></tr>
-                    ) : !usersData || usersData.content.length === 0 ? (
+                    ) : permissionUsers.length === 0 ? (
                       <tr><td colSpan={4}>No hay usuarios para los filtros seleccionados.</td></tr>
-                    ) : usersData.content.map((user) => (
+                    ) : permissionUsers.map((user) => (
                       <tr key={user.id}>
                         <td><strong>{user.email}</strong></td>
                         <td>{user.fullName}</td>
+                        <td><span className={`employee-invitation-status ${invitationStatus(user).value.toLowerCase()}`}>{invitationStatus(user).label}</span></td>
                         <td>
                           <div className="permission-chip-list">
                             {user.permissions.length === 0 ? (
@@ -358,13 +360,6 @@ export default function PermissionsConfigPage() {
                                 )}
                               </span>
                             ))}
-                          </div>
-                        </td>
-                        <td>
-                          <div className="seller-actions">
-                            <button className="row-action" type="button" title="Editar" onClick={() => void editUser(user)}>
-                              <UiIcon name="edit" />
-                            </button>
                           </div>
                         </td>
                       </tr>
@@ -458,8 +453,8 @@ export default function PermissionsConfigPage() {
               <th>Vendedor</th><th>Correo</th><th>Registro</th><th>Antigüedad</th><th>Fundador</th>
             </tr></thead><tbody>
               {founderLoading ? <tr><td colSpan={5}>Cargando vendedores...</td></tr>
-                : !founderData?.content.length ? <tr><td colSpan={5}>No hay vendedores para los filtros seleccionados.</td></tr>
-                : founderData.content.map((seller) => <tr key={seller.sellerId}>
+                : !founderSellers.length ? <tr><td colSpan={5}>No hay vendedores para los filtros seleccionados.</td></tr>
+                : founderSellers.map((seller) => <tr key={seller.sellerId}>
                   <td><strong>{seller.storeName}</strong><br /><span className="muted">{seller.userName}</span></td>
                   <td>{seller.email}</td><td>{new Date(seller.registeredAt).toLocaleDateString('es-CL')}</td>
                   <td>{seller.founder ? `${seller.founderDays} días` : '—'}</td>
@@ -476,22 +471,6 @@ export default function PermissionsConfigPage() {
           </div>
         )}
       </div>
-      {showSuccessModal && (
-        <div className="case-modal-backdrop" onClick={() => setShowSuccessModal(false)}>
-          <div className="case-modal" style={{ maxWidth: '400px', padding: '28px', textAlign: 'center', display: 'grid', justifyItems: 'center', gap: '16px' }} onClick={(e) => e.stopPropagation()}>
-            <div className="case-modal-icon green" style={{ width: '56px', height: '56px', borderRadius: '50%' }}>
-              <UiIcon name="check" style={{ width: '28px', height: '28px' }} />
-            </div>
-            <div>
-              <h2 style={{ margin: '0 0 8px 0', fontSize: '18px', fontWeight: 'bold', color: '#172741' }}>¡Registro Exitoso!</h2>
-              <p style={{ margin: 0, fontSize: '14px', color: '#5b6b84' }}>El permiso ha sido registrado con éxito.</p>
-            </div>
-            <button className="primary-button" style={{ width: '100%', marginTop: '8px' }} onClick={() => setShowSuccessModal(false)}>
-              Aceptar
-            </button>
-          </div>
-        </div>
-      )}
     </section>
   );
 }

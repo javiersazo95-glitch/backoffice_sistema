@@ -45,10 +45,6 @@ const loginStyles = `
   0%, 100% { transform: translateY(0px); }
   50% { transform: translateY(-4px); }
 }
-@keyframes orbitDot {
-  0% { transform: rotate(0deg) translateX(120px) rotate(0deg); }
-  100% { transform: rotate(360deg) translateX(120px) rotate(-360deg); }
-}
 @keyframes twinkle {
   0%, 100% { opacity: 0.2; transform: scale(0.8); }
   50% { opacity: 0.9; transform: scale(1.3); }
@@ -82,9 +78,9 @@ body:has(.login-wrapper) {
   flex: 1;
   height: 100%;
   max-height: 100%;
-  background: linear-gradient(135deg, #0b1d5a 0%, #0d2370 50%, #091548 100%);
+  background: linear-gradient(135deg, #07173e 0%, #0d276b 50%, #091548 100%);
   background-size: 200% 200%;
-  animation: gradientShift 8s ease infinite;
+  animation: gradientShift 10s ease infinite;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -96,7 +92,7 @@ body:has(.login-wrapper) {
 }
 
 .login-left-inner {
-  max-width: 460px;
+  max-width: 480px;
   width: 100%;
   z-index: 1;
   display: flex;
@@ -107,42 +103,83 @@ body:has(.login-wrapper) {
 }
 
 .login-right {
-  width: min(480px, 45vw);
+  width: min(500px, 46vw);
   min-width: 360px;
   height: 100%;
   max-height: 100%;
-  background: #fff;
+  background: #ffffff;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: clamp(16px, 2.5vh, 40px) clamp(20px, 3vw, 40px);
-  box-shadow: -8px 0 40px rgba(0,0,0,0.12);
-  overflow: hidden;
+  padding: clamp(16px, 2.5vh, 40px) clamp(24px, 3.5vw, 44px);
+  box-shadow: -8px 0 40px rgba(0,0,0,0.08);
+  overflow-y: auto;
   box-sizing: border-box;
+  position: relative;
 }
 
 .login-right-inner {
   width: 100%;
-  max-width: 380px;
+  max-width: 400px;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  height: 100%;
-  max-height: 100%;
+  min-height: 100%;
+  padding: 12px 0;
+  box-sizing: border-box;
 }
 
 .login-brand-logo {
   width: auto;
-  max-width: min(260px, 65vw);
+  max-width: min(230px, 58vw);
   height: auto;
-  max-height: clamp(52px, 9.5vh, 88px);
+  max-height: clamp(46px, 8vh, 72px);
   object-fit: contain;
   display: block;
 }
 
+/* ── Segmented Control Tabs (Sober & Clean) ── */
+.access-switcher {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  padding: 4px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  margin-bottom: clamp(14px, 2.2vh, 22px);
+  gap: 4px;
+}
+
+.access-tab-btn {
+  border: none;
+  background: transparent;
+  padding: 9px 12px;
+  border-radius: 8px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #64748b;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.18s ease;
+  user-select: none;
+}
+
+.access-tab-btn:hover:not(.active) {
+  color: #0f172a;
+}
+
+.access-tab-btn.active {
+  background: #ffffff;
+  color: #0b5ee8;
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
 /* ── Mobile & Small Screens ── */
-@media (max-width: 768px) {
+@media (max-width: 820px) {
   .login-left {
     display: none;
   }
@@ -151,7 +188,7 @@ body:has(.login-wrapper) {
     min-width: 0;
     padding: clamp(16px, 3vh, 32px) clamp(16px, 4vw, 24px);
     box-shadow: none;
-    background: linear-gradient(160deg, #f0f4ff 0%, #fff 60%);
+    background: #ffffff;
     justify-content: center;
     align-items: center;
   }
@@ -161,24 +198,9 @@ body:has(.login-wrapper) {
   }
 }
 
-@media (max-height: 650px) {
+@media (max-height: 700px) {
   .login-right-inner {
-    transform: scale(0.92);
-    transform-origin: center center;
-  }
-  .login-left-inner {
-    transform: scale(0.92);
-    transform-origin: center center;
-  }
-}
-
-@media (max-height: 550px) {
-  .login-right-inner {
-    transform: scale(0.82);
-    transform-origin: center center;
-  }
-  .login-left-inner {
-    transform: scale(0.82);
+    transform: scale(0.95);
     transform-origin: center center;
   }
 }
@@ -189,18 +211,24 @@ export default function LoginPage() {
   const [accessType, setAccessType] = useState<'staff' | 'capturer'>(searchParams.get('type') === 'capturer' ? 'capturer' : 'staff');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [keepSession, setKeepSession] = useState(false);
   const { login, loginWithGoogle, logout } = useAuth();
   const navigate = useNavigate();
 
+  const isVerifiedParam = searchParams.get('verified') === '1';
+
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
-      const loggedUser = await login(username, password, keepSession);
+      // Evita reutilizar un token de captador cuando se cambia al acceso de personal.
+      await logout();
+      const loggedUser = await login(username, password, keepSession, accessType === 'staff' ? 'BACKOFFICE' : 'CAPTADOR');
       if (accessType === 'capturer' && loggedUser.role !== Role.CAPTADOR) {
         await logout();
         throw new Error('Esta cuenta pertenece al personal. Selecciona “Personal de la empresa”.');
@@ -230,7 +258,17 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
     try {
-      const loggedUser = await loginWithGoogle(credential, keepSession);
+      // Google también debe comenzar desde una sesión limpia al cambiar de tipo de acceso.
+      await logout();
+      const loggedUser = await loginWithGoogle(credential, keepSession, accessType === 'staff' ? 'BACKOFFICE' : 'CAPTADOR');
+      if (accessType === 'capturer' && loggedUser.role !== Role.CAPTADOR) {
+        await logout();
+        throw new Error('Esta cuenta pertenece al personal. Selecciona “Personal de la empresa”.');
+      }
+      if (accessType === 'staff' && loggedUser.role === Role.CAPTADOR) {
+        await logout();
+        throw new Error('Esta cuenta es de captador. Selecciona “Captadores”.');
+      }
       navigate(loggedUser.role === Role.CAPTADOR ? '/captador' : '/', { replace: true });
     } catch (err) {
       setError(extractErrorMessage(err, 'No se pudo iniciar sesión con Google. Verifica que tu cuenta esté habilitada.'));
@@ -242,42 +280,37 @@ export default function LoginPage() {
   return (
     <div className="login-wrapper">
       <style>{loginStyles}</style>
-      {/* Left panel */}
+
+      {/* Panel izquierdo informativo */}
       <div className="login-left">
-        {/* Background decorative gears - animated */}
-        <div style={{ position: 'absolute', top: 30, right: 60, opacity: 0.1, width: 120, height: 120, animation: 'rotateSlow 20s linear infinite' }}>
+        {/* Engranajes decorativos sobrios */}
+        <div style={{ position: 'absolute', top: 30, right: 60, opacity: 0.08, width: 120, height: 120, animation: 'rotateSlow 20s linear infinite' }}>
           <GearIcon />
         </div>
-        <div style={{ position: 'absolute', bottom: 40, left: 20, opacity: 0.08, width: 90, height: 90, animation: 'rotateReverse 15s linear infinite' }}>
+        <div style={{ position: 'absolute', bottom: 40, left: 20, opacity: 0.06, width: 90, height: 90, animation: 'rotateReverse 15s linear infinite' }}>
           <GearIcon />
         </div>
-        <div style={{ position: 'absolute', top: '45%', right: '5%', opacity: 0.05, width: 60, height: 60, animation: 'rotateSlow 25s linear infinite' }}>
-          <GearIcon />
-        </div>
-        {/* Floating dots - animated */}
-        <span style={{ position: 'absolute', top: '20%', left: '8%', width: 8, height: 8, borderRadius: '50%', background: '#2563EB', animation: 'floatUp 3.5s ease-in-out infinite' }} />
-        <span style={{ position: 'absolute', top: '55%', left: '15%', width: 5, height: 5, borderRadius: '50%', background: '#60A5FA', animation: 'floatDown 4.2s ease-in-out infinite' }} />
-        <span style={{ position: 'absolute', top: '35%', right: '10%', width: 6, height: 6, borderRadius: '50%', background: '#2563EB', animation: 'floatSide 3.8s ease-in-out infinite' }} />
-        <span style={{ position: 'absolute', bottom: '30%', right: '8%', width: 7, height: 7, borderRadius: '50%', background: '#60A5FA', animation: 'floatUp 5s ease-in-out infinite 1s' }} />
-        <span style={{ position: 'absolute', top: '68%', left: '8%', width: 5, height: 5, borderRadius: '50%', background: '#38bdf8', animation: 'floatDown 3.2s ease-in-out infinite 0.5s' }} />
-        <span style={{ position: 'absolute', top: '10%', left: '35%', width: 4, height: 4, borderRadius: '50%', background: '#a78bfa', animation: 'twinkle 2.8s ease-in-out infinite' }} />
-        <span style={{ position: 'absolute', bottom: '15%', right: '25%', width: 4, height: 4, borderRadius: '50%', background: '#34d399', animation: 'twinkle 3.6s ease-in-out infinite 1.2s' }} />
-        <span style={{ position: 'absolute', top: '80%', left: '40%', width: 3, height: 3, borderRadius: '50%', background: '#60A5FA', animation: 'twinkle 4s ease-in-out infinite 0.8s' }} />
+
+        {/* Puntos de acento azul / verde sutil */}
+        <span style={{ position: 'absolute', top: '20%', left: '8%', width: 6, height: 6, borderRadius: '50%', background: '#60a5fa', animation: 'floatUp 3.5s ease-in-out infinite' }} />
+        <span style={{ position: 'absolute', top: '55%', left: '15%', width: 5, height: 5, borderRadius: '50%', background: '#38bdf8', animation: 'floatDown 4.2s ease-in-out infinite' }} />
+        <span style={{ position: 'absolute', bottom: '30%', right: '8%', width: 6, height: 6, borderRadius: '50%', background: '#93c5fd', animation: 'floatUp 5s ease-in-out infinite 1s' }} />
 
         <div className="login-left-inner">
-          {/* Status badge */}
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 'clamp(8px, 2vh, 24px)' }}>
+          {/* Badge de estado del sistema */}
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 'clamp(8px, 2vh, 20px)' }}>
             <span style={{
               display: 'inline-flex',
               alignItems: 'center',
               gap: 8,
               padding: '4px 14px',
-              border: '1px solid rgba(96,165,250,0.4)',
+              border: '1px solid rgba(96,165,250,0.3)',
               borderRadius: 999,
-              color: '#60A5FA',
+              color: '#93c5fd',
+              background: 'rgba(15, 23, 42, 0.4)',
               fontSize: 11,
               fontWeight: 600,
-              letterSpacing: '0.1em',
+              letterSpacing: '0.08em',
               textTransform: 'uppercase',
             }}>
               <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#22c55e', display: 'inline-block', animation: 'pulse 2s ease-in-out infinite' }} />
@@ -285,29 +318,29 @@ export default function LoginPage() {
             </span>
           </div>
 
-          {/* Title */}
+          {/* Título principal */}
           <h1 style={{
             textAlign: 'center',
-            fontSize: 'clamp(22px, 3.8vh, 36px)',
+            fontSize: 'clamp(22px, 3.6vh, 34px)',
             fontWeight: 800,
             color: '#fff',
-            marginBottom: 'clamp(4px, 0.8vh, 10px)',
+            marginBottom: 'clamp(4px, 0.8vh, 8px)',
             lineHeight: 1.2,
           }}>
             RepuesTop <span style={{ color: '#38bdf8' }}>BackOffice</span>
           </h1>
-          <p style={{ textAlign: 'center', color: 'rgba(255,255,255,0.55)', fontSize: 'clamp(12px, 1.6vh, 15px)', marginBottom: 'clamp(14px, 3vh, 32px)' }}>
-            Tres sistemas, un solo acceso
+          <p style={{ textAlign: 'center', color: 'rgba(255,255,255,0.65)', fontSize: 'clamp(12px, 1.5vh, 14.5px)', marginBottom: 'clamp(14px, 2.8vh, 28px)' }}>
+            Plataforma centralizada de gestión y comisiones
           </p>
 
-          {/* Module cards */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'clamp(8px, 1.4vh, 12px)' }}>
+          {/* Tarjetas de módulos del sistema */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'clamp(8px, 1.3vh, 12px)' }}>
             <div style={{ animation: 'cardFloat 4s ease-in-out infinite' }}>
               <ModuleCard
                 icon={<ChartIcon />}
                 iconBg="linear-gradient(135deg, #10b981, #059669)"
                 title="Administración Contable"
-                desc="Gestión financiera, usuarios y configuración del sistema"
+                desc="Gestión financiera, liquidaciones y configuración del sistema"
               />
             </div>
             <div style={{ animation: 'cardFloat 4s ease-in-out infinite 1.3s' }}>
@@ -315,7 +348,7 @@ export default function LoginPage() {
                 icon={<HeadphonesIcon />}
                 iconBg="linear-gradient(135deg, #06b6d4, #0284c7)"
                 title="Soporte"
-                desc="Gestión de tickets, casos y atención a vendedores"
+                desc="Gestión de tickets, casos y atención integral a vendedores"
               />
             </div>
             <div style={{ animation: 'cardFloat 4s ease-in-out infinite 2.6s' }}>
@@ -329,20 +362,21 @@ export default function LoginPage() {
             <div style={{ animation: 'cardFloat 4s ease-in-out infinite 3.2s' }}>
               <ModuleCard
                 icon={<UsersIcon />}
-                iconBg="linear-gradient(135deg, #f59e0b, #f97316)"
+                iconBg="linear-gradient(135deg, #0b5ee8, #1d4ed8)"
                 title="Captadores"
-                desc="Seguimiento de referidos, comisiones y gestión comercial"
+                desc="Seguimiento de referidos, ranking de comisiones y catálogo"
+                activeGlow={accessType === 'capturer'}
               />
             </div>
           </div>
         </div>
       </div>
 
-      {/* Right panel */}
+      {/* Panel derecho del login */}
       <div className="login-right">
         <div className="login-right-inner">
           {/* Logo */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 'clamp(8px, 2vh, 24px)' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 'clamp(12px, 2vh, 22px)' }}>
             <img
               className="login-brand-logo"
               src="/assets/repuestop-logo.jpg"
@@ -350,90 +384,141 @@ export default function LoginPage() {
             />
           </div>
 
-          {/* Heading */}
-          <h2 style={{ fontSize: 'clamp(20px, 2.8vh, 24px)', fontWeight: 700, color: '#0f172a', marginBottom: 4, textAlign: 'center' }}>
-            Bienvenido de nuevo
-          </h2>
-          <p style={{ color: '#64748b', fontSize: 'clamp(12px, 1.5vh, 14px)', marginBottom: 'clamp(10px, 2vh, 22px)', textAlign: 'center' }}>
-            Selecciona el tipo de acceso para continuar
-          </p>
-
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',padding:4,border:'1px solid #dbe3ef',borderRadius:10,marginBottom:16,background:'#f8fafc'}}>
-            <button type="button" onClick={()=>{setAccessType('staff');setError('')}} style={accessType==='staff'?accessButtonActive:accessButton}>Personal de la empresa</button>
-            <button type="button" onClick={()=>{setAccessType('capturer');setError('')}} style={accessType==='capturer'?accessButtonActive:accessButton}>Captadores</button>
+          {/* Switcher de Pestañas Rediseñado y Sobrio */}
+          <div className="access-switcher" role="tablist" aria-label="Tipo de acceso">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={accessType === 'staff'}
+              onClick={() => { setAccessType('staff'); setError(''); }}
+              className={`access-tab-btn ${accessType === 'staff' ? 'active' : ''}`}
+            >
+              Personal de la empresa
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={accessType === 'capturer'}
+              onClick={() => { setAccessType('capturer'); setError(''); }}
+              className={`access-tab-btn ${accessType === 'capturer' ? 'active' : ''}`}
+            >
+              Captadores
+            </button>
           </div>
+
+          {/* Encabezado contextual según la pestaña */}
+          {accessType === 'capturer' ? (
+            <div style={{ textAlign: 'center', marginBottom: 'clamp(12px, 2vh, 20px)' }}>
+              <h2 style={{ fontSize: 'clamp(19px, 2.6vh, 23px)', fontWeight: 800, color: '#0f172a', margin: '0 0 4px' }}>
+                Acceso Captadores
+              </h2>
+              <p style={{ color: '#64748b', fontSize: 'clamp(12.5px, 1.4vh, 14px)', margin: 0 }}>
+                Gestiona tus referidos y revisa tus comisiones
+              </p>
+            </div>
+          ) : (
+            <div style={{ textAlign: 'center', marginBottom: 'clamp(12px, 2vh, 20px)' }}>
+              <h2 style={{ fontSize: 'clamp(19px, 2.6vh, 23px)', fontWeight: 800, color: '#0f172a', margin: '0 0 4px' }}>
+                Iniciar Sesión
+              </h2>
+              <p style={{ color: '#64748b', fontSize: 'clamp(12.5px, 1.4vh, 14px)', margin: 0 }}>
+                Ingresa con tu correo corporativo autorizado
+              </p>
+            </div>
+          )}
+
+          {isVerifiedParam && (
+            <div style={{
+              background: '#ecfdf5',
+              border: '1px solid #a7f3d0',
+              borderRadius: 8,
+              padding: '10px 14px',
+              color: '#047857',
+              fontSize: 13,
+              marginBottom: 14,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+            }}>
+              <span>✓ Correo verificado con éxito. Ya puedes ingresar.</span>
+            </div>
+          )}
 
           {error && (
             <div style={{
               background: '#fef2f2',
               border: '1px solid #fecaca',
               borderRadius: 8,
-              padding: '8px 12px',
+              padding: '10px 14px',
               color: '#dc2626',
               fontSize: 13,
-              marginBottom: 'clamp(8px, 1.5vh, 16px)',
+              marginBottom: 14,
             }}>
               {error}
             </div>
           )}
 
           <form onSubmit={handleSubmit} style={{ width: '100%' }}>
-            {/* Email */}
-            <div style={{ marginBottom: 'clamp(8px, 1.5vh, 16px)' }}>
-              <label style={{ display: 'block', fontSize: 'clamp(12px, 1.4vh, 13.5px)', fontWeight: 500, color: '#374151', marginBottom: 4 }}>
+            {/* Correo electrónico */}
+            <div style={{ marginBottom: 'clamp(10px, 1.6vh, 16px)' }}>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334151', marginBottom: 5 }}>
                 Correo electrónico
               </label>
               <div style={{ position: 'relative' }}>
                 <span style={{
                   position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)',
-                  color: '#94a3b8', display: 'flex',
+                  color: '#94a3b8', display: 'flex', pointerEvents: 'none',
                 }}>
                   <EmailIcon />
                 </span>
                 <input
                   type="email"
-                  placeholder="admin@repuestop.com"
+                  placeholder={accessType === 'capturer' ? 'tu-correo@ejemplo.com' : 'admin@repuestop.com'}
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   required
                   autoComplete="email"
                   style={{
                     width: '100%',
-                    padding: 'clamp(8px, 1.2vh, 10px) 14px clamp(8px, 1.2vh, 10px) 40px',
-                    border: '1.5px solid #e2e8f0',
+                    padding: '10px 14px 10px 38px',
+                    border: '1.5px solid #cbd5e1',
                     borderRadius: 8,
                     fontSize: 14,
                     color: '#0f172a',
                     outline: 'none',
-                    transition: 'border-color 0.2s',
+                    transition: 'border-color 0.2s ease',
                     boxSizing: 'border-box',
+                    background: '#ffffff',
                   }}
-                  onFocus={(e) => e.currentTarget.style.borderColor = '#2563EB'}
-                  onBlur={(e) => e.currentTarget.style.borderColor = '#e2e8f0'}
+                  onFocus={(e) => e.currentTarget.style.borderColor = '#0b5ee8'}
+                  onBlur={(e) => e.currentTarget.style.borderColor = '#cbd5e1'}
                 />
               </div>
             </div>
 
-            {/* Password */}
-            <div style={{ marginBottom: 'clamp(8px, 1.5vh, 16px)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                <label style={{ fontSize: 'clamp(12px, 1.4vh, 13.5px)', fontWeight: 500, color: '#374151' }}>
+            {/* Contraseña */}
+            <div style={{ marginBottom: 'clamp(10px, 1.6vh, 16px)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
+                <label style={{ fontSize: 13, fontWeight: 600, color: '#334151' }}>
                   Contraseña
                 </label>
-                <a href="#" style={{ fontSize: 'clamp(11px, 1.3vh, 13px)', color: '#2563EB', textDecoration: 'none' }}
-                  onClick={(e) => e.preventDefault()}>
+                <a
+                  href="#"
+                  style={{ fontSize: 12, color: '#0b5ee8', textDecoration: 'none', fontWeight: 500 }}
+                  onClick={(e) => { e.preventDefault(); navigate(`/recuperar-contrasena?type=${accessType}&email=${encodeURIComponent(username.trim())}`); }}
+                >
                   ¿Olvidaste tu contraseña?
                 </a>
               </div>
               <div style={{ position: 'relative' }}>
                 <span style={{
                   position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)',
-                  color: '#94a3b8', display: 'flex',
+                  color: '#94a3b8', display: 'flex', pointerEvents: 'none',
                 }}>
                   <LockIcon />
                 </span>
                 <input
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -441,76 +526,164 @@ export default function LoginPage() {
                   autoComplete="current-password"
                   style={{
                     width: '100%',
-                    padding: 'clamp(8px, 1.2vh, 10px) 14px clamp(8px, 1.2vh, 10px) 40px',
-                    border: '1.5px solid #e2e8f0',
+                    padding: '10px 38px 10px 38px',
+                    border: '1.5px solid #cbd5e1',
                     borderRadius: 8,
                     fontSize: 14,
                     color: '#0f172a',
                     outline: 'none',
-                    transition: 'border-color 0.2s',
+                    transition: 'border-color 0.2s ease',
                     boxSizing: 'border-box',
+                    background: '#ffffff',
                   }}
-                  onFocus={(e) => e.currentTarget.style.borderColor = '#2563EB'}
-                  onBlur={(e) => e.currentTarget.style.borderColor = '#e2e8f0'}
+                  onFocus={(e) => e.currentTarget.style.borderColor = '#0b5ee8'}
+                  onBlur={(e) => e.currentTarget.style.borderColor = '#cbd5e1'}
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? 'Ocultar contraseña' : 'Ver contraseña'}
+                  style={{
+                    position: 'absolute',
+                    right: 10,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    color: '#94a3b8',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: 4,
+                  }}
+                >
+                  {showPassword ? <EyeOffIcon /> : <EyeIcon />}
+                </button>
               </div>
             </div>
 
-            {/* Keep session */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 'clamp(10px, 1.8vh, 18px)' }}>
+            {/* Mantener sesión */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 'clamp(12px, 1.8vh, 18px)' }}>
               <input
                 type="checkbox"
                 id="keepSession"
                 checked={keepSession}
                 onChange={(e) => setKeepSession(e.target.checked)}
-                style={{ width: 16, height: 16, accentColor: '#2563EB', cursor: 'pointer' }}
+                style={{
+                  width: 16,
+                  height: 16,
+                  accentColor: '#0b5ee8',
+                  cursor: 'pointer',
+                }}
               />
-              <label htmlFor="keepSession" style={{ fontSize: 'clamp(12px, 1.4vh, 13.5px)', color: '#374151', cursor: 'pointer' }}>
+              <label htmlFor="keepSession" style={{ fontSize: 13, color: '#475569', cursor: 'pointer', userSelect: 'none' }}>
                 Mantener sesión iniciada
               </label>
             </div>
 
-            {/* Submit button */}
+            {/* Botón de envío */}
             <button
               type="submit"
               disabled={loading}
               style={{
                 width: '100%',
-                padding: 'clamp(9px, 1.3vh, 12px)',
-                background: loading ? '#93c5fd' : '#2563EB',
-                color: '#fff',
+                padding: '11px',
+                background: loading ? '#93c5fd' : '#0b5ee8',
+                color: '#ffffff',
                 border: 'none',
                 borderRadius: 8,
-                fontSize: 15,
-                fontWeight: 600,
+                fontSize: 14.5,
+                fontWeight: 700,
                 cursor: loading ? 'not-allowed' : 'pointer',
-                transition: 'background 0.2s',
-                marginBottom: 'clamp(10px, 1.6vh, 16px)',
+                transition: 'background 0.2s ease',
+                marginBottom: 'clamp(12px, 1.8vh, 18px)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
               }}
-              onMouseEnter={(e) => { if (!loading) e.currentTarget.style.background = '#1d4ed8'; }}
-              onMouseLeave={(e) => { if (!loading) e.currentTarget.style.background = '#2563EB'; }}
+              onMouseEnter={(e) => { if (!loading) e.currentTarget.style.background = '#094ec2'; }}
+              onMouseLeave={(e) => { if (!loading) e.currentTarget.style.background = '#0b5ee8'; }}
             >
-              {loading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
+              {loading ? (
+                <>
+                  <SpinnerIcon />
+                  <span>Iniciando sesión...</span>
+                </>
+              ) : (
+                <span>{accessType === 'capturer' ? 'Ingresar como Captador' : 'Iniciar Sesión'}</span>
+              )}
             </button>
 
-            {accessType === 'staff' ? <>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 'clamp(10px, 1.6vh, 16px)' }}>
-                <div style={{ flex: 1, height: 1, background: '#e2e8f0' }} />
-                <span style={{ fontSize: 12, color: '#94a3b8' }}>o continúa con</span>
-                <div style={{ flex: 1, height: 1, background: '#e2e8f0' }} />
+            {/* Acciones inferiores según la pestaña */}
+            {accessType === 'staff' ? (
+              <>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 'clamp(10px, 1.6vh, 16px)' }}>
+                  <div style={{ flex: 1, height: 1, background: '#e2e8f0' }} />
+                  <span style={{ fontSize: 12, color: '#94a3b8' }}>o continúa con</span>
+                  <div style={{ flex: 1, height: 1, background: '#e2e8f0' }} />
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'center' }}>
+                  <GoogleLogin
+                    theme="outline"
+                    shape="rectangular"
+                    size="large"
+                    width="100%"
+                    text="continue_with"
+                    onSuccess={(credentialResponse) => handleGoogleSuccess(credentialResponse.credential)}
+                    onError={() => setError('No se pudo iniciar sesión con Google. Intenta nuevamente.')}
+                  />
+                </div>
+              </>
+            ) : (
+              /* Sección de registro para captadores sobria y elegante */
+              <div
+                style={{
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: 10,
+                  padding: '14px 16px',
+                  textAlign: 'left',
+                }}
+              >
+                <div style={{ fontSize: 13.5, fontWeight: 700, color: '#0f172a', marginBottom: 3 }}>
+                  ¿Aún no eres captador?
+                </div>
+                <p style={{ margin: '0 0 10px', fontSize: 12.5, color: '#64748b', lineHeight: 1.4 }}>
+                  Postula para integrarte a la red comercial y comenzar a generar comisiones.
+                </p>
+
+                <button
+                  type="button"
+                  onClick={() => navigate('/registro-captador')}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    background: '#ffffff',
+                    color: '#0b5ee8',
+                    border: '1.5px solid #0b5ee8',
+                    borderRadius: 8,
+                    fontSize: 13,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    transition: 'all 0.18s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = '#eff6ff';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = '#ffffff';
+                  }}
+                >
+                  Registrarse como captador →
+                </button>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'center' }}>
-                <GoogleLogin theme="outline" shape="rectangular" size="large" width="100%" text="continue_with" onSuccess={(credentialResponse) => handleGoogleSuccess(credentialResponse.credential)} onError={() => setError('No se pudo iniciar sesión con Google. Intenta nuevamente.')} />
-              </div>
-            </> : <div style={{border:'1px solid #bfdbfe',background:'#eff6ff',borderRadius:10,padding:12,textAlign:'center'}}>
-              <strong style={{display:'block',fontSize:13,color:'#153e75'}}>¿Aún no eres captador?</strong>
-              <button type="button" onClick={()=>navigate('/registro-captador')} style={{...accessButtonActive,width:'100%',marginTop:9,border:'1px solid #2563eb'}}>Registrarse como captador</button>
-            </div>}
+            )}
           </form>
 
           {/* Footer */}
-          <p style={{ textAlign: 'center', fontSize: 11, color: '#94a3b8', marginTop: 'clamp(12px, 2vh, 24px)', flexShrink: 0 }}>
-            © 2025 RepuesTop · Panel Administrativo · Todos los derechos reservados
+          <p style={{ textAlign: 'center', fontSize: 11.5, color: '#94a3b8', marginTop: 'clamp(14px, 2vh, 24px)', marginBottom: 0 }}>
+            © {new Date().getFullYear()} RepuesTop · Todos los derechos reservados
           </p>
         </div>
       </div>
@@ -518,29 +691,35 @@ export default function LoginPage() {
   );
 }
 
-const accessButton: React.CSSProperties = {border:0,background:'transparent',padding:'10px 8px',borderRadius:8,color:'#64748b',fontWeight:600,cursor:'pointer'};
-const accessButtonActive: React.CSSProperties = {...accessButton,background:'#2563eb',color:'#fff',boxShadow:'0 3px 8px rgba(37,99,235,.2)'};
-
-function ModuleCard({ icon, iconBg, title, desc }: {
+function ModuleCard({
+  icon,
+  iconBg,
+  title,
+  desc,
+  activeGlow = false,
+}: {
   icon: React.ReactNode;
   iconBg: string;
   title: string;
   desc: string;
+  activeGlow?: boolean;
 }) {
   return (
     <div style={{
       display: 'flex',
       alignItems: 'center',
       gap: 14,
-      padding: 'clamp(8px, 1.3vh, 14px) clamp(12px, 1.8vw, 18px)',
-      background: 'rgba(255,255,255,0.06)',
-      border: '1px solid rgba(255,255,255,0.1)',
+      padding: 'clamp(9px, 1.4vh, 14px) clamp(12px, 1.8vw, 18px)',
+      background: activeGlow ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.06)',
+      border: activeGlow ? '1.5px solid rgba(59, 130, 246, 0.6)' : '1px solid rgba(255,255,255,0.1)',
       borderRadius: 12,
-      backdropFilter: 'blur(4px)',
+      backdropFilter: 'blur(6px)',
+      boxShadow: activeGlow ? '0 0 20px rgba(59, 130, 246, 0.2)' : 'none',
+      transition: 'all 0.3s ease',
     }}>
       <div style={{
-        width: 'clamp(34px, 4vh, 42px)',
-        height: 'clamp(34px, 4vh, 42px)',
+        width: 'clamp(36px, 4.2vh, 44px)',
+        height: 'clamp(36px, 4.2vh, 44px)',
         borderRadius: 10,
         background: iconBg,
         display: 'flex',
@@ -548,12 +727,17 @@ function ModuleCard({ icon, iconBg, title, desc }: {
         justifyContent: 'center',
         flexShrink: 0,
         color: '#fff',
+        boxShadow: '0 4px 10px rgba(0,0,0,0.15)',
       }}>
         {icon}
       </div>
       <div>
-        <div style={{ color: '#fff', fontWeight: 600, fontSize: 'clamp(12.5px, 1.5vh, 14px)', marginBottom: 2 }}>{title}</div>
-        <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 'clamp(11px, 1.3vh, 12px)' }}>{desc}</div>
+        <div style={{ color: '#fff', fontWeight: 700, fontSize: 'clamp(13px, 1.5vh, 14.5px)', marginBottom: 2 }}>
+          {title}
+        </div>
+        <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: 'clamp(11px, 1.3vh, 12px)', lineHeight: 1.3 }}>
+          {desc}
+        </div>
       </div>
     </div>
   );
@@ -597,7 +781,13 @@ function ShieldIcon() {
 }
 
 function UsersIcon() {
-  return <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>;
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+      <circle cx="9" cy="7" r="4"/>
+      <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
+    </svg>
+  );
 }
 
 function EmailIcon() {
@@ -614,6 +804,32 @@ function LockIcon() {
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
       <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+    </svg>
+  );
+}
+
+function EyeIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+      <circle cx="12" cy="12" r="3"/>
+    </svg>
+  );
+}
+
+function EyeOffIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+      <line x1="1" y1="1" x2="23" y2="23"/>
+    </svg>
+  );
+}
+
+function SpinnerIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ animation: 'rotateSlow 1s linear infinite' }}>
+      <path d="M21 12a9 9 0 1 1-6.219-8.56" />
     </svg>
   );
 }

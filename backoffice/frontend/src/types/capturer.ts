@@ -1,9 +1,9 @@
 export type CapturerStatus = 'PENDIENTE' | 'APROBADO' | 'RECHAZADO';
-export interface CapturerProfile { id:number; usuarioId:number; nombre:string; rut:string; email:string; telefono:string; alias:string; fotoPerfil?:string|null; regionId:number; region:string; comunaId:number; comuna:string; estado:CapturerStatus; activo:boolean; gananciaMes?:number|null; motivoRechazo?:string|null; codigoReferido?:string|null; enlaceReferido?:string|null; createdAt:string; }
+export interface CapturerProfile { id:number; usuarioId:number; nombre:string; rut:string; email:string; telefono:string; alias:string; fotoPerfil?:string|null; regionId:number; region:string; comunaId:number; comuna:string; estado:CapturerStatus; activo:boolean; gananciaMes:number; motivoRechazo?:string|null; codigoReferido?:string|null; createdAt:string; }
 export interface CapturerMovement { id:number; tipo:string; estado:string; montoBase:number; montoComision:number; descripcion:string; fecha:string; }
 export interface CapturerWithdrawal { id:number; codigo:string; monto:number; estado:string; motivoRechazo?:string|null; boletaNombre:string; fecha:string; fechaPago?:string|null; captador?:string; alias?:string; rut?:string; banco?:string; bankCode?:number; tipoCuenta?:string; numeroCuenta?:string; titular?:string; email?:string; }
 export interface CapturerDashboard { perfil:CapturerProfile; pendiente:number; disponible:number; pagado:number; total:number; casas:number; publicidad:number; casasAprobadas:number; serviciosAprobados:number; conversiones:number; movimientos:CapturerMovement[]; retiros:CapturerWithdrawal[]; }
-export interface RankingRow { posicion:number; alias:string; region:string; puntos:number; propio:boolean; }
+export interface RankingRow { posicion:number; alias:string; region:string; puntos:number; propio:boolean; fotoPerfil?:string|null; }
 export interface CapturerRanking { modalidad:'REGIONAL'|'GLOBAL'; periodo:string; posiciones:RankingRow[]; posicionPropia:number; }
 export interface CapturedBusiness { id:number; tipo:'CASA_REPUESTOS'|'SERVICIO'; nombre:string; email:string; region:string; comuna:string; estado:string; ventas:number; ingresoCaptador:number; fecha:string; }
 export interface CapturedBusinesses { casasRepuestos:CapturedBusiness[]; serviciosAutomotrices:CapturedBusiness[]; }
@@ -11,3 +11,6 @@ export interface CapturerChat { id:number; nombreNegocio:string; tipoNegocio:str
 export interface CapturerChatMessage { id:number; autorUsuarioId:number; autorNombre:string; mensaje:string; fecha:string; }
 export interface AutomotiveServiceReview { id:number; usuarioId:number; usuarioNombre:string; usuarioEmail:string; usuarioRol:string; nombreNegocio:string; rutNegocio:string; giro?:string; responsable:string; region:string; comuna:string; direccion?:string; documentoIdentidadNombre?:string; inicioActividadesNombre?:string; patenteMunicipalNombre?:string; estado:string; notasRevision?:string; submittedAt?:string; captadorAlias?:string; }
 export interface CapturerConfig { puntosCasaAprobada:number; puntosServicioPrimeraCompra:number; pesosPorPunto:number; comisionCasa:number; comisionPublicidad:number; }
+// Valores por defecto del programa de captadores. Se usan como respaldo si la
+// configuración del backend aún no está disponible para el portal del captador.
+export const DEFAULT_CAPTURER_CONFIG:CapturerConfig={ puntosCasaAprobada:100, puntosServicioPrimeraCompra:50, pesosPorPunto:1000, comisionCasa:0.01, comisionPublicidad:0.33 };

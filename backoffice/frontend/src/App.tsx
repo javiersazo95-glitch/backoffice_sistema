@@ -1,6 +1,8 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import AppShell from '@/components/layout/AppShell';
 import { useAuth } from '@/context/AuthContext';
+import * as capturersApi from '@/api/capturers';
 import AreaSelectorPage from '@/pages/AreaSelectorPage';
 import LoginPage from '@/pages/LoginPage';
 import AdminFinancePage from '@/modules/administration/AdminFinancePage';
@@ -18,10 +20,13 @@ import ReportsPage from '@/components/reports/ReportsPage';
 import PermissionsConfigPage from '@/pages/PermissionsConfigPage';
 import CapturerRegisterPage from '@/pages/CapturerRegisterPage';
 import CapturerPortalPage from '@/pages/CapturerPortalPage';
+import CapturerStatusPage from '@/pages/CapturerStatusPage';
 import CapturerAccountPage from '@/pages/CapturerAccountPage';
 import CapturerChatsPage from '@/pages/CapturerChatsPage';
 import CapturerHelpPage from '@/pages/CapturerHelpPage';
 import CapturerSupportPage from '@/pages/CapturerSupportPage';
+import ActivateEmployeePage from '@/pages/ActivateEmployeePage';
+import RecoverPasswordPage from '@/pages/RecoverPasswordPage';
 import { Role } from '@/types/auth';
 import { hasBackofficePermission } from '@/hooks/usePermissions';
 import type { BackofficeArea } from '@/types/auth';
@@ -71,19 +76,48 @@ function RequireCapturer({ children }: { children: JSX.Element }) {
   return children;
 }
 
+// Portal del captador: solo accesible cuando la postulación fue aprobada.
+// Mientras esté pendiente o rechazada, se redirige a la vista de estado.
+function RequireApprovedCapturer({ children }: { children: JSX.Element }) {
+  const { user, isAuthenticated } = useAuth();
+  const enabled = isAuthenticated && user?.role === Role.CAPTADOR;
+  const statusQuery = useQuery({
+    queryKey: ['capturer-status'],
+    queryFn: capturersApi.getStatus,
+    enabled,
+  });
+
+  if (!isAuthenticated) return <Navigate to="/login?type=capturer" replace />;
+  if (user?.role !== Role.CAPTADOR) return <Navigate to="/" replace />;
+  if (statusQuery.isLoading) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', color: '#64748b', fontFamily: 'system-ui, sans-serif' }}>
+        Cargando tu cuenta…
+      </div>
+    );
+  }
+  if (statusQuery.data && statusQuery.data.estado !== 'APROBADO') {
+    return <Navigate to="/captador/estado" replace />;
+  }
+  return children;
+}
+
 export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/activar-empleado" element={<ActivateEmployeePage />} />
+      <Route path="/recuperar-contrasena" element={<RecoverPasswordPage />} />
       <Route path="/registro-captador" element={<CapturerRegisterPage />} />
-      <Route path="/captador" element={<RequireCapturer><CapturerPortalPage /></RequireCapturer>} />
-      <Route path="/captador/comisiones" element={<RequireCapturer><CapturerPortalPage /></RequireCapturer>} />
-      <Route path="/captador/ranking" element={<RequireCapturer><CapturerPortalPage /></RequireCapturer>} />
-      <Route path="/captador/retiros" element={<RequireCapturer><CapturerPortalPage /></RequireCapturer>} />
-      <Route path="/captador/cuenta" element={<RequireCapturer><CapturerAccountPage /></RequireCapturer>} />
-      <Route path="/captador/chats" element={<RequireCapturer><CapturerChatsPage /></RequireCapturer>} />
-      <Route path="/captador/ayuda" element={<RequireCapturer><CapturerHelpPage /></RequireCapturer>} />
-      <Route path="/captador/soporte" element={<RequireCapturer><CapturerSupportPage /></RequireCapturer>} />
+      <Route path="/captador/estado" element={<RequireCapturer><CapturerStatusPage /></RequireCapturer>} />
+      <Route path="/captador" element={<RequireApprovedCapturer><CapturerPortalPage /></RequireApprovedCapturer>} />
+      <Route path="/captador/comisiones" element={<RequireApprovedCapturer><CapturerPortalPage /></RequireApprovedCapturer>} />
+      <Route path="/captador/ranking" element={<RequireApprovedCapturer><CapturerPortalPage /></RequireApprovedCapturer>} />
+      <Route path="/captador/retiros" element={<RequireApprovedCapturer><CapturerPortalPage /></RequireApprovedCapturer>} />
+      <Route path="/captador/cuenta" element={<RequireApprovedCapturer><CapturerAccountPage /></RequireApprovedCapturer>} />
+      <Route path="/captador/chats" element={<RequireApprovedCapturer><CapturerChatsPage /></RequireApprovedCapturer>} />
+      <Route path="/captador/ayuda" element={<RequireApprovedCapturer><CapturerHelpPage /></RequireApprovedCapturer>} />
+      <Route path="/captador/soporte" element={<RequireApprovedCapturer><CapturerSupportPage /></RequireApprovedCapturer>} />
       <Route path="/" element={<RequireAuth><AreaSelectorPage /></RequireAuth>} />
       <Route path="/configuracion" element={<RequireSuperAdmin><PermissionsConfigPage /></RequireSuperAdmin>} />
       <Route path="/retiros" element={<RequireSuperAdmin><AppShell noSidebar><AdminFinancePage /></AppShell></RequireSuperAdmin>} />

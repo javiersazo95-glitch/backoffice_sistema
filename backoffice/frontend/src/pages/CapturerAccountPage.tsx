@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import apiClient from "@/api/client";
+import apiClient, { resolveProfileImageUrl } from "@/api/client";
 import * as api from "@/api/capturers";
 import { useAuth } from "@/context/AuthContext";
 import CapturerPageShell, {
@@ -91,7 +91,7 @@ export default function CapturerAccountPage() {
         <>
           <form style={{ ...pagePanel, maxWidth: 720 }} onSubmit={save}>
             <section style={photoSection}>
-              {p?.fotoPerfil ? <img src={p.fotoPerfil} alt="Foto de perfil" style={photo} /> : <span style={photoFallback}>{p?.nombre.slice(0, 2).toUpperCase()}</span>}
+              {resolveProfileImageUrl(p?.fotoPerfil) ? <img src={resolveProfileImageUrl(p?.fotoPerfil) ?? undefined} alt="Foto de perfil" style={photo} /> : <span style={photoFallback}>{p?.nombre.slice(0, 2).toUpperCase()}</span>}
               <div><strong>Foto de perfil</strong><p style={{ margin: '4px 0 10px', color: '#64748b', fontSize: 13 }}>JPG, PNG o WebP de hasta 5 MB.</p><label style={photoButton}>{uploadingPhoto ? 'Subiendo…' : 'Cambiar imagen'}<input type="file" accept="image/jpeg,image/png,image/webp" hidden disabled={uploadingPhoto} onChange={e => void uploadPhoto(e.target.files?.[0])}/></label></div>
             </section>
             <div style={grid}>

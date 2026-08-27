@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import * as api from "@/api/capturers";
+import { resolveProfileImageUrl } from "@/api/client";
 import UiIcon from "@/components/shared/UiIcon";
 import { formatCurrency } from "@/utils/formatters";
 import type { CapturedBusiness, CapturerProfile } from "@/types/capturer";
@@ -24,7 +25,7 @@ export default function CapturersPage() {
     queryFn: api.listCapturers,
   });
   const all = useMemo(
-    () => q.data?.filter((c) => c.estado === "APROBADO") ?? [],
+    () => q.data?.filter((c) => c.estado === "APROBADO" && !/^deleted-user-\d+@deleted\.repuestop\.local$/i.test(c.email)) ?? [],
     [q.data],
   );
 
@@ -409,7 +410,15 @@ export default function CapturersPage() {
                                     colors[(c.id + i) % colors.length],
                                 }}
                               >
-                                {initials(c.nombre)}
+                                {resolveProfileImageUrl(c.fotoPerfil) ? (
+                                  <img
+                                    src={resolveProfileImageUrl(c.fotoPerfil) ?? undefined}
+                                    alt=""
+                                    onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                                  />
+                                ) : (
+                                  initials(c.nombre)
+                                )}
                               </span>
                               <div>
                                 <strong>{c.nombre}</strong>
@@ -1278,12 +1287,27 @@ function Modal({ c, close }: { c: CapturerProfile; close: () => void }) {
         >
           ×
         </button>
-        <h2>
-          {c.nombre} <span>@{c.alias}</span>
-        </h2>
-        <p className="cps-modal-sub">
-          {c.email} · {c.comuna}, {c.region}
-        </p>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <span className="cps-avatar" style={{ width: 46, height: 46, background: "#1657d9" }}>
+            {resolveProfileImageUrl(c.fotoPerfil) ? (
+              <img
+                src={resolveProfileImageUrl(c.fotoPerfil) ?? undefined}
+                alt=""
+                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+              />
+            ) : (
+              initials(c.nombre)
+            )}
+          </span>
+          <div>
+            <h2 style={{ margin: 0 }}>
+              {c.nombre} <span>@{c.alias}</span>
+            </h2>
+            <p className="cps-modal-sub" style={{ margin: "2px 0 0" }}>
+              {c.email} · {c.comuna}, {c.region}
+            </p>
+          </div>
+        </div>
         <div className="cps-tabs">
           {[
             ["general", "General"],
@@ -1667,7 +1691,8 @@ const css = `
 .cps-table td small{display:block;margin-top:3px;font-size:12px;color:var(--muted);white-space:nowrap}
 .cps-person{display:flex;align-items:center;gap:10px}
 .cps-person strong{display:block;font-size:13.5px;color:var(--ink);white-space:nowrap}
-.cps-avatar{display:grid;place-items:center;width:38px;height:38px;flex:0 0 auto;border-radius:50%;color:#fff;font-size:13px;font-weight:800}
+.cps-avatar{display:grid;place-items:center;width:38px;height:38px;flex:0 0 auto;border-radius:50%;color:#fff;font-size:13px;font-weight:800;overflow:hidden}
+.cps-avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%}
 .cps-tag{display:inline-block;margin-top:4px;padding:2px 7px;border-radius:6px;background:#eaf1ff;color:#165ed4;font-size:11px;font-weight:700}
 .cps-code{font-weight:700;color:#315287;white-space:nowrap}
 .cps-line{display:block;color:#31456e;white-space:nowrap}

@@ -24,8 +24,8 @@ interface AuthState {
 }
 
 interface AuthContextValue extends AuthState {
-  login: (username: string, password: string, keepSession?: boolean) => Promise<UserSummaryResponse>;
-  loginWithGoogle: (idToken: string, keepSession?: boolean) => Promise<UserSummaryResponse>;
+  login: (username: string, password: string, keepSession?: boolean, loginContext?: 'BACKOFFICE' | 'CAPTADOR') => Promise<UserSummaryResponse>;
+  loginWithGoogle: (idToken: string, keepSession?: boolean, loginContext?: 'BACKOFFICE' | 'CAPTADOR') => Promise<UserSummaryResponse>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
 }
@@ -139,11 +139,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     void restoreSession();
   }, []);
 
-  const login = useCallback(async (username: string, password: string, keepSession = false) => {
-    const response = await apiClient.post<BackofficeLoginResponse>('/auth/login', {
+  const login = useCallback(async (username: string, password: string, keepSession = false, loginContext: 'BACKOFFICE' | 'CAPTADOR' = 'BACKOFFICE') => {
+    const response = await apiClient.post<BackofficeLoginResponse>(loginContext === 'BACKOFFICE' ? '/auth/backoffice/login' : '/auth/login', {
       email: username.trim(),
       password,
       authProvider: 'EMAIL_PASSWORD',
+      loginContext,
     });
 
     const token = response.data.token ?? response.data.accessToken;
@@ -165,8 +166,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return mapped;
   }, []);
 
-  const loginWithGoogle = useCallback(async (idToken: string, keepSession = false) => {
-    const response = await apiClient.post<BackofficeLoginResponse>('/auth/google', { idToken });
+  const loginWithGoogle = useCallback(async (idToken: string, keepSession = false, loginContext: 'BACKOFFICE' | 'CAPTADOR' = 'BACKOFFICE') => {
+    const response = await apiClient.post<BackofficeLoginResponse>(loginContext === 'BACKOFFICE' ? '/auth/backoffice/google' : '/auth/google', { idToken, loginContext });
 
     const token = response.data.token ?? response.data.accessToken;
     const user = mapUser(response.data);

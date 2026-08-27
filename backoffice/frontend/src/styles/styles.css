@@ -13631,6 +13631,12 @@ tr.is-active {
   border-color: #ffc8c1;
 }
 
+.action-button.warning {
+  color: #d97706;
+  background: #fff7ed;
+  border-color: #fed7aa;
+}
+
 .status-select {
   min-height: 32px;
   min-width: 128px;
@@ -15015,6 +15021,59 @@ button:disabled {
   background: #fbfdff;
 }
 
+/* Permisos: una superficie de gestión más directa y enfocada. */
+.permissions-config-shell { gap: 20px; padding: 18px 24px 28px; background: #f6f8fc; }
+.permissions-config-topbar { min-height: 52px; padding-bottom: 18px; }
+.permissions-config-topbar h1 { font-size: 24px; text-align: left; }
+.permissions-config-content { gap: 18px; padding: 0; max-width: 1280px; width: 100%; margin: 0 auto; }
+.permissions-workspace { gap: 16px; }
+.permissions-hero { display: flex; align-items: end; justify-content: space-between; gap: 24px; padding: 28px 30px; border-radius: 16px; color: #fff; background: linear-gradient(125deg, #102b5f 0%, #155bc4 100%); box-shadow: 0 14px 32px rgba(17, 62, 135, .18); }
+.permissions-eyebrow { display: inline-flex; align-items: center; gap: 7px; color: #bcd7ff; font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.permissions-eyebrow .ui-icon { width: 15px; height: 15px; }
+.permissions-hero h2 { margin: 9px 0 6px; font-family: "Aptos Display", "SF Pro Display", sans-serif; font-size: 29px; letter-spacing: -.04em; }
+.permissions-hero p { margin: 0; color: #d9e8ff; font-size: 14px; }
+.permissions-hero-note { display: grid; gap: 4px; min-width: 184px; padding: 13px 16px; border: 1px solid rgba(255,255,255,.2); border-radius: 10px; background: rgba(2, 22, 60, .2); }
+.permissions-hero-note span { color: #bcd7ff; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
+.permissions-hero-note strong { font-size: 13px; }
+.permission-entry-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.permission-entry-grid.invite-only { grid-template-columns: minmax(0, 760px); justify-content: center; }
+.permission-entry-card { display: grid; gap: 14px; padding: 20px; border: 1px solid #e1e8f3; border-radius: 14px; background: #fff; box-shadow: 0 3px 12px rgba(26, 47, 79, .035); }
+.invite-card { border-color: #cfe0fc; background: linear-gradient(135deg, #fff 0%, #f5f9ff 100%); }
+.permission-entry-heading { display: flex; align-items: center; gap: 12px; }
+.permission-entry-heading h3, .permission-section-title h3 { margin: 0; color: #172b4d; font-size: 15px; font-weight: 780; }
+.permission-entry-heading p, .permission-section-title p { margin: 3px 0 0; color: #728198; font-size: 12.5px; }
+.permission-entry-icon { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 10px; color: #1261d3; background: #eaf3ff; }
+.permission-entry-icon.neutral { color: #52657e; background: #eef2f7; }
+.permission-entry-icon .ui-icon { width: 19px; height: 19px; }
+.invite-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.invite-fields input { min-width: 0; min-height: 42px; padding: 0 12px; border: 1px solid #cfd9e8; border-radius: 8px; color: #172b4d; background: #fff; font: inherit; font-size: 13px; }
+.invite-fields input:focus { outline: 3px solid #d9eaff; border-color: #1870e5; }
+.permission-entry-card small { color: #718198; font-size: 12px; }
+.invite-submit { justify-self: start; min-height: 38px; padding: 0 14px; font-size: 12.5px; }
+.permission-entry-card .permission-search-panel { max-width: none; margin: 0; }
+.permission-entry-card .validation-search-field { box-shadow: none; }
+.permission-entry-card .validation-search-field input { min-height: 42px; border-width: 1px; }
+.permission-selected-summary { min-height: 72px; gap: 13px; padding: 15px 18px; border-color: #dce5f2; border-radius: 13px; background: #fff; box-shadow: 0 2px 8px rgba(26,47,79,.025); }
+.permission-selected-summary.has-user { border-color: #bcd7ff; background: #f8fbff; }
+.permission-user-avatar { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 50%; color: #1c5eb9; background: #dfedff; font-size: 14px; font-weight: 800; }
+.summary-label { display: block; margin-bottom: 2px; color: #7b8aa0; font-size: 10.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.permission-selected-summary strong { display: block; color: #172b4d; font-size: 14px; }
+.permission-selected-summary p { margin-top: 2px; }
+.summary-permission-count { margin-left: auto; padding: 7px 10px; border-radius: 999px; color: #155bc4; background: #e9f2ff; font-size: 11.5px; font-weight: 800; white-space: nowrap; }
+.permission-section-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 4px 0; }
+.permission-section-title > span { padding: 5px 9px; border-radius: 999px; color: #596d87; background: #eaf0f7; font-size: 11.5px; font-weight: 750; }
+.permissions-config-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; padding: 0; }
+.permissions-config-card { gap: 15px; padding: 18px; border-radius: 13px; box-shadow: none; }
+.permissions-config-card-header { display: flex; align-items: flex-start; gap: 11px; }
+.permissions-config-card-header h3 { font-size: 15px; color: #172b4d; }
+.permissions-config-card-header p { margin-top: 4px; font-size: 12px; }
+.permissions-config-card-roles { gap: 8px; }
+.role-toggle-label { padding: 10px 11px; border-radius: 8px; }
+.role-toggle-text { font-size: 13px; }
+.permissions-config-actions { position: sticky; bottom: 12px; z-index: 4; justify-content: flex-end; padding: 13px 16px; border: 1px solid #dce5f2; border-radius: 12px; background: rgba(255,255,255,.94); box-shadow: 0 10px 30px rgba(25, 48, 82, .1); backdrop-filter: blur(10px); }
+@media (max-width: 880px) { .permissions-config-grid { grid-template-columns: 1fr; } .permission-entry-grid { grid-template-columns: 1fr; } }
+@media (max-width: 640px) { .permissions-config-shell { padding: 14px; } .permissions-hero { align-items: flex-start; flex-direction: column; padding: 22px; } .permissions-hero-note { min-width: 0; width: 100%; box-sizing: border-box; } .invite-fields { grid-template-columns: 1fr; } .permission-section-title { align-items: flex-start; flex-direction: column; } .summary-permission-count { margin-left: 0; } }
+
 .permission-chip-list {
   display: flex;
   flex-wrap: wrap;
@@ -15037,6 +15096,11 @@ button:disabled {
   color: #c2410c;
   background: #fff1e8;
 }
+
+.employee-invitation-status { display: inline-flex; align-items: center; min-width: 72px; justify-content: center; padding: 5px 9px; border-radius: 999px; font-size: 11px; font-weight: 800; }
+.employee-invitation-status.pendiente { color: #9a5b00; background: #fff4d7; }
+.employee-invitation-status.aceptado { color: #087443; background: #dcfce7; }
+.employee-invitation-status.rechazado { color: #b42318; background: #fee4e2; }
 
 .permission-removable-chip button {
   width: 18px;
@@ -18599,4 +18663,3 @@ body:has(.area-selector-shell) {
   margin: 0;
   text-align: right;
 }
-

@@ -5,7 +5,7 @@ import CapturerLayout from './CapturerLayout';
 
 export default function CapturerPageShell({children}:{children:ReactNode}){
  const status=useQuery({queryKey:['capturer-status'],queryFn:api.getStatus});
- return <CapturerLayout alias={status.data?.alias} region={status.data?.region} comuna={status.data?.comuna}>{children}</CapturerLayout>;
+ return <CapturerLayout alias={status.data?.alias} region={status.data?.region} comuna={status.data?.comuna} fotoPerfil={status.data?.fotoPerfil}>{children}</CapturerLayout>;
 }
 export const pagePanel:React.CSSProperties={background:'#fff',border:'1px solid #e6edf7',borderRadius:16,padding:20,boxShadow:'0 8px 24px rgba(11,37,89,.05)'};
 export const pageControl:React.CSSProperties={width:'100%',boxSizing:'border-box',padding:'10px 12px',border:'1px solid #d7e0ee',borderRadius:10,background:'#fff',fontSize:13.5,color:'#0b2559'};

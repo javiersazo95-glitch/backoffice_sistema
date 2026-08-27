@@ -1,10 +1,12 @@
 import { useEffect,useMemo,useState } from 'react';
 import type { ReactNode } from 'react';
-import { useLocation,useNavigate } from 'react-router-dom';
+import { Navigate,useLocation,useNavigate } from 'react-router-dom';
 import { useQuery,useQueryClient } from '@tanstack/react-query';
 import * as api from '@/api/capturers';
+import { resolveProfileImageUrl } from '@/api/client';
 import { formatCurrency } from '@/utils/formatters';
-import type { CapturerDashboard,CapturerMovement } from '@/types/capturer';
+import type { CapturerConfig,CapturerDashboard,CapturerMovement } from '@/types/capturer';
+import { DEFAULT_CAPTURER_CONFIG } from '@/types/capturer';
 import CapturerLayout from '@/components/capturer/CapturerLayout';
 
 type BankForm={banco:string;bankCode:string;tipoCuenta:string;numeroCuenta:string;titular:string;email:string};
@@ -25,8 +27,10 @@ export default function CapturerPortalPage(){
 
  const status=useQuery({queryKey:['capturer-status'],queryFn:api.getStatus});
  const approved=status.data?.estado==='APROBADO';
- const dashboard=useQuery({queryKey:['capturer-dashboard'],queryFn:api.getDashboard,enabled:approved});
- const ranking=useQuery({queryKey:['capturer-ranking',mode,period],queryFn:()=>api.getRanking(mode,period),enabled:approved});
+ const dashboard=useQuery({queryKey:['capturer-dashboard'],queryFn:api.getDashboard,enabled:approved,refetchInterval:approved?30000:false});
+ const ranking=useQuery({queryKey:['capturer-ranking',mode,period],queryFn:()=>api.getRanking(mode,period),enabled:approved,refetchInterval:approved?30000:false});
+ const programConfig=useQuery({queryKey:['capturer-program-config'],queryFn:api.getCapturerProgramConfig,enabled:approved,retry:false,refetchInterval:approved?60000:false,refetchOnWindowFocus:true});
+ const cfg:CapturerConfig=programConfig.data??DEFAULT_CAPTURER_CONFIG;
  const d=dashboard.data;
 
  const alerts=useMemo(()=>{
@@ -42,7 +46,7 @@ export default function CapturerPortalPage(){
 
  if(status.isLoading)return <State title="Cargando tu cuenta…"/>;
  if(!status.data)return <State title="No encontramos tu perfil"/>;
- if(!approved)return <State title={status.data.estado==='PENDIENTE'?'Tu postulación está en revisión':'Tu postulación fue rechazada'} detail={status.data.motivoRechazo||'Te avisaremos por correo cuando exista una resolución.'}/>;
+ if(!approved)return <Navigate to="/captador/estado" replace/>;
 
  async function saveBank(e:React.FormEvent){
   e.preventDefault(); setMessage('');
@@ -54,18 +58,18 @@ export default function CapturerPortalPage(){
   try{await api.requestWithdrawal(Number(amount),receipt);setAmount('');setReceipt(null);await qc.invalidateQueries({queryKey:['capturer-dashboard']});setMessage('Solicitud enviada a Administración Contable.');}
   catch(err:any){setMessage(err.response?.data?.message||'No se pudo solicitar el retiro.');}
  }
- function copyLink(){
-  navigator.clipboard.writeText(d?.perfil.enlaceReferido||'');
+ function copyCode(){
+  navigator.clipboard.writeText(d?.perfil.codigoReferido||'');
   setCopied(true); window.setTimeout(()=>setCopied(false),2200);
  }
 
  const body=!d?<article className="cap-card cap-loading">Preparando tus métricas…</article>:
-  section==='RESUMEN'?<Resumen d={d} ranking={ranking.data} copied={copied} onCopy={copyLink} onGo={to=>navigate(to)}/>:
+  section==='RESUMEN'?<Resumen d={d} cfg={cfg} ranking={ranking.data} copied={copied} onCopy={copyCode} onGo={to=>navigate(to)}/>:
   section==='COMISIONES'?<Comisiones d={d} estado={estadoFiltro} onEstado={setEstadoFiltro}/>:
   section==='RANKING'?<Ranking d={d} data={ranking.data} loading={ranking.isLoading} mode={mode} onMode={setMode} period={period} onPeriod={setPeriod}/>:
   <Finanzas d={d} bank={bank} onBank={setBank} amount={amount} onAmount={setAmount} receipt={receipt} onReceipt={setReceipt} onSaveBank={saveBank} onWithdraw={withdraw}/>;
 
- return <CapturerLayout alias={d?.perfil.alias||status.data.alias} comuna={d?.perfil.comuna||status.data.comuna} region={d?.perfil.region||status.data.region} alerts={alerts}>
+ return <CapturerLayout alias={d?.perfil.alias||status.data.alias} comuna={d?.perfil.comuna||status.data.comuna} region={d?.perfil.region||status.data.region} fotoPerfil={d?.perfil.fotoPerfil||status.data.fotoPerfil} alerts={alerts}>
   <style>{css}</style>
   {message&&<div className="cap-flash">{message}<button type="button" aria-label="Cerrar aviso" onClick={()=>setMessage('')}>×</button></div>}
   {body}
@@ -73,7 +77,10 @@ export default function CapturerPortalPage(){
 }
 
 /* ---------------- Resumen ---------------- */
-function Resumen({d,ranking,copied,onCopy,onGo}:{d:CapturerDashboard;ranking?:{posicionPropia:number;posiciones:Array<{alias:string;puntos:number;propio:boolean}>};copied:boolean;onCopy:()=>void;onGo:(to:string)=>void}){
+function fmtPct(v:number){return `${(Math.round(v*1000)/10).toLocaleString('es-CL')}%`;}
+function Resumen({d,cfg,ranking,copied,onCopy,onGo}:{d:CapturerDashboard;cfg:CapturerConfig;ranking?:{posicionPropia:number;posiciones:Array<{alias:string;puntos:number;propio:boolean}>};copied:boolean;onCopy:()=>void;onGo:(to:string)=>void}){
+ const casaPct=fmtPct(cfg.comisionCasa);
+ const pubPct=fmtPct(cfg.comisionPublicidad);
  const puntos=ranking?.posiciones.find(r=>r.propio)?.puntos??0;
  const level:Level=levels.find(l=>l.next===0||puntos<l.next)||baseLevel;
  const progress=level.next?Math.min(100,Math.round((puntos/level.next)*100)):100;
@@ -88,16 +95,16 @@ function Resumen({d,ranking,copied,onCopy,onGo}:{d:CapturerDashboard;ranking?:{p
   <div className="cap-col">
    <section className="cap-hero">
     <article className="cap-card cap-referral">
-     <span className="cap-eyebrow">Tu enlace de referido</span>
+     <span className="cap-eyebrow">Tu código de referido</span>
      <strong className="cap-code">{d.perfil.codigoReferido||'—'}</strong>
-     <p className="cap-muted">Compártelo con casas de repuestos y servicios automotrices para comenzar a ganar comisiones.</p>
-     <div className="cap-link"><LinkIcon/><span>{d.perfil.enlaceReferido||'Sin enlace asignado'}</span></div>
-     <button type="button" className="cap-primary cap-copy" onClick={onCopy}><CopyIcon/>{copied?'¡Enlace copiado!':'Copiar enlace'}</button>
+     <p className="cap-muted">Compártelo para que lo copien en el campo “Código de referido” al crear la cuenta.</p>
+     <div className="cap-link"><LinkIcon/><span>{d.perfil.codigoReferido||'Sin código asignado'}</span></div>
+     <button type="button" className="cap-primary cap-copy" onClick={onCopy}><CopyIcon/>{copied?'¡Código copiado!':'Copiar código'}</button>
     </article>
     <div className="cap-metrics">
      <Metric tone="green" icon={<MoneyIcon/>} label="Ganancia total" value={formatCurrency(d.total)} foot="Comisiones acumuladas"/>
-     <Metric tone="blue" icon={<StoreIcon/>} label="Ganancia por casas" value={formatCurrency(d.casas)} foot="1% por cada casa"/>
-     <Metric tone="violet" icon={<WrenchIcon/>} label="Ganancia por servicios" value={formatCurrency(d.publicidad)} foot="33% por publicidad vendida"/>
+     <Metric tone="blue" icon={<StoreIcon/>} label="Ganancia por casas" value={formatCurrency(d.casas)} foot={`${casaPct} por cada casa`}/>
+     <Metric tone="violet" icon={<WrenchIcon/>} label="Ganancia por servicios" value={formatCurrency(d.publicidad)} foot={`${pubPct} por publicidad vendida`}/>
      <Metric tone="amber" icon={<ClockIcon/>} label="Pendiente por pagar" value={formatCurrency(d.pendiente)} foot="En revisión y pendientes"/>
      <Metric tone="green" icon={<CheckIcon/>} label="Disponible para retiro" value={formatCurrency(d.disponible)} foot="Listo para solicitar"/>
      <Metric tone="blue" icon={<CheckIcon/>} label="Pagado" value={formatCurrency(d.pagado)} foot="Comisiones ya pagadas"/>
@@ -135,11 +142,15 @@ function Resumen({d,ranking,copied,onCopy,onGo}:{d:CapturerDashboard;ranking?:{p
     <div className="cap-howto-head"><h2>Cómo ganas comisiones</h2><span className="cap-howto-info" aria-hidden="true"><InfoIcon/></span></div>
     <div className="cap-howto-item">
      <span className="cap-howto-icon"><StoreIcon/></span>
-     <div><strong>1% por cada<br/>casa de repuesto captada</strong><p>Cuando una casa es aprobada, ganas el 1% de la venta estimada.</p></div>
+     <div><strong>{casaPct} por cada<br/>casa de repuesto captada</strong><p>Cuando una casa es aprobada, ganas el {casaPct} de la venta estimada.</p></div>
     </div>
     <div className="cap-howto-item">
      <span className="cap-howto-icon"><WrenchIcon/></span>
-     <div><strong>33% por publicidad<br/>vendida a talleres y servicios</strong><p>Por cada compra de fichas RepuesTop que hagan los talleres o servicios automotrices.</p></div>
+     <div><strong>{pubPct} por publicidad<br/>vendida a talleres y servicios</strong><p>Por cada compra de fichas RepuesTop que hagan los talleres o servicios automotrices.</p></div>
+    </div>
+    <div className="cap-howto-item">
+     <span className="cap-howto-icon"><StarIcon/></span>
+     <div><strong>{cfg.puntosCasaAprobada.toLocaleString('es-CL')} pts por casa y {cfg.puntosServicioPrimeraCompra.toLocaleString('es-CL')} pts por servicio</strong><p>Sumas puntos para el ranking por cada captación aprobada. Cada punto equivale a {formatCurrency(cfg.pesosPorPunto)}.</p></div>
     </div>
    </section>
 
@@ -202,7 +213,7 @@ function Comisiones({d,estado,onEstado}:{d:CapturerDashboard;estado:string;onEst
 }
 
 /* ---------------- Ranking ---------------- */
-type RankRow={posicion:number;alias:string;region:string;puntos:number;propio:boolean};
+type RankRow={posicion:number;alias:string;region:string;puntos:number;propio:boolean;fotoPerfil?:string|null};
 const rankColors=['#1462e8','#07845a','#7040d7','#ef3e75','#0f766e','#b45309'];
 function Ranking({d,data,loading,mode,onMode,period,onPeriod}:{d:CapturerDashboard;data?:{posicionPropia:number;posiciones:RankRow[]};loading:boolean;mode:'REGIONAL'|'GLOBAL';onMode:(v:'REGIONAL'|'GLOBAL')=>void;period:string;onPeriod:(v:string)=>void}){
  const [search,setSearch]=useState('');
@@ -294,7 +305,7 @@ function Ranking({d,data,loading,mode,onMode,period,onPeriod}:{d:CapturerDashboa
          </td>
          <td>
           <div className="cap-rk-person">
-           <span className="cap-rk-avatar" style={{background:rankColors[r.posicion%rankColors.length]}}>{r.alias.charAt(0).toUpperCase()}</span>
+           <span className="cap-rk-avatar" style={{background:rankColors[r.posicion%rankColors.length]}}>{resolveProfileImageUrl(r.fotoPerfil)?<img src={resolveProfileImageUrl(r.fotoPerfil)??undefined} alt="" onError={e=>{(e.currentTarget as HTMLImageElement).style.display='none';}}/>:r.alias.charAt(0).toUpperCase()}</span>
            <div><strong>@{r.alias}</strong>{r.propio&&<span className="cap-rk-you">Tú</span>}</div>
           </div>
          </td>
@@ -659,7 +670,8 @@ const css=`
 .cap-rk-pos-top{border-color:#f2dfae;background:#fffaef;color:#8a6412}
 .cap-rk-person{display:flex;align-items:center;gap:9px}
 .cap-rk-person strong{font-size:13.5px;color:#0b2559}
-.cap-rk-avatar{display:grid;place-items:center;width:36px;height:36px;flex:0 0 auto;border-radius:50%;color:#fff;font-size:13px;font-weight:800}
+.cap-rk-avatar{display:grid;place-items:center;width:36px;height:36px;flex:0 0 auto;border-radius:50%;color:#fff;font-size:13px;font-weight:800;overflow:hidden}
+.cap-rk-avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%}
 .cap-rk-you{display:inline-block;margin-left:6px;padding:2px 7px;border-radius:6px;background:#eaf1ff;color:#165ed4;font-size:11px;font-weight:700}
 .cap-dif{font-weight:700;color:#7b8aa3}
 .cap-dif-up{color:#e0294b}
