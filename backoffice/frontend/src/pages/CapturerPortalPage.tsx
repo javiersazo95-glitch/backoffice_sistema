@@ -173,11 +173,16 @@ function Resumen({d,cfg,ranking,copied,onCopy,onGo}:{d:CapturerDashboard;cfg:Cap
    <section className="cap-card">
     <div className="cap-card-head"><span className="cap-eyebrow">Últimos movimientos</span><button type="button" className="cap-link-btn" onClick={()=>onGo('/captador/comisiones')}>Ver todos</button></div>
     <div className="cap-feed">
-     {d.movimientos.length?d.movimientos.slice(0,4).map(m=><div className="cap-feed-item" key={m.id}>
-      <span className="cap-feed-avatar">{(m.descripcion||'?').charAt(0).toUpperCase()}</span>
-      <div><strong>{m.descripcion}</strong><small className="cap-muted">{tipoLabel(m.tipo)} · {new Date(m.fecha).toLocaleDateString('es-CL')}</small></div>
-      <Badge estado={m.estado}/>
-     </div>):<p className="cap-empty">Aún no registras movimientos.</p>}
+     {d.movimientos.length?d.movimientos.slice(0,4).map(m=>{
+      const negocio=(m.negocioNombre||'').trim()||m.descripcion;
+      return (
+       <div className="cap-feed-item" key={m.id}>
+        <span className="cap-feed-avatar">{(negocio||'?').charAt(0).toUpperCase()}</span>
+        <div><strong>{negocio}</strong><small className="cap-muted">{tipoLabel(m.tipo)} {m.descripcion&&m.descripcion!==negocio?`· ${m.descripcion}`:''} · {new Date(m.fecha).toLocaleDateString('es-CL')}</small></div>
+        <Badge estado={m.estado}/>
+       </div>
+      );
+     }):<p className="cap-empty">Aún no registras movimientos.</p>}
     </div>
    </section>
   </aside>
@@ -206,7 +211,7 @@ function Comisiones({d,estado,onEstado}:{d:CapturerDashboard;estado:string;onEst
      </select>
     </div>
    </div>
-   <MovementsTable rows={rows} detailed/>
+   <MovementsTable rows={rows}/>
    <div className="cap-table-foot"><span>Mostrando {rows.length} de {d.movimientos.length} movimientos</span><strong>Total filtrado: {formatCurrency(totalFiltrado)}</strong></div>
   </section>
  </div>;
@@ -427,18 +432,32 @@ function Metric({icon,label,value,foot,tone}:{icon:ReactNode;label:string;value:
 function FunnelStep({icon,label,value,tone}:{icon:ReactNode;label:string;value:number;tone:'blue'|'green'|'violet'|'amber'}){
  return <div className="cap-funnel-step"><span className={`cap-metric-icon cap-tone-${tone}`}>{icon}</span><div><span className="cap-metric-label">{label}</span><strong>{value}</strong></div></div>;
 }
-function MovementsTable({rows,detailed}:{rows:CapturerMovement[];detailed?:boolean}){
+function MovementsTable({rows}:{rows:CapturerMovement[]}){
  return <div className="cap-table-wrap">
   <table className="cap-table">
-   <thead><tr><th>Fecha</th><th>Empresa / Negocio</th><th>Tipo</th>{detailed&&<th>Base de cálculo</th>}<th className="cap-right">Comisión</th><th>Estado</th></tr></thead>
-   <tbody>{rows.length?rows.map(m=><tr key={m.id}>
-    <td>{new Date(m.fecha).toLocaleDateString('es-CL')}</td>
-    <td><div className="cap-biz"><span className="cap-feed-avatar">{(m.descripcion||'?').charAt(0).toUpperCase()}</span><span className="cap-cell-strong">{m.descripcion}</span></div></td>
-    <td><span className={`cap-chip cap-chip-${m.tipo==='CASA'?'blue':'violet'}`}>{tipoLabel(m.tipo)}</span></td>
-    {detailed&&<td className="cap-muted">{formatCurrency(m.montoBase)}</td>}
-    <td className="cap-right"><strong>{formatCurrency(m.montoComision)}</strong></td>
-    <td><Badge estado={m.estado}/></td>
-   </tr>):<tr><td colSpan={detailed?6:5} className="cap-empty-cell">Aún no tienes movimientos de comisión.</td></tr>}</tbody>
+   <thead><tr><th>Fecha</th><th>Empresa / Negocio</th><th>Tipo</th><th className="cap-right">Comisión</th><th>Estado</th></tr></thead>
+   <tbody>{rows.length?rows.map(m=>{
+    const negocio = (m.negocioNombre || '').trim() || m.descripcion;
+    return (
+     <tr key={m.id}>
+      <td>{new Date(m.fecha).toLocaleDateString('es-CL')}</td>
+      <td>
+       <div className="cap-biz">
+        <span className="cap-feed-avatar">{(negocio||'?').charAt(0).toUpperCase()}</span>
+        <div>
+         <span className="cap-cell-strong">{negocio}</span>
+         {m.negocioNombre && m.descripcion && m.descripcion !== m.negocioNombre ? (
+          <small className="cap-muted" style={{display:'block',fontSize:12,marginTop:2}}>{m.descripcion}</small>
+         ) : null}
+        </div>
+       </div>
+      </td>
+      <td><span className={`cap-chip cap-chip-${m.tipo==='CASA'||m.tipo==='VENTA_REPUESTOS'?'blue':'violet'}`}>{tipoLabel(m.tipo)}</span></td>
+      <td className="cap-right"><strong>{formatCurrency(m.montoComision)}</strong></td>
+      <td><Badge estado={m.estado}/></td>
+     </tr>
+    );
+   }):<tr><td colSpan={5} className="cap-empty-cell">Aún no tienes movimientos de comisión.</td></tr>}</tbody>
   </table>
  </div>;
 }
@@ -452,7 +471,7 @@ function State({title,detail}:{title:string;detail?:string}){
   <h1>{title}</h1>{detail&&<p className="cap-muted">{detail}</p>}
  </section></main>;
 }
-function tipoLabel(tipo:string){return tipo==='CASA'?'Casa de repuestos':tipo==='PUBLICIDAD'?'Publicidad / servicio':tipo?tipo.charAt(0)+tipo.slice(1).toLowerCase().replace(/_/g,' '):'—';}
+function tipoLabel(tipo:string){return tipo==='CASA'||tipo==='VENTA_REPUESTOS'?'Venta repuestos':tipo==='PUBLICIDAD'||tipo==='COMPRA_FICHAS'?'Compra fichas':tipo?tipo.charAt(0)+tipo.slice(1).toLowerCase().replace(/_/g,' '):'—';}
 function estadoLabel(estado:string){return estado?estado.charAt(0)+estado.slice(1).toLowerCase().replace(/_/g,' '):'—';}
 
 const LinkIcon=()=> <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M10 13a5 5 0 0 0 7 0l2-2a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-2 2a5 5 0 0 0 7 7l1-1"/></svg>;

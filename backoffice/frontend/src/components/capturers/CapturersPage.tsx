@@ -593,16 +593,80 @@ type Captacion = {
   ventas: number;
   ingreso: number;
 };
-type ResumenComuna = {
-  comuna: string;
-  region: string;
-  casas: number;
-  servicios: number;
-  total: number;
-  ventas: number;
-  ingreso: number;
-  captadores: number;
+const CHILE_REGIONES_COMUNAS: Record<string, string[]> = {
+  "Arica y Parinacota": ["Arica", "Camarones", "General Lagos", "Putre"],
+  "Tarapacá": ["Alto Hospicio", "Camiña", "Colchane", "Huara", "Iquique", "Pica", "Pozo Almonte"],
+  "Antofagasta": ["Antofagasta", "Calama", "María Elena", "Mejillones", "Ollagüe", "San Pedro de Atacama", "Sierra Gorda", "Taltal", "Tocopilla"],
+  "Atacama": ["Alto del Carmen", "Caldera", "Chañaral", "Copiapó", "Diego de Almagro", "Freirina", "Huasco", "Tierra Amarilla", "Vallenar"],
+  "Coquimbo": ["Andacollo", "Canela", "Combarbalá", "Coquimbo", "Illapel", "La Higuera", "La Serena", "Los Vilos", "Monte Patria", "Ovalle", "Paihuano", "Punitaqui", "Río Hurtado", "Salamanca", "Vicuña"],
+  "Valparaíso": ["Algarrobo", "Cabildo", "Calle Larga", "Cartagena", "Casablanca", "Catemu", "Concón", "El Quisco", "El Tabo", "Hijuelas", "Isla de Pascua", "Juan Fernández", "La Calera", "La Cruz", "La Ligua", "Limache", "Llaillay", "Los Andes", "Nogales", "Olmué", "Panquehue", "Papudo", "Petorca", "Puchuncaví", "Putaendo", "Quillota", "Quilpué", "Quintero", "Rinconada", "San Antonio", "San Esteban", "San Felipe", "Santa María", "Santo Domingo", "Valparaíso", "Villa Alemana", "Viña del Mar", "Zapallar"],
+  "Metropolitana de Santiago": ["Alhué", "Buin", "Calera de Tango", "Cerrillos", "Cerro Navia", "Colina", "Conchalí", "Curacaví", "El Bosque", "El Monte", "Estación Central", "Huechuraba", "Independencia", "Isla de Maipo", "La Cisterna", "La Florida", "La Granja", "La Pintana", "La Reina", "Lampa", "Las Condes", "Lo Barnechea", "Lo Espejo", "Lo Prado", "Macul", "Maipú", "María Pinto", "Melipilla", "Ñuñoa", "Padre Hurtado", "Paine", "Pedro Aguirre Cerda", "Peñaflor", "Peñalolén", "Pirque", "Providencia", "Pudahuel", "Puente Alto", "Quilicura", "Quinta Normal", "Recoleta", "Renca", "San Bernardo", "San Joaquín", "San José de Maipo", "San Miguel", "San Pedro", "San Ramón", "Santiago", "Talagante", "Tiltil", "Vitacura"],
+  "Libertador General Bernardo O'Higgins": ["Chépica", "Chimbarongo", "Codegua", "Coinco", "Coltauco", "Doñihue", "Graneros", "La Estrella", "Las Cabras", "Litueche", "Lolol", "Machalí", "Malloa", "Marchigüe", "Mostazal", "Nancagua", "Navidad", "Olivar", "Palmilla", "Paredones", "Peralillo", "Peumo", "Pichidegua", "Pichilemu", "Placilla", "Pumanque", "Quinta de Tilcoco", "Rancagua", "Rengo", "Requínoa", "San Fernando", "San Vicente", "Santa Cruz"],
+  "Maule": ["Cauquenes", "Chanco", "Colbún", "Constitución", "Curepto", "Curicó", "Empedrado", "Hualañé", "Licantén", "Linares", "Longaví", "Maule", "Molina", "Parral", "Pelarco", "Pelluhue", "Pencahue", "Rauco", "Retiro", "Río Claro", "Romeral", "Sagrada Familia", "San Clemente", "San Javier", "San Rafael", "Talca", "Teno", "Vichuquén", "Villa Alegre", "Yerbas Buenas"],
+  "Ñuble": ["Bulnes", "Chillán", "Chillán Viejo", "Cobquecura", "Coelemu", "Coihueco", "El Carmen", "Ninhue", "Ñiquén", "Pemuco", "Pinto", "Portezuelo", "Quillón", "Quirihue", "Ránquil", "San Carlos", "San Fabián", "San Ignacio", "San Nicolás", "Treguaco", "Yungay"],
+  "Biobío": ["Alto Biobío", "Antuco", "Arauco", "Cabrero", "Cañete", "Chiguayante", "Concepción", "Contulmo", "Coronel", "Curanilahue", "Florida", "Hualpén", "Hualqui", "Laja", "Lebu", "Los Álamos", "Los Ángeles", "Lota", "Mulchén", "Nacimiento", "Negrete", "Penco", "Quilaco", "Quilleco", "San Pedro de la Paz", "San Rosendo", "Santa Bárbara", "Santa Juana", "Talcahuano", "Tirúa", "Tomé", "Tucapel", "Yumbel"],
+  "La Araucanía": ["Angol", "Carahue", "Cholchol", "Collipulli", "Cunco", "Curacautín", "Curarrehue", "Ercilla", "Freire", "Galvarino", "Gorbea", "Lautaro", "Loncoche", "Lonquimay", "Los Sauces", "Lumaco", "Melipeuco", "Nueva Imperial", "Padre Las Casas", "Perquenco", "Pitrufquén", "Pucón", "Purén", "Renaico", "Saavedra", "Temuco", "Teodoro Schmidt", "Toltén", "Traiguén", "Victoria", "Vilcún", "Villarrica"],
+  "Los Ríos": ["Corral", "Futrono", "La Unión", "Lago Ranco", "Lanco", "Los Lagos", "Máfil", "Mariquina", "Paillaco", "Panguipulli", "Río Bueno", "Valdivia"],
+  "Los Lagos": ["Ancud", "Calbuco", "Castro", "Chaitén", "Chonchi", "Cochamó", "Curaco de Vélez", "Dalcahue", "Fresia", "Frutillar", "Futaleufú", "Hualaihué", "Llanquihue", "Los Muermos", "Maullín", "Osorno", "Palena", "Puerto Montt", "Puerto Octay", "Puerto Varas", "Puqueldón", "Purranque", "Puyehue", "Queilén", "Quellón", "Quemchi", "Quinchao", "Río Negro", "San Juan de la Costa", "San Pablo"],
+  "Aysén del General Carlos Ibáñez del Campo": ["Aysén", "Chile Chico", "Cisnes", "Cochrane", "Coyhaique", "Guaitecas", "Lago Verde", "O'Higgins", "Río Ibáñez", "Tortel"],
+  "Magallanes y de la Antártica Chilena": ["Antártica", "Cabo de Hornos", "Laguna Blanca", "Natales", "Porvenir", "Primavera", "Punta Arenas", "Río Verde", "San Gregorio", "Timaukel", "Torres del Paine"],
 };
+
+function normalizeGeoString(val: string): string {
+  return (val || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+function findMatchingRegion(regionName: string): string | null {
+  if (!regionName) return null;
+  const norm = normalizeGeoString(regionName);
+  if (norm.includes("biobio") || norm.includes("bio bio")) return "Biobío";
+  if (norm.includes("metropolitana") || norm.includes("santiago")) return "Metropolitana de Santiago";
+  if (norm.includes("higgins")) return "Libertador General Bernardo O'Higgins";
+  if (norm.includes("araucania")) return "La Araucanía";
+  if (norm.includes("aysen")) return "Aysén del General Carlos Ibáñez del Campo";
+  if (norm.includes("magallanes") || norm.includes("antartica")) return "Magallanes y de la Antártica Chilena";
+  if (norm.includes("nuble")) return "Ñuble";
+  if (norm.includes("rios")) return "Los Ríos";
+  if (norm.includes("lagos")) return "Los Lagos";
+  if (norm.includes("arica") || norm.includes("parinacota")) return "Arica y Parinacota";
+  if (norm.includes("tarapaca")) return "Tarapacá";
+  if (norm.includes("antofagasta")) return "Antofagasta";
+  if (norm.includes("atacama")) return "Atacama";
+  if (norm.includes("coquimbo")) return "Coquimbo";
+  if (norm.includes("valparaiso")) return "Valparaíso";
+  if (norm.includes("maule")) return "Maule";
+
+  for (const reg of Object.keys(CHILE_REGIONES_COMUNAS)) {
+    const regNorm = normalizeGeoString(reg);
+    if (norm === regNorm || norm.includes(regNorm) || regNorm.includes(norm)) {
+      return reg;
+    }
+  }
+  return null;
+}
+
+function matchRegion(itemRegion: string, selectedRegion: string): boolean {
+  if (selectedRegion === "TODAS") return true;
+  if (!itemRegion) return false;
+  if (itemRegion === selectedRegion) return true;
+  const normItem = normalizeGeoString(itemRegion);
+  const normSelected = normalizeGeoString(selectedRegion);
+  if (normItem === normSelected) return true;
+  const matchItem = findMatchingRegion(itemRegion);
+  const matchSelected = findMatchingRegion(selectedRegion);
+  return (matchItem && matchSelected && matchItem === matchSelected) || matchItem === selectedRegion;
+}
+
+function matchComuna(itemComuna: string, selectedComuna: string): boolean {
+  if (selectedComuna === "TODAS") return true;
+  if (!itemComuna) return false;
+  if (itemComuna === selectedComuna) return true;
+  return normalizeGeoString(itemComuna) === normalizeGeoString(selectedComuna);
+}
 
 function CaptacionesView({ all }: { all: CapturerProfile[] }) {
   const [search, setSearch] = useState("");
@@ -649,102 +713,12 @@ function CaptacionesView({ all }: { all: CapturerProfile[] }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [all, queries.map((x) => x.dataUpdatedAt).join(",")]);
 
-  // Resumen por comuna: parte desde las comunas donde hay captadores, para que
-  // también aparezcan las que todavía no registran ninguna captación.
-  const resumen = useMemo<ResumenComuna[]>(() => {
-    const map = new Map<string, ResumenComuna>();
-    const key = (r: string, c: string) => `${r}||${c}`;
-    all.forEach((c) => {
-      if (!map.has(key(c.region, c.comuna)))
-        map.set(key(c.region, c.comuna), {
-          comuna: c.comuna,
-          region: c.region,
-          casas: 0,
-          servicios: 0,
-          total: 0,
-          ventas: 0,
-          ingreso: 0,
-          captadores: 0,
-        });
-    });
-    const capsPorComuna = new Map<string, Set<string>>();
-    all.forEach((c) => {
-      const k = key(c.region, c.comuna);
-      if (!capsPorComuna.has(k)) capsPorComuna.set(k, new Set());
-      capsPorComuna.get(k)!.add(c.alias);
-    });
-    captaciones.forEach((x) => {
-      const k = key(x.region, x.comuna);
-      const row = map.get(k) ?? {
-        comuna: x.comuna,
-        region: x.region,
-        casas: 0,
-        servicios: 0,
-        total: 0,
-        ventas: 0,
-        ingreso: 0,
-        captadores: 0,
-      };
-      if (x.tipo === "CASA") row.casas += 1;
-      else row.servicios += 1;
-      row.total += 1;
-      row.ventas += x.ventas;
-      row.ingreso += x.ingreso;
-      map.set(k, row);
-    });
-    map.forEach((row, k) => {
-      row.captadores = capsPorComuna.get(k)?.size ?? 0;
-    });
-    return [...map.values()].sort(
-      (a, b) => b.total - a.total || b.ventas - a.ventas,
-    );
-  }, [all, captaciones]);
-
-  const maxTotal = resumen[0]?.total ?? 0;
-  const conCaptaciones = resumen.filter((r) => r.total > 0);
-  const sinCaptaciones = resumen.filter((r) => r.total === 0);
-  const mejor = conCaptaciones[0];
-  const peor = conCaptaciones[conCaptaciones.length - 1];
-  const mayorIngreso = [...resumen].sort((a, b) => b.ingreso - a.ingreso)[0];
-  const totalVentas = captaciones.reduce((acc, x) => acc + x.ventas, 0);
-  const totalIngreso = captaciones.reduce((acc, x) => acc + x.ingreso, 0);
-
-  const regions = useMemo(
-    () =>
-      [...new Set(resumen.map((r) => r.region))].sort((a, b) =>
-        a.localeCompare(b, "es"),
-      ),
-    [resumen],
-  );
-  const comunas = useMemo(
-    () =>
-      [
-        ...new Set(
-          resumen
-            .filter((r) => region === "TODAS" || r.region === region)
-            .map((r) => r.comuna),
-        ),
-      ].sort((a, b) => a.localeCompare(b, "es")),
-    [resumen, region],
-  );
-  useEffect(() => {
-    setComuna("TODAS");
-  }, [region]);
-  useEffect(() => {
-    setPage(1);
-  }, [search, region, comuna, tipo, order, perPage]);
-
-  const resumenFiltrado = resumen.filter(
-    (r) =>
-      (region === "TODAS" || r.region === region) &&
-      (comuna === "TODAS" || r.comuna === comuna),
-  );
-  const detalle = useMemo(() => {
+  const filteredCaptaciones = useMemo(() => {
     const text = search.trim().toLowerCase();
-    const list = captaciones.filter(
+    return captaciones.filter(
       (x) =>
-        (region === "TODAS" || x.region === region) &&
-        (comuna === "TODAS" || x.comuna === comuna) &&
+        matchRegion(x.region, region) &&
+        matchComuna(x.comuna, comuna) &&
         (tipo === "TODAS" ||
           (tipo === "CASAS" ? x.tipo === "CASA" : x.tipo === "SERVICIO")) &&
         (!text ||
@@ -752,7 +726,70 @@ function CaptacionesView({ all }: { all: CapturerProfile[] }) {
             .toLowerCase()
             .includes(text)),
     );
-    const sorted = [...list];
+  }, [captaciones, search, region, comuna, tipo]);
+
+  const totalVentas = useMemo(
+    () => filteredCaptaciones.reduce((acc, x) => acc + x.ventas, 0),
+    [filteredCaptaciones],
+  );
+  const totalIngreso = useMemo(
+    () => filteredCaptaciones.reduce((acc, x) => acc + x.ingreso, 0),
+    [filteredCaptaciones],
+  );
+  const totalCasas = useMemo(
+    () => filteredCaptaciones.filter((x) => x.tipo === "CASA").length,
+    [filteredCaptaciones],
+  );
+  const totalServicios = useMemo(
+    () => filteredCaptaciones.filter((x) => x.tipo === "SERVICIO").length,
+    [filteredCaptaciones],
+  );
+
+  const hasActiveFilters = Boolean(
+    search.trim() || region !== "TODAS" || comuna !== "TODAS" || tipo !== "TODAS",
+  );
+
+  const allRegionsList = useMemo(() => {
+    return Object.keys(CHILE_REGIONES_COMUNAS);
+  }, []);
+
+  const comunas = useMemo(() => {
+    if (region !== "TODAS") {
+      const canonicalRegion = findMatchingRegion(region) || region;
+      const list = CHILE_REGIONES_COMUNAS[canonicalRegion] || [];
+      const extraComunas = captaciones
+        .filter((c) => matchRegion(c.region, region) && c.comuna)
+        .map((c) => c.comuna.trim());
+      const set = new Set([...list, ...extraComunas]);
+      return [...set].sort((a, b) => a.localeCompare(b, "es"));
+    }
+    const allComunas = Object.values(CHILE_REGIONES_COMUNAS).flat();
+    const extraComunas = captaciones.filter((c) => c.comuna).map((c) => c.comuna.trim());
+    const set = new Set([...allComunas, ...extraComunas]);
+    return [...set].sort((a, b) => a.localeCompare(b, "es"));
+  }, [region, captaciones]);
+
+  const comunaCounts = useMemo(() => {
+    const map = new Map<string, number>();
+    captaciones.forEach((x) => {
+      if (!x.comuna) return;
+      if (region !== "TODAS" && !matchRegion(x.region, region)) return;
+      const norm = normalizeGeoString(x.comuna);
+      map.set(norm, (map.get(norm) ?? 0) + 1);
+    });
+    return map;
+  }, [captaciones, region]);
+
+  useEffect(() => {
+    setComuna("TODAS");
+  }, [region]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, region, comuna, tipo, order, perPage]);
+
+  const detalle = useMemo(() => {
+    const sorted = [...filteredCaptaciones];
     sorted.sort((a, b) => {
       if (order === "ANTIGUOS") return +new Date(a.fecha) - +new Date(b.fecha);
       if (order === "INGRESO") return b.ingreso - a.ingreso;
@@ -761,7 +798,7 @@ function CaptacionesView({ all }: { all: CapturerProfile[] }) {
       return +new Date(b.fecha) - +new Date(a.fecha);
     });
     return sorted;
-  }, [captaciones, search, region, comuna, tipo, order]);
+  }, [filteredCaptaciones, order]);
 
   const pages = Math.max(1, Math.ceil(detalle.length / perPage));
   const current = page > pages ? pages : page;
@@ -771,96 +808,63 @@ function CaptacionesView({ all }: { all: CapturerProfile[] }) {
 
   return (
     <>
-      <section className="cps-strip">
-        <span className="cps-strip-title">Foco de captación por comuna</span>
-        <Insight
-          tone="green"
-          icon="trendUp"
-          title="Comuna con más captaciones"
-          value={mejor ? mejor.comuna : "—"}
-          foot={
-            mejor
-              ? `${mejor.total} captaciones · ${formatCurrency(mejor.ingreso)}`
-              : "Sin datos"
-          }
-        />
-        <Insight
-          tone="red"
-          icon="trendDown"
-          title="Comuna con menos captaciones"
-          value={peor ? peor.comuna : "—"}
-          foot={peor ? `${peor.total} captaciones · reforzar` : "Sin datos"}
-        />
-        <Insight
-          tone="blue"
-          icon="wallet"
-          title="Comuna con mayor ingreso"
-          value={
-            mayorIngreso && mayorIngreso.ingreso > 0 ? mayorIngreso.comuna : "—"
-          }
-          foot={
-            mayorIngreso && mayorIngreso.ingreso > 0
-              ? `${formatCurrency(mayorIngreso.ingreso)} en comisiones`
-              : "Sin ingresos registrados"
-          }
-        />
-        <Insight
-          tone="violet"
-          icon="alert"
-          title="Comunas sin captaciones"
-          value={String(sinCaptaciones.length)}
-          foot={
-            sinCaptaciones.length
-              ? sinCaptaciones
-                  .slice(0, 2)
-                  .map((r) => r.comuna)
-                  .join(", ")
-              : "Todas registran captaciones"
-          }
-        />
-      </section>
-
       <section className="cps-stats cps-stats-5">
         <Stat
           icon="target"
           tone="blue"
           label="Captaciones totales"
-          value={String(captaciones.length)}
+          value={String(filteredCaptaciones.length)}
           foot={
             cargando
               ? `Cargando ${listos}/${all.length} captadores…`
-              : `De ${all.length} captadores`
+              : hasActiveFilters
+                ? `${filteredCaptaciones.length} de ${captaciones.length} captaciones`
+                : `De ${all.length} captadores`
           }
         />
         <Stat
           icon="store"
           tone="green"
           label="Casas de repuestos"
-          value={String(captaciones.filter((x) => x.tipo === "CASA").length)}
-          foot="Negocios captados"
+          value={String(totalCasas)}
+          foot={
+            hasActiveFilters
+              ? `${totalCasas} ${totalCasas === 1 ? 'negocio filtrado' : 'negocios filtrados'}`
+              : "Negocios captados"
+          }
         />
         <Stat
           icon="settings"
           tone="violet"
           label="Servicios automotrices"
-          value={String(
-            captaciones.filter((x) => x.tipo === "SERVICIO").length,
-          )}
-          foot="Talleres y servicios"
+          value={String(totalServicios)}
+          foot={
+            hasActiveFilters
+              ? `${totalServicios} ${totalServicios === 1 ? 'taller filtrado' : 'talleres filtrados'}`
+              : "Talleres y servicios"
+          }
         />
         <Stat
           icon="barChart"
           tone="blue"
           label="Monto base generado"
           value={formatCurrency(totalVentas)}
-          foot="Total de los negocios captados"
+          foot={
+            hasActiveFilters
+              ? "Total negocios filtrados"
+              : "Total de los negocios captados"
+          }
         />
         <Stat
           icon="wallet"
           tone="green"
           label="Ingreso de captadores"
           value={formatCurrency(totalIngreso)}
-          foot="Comisiones asociadas"
+          foot={
+            hasActiveFilters
+              ? "Comisiones filtradas"
+              : "Comisiones asociadas"
+          }
         />
       </section>
 
@@ -879,7 +883,7 @@ function CaptacionesView({ all }: { all: CapturerProfile[] }) {
           onChange={setRegion}
           opts={[
             ["TODAS", "Todas"],
-            ...regions.map((r): [string, string] => [r, r]),
+            ...allRegionsList.map((r): [string, string] => [r, r]),
           ]}
         />
         <Select
@@ -888,7 +892,10 @@ function CaptacionesView({ all }: { all: CapturerProfile[] }) {
           onChange={setComuna}
           opts={[
             ["TODAS", "Todas"],
-            ...comunas.map((x): [string, string] => [x, x]),
+            ...comunas.map((c): [string, string] => {
+              const count = comunaCounts.get(normalizeGeoString(c)) ?? 0;
+              return [c, `${c} (${count})`];
+            }),
           ]}
         />
         <Select
@@ -928,100 +935,6 @@ function CaptacionesView({ all }: { all: CapturerProfile[] }) {
         >
           <UiIcon name="filter" />
         </button>
-      </section>
-
-      <section className="cps-table-card">
-        <div className="cps-block-head">
-          <h2>Captaciones por comuna</h2>
-          <p>
-            Ordenadas de mayor a menor volumen. Las de foco alto ya tienen
-            flujo; las de foco bajo necesitan refuerzo.
-          </p>
-        </div>
-        <div className="cps-table-wrap">
-          <table className="cps-table">
-            <thead>
-              <tr>
-                <th>Comuna</th>
-                <th>Región</th>
-                <th>Casas</th>
-                <th>Servicios</th>
-                <th>Total</th>
-                <th>Monto base generado</th>
-                <th>Ingreso captadores</th>
-                <th>Captadores</th>
-                <th>Volumen</th>
-                <th>Foco</th>
-              </tr>
-            </thead>
-            <tbody>
-              {cargando && !captaciones.length ? (
-                <tr>
-                  <td colSpan={10} className="cps-empty">
-                    Cargando captaciones… ({listos}/{all.length})
-                  </td>
-                </tr>
-              ) : resumenFiltrado.length ? (
-                resumenFiltrado.map((r) => {
-                  const nivel = !r.total
-                    ? "nulo"
-                    : r.total >= maxTotal * 0.66
-                      ? "alto"
-                      : r.total >= maxTotal * 0.33
-                        ? "medio"
-                        : "bajo";
-                  return (
-                    <tr key={`${r.region}-${r.comuna}`}>
-                      <td>
-                        <span className="cps-cell-strong">{r.comuna}</span>
-                      </td>
-                      <td>{r.region}</td>
-                      <td>{r.casas}</td>
-                      <td>{r.servicios}</td>
-                      <td>
-                        <strong>{r.total}</strong>
-                      </td>
-                      <td>{formatCurrency(r.ventas)}</td>
-                      <td>
-                        <strong className="cps-money">
-                          {formatCurrency(r.ingreso)}
-                        </strong>
-                      </td>
-                      <td>{r.captadores}</td>
-                      <td>
-                        <span className="cps-bar">
-                          <span
-                            className={`cps-bar-fill cps-bar-${nivel}`}
-                            style={{
-                              width: `${maxTotal ? Math.round((r.total / maxTotal) * 100) : 0}%`,
-                            }}
-                          />
-                        </span>
-                      </td>
-                      <td>
-                        <span className={`cps-foco cps-foco-${nivel}`}>
-                          {nivel === "alto"
-                            ? "Flujo alto"
-                            : nivel === "medio"
-                              ? "Flujo medio"
-                              : nivel === "bajo"
-                                ? "Reforzar"
-                                : "Sin captaciones"}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })
-              ) : (
-                <tr>
-                  <td colSpan={10} className="cps-empty">
-                    No hay comunas que coincidan con los filtros.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
       </section>
 
       <section className="cps-table-card">
@@ -1263,18 +1176,12 @@ function Select({
 
 function Modal({ c, close }: { c: CapturerProfile; close: () => void }) {
   const [tab, setTab] = useState("general");
-  const [mode, setMode] = useState("GLOBAL");
   const [period, setPeriod] = useState(new Date().toISOString().slice(0, 7));
   const [businessType, setBusinessType] = useState("TODOS");
   const [businessSearch, setBusinessSearch] = useState("");
   const b = useQuery({
     queryKey: ["capturer-businesses", c.id, period],
     queryFn: () => api.getCapturedBusinesses(c.id, period),
-  });
-  const r = useQuery({
-    queryKey: ["admin-capturer-ranking", c.id, mode],
-    queryFn: () => api.getAdminCapturerRanking(c.id, mode, "HISTORICO"),
-    enabled: tab === "ranking",
   });
   return (
     <div className="cps-overlay" onClick={close}>
@@ -1312,7 +1219,6 @@ function Modal({ c, close }: { c: CapturerProfile; close: () => void }) {
           {[
             ["general", "General"],
             ["captados", "Casas y servicios captados"],
-            ["ranking", "Ranking"],
           ].map(([v, l]) => (
             <button
               type="button"
@@ -1335,7 +1241,7 @@ function Modal({ c, close }: { c: CapturerProfile; close: () => void }) {
             search={businessSearch}
             setSearch={setBusinessSearch}
           />
-        ) : tab === "captados" ? (
+        ) : (
           <div className="cps-details cps-details-2">
             <List
               title="Casas de repuestos captadas"
@@ -1348,66 +1254,6 @@ function Modal({ c, close }: { c: CapturerProfile; close: () => void }) {
               loading={b.isLoading}
             />
           </div>
-        ) : (
-          <>
-            <div className="cps-tabs cps-tabs-inline">
-              <button
-                type="button"
-                className={
-                  mode === "REGIONAL" ? "cps-tab cps-tab-on" : "cps-tab"
-                }
-                onClick={() => setMode("REGIONAL")}
-              >
-                Regional
-              </button>
-              <button
-                type="button"
-                className={mode === "GLOBAL" ? "cps-tab cps-tab-on" : "cps-tab"}
-                onClick={() => setMode("GLOBAL")}
-              >
-                Global
-              </button>
-            </div>
-            <div className="cps-table-wrap">
-              <table className="cps-table">
-                <thead>
-                  <tr>
-                    <th>Posición</th>
-                    <th>Alias</th>
-                    <th>Región</th>
-                    <th>Puntos</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {r.isLoading ? (
-                    <tr>
-                      <td colSpan={4} className="cps-empty">
-                        Cargando ranking…
-                      </td>
-                    </tr>
-                  ) : r.data?.posiciones.length ? (
-                    r.data.posiciones.map((x) => (
-                      <tr
-                        key={`${x.alias}-${x.posicion}`}
-                        className={x.alias === c.alias ? "cps-row-own" : ""}
-                      >
-                        <td>#{x.posicion}</td>
-                        <td>{x.alias}</td>
-                        <td>{x.region}</td>
-                        <td>{x.puntos.toLocaleString("es-CL")}</td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={4} className="cps-empty">
-                        Sin posiciones registradas.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </>
         )}
       </section>
     </div>

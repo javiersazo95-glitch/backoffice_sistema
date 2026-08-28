@@ -264,18 +264,35 @@ export default function PermissionsConfigPage() {
         {activeTab === 'permisos' ? (
           <div className="permissions-workspace">
             <section className="permissions-hero">
-              <div>
-                <span className="permissions-eyebrow"><UiIcon name="shield" /> Control de acceso</span>
+              <div className="permissions-hero-content">
+                <div className="permissions-hero-eyebrow-row">
+                  <span className="permissions-eyebrow">
+                    <span className="permissions-status-dot" />
+                    <UiIcon name="shieldCheck" />
+                    Control de Acceso
+                  </span>
+                </div>
                 <h2>Permisos del equipo</h2>
-                <p>Administra quién puede entrar al Backoffice y a qué áreas puede acceder.</p>
+                <p>Administra las credenciales del personal, define permisos por área y ranura, y controla el acceso seguro al Backoffice.</p>
+                <div className="permissions-hero-tags">
+                  <span className="permissions-hero-tag"><UiIcon name="lock" /> Control granular</span>
+                  <span className="permissions-hero-tag"><UiIcon name="building" /> 3 Áreas operativas</span>
+                  <span className="permissions-hero-tag"><UiIcon name="shield" /> Acceso protegido</span>
+                </div>
               </div>
               <div className="permissions-hero-note">
-                <span>Acceso protegido</span>
-                <strong>Solo usuarios autorizados</strong>
+                <div className="permissions-hero-note-icon">
+                  <UiIcon name="lock" />
+                </div>
+                <div className="permissions-hero-note-text">
+                  <span className="hero-note-badge"><span className="hero-pulse-dot" /> Entorno seguro</span>
+                  <strong>Acceso por Ranura</strong>
+                  <small>Solo usuarios autorizados</small>
+                </div>
               </div>
             </section>
 
-            <div className="permission-entry-grid invite-only">
+            <div className="permission-entry-grid">
               <section className="permission-entry-card invite-card">
                 <div className="permission-entry-heading"><span className="permission-entry-icon"><UiIcon name="users" /></span><div><h3>Invitar empleado</h3><p>Crea una cuenta y envía un enlace de activación.</p></div></div>
                 <div className="invite-fields">
@@ -287,16 +304,16 @@ export default function PermissionsConfigPage() {
                   {inviteMutation.isPending ? 'Enviando…' : 'Enviar invitación'}
                 </button>
               </section>
-            </div>
 
-            <div className={`permission-selected-summary ${isInviting ? 'has-user' : ''}`}>
-              <span className="permission-user-avatar">{inviteInitials}</span>
-              <div>
-                <span className="summary-label">Empleado seleccionado</span>
-                <strong>{inviteName.trim() || 'Nuevo empleado'}</strong>
-                <p>{inviteEmail.trim() || 'Ingresa el correo del nuevo empleado.'}</p>
+              <div className={`permission-selected-summary ${isInviting ? 'has-user' : ''}`}>
+                <span className="permission-user-avatar">{inviteInitials}</span>
+                <div>
+                  <span className="summary-label">Empleado seleccionado</span>
+                  <strong>{inviteName.trim() || 'Nuevo empleado'}</strong>
+                  <p>{inviteEmail.trim() || 'Ingresa el correo del nuevo empleado.'}</p>
+                </div>
+                <span className="summary-permission-count">{activePermissions.length} {activePermissions.length === 1 ? 'permiso' : 'permisos'}</span>
               </div>
-              <span className="summary-permission-count">{activePermissions.length} {activePermissions.length === 1 ? 'permiso' : 'permisos'}</span>
             </div>
 
             <div className="permission-section-title"><div><h3>Áreas habilitadas</h3><p>Estos permisos se asignarán al empleado invitado.</p></div><span>{activePermissions.length}/4 seleccionados</span></div>
