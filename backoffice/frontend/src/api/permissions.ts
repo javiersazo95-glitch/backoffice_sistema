@@ -78,6 +78,6 @@ export async function deleteUserPermission(userId: number, permissionId: number)
   return response.data;
 }
 
-export async function deleteUserAccount(userId: number): Promise<void> {
-  await apiClient.delete(`/auth/users/${userId}`);
+export async function deleteUserAccount(userId: number, perfil: 'COMPRADOR' | 'PROVEEDOR' | 'CAPTADOR' = 'COMPRADOR'): Promise<void> {
+  await apiClient.delete(`/auth/users/${userId}`, { params: { perfil } });
 }

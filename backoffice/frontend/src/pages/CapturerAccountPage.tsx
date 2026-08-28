@@ -55,7 +55,9 @@ export default function CapturerAccountPage() {
     )
       return;
     try {
-      await apiClient.delete(`/auth/users/${user.id}`);
+      // La identidad puede tener otros perfiles (comprador o vendedor). Este
+      // panel sólo elimina el perfil de captador y libera sus datos asociados.
+      await apiClient.delete(`/auth/users/${user.id}`, { params: { perfil: "CAPTADOR" } });
       await logout();
       navigate("/login?type=capturer", { replace: true });
     } catch (e: any) {

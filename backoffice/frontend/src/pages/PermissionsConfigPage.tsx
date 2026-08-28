@@ -152,7 +152,7 @@ export default function PermissionsConfigPage() {
   });
 
   const deleteCapturerMutation = useMutation({
-    mutationFn: (userId: number) => permissionsApi.deleteUserAccount(userId),
+    mutationFn: (userId: number) => permissionsApi.deleteUserAccount(userId, 'CAPTADOR'),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['managed-capturers'] }); showToast('Cuenta de captador eliminada'); },
     onError: (error: any) => showToast(error.response?.data?.message || 'No se pudo eliminar la cuenta'),
   });
