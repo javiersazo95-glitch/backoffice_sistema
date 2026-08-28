@@ -205,7 +205,15 @@ export default function CapturerRegisterPage() {
 
       if (response.data.pendingEmailVerification === false) {
         const email = response.data.email || form.email.trim().toLowerCase();
-        navigate(`/login?type=capturer&application=received&existing=${response.data.existingAccount ? '1' : '0'}&email=${encodeURIComponent(email)}`, { replace: true });
+        // La postulación puede reutilizar una identidad Google. El formulario de
+        // captador ya validó/definió su contraseña, por lo que abrimos su estado
+        // de inmediato en vez de expulsarlo al login otra vez.
+        try {
+          await login(email, form.password, false, 'CAPTADOR');
+          navigate('/captador/estado', { replace: true });
+        } catch (loginError: unknown) {
+          setError(`La postulación fue registrada, pero no pudimos abrir tu estado automáticamente. ${registrationErrorMessage(loginError, 'Ingresa al portal de captadores con la contraseña de tu postulación.')}`);
+        }
         return;
       }
       setLocalVerificationCode(response.data.verificationCode || '');
