@@ -6,6 +6,14 @@ import UiIcon from '@/components/shared/UiIcon';
 import { showToast } from '@/components/layout/Toast';
 import AuthedImage from '@/components/shared/AuthedImage';
 
+// El backend ya manda `ownerSellerId` con prefijo (CodigoVendedor.PREFIJO, hoy "RTP-").
+// Esto es solo el respaldo para respuestas antiguas que traian el id pelado; antes estaba
+// escrito a mano en dos sitios con el prefijo viejo pegado a la cadena.
+const SELLER_ID_PREFIX = 'RTP-';
+function formatSellerId(ownerSellerId: string) {
+  return ownerSellerId.startsWith(SELLER_ID_PREFIX) ? ownerSellerId : `${SELLER_ID_PREFIX}${ownerSellerId}`;
+}
+
 const REJECT_REASON_PRESETS = [
   'Imágenes inapropiadas, de baja calidad o no corresponden al servicio ofrecido.',
   'Información de contacto, precios o descripción con datos falsos o engañosos.',
@@ -548,7 +556,7 @@ export default function AdValidationTab() {
                       </div>
                       {ad.ownerSellerId && (
                         <div style={{ fontSize: '11.5px', color: '#0284c7', fontWeight: 700, marginTop: '2px' }}>
-                          ID Tienda: {ad.ownerSellerId.startsWith('ML-') ? ad.ownerSellerId : `ML-${ad.ownerSellerId}`}
+                          ID Tienda: {formatSellerId(ad.ownerSellerId)}
                         </div>
                       )}
                     </td>
@@ -848,7 +856,7 @@ export default function AdValidationTab() {
                       <div className="ad-modal-detail-row">
                         <dt>ID Tienda (Externo):</dt>
                         <dd style={{ fontWeight: 700, color: '#0284c7' }}>
-                          {selectedAdForDetail.ownerSellerId.startsWith('ML-') ? selectedAdForDetail.ownerSellerId : `ML-${selectedAdForDetail.ownerSellerId}`}
+                          {formatSellerId(selectedAdForDetail.ownerSellerId)}
                         </dd>
                       </div>
                     )}
