@@ -13807,6 +13807,87 @@ tr.is-active {
   box-shadow: 0 24px 70px rgba(15, 27, 45, 0.22);
 }
 
+/* Confirmación de "Procesar pago" / rechazo en Pago a captadores */
+.modal-panel.pay-confirm {
+  width: min(460px, 100%);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.pay-confirm .modal-header {
+  min-height: 0;
+  padding: 16px 18px;
+}
+
+.pay-confirm-body {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+}
+
+.pay-confirm-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.pay-confirm-summary > div {
+  padding: 12px 14px;
+  border: 1px solid var(--soft-line, #e6eef8);
+  border-radius: 10px;
+  background: #f7faff;
+}
+
+.pay-confirm-summary span {
+  display: block;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted, #6b7a90);
+}
+
+.pay-confirm-summary strong {
+  display: block;
+  margin-top: 4px;
+  font-size: 19px;
+  font-weight: 800;
+  color: #0b2559;
+}
+
+.pay-confirm-lead {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: #40536a;
+}
+
+.pay-confirm-warning {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 11px 13px;
+  border: 1px solid #f6d6a8;
+  border-radius: 10px;
+  background: #fff7ec;
+  color: #92500c;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.pay-confirm-warning .ui-icon {
+  flex: 0 0 auto;
+  width: 17px;
+  height: 17px;
+  margin-top: 1px;
+}
+
+.pay-confirm-actions {
+  padding: 4px 18px 18px;
+  border-top: 1px solid var(--soft-line, #e6eef8);
+  padding-top: 14px;
+}
+
 .modal-header {
   min-height: 64px;
   display: flex;

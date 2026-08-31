@@ -60,6 +60,7 @@ export async function viewServiceDocument(id:number,tipo:string){return previewD
 export async function downloadServiceDocument(id:number,tipo:string,nombre:string){saveDocument(await getValidationDocument(`/validations/automotive-services/${id}/documents/${tipo}`),nombre);}
 export const listCapturerWithdrawals=async()=> (await apiClient.get<CapturerWithdrawal[]>('/administration/capturer-withdrawals')).data;
 export const payCapturerWithdrawal=async(id:number)=> (await apiClient.patch<CapturerWithdrawal>(`/administration/capturer-withdrawals/${id}/pay`)).data;
+export const processCapturerWithdrawals=async()=> (await apiClient.post<CapturerWithdrawal[]>('/administration/capturer-withdrawals/process')).data;
 export const rejectCapturerWithdrawal=async(id:number,motivo:string)=> (await apiClient.patch<CapturerWithdrawal>(`/administration/capturer-withdrawals/${id}/reject`,{motivo})).data;
 export const getCapturerConfig=async()=> (await apiClient.get<CapturerConfig>('/validations/capturers/config')).data;
 // Config del programa visible para el propio captador (mismos valores que administra

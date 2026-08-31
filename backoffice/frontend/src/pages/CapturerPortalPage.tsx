@@ -1,4 +1,4 @@
-import { useEffect,useMemo,useState } from 'react';
+import { useEffect,useMemo,useRef,useState } from 'react';
 import type { ReactNode } from 'react';
 import { Navigate,useLocation,useNavigate } from 'react-router-dom';
 import { useQuery,useQueryClient } from '@tanstack/react-query';
@@ -7,10 +7,13 @@ import { resolveProfileImageUrl } from '@/api/client';
 import { formatCurrency } from '@/utils/formatters';
 import type { CapturerConfig,CapturerDashboard,CapturerMovement } from '@/types/capturer';
 import { DEFAULT_CAPTURER_CONFIG } from '@/types/capturer';
+import { BANCOS_BCI,TIPO_CUENTA_OPTIONS } from '@/modules/administration/constants';
 import CapturerLayout from '@/components/capturer/CapturerLayout';
 
-type BankForm={banco:string;bankCode:string;tipoCuenta:string;numeroCuenta:string;titular:string;email:string};
-const bankFields:Array<[keyof BankForm,string,string]>=[['banco','Banco','Ej.: Banco de Chile'],['bankCode','Código banco','Opcional'],['tipoCuenta','Tipo de cuenta','Corriente / Vista'],['numeroCuenta','Número de cuenta','Sin puntos ni guiones'],['titular','Titular','Nombre del titular'],['email','Email de pago','Opcional']];
+// Los datos bancarios del captador se solicitan igual que los de un socio para el
+// retiro de dinero: RUT, titular, banco (con código BCI), tipo y número de cuenta.
+type BankForm={rut:string;titular:string;banco:string;bankCode:number|null;tipoCuenta:string;numeroCuenta:string;email:string};
+const emptyBank:BankForm={rut:'',titular:'',banco:'',bankCode:null,tipoCuenta:'',numeroCuenta:'',email:''};
 type Level={name:string;min:number;next:number};
 const levels:Level[]=[{name:'Bronce',min:0,next:2500},{name:'Plata',min:2500,next:10000},{name:'Oro',min:10000,next:0}];
 const baseLevel:Level=levels[0]!;
@@ -21,7 +24,7 @@ export default function CapturerPortalPage(){
  const [mode,setMode]=useState<'REGIONAL'|'GLOBAL'>('GLOBAL');
  const [period,setPeriod]=useState(new Date().toISOString().slice(0,7));
  const [estadoFiltro,setEstadoFiltro]=useState('TODOS');
- const [bank,setBank]=useState<BankForm>({banco:'',bankCode:'',tipoCuenta:'',numeroCuenta:'',titular:'',email:''});
+ const [bank,setBank]=useState<BankForm>(emptyBank); const bankHydrated=useRef(false);
  const [amount,setAmount]=useState(''); const [receipt,setReceipt]=useState<File|null>(null);
  const [message,setMessage]=useState(''); const [copied,setCopied]=useState(false);
 
@@ -32,6 +35,16 @@ export default function CapturerPortalPage(){
  const programConfig=useQuery({queryKey:['capturer-program-config'],queryFn:api.getCapturerProgramConfig,enabled:approved,retry:false,refetchInterval:approved?60000:false,refetchOnWindowFocus:true});
  const cfg:CapturerConfig=programConfig.data??DEFAULT_CAPTURER_CONFIG;
  const d=dashboard.data;
+
+ // Precarga los datos bancarios ya guardados (una sola vez) para que el captador
+ // los revise en vez de volver a escribirlos.
+ useEffect(()=>{
+  if(bankHydrated.current)return;
+  const b=d?.datosBancarios;
+  if(!b)return;
+  bankHydrated.current=true;
+  setBank({rut:b.rut||'',titular:b.titular||'',banco:b.banco||'',bankCode:b.bankCode??null,tipoCuenta:b.tipoCuenta||'',numeroCuenta:b.numeroCuenta||'',email:b.email||''});
+ },[d]);
 
  const alerts=useMemo(()=>{
   if(!d)return [];
@@ -50,7 +63,7 @@ export default function CapturerPortalPage(){
 
  async function saveBank(e:React.FormEvent){
   e.preventDefault(); setMessage('');
-  try{await api.saveBank({...bank,bankCode:bank.bankCode?Number(bank.bankCode):null});setMessage('Datos bancarios guardados.');}
+  try{await api.saveBank({...bank,rut:bank.rut.trim(),titular:bank.titular.trim(),numeroCuenta:bank.numeroCuenta.trim(),email:bank.email.trim()});setMessage('Datos bancarios guardados.');await qc.invalidateQueries({queryKey:['capturer-dashboard']});}
   catch(err:any){setMessage(err.response?.data?.message||'No se pudieron guardar los datos.');}
  }
  async function withdraw(e:React.FormEvent){
@@ -369,53 +382,145 @@ function pageList(current:number,pages:number):Array<number|'…'>{
 }
 
 /* ---------------- Retiros y banco ---------------- */
-function Finanzas({d,bank,onBank,amount,onAmount,receipt,onReceipt,onSaveBank,onWithdraw}:{d:CapturerDashboard;bank:BankForm;onBank:(fn:(b:BankForm)=>BankForm)=>void;amount:string;onAmount:(v:string)=>void;receipt:File|null;onReceipt:(f:File|null)=>void;onSaveBank:(e:React.FormEvent)=>void;onWithdraw:(e:React.FormEvent)=>void}){
+const bankRequired:Array<keyof BankForm>=['rut','titular','banco','tipoCuenta','numeroCuenta'];
+function Finanzas({d,bank,onBank,amount,onAmount,receipt,onReceipt,onSaveBank,onWithdraw}:{d:CapturerDashboard;bank:BankForm;onBank:(v:BankForm|((b:BankForm)=>BankForm))=>void;amount:string;onAmount:(v:string)=>void;receipt:File|null;onReceipt:(f:File|null)=>void;onSaveBank:(e:React.FormEvent)=>void;onWithdraw:(e:React.FormEvent)=>void}){
+ const set=(patch:Partial<BankForm>)=>onBank(b=>({...b,...patch}));
+ const bankComplete=bankRequired.every(k=>String(bank[k]??'').trim().length>0);
+ const solicitudEnCurso=d.retiros.find(r=>r.estado==='PENDIENTE'||r.estado==='EN_REVISION');
+ const guardado=d.datosBancarios;
+ const cuentaGuardadaCompleta=!!guardado&&!!guardado.rut&&!!guardado.banco&&!!guardado.numeroCuenta;
+ const montoNum=Number(amount);
+ const montoInvalido=amount!==''&&(!Number.isFinite(montoNum)||montoNum<=0||montoNum>d.disponible);
  return <div className="cap-col">
+  <header className="cap-fin-head">
+   <div>
+    <h1>Retiro y banco</h1>
+    <p>Registra la cuenta donde recibes tus comisiones y solicita el retiro de tu saldo disponible.</p>
+   </div>
+   <span className={`cap-fin-status ${cuentaGuardadaCompleta?'ok':'pending'}`}>
+    {cuentaGuardadaCompleta?<CheckIcon/>:<InfoIcon/>}
+    {cuentaGuardadaCompleta?'Cuenta bancaria verificada':'Cuenta bancaria incompleta'}
+   </span>
+  </header>
+
   <section className="cap-metrics cap-metrics-wide">
    <Metric tone="green" icon={<MoneyIcon/>} label="Disponible para retiro" value={formatCurrency(d.disponible)} foot="Saldo confirmado"/>
    <Metric tone="amber" icon={<ClockIcon/>} label="Pendiente" value={formatCurrency(d.pendiente)} foot="Aún no confirmado"/>
    <Metric tone="blue" icon={<CheckIcon/>} label="Pagado" value={formatCurrency(d.pagado)} foot="Histórico transferido"/>
    <Metric tone="violet" icon={<BankIcon/>} label="Retiros solicitados" value={String(d.retiros.length)} foot="Total de solicitudes"/>
   </section>
+
+  <section className="cap-payinfo">
+   <span className="cap-payinfo-icon"><ClockIcon/></span>
+   <div>
+    <strong>¿Cuándo recibo mi dinero?</strong>
+    <p>Los pagos a captadores se realizan <b>todos los martes</b>. Tu comisión se habilita para retiro cuando Flow libera los fondos, entre <b>2 y 3 días hábiles</b> después de que el pedido pasa a estado <b>Finalizado</b> o de tu ingreso directo por la compra de monedas RepuesTop.</p>
+   </div>
+  </section>
+
+  {solicitudEnCurso&&<section className="cap-payinfo cap-payinfo-warn">
+   <span className="cap-payinfo-icon"><ClockIcon/></span>
+   <div>
+    <strong>Tienes una solicitud de retiro en curso</strong>
+    <p>Tu solicitud <b>{solicitudEnCurso.codigo}</b> por <b>{formatCurrency(solicitudEnCurso.monto)}</b> está en revisión de Administración Contable. <b>No puedes solicitar otro retiro hasta que este se pague.</b></p>
+   </div>
+  </section>}
+
   <section className="cap-two">
-   <form className="cap-card" onSubmit={onSaveBank}>
-    <span className="cap-eyebrow">Configuración de pagos</span>
-    <h2 className="cap-h2">Datos bancarios</h2>
-    <p className="cap-muted cap-sub">Necesitamos tu cuenta para transferir las comisiones aprobadas.</p>
-    <div className="cap-form-grid">
-     {bankFields.map(([k,l,ph])=><label className="cap-field" key={k}>{l}
-      <input className="cap-control" placeholder={ph} value={bank[k]} onChange={e=>onBank(b=>({...b,[k]:e.target.value}))} required={!['bankCode','email'].includes(k)}/>
-     </label>)}
+   <form className="cap-card cap-fin-card" onSubmit={onSaveBank}>
+    <div className="cap-fin-card-head">
+     <span className="cap-metric-icon cap-tone-blue"><BankIcon/></span>
+     <div>
+      <span className="cap-eyebrow">Datos para el retiro de dinero</span>
+      <h2 className="cap-h2">Cuenta bancaria</h2>
+     </div>
     </div>
-    <button className="cap-primary">Guardar datos</button>
+    <p className="cap-muted cap-sub">Usamos estos datos para transferirte por la nómina bancaria. Deben coincidir con tu boleta de honorarios.</p>
+    <div className="cap-form-grid">
+     <label className="cap-field">RUT del titular
+      <input className="cap-control" placeholder="12.345.678-9" value={bank.rut} onChange={e=>set({rut:e.target.value})} required/>
+     </label>
+     <label className="cap-field">Nombre del titular
+      <input className="cap-control" placeholder="Nombre completo" value={bank.titular} onChange={e=>set({titular:e.target.value})} required/>
+     </label>
+     <label className="cap-field">Banco
+      <select className="cap-control" value={bank.banco} onChange={e=>{const opt=BANCOS_BCI.find(o=>o.nombre===e.target.value);set({banco:e.target.value,bankCode:opt?.code??null});}} required>
+       <option value="">Selecciona un banco</option>
+       {BANCOS_BCI.map(o=><option key={o.nombre} value={o.nombre}>{o.nombre}</option>)}
+      </select>
+     </label>
+     <label className="cap-field">Tipo de cuenta
+      <select className="cap-control" value={bank.tipoCuenta} onChange={e=>set({tipoCuenta:e.target.value})} required>
+       <option value="">Selecciona el tipo</option>
+       {TIPO_CUENTA_OPTIONS.map(t=><option key={t} value={t}>{t}</option>)}
+      </select>
+     </label>
+     <label className="cap-field">Número de cuenta
+      <input className="cap-control" placeholder="Sin puntos ni guiones" value={bank.numeroCuenta} onChange={e=>set({numeroCuenta:e.target.value.replace(/[^0-9]/g,'')})} inputMode="numeric" required/>
+     </label>
+     <label className="cap-field">Correo de notificación
+      <input className="cap-control" type="email" placeholder="tucorreo@ejemplo.cl" value={bank.email} onChange={e=>set({email:e.target.value})}/>
+     </label>
+    </div>
+    {bank.banco&&<p className="cap-note"><InfoIcon/>Código de banco para la nómina: <strong>&nbsp;{bank.bankCode??'—'}</strong></p>}
+    <button className="cap-primary" disabled={!bankComplete}>{cuentaGuardadaCompleta?'Actualizar datos':'Guardar datos'}</button>
    </form>
-   <form className="cap-card" onSubmit={onWithdraw}>
-    <span className="cap-eyebrow">Saldo disponible</span>
-    <h2 className="cap-h2">Solicitar retiro</h2>
+
+   {solicitudEnCurso?(
+   <div className="cap-card cap-fin-card">
+    <div className="cap-fin-card-head">
+     <span className="cap-metric-icon cap-tone-amber"><ClockIcon/></span>
+     <div>
+      <span className="cap-eyebrow">Solicitud en curso</span>
+      <h2 className="cap-h2">Retiro en revisión</h2>
+     </div>
+    </div>
+    <div className="cap-request-open">
+     <div className="cap-request-row"><span>Código</span><strong>{solicitudEnCurso.codigo}</strong></div>
+     <div className="cap-request-row"><span>Monto solicitado</span><strong>{formatCurrency(solicitudEnCurso.monto)}</strong></div>
+     <div className="cap-request-row"><span>Fecha de solicitud</span><strong>{new Date(solicitudEnCurso.fecha).toLocaleDateString('es-CL')}</strong></div>
+     <div className="cap-request-row"><span>Estado</span><Badge estado={solicitudEnCurso.estado}/></div>
+    </div>
+    <p className="cap-note cap-note-warn"><InfoIcon/>Solo puede haber una solicitud a la vez. Podrás pedir un nuevo retiro cuando Administración Contable pague este, normalmente el martes siguiente.</p>
+   </div>
+   ):(
+   <form className="cap-card cap-fin-card" onSubmit={onWithdraw}>
+    <div className="cap-fin-card-head">
+     <span className="cap-metric-icon cap-tone-green"><MoneyIcon/></span>
+     <div>
+      <span className="cap-eyebrow">Saldo disponible</span>
+      <h2 className="cap-h2">Solicitar retiro</h2>
+     </div>
+    </div>
     <div className="cap-balance"><span>Puedes retirar hasta</span><strong>{formatCurrency(d.disponible)}</strong></div>
+    {!bankComplete&&<p className="cap-note cap-note-warn"><InfoIcon/>Completa y guarda tu cuenta bancaria antes de solicitar un retiro.</p>}
     <label className="cap-field">Monto a retirar
-     <input className="cap-control" type="number" min="1" max={d.disponible} value={amount} onChange={e=>onAmount(e.target.value)} required/>
+     <input className="cap-control" type="number" min="1" max={d.disponible} value={amount} onChange={e=>onAmount(e.target.value)} disabled={d.disponible<=0} required/>
     </label>
+    {montoInvalido&&<small className="cap-inline-err">El monto debe ser mayor a 0 y no superar {formatCurrency(d.disponible)}.</small>}
     <label className="cap-field">Boleta de honorarios (PDF)
      <input className="cap-control" type="file" accept="application/pdf" onChange={e=>onReceipt(e.target.files?.[0]||null)} required/>
     </label>
-    <p className="cap-note"><InfoIcon/>La boleta de honorarios en PDF es obligatoria y sólo puede existir una solicitud pendiente a la vez.{receipt?` Archivo: ${receipt.name}`:''}</p>
-    <button className="cap-primary">Enviar solicitud</button>
+    <p className="cap-note"><InfoIcon/>La boleta de honorarios en PDF es obligatoria y se envía a Administración Contable junto con la solicitud.{receipt?` Archivo: ${receipt.name}`:''}</p>
+    <button className="cap-primary" disabled={!bankComplete||montoInvalido||d.disponible<=0}>Enviar solicitud</button>
    </form>
+   )}
   </section>
+
   <section className="cap-card">
-   <h2 className="cap-h2">Historial de retiros</h2>
+   <div className="cap-card-head"><h2 className="cap-h2">Historial de retiros</h2><span className="cap-muted cap-sub">{d.retiros.length} solicitud(es)</span></div>
    <div className="cap-table-wrap">
     <table className="cap-table">
-     <thead><tr><th>Fecha</th><th>Código</th><th>Monto</th><th>Estado</th><th>Fecha de pago</th><th>Observación</th></tr></thead>
+     <thead><tr><th>Fecha</th><th>Código</th><th>Cuenta destino</th><th className="cap-right">Monto</th><th>Estado</th><th>Fecha de pago</th><th>Observación</th></tr></thead>
      <tbody>{d.retiros.length?d.retiros.map(r=><tr key={r.id}>
       <td>{new Date(r.fecha).toLocaleDateString('es-CL')}</td>
       <td><span className="cap-cell-strong">{r.codigo}</span></td>
-      <td><strong>{formatCurrency(r.monto)}</strong></td>
+      <td>{r.banco?<span>{r.banco}<small className="cap-muted" style={{display:'block',fontSize:12}}>{[r.tipoCuenta,r.numeroCuenta].filter(Boolean).join(' · ')||'—'}</small></span>:'—'}</td>
+      <td className="cap-right"><strong>{formatCurrency(r.monto)}</strong></td>
       <td><Badge estado={r.estado}/></td>
       <td>{r.fechaPago?new Date(r.fechaPago).toLocaleDateString('es-CL'):'—'}</td>
       <td className="cap-muted">{r.motivoRechazo||'—'}</td>
-     </tr>):<tr><td colSpan={6} className="cap-empty-cell">Aún no has solicitado retiros.</td></tr>}</tbody>
+     </tr>):<tr><td colSpan={7} className="cap-empty-cell">Aún no has solicitado retiros.</td></tr>}</tbody>
     </table>
    </div>
   </section>
@@ -613,6 +718,33 @@ const css=`
 .cap-feed-avatar{display:grid;place-items:center;width:32px;height:32px;flex:0 0 auto;border-radius:10px;background:#e7effe;color:#1657d9;font-size:13px;font-weight:800}
 
 .cap-two{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:18px;align-items:start}
+.cap-fin-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
+.cap-fin-head h1{margin:0;font-size:24px;font-weight:850;letter-spacing:-.02em;color:#0b2559}
+.cap-fin-head p{margin:5px 0 0;font-size:13.5px;color:#64748b;max-width:560px}
+.cap-fin-status{display:inline-flex;align-items:center;gap:7px;padding:8px 13px;border-radius:999px;font-size:12.5px;font-weight:700;white-space:nowrap}
+.cap-fin-status svg{width:15px;height:15px}
+.cap-fin-status.ok{background:#e3f7ec;color:#0f8a4d;border:1px solid #b9e6cd}
+.cap-fin-status.pending{background:#fef2e0;color:#c2760b;border:1px solid #f3ddb4}
+.cap-fin-card{display:flex;flex-direction:column;gap:2px}
+.cap-fin-card-head{display:flex;align-items:center;gap:12px;margin-bottom:4px}
+.cap-fin-card-head .cap-metric-icon{width:40px;height:40px}
+.cap-fin-card .cap-primary{margin-top:auto}
+.cap-fin-card .cap-primary:disabled{background:#aebfdd;cursor:not-allowed}
+.cap-payinfo{display:flex;gap:13px;align-items:flex-start;padding:15px 16px;border:1px solid #cfe0fb;border-radius:14px;background:linear-gradient(120deg,#eaf2ff,#f8fbff)}
+.cap-payinfo-icon{display:grid;place-items:center;width:38px;height:38px;flex:0 0 auto;border-radius:11px;background:#dbe8ff;color:#1657d9}
+.cap-payinfo strong{display:block;font-size:13.5px;font-weight:800;color:#0b2559}
+.cap-payinfo p{margin:4px 0 0;font-size:12.5px;line-height:1.5;color:#42557d}
+.cap-payinfo-warn{border-color:#f3ddb4;background:linear-gradient(120deg,#fff4e2,#fffaf2)}
+.cap-payinfo-warn .cap-payinfo-icon{background:#fbe3bf;color:#c2760b}
+.cap-payinfo-warn strong{color:#8a5a12}
+.cap-payinfo-warn p{color:#7a5a2c}
+.cap-request-open{display:grid;gap:1px;margin:12px 0 4px;border:1px solid #e6edf7;border-radius:12px;overflow:hidden;background:#e6edf7}
+.cap-request-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:11px 13px;background:#fff;font-size:13px}
+.cap-request-row span{color:#64748b;font-weight:600}
+.cap-request-row strong{color:#0b2559;font-weight:800}
+.cap-note-warn{color:#b45309;font-weight:600}
+.cap-inline-err{display:block;margin:-8px 0 10px;font-size:12px;font-weight:600;color:#b42318}
+select.cap-control{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7a95' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:32px}
 .cap-form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin:14px 0 16px}
 .cap-field{display:grid;gap:6px;font-size:12.5px;font-weight:700;color:#3d4f6d}
 .cap-control{width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #d7e0ee;border-radius:10px;background:#fff;font:inherit;font-size:13.5px;color:#0b2559}
