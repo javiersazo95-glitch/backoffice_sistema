@@ -54,6 +54,15 @@ export async function payWithdrawal(id: string | number): Promise<RetiroAdminRes
   return response.data;
 }
 
+/**
+ * El deposito de este retiro reboto en el banco. El backend lo marca RECHAZADO y libera sus
+ * items, para que el vendedor pueda volver a solicitarlo una vez corregidos sus datos.
+ */
+export async function rejectWithdrawal(id: string | number, motivo: string): Promise<RetiroAdminResponse> {
+  const response = await apiClient.patch<RetiroAdminResponse>(`/administration/withdrawals/${id}/reject`, { motivo });
+  return response.data;
+}
+
 export async function getWithdrawalPayments(): Promise<PagoProveedorResponse[]> {
   const response = await apiClient.get<PagoProveedorResponse[]>('/administration/withdrawal-payments');
   return response.data;

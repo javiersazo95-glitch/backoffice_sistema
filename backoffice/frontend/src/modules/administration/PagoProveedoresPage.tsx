@@ -86,6 +86,12 @@ export default function PagoProveedoresPage() {
 
   // Selected withdrawal for detail popup
   const [selectedPagoId, setSelectedPagoId] = useState<number | null>(null);
+  // Rechazo de un deposito que reboto en el banco. Vive en el detalle del pago porque es ahi
+  // donde los retiros de una nomina se ven uno por uno: rebota UNO, no la nomina entera.
+  const [retiroARechazar, setRetiroARechazar] = useState<{ id: number; tienda: string } | null>(null);
+  const [motivoRechazo, setMotivoRechazo] = useState('');
+  const [rechazando, setRechazando] = useState(false);
+  const [errorRechazo, setErrorRechazo] = useState('');
   const [selectedPendingRetiroId, setSelectedPendingRetiroId] = useState<number | null>(null);
 
   // Modal para cargar documento tributario de socio desde Pago a Proveedores
@@ -730,6 +736,7 @@ export default function PagoProveedoresPage() {
                           <th style={{ textAlign: 'left', padding: '8px 12px' }}>Tipo</th>
                           <th style={{ textAlign: 'left', padding: '8px 12px' }}>Fecha</th>
                           <th style={{ textAlign: 'right', padding: '8px 12px' }}>Monto Pagado</th>
+                          <th style={{ textAlign: 'center', padding: '8px 12px' }}>Depósito</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -740,6 +747,24 @@ export default function PagoProveedoresPage() {
                             <td style={{ padding: '8px 12px' }}><span className="status-pill tone-blue" style={{ fontSize: '11px' }}>Proveedor</span></td>
                             <td style={{ padding: '8px 12px' }}>{formatDate(retiro.fecha)}</td>
                             <td style={{ textAlign: 'right', padding: '8px 12px', fontWeight: 'bold' }}>{formatMoney(retiro.monto)}</td>
+                            <td style={{ textAlign: 'center', padding: '8px 12px' }}>
+                              {retiro.estado === 'RECHAZADO' ? (
+                                <span className="status-pill tone-red" style={{ fontSize: '11px' }}>Rechazado</span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  className="action-button neutral"
+                                  title="El depósito rebotó en el banco"
+                                  onClick={() => {
+                                    setRetiroARechazar({ id: retiro.retiroId, tienda: retiro.nombreTienda });
+                                    setMotivoRechazo('');
+                                    setErrorRechazo('');
+                                  }}
+                                >
+                                  <UiIcon name="alert" />
+                                </button>
+                              )}
+                            </td>
                           </tr>
                         ))}
                         {sociosPagadosEnModal.map((w) => (
@@ -749,6 +774,8 @@ export default function PagoProveedoresPage() {
                             <td style={{ padding: '8px 12px' }}><span className="status-pill tone-violet" style={{ fontSize: '11px' }}>Socio</span></td>
                             <td style={{ padding: '8px 12px' }}>{formatDate(w.date)}</td>
                             <td style={{ textAlign: 'right', padding: '8px 12px', fontWeight: 'bold' }}>{formatMoney(w.amount)}</td>
+                            {/* Los socios no pasan por este flujo: su retiro no libera items de pedidos. */}
+                            <td style={{ textAlign: 'center', padding: '8px 12px', color: '#a0aec0' }}>—</td>
                           </tr>
                         ))}
                       </tbody>
@@ -766,6 +793,61 @@ export default function PagoProveedoresPage() {
                 No se pudo cargar la información del retiro.
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Rechazo de un deposito que reboto en el banco */}
+      {retiroARechazar !== null && (
+        <div className="modal-backdrop" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100 }} onClick={() => !rechazando && setRetiroARechazar(null)}>
+          <div className="modal-content" style={{ background: '#fff', borderRadius: 12, width: '90%', maxWidth: 480, padding: 24, display: 'flex', flexDirection: 'column', gap: 14 }} onClick={(e) => e.stopPropagation()}>
+            <h3 style={{ margin: 0, fontSize: 17 }}>El depósito rebotó</h3>
+            <p style={{ margin: 0, fontSize: 13, color: '#4a5568', lineHeight: 1.5 }}>
+              Retiro <strong>RET-{String(retiroARechazar.id).padStart(6, '0')}</strong> de{' '}
+              <strong>{retiroARechazar.tienda}</strong>. Los pedidos de este retiro vuelven a quedar
+              cobrables y se le avisa al vendedor para que corrija sus datos bancarios y lo solicite
+              de nuevo. Los demás pagos de la nómina no se tocan.
+            </p>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 13, fontWeight: 600 }}>
+              Motivo del rechazo
+              <textarea
+                value={motivoRechazo}
+                onChange={(e) => setMotivoRechazo(e.target.value)}
+                rows={3}
+                placeholder="Ej: cuenta bancaria inexistente"
+                style={{ padding: 10, border: '1px solid #cbd5e0', borderRadius: 8, font: 'inherit', fontSize: 13, resize: 'vertical' }}
+              />
+            </label>
+            {errorRechazo && <p style={{ margin: 0, color: '#c53030', fontSize: 12.5, fontWeight: 600 }}>{errorRechazo}</p>}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+              <button type="button" className="action-button neutral" disabled={rechazando} onClick={() => setRetiroARechazar(null)}>
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="action-button danger"
+                disabled={rechazando || !motivoRechazo.trim()}
+                onClick={async () => {
+                  setRechazando(true);
+                  setErrorRechazo('');
+                  try {
+                    await adminApi.rejectWithdrawal(retiroARechazar.id, motivoRechazo.trim());
+                    await queryClient.invalidateQueries({ queryKey: ['admin-withdrawal-payment'] });
+                    await queryClient.invalidateQueries({ queryKey: ['admin-withdrawals'] });
+                    setRetiroARechazar(null);
+                  } catch (error) {
+                    setErrorRechazo(
+                      isAxiosError(error) && error.response?.data?.message
+                        ? String(error.response.data.message)
+                        : 'No se pudo registrar el rechazo.');
+                  } finally {
+                    setRechazando(false);
+                  }
+                }}
+              >
+                {rechazando ? 'Registrando…' : 'Marcar rechazado'}
+              </button>
+            </div>
           </div>
         </div>
       )}
