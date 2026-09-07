@@ -477,6 +477,17 @@ export default function AdminFinancePage() {
   const [cajaSourceFilter, setCajaSourceFilter] = useState<CajaSourceFilter>('todos');
   const [cajaQuery, setCajaQuery] = useState('');
   const [advertisingQuery, setAdvertisingQuery] = useState('');
+  /**
+   * Filtro de documento tributario del tab Publicidad. Arranca en 'sin' porque lo accionable
+   * es el pendiente: la lista completa no le sirve a nadie para emitir.
+   */
+  const [advertisingDocFilter, setAdvertisingDocFilter] = useState<'todas' | 'sin' | 'con'>('sin');
+  const [docRecargaDraft, setDocRecargaDraft] = useState<{
+    compraId: number; codigo: string; comprador: string; tipo: string; folio: string;
+    rut: string; razonSocial: string; archivo: File | null; yaCargado: boolean;
+  } | null>(null);
+  const [docRecargaBusy, setDocRecargaBusy] = useState(false);
+  const [docRecargaError, setDocRecargaError] = useState('');
   const [selectedAdvertisingOrder, setSelectedAdvertisingOrder] = useState<AdvertisingOrder | null>(null);
   const [partnerTab, setPartnerTab] = useState<PartnerTab>('ingresos');
   const [partnerIncomeFilter, setPartnerIncomeFilter] = useState<'todos' | 'pedidos' | 'publicidad'>('todos');
@@ -516,7 +527,7 @@ export default function AdminFinancePage() {
   const { data: paidPayments = [] } = useQuery({ queryKey: ['withdrawal-payments'], queryFn: administrationApi.getWithdrawalPayments });
   // Compras de fichas para publicidad: se muestran en su propio tab de Pedidos
   // para no mezclarlas con las ventas de repuestos.
-  const { data: advertising } = useQuery({
+  const { data: advertising, refetch: refetchAdvertising } = useQuery({
     queryKey: ['advertising-orders'],
     queryFn: administrationApi.getAdvertisingOrders,
   });
@@ -550,12 +561,21 @@ export default function AdminFinancePage() {
 
   /** Compras de publicidad que calzan con la búsqueda del tab. */
   const filteredAdvertisingOrders = useMemo(() => {
-    const rows = advertising?.compras ?? [];
+    let rows = advertising?.compras ?? [];
+    if (advertisingDocFilter === 'sin') rows = rows.filter((row) => !row.documentoCargado);
+    else if (advertisingDocFilter === 'con') rows = rows.filter((row) => row.documentoCargado);
+
     const term = normalizeText(advertisingQuery);
     if (!term) return rows;
     return rows.filter((row) => [row.codigo, row.comprador, row.correo, row.pack, row.metodoPago]
       .some((value) => normalizeText(value ?? '').includes(term)));
-  }, [advertising, advertisingQuery]);
+  }, [advertising, advertisingQuery, advertisingDocFilter]);
+
+  /** Cuantas recargas siguen sin su documento, sobre el total y no sobre lo filtrado. */
+  const advertisingSinDocumento = useMemo(
+    () => (advertising?.compras ?? []).filter((row) => !row.documentoCargado).length,
+    [advertising?.compras],
+  );
 
   /**
    * Las tarjetas siguen a lo que se está viendo: si hay búsqueda se recalculan
@@ -707,6 +727,76 @@ export default function AdminFinancePage() {
       publicidadCount: publicidadEntries.length,
     };
   }, [cajaEntriesAll]);
+
+  /**
+   * Abre el formulario del documento de una recarga. Si todavia no se emitio, precarga lo que
+   * corresponde: FACTURA con el RUT de la tienda cuando el comprador tiene RUT de empresa
+   * -- quien recarga es casi siempre un vendedor con giro y necesita el credito fiscal -- y
+   * BOLETA cuando no.
+   */
+  async function abrirDocumentoRecarga(row: AdvertisingOrder) {
+    setDocRecargaError('');
+    let sugerencia = { tipo: 'BOLETA', rut: '', razonSocial: '', email: '' };
+    try {
+      const datos = await administrationApi.getDocumentoRecargaSugerencia(row.id);
+      sugerencia = {
+        tipo: datos.tipo ?? 'BOLETA',
+        rut: datos.rut ?? '',
+        razonSocial: datos.razonSocial ?? '',
+        email: datos.email ?? '',
+      };
+    } catch {
+      // Sin sugerencia igual se puede emitir: el administrador escribe los datos a mano.
+    }
+    setDocRecargaDraft({
+      compraId: row.id,
+      codigo: row.codigo,
+      comprador: row.comprador ?? sugerencia.email ?? 'Sin registrar',
+      tipo: row.documentoTipo ?? sugerencia.tipo,
+      folio: row.documentoFolio ?? '',
+      rut: sugerencia.rut,
+      razonSocial: sugerencia.razonSocial,
+      archivo: null,
+      yaCargado: row.documentoCargado,
+    });
+  }
+
+  async function guardarDocumentoRecarga() {
+    if (!docRecargaDraft || docRecargaBusy) return;
+    if (!docRecargaDraft.archivo) {
+      setDocRecargaError('Adjunta el PDF del documento emitido.');
+      return;
+    }
+    setDocRecargaBusy(true);
+    setDocRecargaError('');
+    try {
+      const form = new FormData();
+      form.append('archivo', docRecargaDraft.archivo);
+      form.append('tipo', docRecargaDraft.tipo);
+      if (docRecargaDraft.folio.trim()) form.append('folio', docRecargaDraft.folio.trim());
+      if (docRecargaDraft.rut.trim()) form.append('rut', docRecargaDraft.rut.trim());
+      if (docRecargaDraft.razonSocial.trim()) form.append('razonSocial', docRecargaDraft.razonSocial.trim());
+      await administrationApi.registrarDocumentoRecarga(docRecargaDraft.compraId, form);
+      await refetchAdvertising();
+      setDocRecargaDraft(null);
+    } catch (error) {
+      setDocRecargaError(
+        isAxiosError(error) && error.response?.data?.message
+          ? String(error.response.data.message)
+          : 'No se pudo registrar el documento.');
+    } finally {
+      setDocRecargaBusy(false);
+    }
+  }
+
+  async function verDocumentoRecarga(compraId: number) {
+    try {
+      const url = await administrationApi.getDocumentoRecargaUrl(compraId);
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } catch {
+      window.alert('No se pudo abrir el documento.');
+    }
+  }
 
   /** Entradas filtradas por el filtro de 3 botones (Todos, Pedidos, Publicidad) y buscador. */
   const filteredCajaEntries = useMemo(() => {
@@ -2022,12 +2112,26 @@ export default function AdminFinancePage() {
                 value={advertisingQuery}
                 onChange={(event) => setAdvertisingQuery(event.target.value)}
               />
+              {/* El pendiente primero: es lo unico accionable de esta tabla. */}
+              <div className="module-tabs" style={{ marginLeft: 'auto' }}>
+                {([['sin', `Sin documento (${advertisingSinDocumento})`], ['con', 'Con documento'], ['todas', 'Todas']] as const)
+                  .map(([valor, label]) => (
+                    <button
+                      key={valor}
+                      type="button"
+                      className={advertisingDocFilter === valor ? 'active' : ''}
+                      onClick={() => setAdvertisingDocFilter(valor)}
+                    >
+                      {label}
+                    </button>
+                  ))}
+              </div>
             </div>
             <table className="wide-table">
               <thead>
                 <tr>
                   <th>Código</th><th>Fecha</th><th>Quién pagó</th><th>Correo</th><th>Fichas</th>
-                  <th>Monto pagado</th><th>Comisión pasarela</th><th>Ganancia</th><th>Método de pago</th><th>Estado</th><th>Acciones</th>
+                  <th>Monto pagado</th><th>Comisión pasarela</th><th>Ganancia</th><th>Método de pago</th><th>Estado</th><th>Documento</th><th>Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -2044,6 +2148,16 @@ export default function AdminFinancePage() {
                     <td>{row.metodoPago ?? '—'}</td>
                     <td><span className={`status-pill ${slug(row.estado)}`}>{row.estado}</span></td>
                     <td>
+                      {row.documentoCargado ? (
+                        <span className="status-pill tone-green">
+                          {row.documentoTipo === 'FACTURA' ? 'Factura' : 'Boleta'}
+                          {row.documentoFolio ? ` · ${row.documentoFolio}` : ''}
+                        </span>
+                      ) : (
+                        <span className="status-pill tone-red">Pendiente</span>
+                      )}
+                    </td>
+                    <td>
                       <div className="action-cell">
                         <button
                           className="action-button neutral"
@@ -2053,12 +2167,22 @@ export default function AdminFinancePage() {
                         >
                           <UiIcon name="eye" />
                         </button>
+                        <button
+                          className={`action-button ${row.documentoCargado ? 'success' : 'issue'}`}
+                          type="button"
+                          onClick={() => abrirDocumentoRecarga(row)}
+                          title={row.documentoCargado
+                            ? 'Ver o reemplazar el documento emitido'
+                            : 'Emitir boleta o factura de esta recarga'}
+                        >
+                          <UiIcon name={row.documentoCargado ? 'fileCheck' : 'receipt'} />
+                        </button>
                       </div>
                     </td>
                   </tr>
                 )) : (
                   <tr>
-                    <td colSpan={11}>
+                    <td colSpan={12}>
                       <div className="empty-state">
                         {advertisingQuery
                           ? 'No hay compras de publicidad que coincidan con la búsqueda.'
@@ -3392,6 +3516,108 @@ export default function AdminFinancePage() {
               <button className="primary-button" type="button" onClick={() => setSelectedDetailSettlement(null)}>Cerrar</button>
             </div>
           </div>
+        </Modal>
+      )}
+
+      {/* Documento tributario de una recarga. RepuesTop es vendedor DIRECTO aca, asi que la
+          obligacion de emitir es propia: se emite en el Portal MIPYME del SII y el PDF se carga
+          y se despacha al comprador desde este formulario. */}
+      {docRecargaDraft && (
+        <Modal
+          title={`Documento de la recarga ${docRecargaDraft.codigo}`}
+          subtitle={`Comprador: ${docRecargaDraft.comprador}`}
+          onClose={() => !docRecargaBusy && setDocRecargaDraft(null)}
+        >
+          <form className="form-grid" onSubmit={(event) => { event.preventDefault(); guardarDocumentoRecarga(); }}>
+            <p className="panel-hint">
+              Emite el documento en el Portal MIPYME del SII y adjunta el PDF. Al guardar se le envía
+              por correo al comprador: la norma exige entregarlo, no solo emitirlo.
+            </p>
+
+            <FieldLabel label="Tipo de documento">
+              <select
+                className="select"
+                value={docRecargaDraft.tipo}
+                onChange={(event) => setDocRecargaDraft({ ...docRecargaDraft, tipo: event.target.value })}
+              >
+                <option value="FACTURA">Factura</option>
+                <option value="BOLETA">Boleta</option>
+              </select>
+            </FieldLabel>
+
+            <FieldLabel label="Folio del documento">
+              <input
+                className="input"
+                type="text"
+                value={docRecargaDraft.folio}
+                onChange={(event) => setDocRecargaDraft({ ...docRecargaDraft, folio: event.target.value })}
+                placeholder="Número con que se emitió"
+              />
+            </FieldLabel>
+
+            <FieldLabel label={docRecargaDraft.tipo === 'FACTURA' ? 'RUT receptor (obligatorio)' : 'RUT receptor'}>
+              <input
+                className="input"
+                type="text"
+                value={docRecargaDraft.rut}
+                onChange={(event) => setDocRecargaDraft({ ...docRecargaDraft, rut: event.target.value })}
+                required={docRecargaDraft.tipo === 'FACTURA'}
+                placeholder="12.345.678-5"
+              />
+            </FieldLabel>
+
+            <FieldLabel label="Razón social / Nombre">
+              <input
+                className="input"
+                type="text"
+                value={docRecargaDraft.razonSocial}
+                onChange={(event) => setDocRecargaDraft({ ...docRecargaDraft, razonSocial: event.target.value })}
+              />
+            </FieldLabel>
+
+            <FieldLabel label="Cargar boleta / factura (PDF)">
+              <input
+                className="input"
+                type="file"
+                accept=".pdf"
+                onChange={(event) => setDocRecargaDraft({
+                  ...docRecargaDraft,
+                  archivo: event.target.files?.[0] ?? null,
+                })}
+                required
+              />
+              {docRecargaDraft.archivo && (
+                <div className="document-file-status">
+                  <span><UiIcon name="check" />Archivo listo: <strong>{docRecargaDraft.archivo.name}</strong></span>
+                </div>
+              )}
+            </FieldLabel>
+
+            {docRecargaError && <div className="notice error">{docRecargaError}</div>}
+
+            <div className="form-actions">
+              {docRecargaDraft.yaCargado && (
+                <button
+                  className="secondary-button"
+                  type="button"
+                  onClick={() => verDocumentoRecarga(docRecargaDraft.compraId)}
+                >
+                  <UiIcon name="eye" /> Ver el actual
+                </button>
+              )}
+              <button
+                className="secondary-button"
+                type="button"
+                disabled={docRecargaBusy}
+                onClick={() => setDocRecargaDraft(null)}
+              >
+                Cancelar
+              </button>
+              <button className="primary-button" type="submit" disabled={docRecargaBusy}>
+                {docRecargaBusy ? 'Guardando…' : 'Guardar y enviar al comprador'}
+              </button>
+            </div>
+          </form>
         </Modal>
       )}
 

@@ -312,6 +312,11 @@ export interface AdvertisingOrder {
   metodoPago: string | null;
   referenciaPago: string | null;
   estado: string;
+  /** Documento tributario que RepuesTop debe emitir por esta recarga. */
+  documentoCargado: boolean;
+  documentoTipo: string | null;
+  documentoFolio: string | null;
+  documentoSubidoAt: string | null;
 }
 
 /** Compras de publicidad más las métricas de las tarjetas superiores. */

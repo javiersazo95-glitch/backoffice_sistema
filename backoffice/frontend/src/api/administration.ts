@@ -63,6 +63,26 @@ export async function rejectWithdrawal(id: string | number, motivo: string): Pro
   return response.data;
 }
 
+/** Datos sugeridos para emitir el documento de una recarga: factura si hay RUT, boleta si no. */
+export async function getDocumentoRecargaSugerencia(compraId: number): Promise<{
+  tipo: string; rut: string | null; razonSocial: string | null; email: string | null;
+}> {
+  const response = await apiClient.get(`/administration/advertising-orders/${compraId}/documento/sugerencia`);
+  return response.data;
+}
+
+/** Carga el documento emitido y lo despacha al comprador con el PDF adjunto. */
+export async function registrarDocumentoRecarga(compraId: number, form: FormData): Promise<void> {
+  await apiClient.post(`/administration/advertising-orders/${compraId}/documento`, form);
+}
+
+/** URL de descarga de un solo uso del documento ya cargado. */
+export async function getDocumentoRecargaUrl(compraId: number): Promise<string> {
+  const response = await apiClient.get<{ url: string }>(
+    `/administration/advertising-orders/${compraId}/documento/url`);
+  return response.data.url;
+}
+
 export async function getWithdrawalPayments(): Promise<PagoProveedorResponse[]> {
   const response = await apiClient.get<PagoProveedorResponse[]>('/administration/withdrawal-payments');
   return response.data;
