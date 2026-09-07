@@ -18,6 +18,7 @@ import MediationsPage from '@/components/mediations/MediacionesPage';
 import AlertsPage from '@/components/alerts/AlertsPage';
 import AuditPage from '@/components/audit/AuditPage';
 import ReportsPage from '@/components/reports/ReportsPage';
+import FeedbackPage from '@/components/feedback/FeedbackPage';
 import PermissionsConfigPage from '@/pages/PermissionsConfigPage';
 import CapturerRegisterPage from '@/pages/CapturerRegisterPage';
 import CapturerPortalPage from '@/pages/CapturerPortalPage';
@@ -145,6 +146,7 @@ export default function App() {
               <Route path="alertas" element={<AlertsPage />} />
               <Route path="bitacora" element={<AuditPage />} />
               <Route path="reports" element={<ReportsPage />} />
+              <Route path="feedback" element={<FeedbackPage />} />
             </Routes>
           </AppShell>
         </RequireArea>

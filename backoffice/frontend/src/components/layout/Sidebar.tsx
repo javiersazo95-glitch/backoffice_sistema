@@ -50,6 +50,7 @@ const navSections = [
       { path: '/confianza/sellers', label: 'Vendedores', badge: 0, icon: 'store' },
       { path: '/confianza/captadores', label: 'Captadores', badge: 0, icon: 'users' },
       { path: '/confianza/reports', label: 'Reportes', badge: 0, icon: 'flag' },
+      { path: '/confianza/feedback', label: 'Feedback', badge: 0, icon: 'message' },
     ],
   },
 ];
