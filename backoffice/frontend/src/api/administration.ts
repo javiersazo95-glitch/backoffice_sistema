@@ -73,9 +73,19 @@ export async function getDocumentoRecargaSugerencia(compraId: number): Promise<{
   return response.data;
 }
 
-/** Carga el documento emitido y lo despacha al comprador con el PDF adjunto. */
+/**
+ * Carga el documento emitido y lo despacha al comprador con el PDF adjunto.
+ *
+ * El `Content-Type` es obligatorio, no decorativo: `apiClient` trae
+ * `application/json` por defecto y axios, al ver ese header con un FormData,
+ * **serializa el formulario a JSON** en vez de mandar el multipart. El backend
+ * respondia 500 con "Content-Type 'application/json' is not supported" y el PDF
+ * nunca salia del navegador. Mismo cuidado que el resto de las subidas de aca.
+ */
 export async function registrarDocumentoRecarga(compraId: number, form: FormData): Promise<void> {
-  await apiClient.post(`/administration/advertising-orders/${compraId}/documento`, form);
+  await apiClient.post(`/administration/advertising-orders/${compraId}/documento`, form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
 }
 
 /** URL de descarga de un solo uso del documento ya cargado. */
