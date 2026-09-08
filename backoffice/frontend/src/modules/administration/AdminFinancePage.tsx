@@ -488,6 +488,8 @@ export default function AdminFinancePage() {
     // Lo que hay que tipear en el Portal MIPYME, para no ir a buscarlo a otra pantalla.
     email: string; giro: string; direccion: string; detalle: string;
     neto: number; iva: number; total: number;
+    /** Lo que el comprador pidio al recargar. Null si no eligio. */
+    solicitado: string | null;
   } | null>(null);
   const [docRecargaCopiado, setDocRecargaCopiado] = useState(false);
   const [docRecargaBusy, setDocRecargaBusy] = useState(false);
@@ -743,6 +745,7 @@ export default function AdminFinancePage() {
     let sugerencia = {
       tipo: 'BOLETA', rut: '', razonSocial: '', email: '', giro: '', direccion: '',
       detalle: '', neto: 0, iva: 0, total: row.montoPagado,
+      solicitado: null as string | null,
     };
     try {
       const datos = await administrationApi.getDocumentoRecargaSugerencia(row.id);
@@ -757,6 +760,7 @@ export default function AdminFinancePage() {
         neto: datos.neto ?? 0,
         iva: datos.iva ?? 0,
         total: datos.total ?? row.montoPagado,
+        solicitado: datos.solicitadoPorElComprador ?? null,
       };
     } catch {
       // Sin sugerencia igual se puede emitir: el administrador escribe los datos a mano.
@@ -778,6 +782,7 @@ export default function AdminFinancePage() {
       neto: sugerencia.neto,
       iva: sugerencia.iva,
       total: sugerencia.total,
+      solicitado: sugerencia.solicitado,
     });
     setDocRecargaCopiado(false);
   }
@@ -3570,6 +3575,31 @@ export default function AdminFinancePage() {
               Al guardar se le envía por correo al comprador: la norma exige entregarlo, no solo
               emitirlo.
             </p>
+
+            {/* Lo que pidió el comprador va arriba y aparte del tipo sugerido. Si no se dijera,
+                el administrador emitiría lo que le propone la pantalla sin enterarse de que le
+                estaban pidiendo otra cosa, y la elección del comprador sería decorativa. */}
+            {docRecargaDraft.solicitado ? (
+              <div className="notice">
+                <strong>
+                  El comprador pidió{' '}
+                  {docRecargaDraft.solicitado === 'FACTURA' ? 'factura' : 'boleta'}
+                </strong>
+                <span>
+                  {docRecargaDraft.solicitado === 'FACTURA'
+                    ? 'La eligió al pagar, con el RUT ya validado. Emitir otra cosa lo deja sin el crédito fiscal del IVA.'
+                    : 'La eligió al pagar, aunque tenga RUT de empresa registrado.'}
+                </span>
+              </div>
+            ) : (
+              <div className="notice">
+                <strong>El comprador no eligió documento</strong>
+                <span>
+                  Es una recarga anterior a esa opción. El tipo de abajo sale de la heurística de
+                  siempre: factura si tiene RUT de empresa registrado, boleta si no.
+                </span>
+              </div>
+            )}
 
             {/* Todo lo que hay que tipear en el SII, junto y copiable: el administrador no
                 deberia tener que ir a buscar el RUT o el giro a otra pantalla. */}

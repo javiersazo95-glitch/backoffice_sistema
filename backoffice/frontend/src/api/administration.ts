@@ -68,6 +68,8 @@ export async function getDocumentoRecargaSugerencia(compraId: number): Promise<{
   tipo: string; rut: string | null; razonSocial: string | null; email: string | null;
   giro: string | null; direccion: string | null; detalle: string | null;
   neto: number; iva: number; total: number;
+  /** Lo que el comprador pidio al recargar, o null si no eligio (recarga anterior a esa opcion). */
+  solicitadoPorElComprador: string | null;
 }> {
   const response = await apiClient.get(`/administration/advertising-orders/${compraId}/documento/sugerencia`);
   return response.data;
