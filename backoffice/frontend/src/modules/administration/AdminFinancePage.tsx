@@ -485,7 +485,11 @@ export default function AdminFinancePage() {
   const [docRecargaDraft, setDocRecargaDraft] = useState<{
     compraId: number; codigo: string; comprador: string; tipo: string; folio: string;
     rut: string; razonSocial: string; archivo: File | null; yaCargado: boolean;
+    // Lo que hay que tipear en el Portal MIPYME, para no ir a buscarlo a otra pantalla.
+    email: string; giro: string; direccion: string; detalle: string;
+    neto: number; iva: number; total: number;
   } | null>(null);
+  const [docRecargaCopiado, setDocRecargaCopiado] = useState(false);
   const [docRecargaBusy, setDocRecargaBusy] = useState(false);
   const [docRecargaError, setDocRecargaError] = useState('');
   const [selectedAdvertisingOrder, setSelectedAdvertisingOrder] = useState<AdvertisingOrder | null>(null);
@@ -736,7 +740,10 @@ export default function AdminFinancePage() {
    */
   async function abrirDocumentoRecarga(row: AdvertisingOrder) {
     setDocRecargaError('');
-    let sugerencia = { tipo: 'BOLETA', rut: '', razonSocial: '', email: '' };
+    let sugerencia = {
+      tipo: 'BOLETA', rut: '', razonSocial: '', email: '', giro: '', direccion: '',
+      detalle: '', neto: 0, iva: 0, total: row.montoPagado,
+    };
     try {
       const datos = await administrationApi.getDocumentoRecargaSugerencia(row.id);
       sugerencia = {
@@ -744,6 +751,12 @@ export default function AdminFinancePage() {
         rut: datos.rut ?? '',
         razonSocial: datos.razonSocial ?? '',
         email: datos.email ?? '',
+        giro: datos.giro ?? '',
+        direccion: datos.direccion ?? '',
+        detalle: datos.detalle ?? '',
+        neto: datos.neto ?? 0,
+        iva: datos.iva ?? 0,
+        total: datos.total ?? row.montoPagado,
       };
     } catch {
       // Sin sugerencia igual se puede emitir: el administrador escribe los datos a mano.
@@ -758,7 +771,15 @@ export default function AdminFinancePage() {
       razonSocial: sugerencia.razonSocial,
       archivo: null,
       yaCargado: row.documentoCargado,
+      email: sugerencia.email,
+      giro: sugerencia.giro,
+      direccion: sugerencia.direccion,
+      detalle: sugerencia.detalle,
+      neto: sugerencia.neto,
+      iva: sugerencia.iva,
+      total: sugerencia.total,
     });
+    setDocRecargaCopiado(false);
   }
 
   async function guardarDocumentoRecarga() {
@@ -3530,9 +3551,59 @@ export default function AdminFinancePage() {
         >
           <form className="form-grid" onSubmit={(event) => { event.preventDefault(); guardarDocumentoRecarga(); }}>
             <p className="panel-hint">
-              Emite el documento en el Portal MIPYME del SII y adjunta el PDF. Al guardar se le envía
-              por correo al comprador: la norma exige entregarlo, no solo emitirlo.
+              Emite el documento en el Portal MIPYME del SII con los datos de abajo y adjunta el PDF.
+              Al guardar se le envía por correo al comprador: la norma exige entregarlo, no solo
+              emitirlo.
             </p>
+
+            {/* Todo lo que hay que tipear en el SII, junto y copiable: el administrador no
+                deberia tener que ir a buscar el RUT o el giro a otra pantalla. */}
+            <div className="registered-document-preview">
+              <div className="notice">
+                <strong>Datos para emitir en el SII</strong>
+                <button
+                  className="secondary-button"
+                  type="button"
+                  style={{ marginLeft: 'auto' }}
+                  onClick={() => {
+                    const texto = [
+                      `Receptor: ${docRecargaDraft.razonSocial || docRecargaDraft.comprador}`,
+                      docRecargaDraft.rut ? `RUT: ${docRecargaDraft.rut}` : null,
+                      docRecargaDraft.giro ? `Giro: ${docRecargaDraft.giro}` : null,
+                      docRecargaDraft.direccion ? `Dirección: ${docRecargaDraft.direccion}` : null,
+                      docRecargaDraft.email ? `Correo: ${docRecargaDraft.email}` : null,
+                      '',
+                      `Detalle: ${docRecargaDraft.detalle}`,
+                      `Neto: ${formatMoney(docRecargaDraft.neto)}`,
+                      `IVA 19%: ${formatMoney(docRecargaDraft.iva)}`,
+                      `Total: ${formatMoney(docRecargaDraft.total)}`,
+                    ].filter(Boolean).join('\n');
+                    navigator.clipboard?.writeText(texto)
+                      .then(() => { setDocRecargaCopiado(true); window.setTimeout(() => setDocRecargaCopiado(false), 2000); })
+                      .catch(() => {});
+                  }}
+                >
+                  <UiIcon name={docRecargaCopiado ? 'check' : 'clipboard'} />
+                  {docRecargaCopiado ? 'Copiado' : 'Copiar datos'}
+                </button>
+              </div>
+              <dl className="registered-document-data">
+                <div><dt>Receptor</dt><dd>{docRecargaDraft.razonSocial || docRecargaDraft.comprador}</dd></div>
+                <div><dt>RUT</dt><dd>{docRecargaDraft.rut || 'Sin RUT registrado'}</dd></div>
+                <div><dt>Giro</dt><dd>{docRecargaDraft.giro || '—'}</dd></div>
+                <div><dt>Dirección</dt><dd>{docRecargaDraft.direccion || '—'}</dd></div>
+                <div><dt>Correo</dt><dd>{docRecargaDraft.email || '—'}</dd></div>
+                <div><dt>Detalle</dt><dd>{docRecargaDraft.detalle}</dd></div>
+                <div><dt>Neto</dt><dd>{formatMoney(docRecargaDraft.neto)}</dd></div>
+                <div><dt>IVA 19%</dt><dd>{formatMoney(docRecargaDraft.iva)}</dd></div>
+                <div><dt>Total</dt><dd><strong>{formatMoney(docRecargaDraft.total)}</strong></dd></div>
+              </dl>
+              <p className="panel-hint">
+                El precio de la Moneda incluye IVA, así que el neto va calculado hacia atrás. No es
+                lo mismo que la &quot;Ganancia RepuesTop&quot; de la tabla, que descuenta la comisión
+                de la pasarela y no tiene relación con el impuesto.
+              </p>
+            </div>
 
             <FieldLabel label="Tipo de documento">
               <select
@@ -3545,13 +3616,13 @@ export default function AdminFinancePage() {
               </select>
             </FieldLabel>
 
-            <FieldLabel label="Folio del documento">
+            <FieldLabel label="Folio (número que asignó el SII al emitir)">
               <input
                 className="input"
                 type="text"
                 value={docRecargaDraft.folio}
                 onChange={(event) => setDocRecargaDraft({ ...docRecargaDraft, folio: event.target.value })}
-                placeholder="Número con que se emitió"
+                placeholder="Ej: 1024 — aparece en el documento ya emitido"
               />
             </FieldLabel>
 

@@ -66,6 +66,8 @@ export async function rejectWithdrawal(id: string | number, motivo: string): Pro
 /** Datos sugeridos para emitir el documento de una recarga: factura si hay RUT, boleta si no. */
 export async function getDocumentoRecargaSugerencia(compraId: number): Promise<{
   tipo: string; rut: string | null; razonSocial: string | null; email: string | null;
+  giro: string | null; direccion: string | null; detalle: string | null;
+  neto: number; iva: number; total: number;
 }> {
   const response = await apiClient.get(`/administration/advertising-orders/${compraId}/documento/sugerencia`);
   return response.data;
