@@ -770,7 +770,7 @@ export default function AdminFinancePage() {
       rut: sugerencia.rut,
       razonSocial: sugerencia.razonSocial,
       archivo: null,
-      yaCargado: row.documentoCargado,
+      yaCargado: row.documentoDescargable,
       email: sugerencia.email,
       giro: sugerencia.giro,
       direccion: sugerencia.direccion,
@@ -2188,12 +2188,27 @@ export default function AdminFinancePage() {
                         >
                           <UiIcon name="eye" />
                         </button>
+                        {/* Ver el PDF emitido, sin pasar por el formulario de emision. Se
+                            decide con `documentoDescargable` y no con `documentoCargado`:
+                            una boleta sin RUT no cuenta como "completa" pero su PDF existe
+                            igual, y esconderlo dejaria un documento emitido sin forma de
+                            mirarlo desde el panel. */}
+                        {row.documentoDescargable && (
+                          <button
+                            className="action-button neutral"
+                            type="button"
+                            onClick={() => verDocumentoRecarga(row.id)}
+                            title={`Ver la ${row.documentoTipo === 'FACTURA' ? 'factura' : 'boleta'} emitida`}
+                          >
+                            <UiIcon name="fileCheck" />
+                          </button>
+                        )}
                         <button
                           className={`action-button ${row.documentoCargado ? 'success' : 'issue'}`}
                           type="button"
                           onClick={() => abrirDocumentoRecarga(row)}
                           title={row.documentoCargado
-                            ? 'Ver o reemplazar el documento emitido'
+                            ? 'Reemplazar el documento emitido'
                             : 'Emitir boleta o factura de esta recarga'}
                         >
                           <UiIcon name={row.documentoCargado ? 'fileCheck' : 'receipt'} />

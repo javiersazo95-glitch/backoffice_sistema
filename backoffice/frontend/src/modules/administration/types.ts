@@ -314,6 +314,11 @@ export interface AdvertisingOrder {
   estado: string;
   /** Documento tributario que RepuesTop debe emitir por esta recarga. */
   documentoCargado: boolean;
+  /**
+   * Si hay un PDF que se pueda abrir. Distinto de `documentoCargado`, que ademas exige el RUT:
+   * una boleta a alguien sin giro no lo lleva y aun asi el documento existe y se puede ver.
+   */
+  documentoDescargable: boolean;
   documentoTipo: string | null;
   documentoFolio: string | null;
   documentoSubidoAt: string | null;
