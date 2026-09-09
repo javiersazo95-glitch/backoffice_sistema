@@ -35,6 +35,11 @@ export interface MediationResponse {
   createdAt: string;
   updatedAt: string;
   buyer?: string;
+  resolucionFavor?: 'COMPRADOR' | 'VENDEDOR' | null;
+  resolucionOpcion?: string | null;
+  porcentajeReembolso?: number | null;
+  montoReembolso?: number | null;
+  estadoReembolso?: string | null;
 }
 
 export interface MediationDetailResponse extends MediationResponse {
@@ -119,6 +124,11 @@ export interface ResolvedCaseResponse {
   resolvedBy: string;
   sourceStatus: string;
   createdAt: string;
+  resolucionFavor?: 'COMPRADOR' | 'VENDEDOR' | null;
+  resolucionOpcion?: string | null;
+  porcentajeReembolso?: number | null;
+  montoReembolso?: number | null;
+  estadoReembolso?: string | null;
 }
 
 export interface InitMediationRequest {
@@ -139,8 +149,23 @@ export interface MediationMessageRequest {
 }
 
 export interface ResolveCaseRequest {
-  resolutionReason: string;
+  /** Solo lo usa la reactivación de cuenta; al resolver, el veredicto genera el texto. */
+  resolutionReason?: string;
   mode?: string;
+  /** Veredicto: a favor de quién se resuelve. Obligatorio al resolver (no en reactivación). */
+  favor?: 'COMPRADOR' | 'VENDEDOR';
+  /** Key del catálogo de figuras de la Ley 19.496 (ver utils/mediationResolution). */
+  resolutionOption?: string;
+  /** Porcentaje del subtotal de la tienda a reembolsar (1–100). Solo en reembolso parcial. */
+  refundPercentage?: number;
+}
+
+export interface MediationVerdictFields {
+  resolucionFavor?: 'COMPRADOR' | 'VENDEDOR' | null;
+  resolucionOpcion?: string | null;
+  porcentajeReembolso?: number | null;
+  montoReembolso?: number | null;
+  estadoReembolso?: string | null;
 }
 
 export interface MediationFilterRequest {

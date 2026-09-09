@@ -6,6 +6,7 @@ import UiIcon from '@/components/shared/UiIcon';
 import FounderSellerName from '@/components/shared/FounderSellerName';
 import { formatCurrency, formatDateTime } from '@/utils/formatters';
 import { resolveDocumentUrl } from '@/utils/documentUrls';
+import { favorLabel, resolutionOptionLabel } from '@/utils/mediationResolution';
 
 interface ResolvedCaseSummaryModalProps {
   isOpen: boolean;
@@ -14,7 +15,12 @@ interface ResolvedCaseSummaryModalProps {
 }
 
 function buildSummary(item: ResolvedCaseResponse): string {
-  return `El caso ${item.externalId} registra una mediación ${item.caseKind.toLowerCase()} asociada al pedido ${item.orderId}. Participan ${item.sellerName} y ${item.buyer || 'el comprador'}; el motivo base fue "${item.reason}" y la resolución quedó registrada como "${item.resolutionReason}".`;
+  const veredicto = item.resolucionFavor
+    ? ` La mediación se resolvió ${favorLabel(item.resolucionFavor).toLowerCase()} (${resolutionOptionLabel(item.resolucionOpcion)}${
+        item.porcentajeReembolso ? `, reembolso del ${item.porcentajeReembolso}%` : ''
+      }), conforme a la Ley N° 19.496.`
+    : '';
+  return `El caso ${item.externalId} registra una mediación ${item.caseKind.toLowerCase()} asociada al pedido ${item.orderId}. Participan ${item.sellerName} y ${item.buyer || 'el comprador'}; el motivo base fue "${item.reason}" y la resolución quedó registrada como "${item.resolutionReason}".${veredicto}`;
 }
 
 export default function ResolvedCaseSummaryModal({ isOpen, onClose, item }: ResolvedCaseSummaryModalProps) {
@@ -57,6 +63,15 @@ export default function ResolvedCaseSummaryModal({ isOpen, onClose, item }: Reso
           <ModalField label="Tienda" value={<FounderSellerName name={item.sellerName} founder={item.sellerFounder} />} />
           <ModalField label="Comprador" value={item.buyer || 'No informado'} />
           <ModalField label="Resuelto por" value={item.resolvedBy || 'No informado'} />
+          {item.resolucionFavor ? (
+            <ModalField label="Veredicto (Ley 19.496)" value={`${favorLabel(item.resolucionFavor)} · ${resolutionOptionLabel(item.resolucionOpcion)}`} />
+          ) : null}
+          {item.porcentajeReembolso ? (
+            <ModalField
+              label="Reembolso aplicado"
+              value={`${item.porcentajeReembolso}%${item.montoReembolso ? ` · ${formatCurrency(item.montoReembolso)}` : ''}`}
+            />
+          ) : null}
           <ModalField label="Fecha de cierre" value={formatDateTime(item.createdAt)} />
           <ModalField label="Documento" value={item.documentName || 'Sin documento'} wide />
           <ModalField label="Estado de origen" value={item.sourceStatus || 'Resuelta'} wide />

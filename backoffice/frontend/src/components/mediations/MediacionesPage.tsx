@@ -21,7 +21,7 @@ import BlockedAccountsTable from './BlockedAccountsTable';
 import MediationFilterBar from './MediationFilterBar';
 import FilterContext from './FilterContext';
 import MediationDetailPanel from './MediationDetailPanel';
-import MediationDetail from './MediationDetail';
+import MediationDetail, { type MediationResolvePayload } from './MediationDetail';
 import SellerDocumentsModal from '@/components/sellers/SellerDocumentsModal';
 import SellerProfileModal from '@/components/sellers/SellerProfileModal';
 import SellerActiveMediationsModal from '@/components/sellers/SellerActiveMediationsModal';
@@ -416,9 +416,16 @@ export default function MediacionesPage() {
     }
   };
 
-  const handleResolve = (id: number, reason: string, file: File) => {
+  const handleResolve = (id: number, payload: MediationResolvePayload) => {
     resolveMutation.mutate(
-      { id, data: { resolutionReason: reason }, document: file },
+      {
+        id,
+        data: {
+          favor: payload.favor,
+          resolutionOption: payload.resolutionOption,
+          refundPercentage: payload.refundPercentage,
+        },
+      },
       {
         onSuccess: () => { setReviewModalOpen(false); showToast('Caso resuelto'); },
         onError: (error: any) => { showToast(error?.response?.data?.message || 'Error al resolver el caso'); },

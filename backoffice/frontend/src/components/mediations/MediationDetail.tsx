@@ -1,10 +1,19 @@
-import { useEffect, useState, useMemo, type ChangeEvent } from 'react';
+import { useEffect, useState, useMemo, type ChangeEvent, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { MediationResponse, MediationStatus, type MediationDetailResponse, type MediationEvidenceResponse, type MediationMessageResponse } from '@/types/mediation';
 import Badge from '@/components/shared/Badge';
 import UiIcon from '@/components/shared/UiIcon';
 import FounderSellerName from '@/components/shared/FounderSellerName';
 import { formatCurrency, formatDateTime, mediationStatusDisplay } from '@/utils/formatters';
+import {
+  buildRefundSteps,
+  buildVeredictoPreview,
+  findResolutionOption,
+  refundStatusView,
+  resolutionOptionsFor,
+  resolutionOptionLabel,
+  type MediationFavor,
+} from '@/utils/mediationResolution';
 import { getReports } from '@/api/reports';
 import { resolveProfileImageUrl } from '@/api/client';
 import mediatorProfileImage from '@/assets/mediator-profile.jpg';
@@ -15,9 +24,15 @@ interface MediationDetailProps {
   isOpen: boolean;
   item: MediationModalItem | null;
   onClose: () => void;
-  onResolve: (id: number, reason: string, file: File) => void;
+  onResolve: (id: number, payload: MediationResolvePayload) => void;
   onBlockAccount: (id: number) => void;
   onSendMessage: (mediationId: number, text: string, targetRole: string) => void;
+}
+
+export interface MediationResolvePayload {
+  favor: MediationFavor;
+  resolutionOption: string;
+  refundPercentage?: number;
 }
 
 type ChatSide = 'buyer' | 'seller';
@@ -240,6 +255,7 @@ function ChatCard({
   placeholder,
   onSend,
   disabled,
+  banner,
 }: {
   title: string;
   partyName: string;
@@ -250,6 +266,7 @@ function ChatCard({
   placeholder: string;
   onSend: (value: string) => void;
   disabled?: boolean;
+  banner?: ReactNode;
 }) {
   const [draft, setDraft] = useState('');
   const resolvedPhotoUrl = useMemo(() => resolveProfileImageUrl(photoUrl), [photoUrl]);
@@ -291,6 +308,8 @@ function ChatCard({
         <span className="mediation-chat-badge">{disabled ? 'Cerrado' : 'En línea'}</span>
       </div>
 
+      {banner ? <div className="mediation-chat-banner">{banner}</div> : null}
+
       <div className="mediation-chat-thread">
         {messages.length ? (
           messages.map((message) => <ChatBubble key={message.id} message={message} accent={accent} partyPhotoUrl={visiblePhotoUrl} />)
@@ -326,6 +345,52 @@ function ChatCard({
   );
 }
 
+function RefundStepsPanel({ item }: { item: MediationModalItem }) {
+  const status = refundStatusView(item.estadoReembolso);
+  const monto = item.montoReembolso ? formatCurrency(item.montoReembolso) : undefined;
+  const steps = buildRefundSteps({
+    percentage: item.porcentajeReembolso,
+    monto,
+    orderId: item.orderId,
+  });
+  const toneColor = status.tone === 'success' ? '#15803d' : status.tone === 'warning' ? '#b45309' : '#1d4ed8';
+
+  return (
+    <div className="mediation-refund-steps" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+        <strong style={{ fontSize: '12.5px', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <UiIcon name="wallet" /> Reembolso a favor del comprador
+        </strong>
+        <span
+          style={{
+            fontSize: '11px',
+            fontWeight: 600,
+            color: toneColor,
+            background: `${toneColor}14`,
+            borderRadius: '999px',
+            padding: '2px 8px',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {status.label}
+        </span>
+      </div>
+      <span style={{ fontSize: '12px', color: '#475569' }}>
+        {resolutionOptionLabel(item.resolucionOpcion)}
+        {item.porcentajeReembolso ? ` · ${item.porcentajeReembolso}%` : ''}
+        {monto ? ` · ${monto}` : ''}
+      </span>
+      <ol style={{ margin: 0, paddingLeft: '18px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+        {steps.map((step, index) => (
+          <li key={index} style={{ fontSize: '12px', color: '#334155', lineHeight: 1.4 }}>
+            {step}
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
 export default function MediationDetail({
   isOpen,
   item,
@@ -334,17 +399,19 @@ export default function MediationDetail({
   onBlockAccount,
   onSendMessage,
 }: MediationDetailProps) {
-  const [resolutionReason, setResolutionReason] = useState('');
-  const [documentFile, setDocumentFile] = useState<File | null>(null);
   const [decision, setDecision] = useState<'resolve' | 'block'>('resolve');
   const [historyFilter, setHistoryFilter] = useState<string>('all');
+  const [favor, setFavor] = useState<MediationFavor | ''>('');
+  const [resolutionOption, setResolutionOption] = useState('');
+  const [refundPercentage, setRefundPercentage] = useState('');
 
   useEffect(() => {
     if (!isOpen) return;
-    setResolutionReason('');
-    setDocumentFile(null);
     setDecision('resolve');
     setHistoryFilter('all');
+    setFavor('');
+    setResolutionOption('');
+    setRefundPercentage('');
   }, [isOpen, item?.id]);
 
   const { data: allReportsData } = useQuery({
@@ -395,13 +462,29 @@ export default function MediationDetail({
 
   const initializationReason = resolveInitializationReason(item);
 
-  const handleResolve = () => {
-    if (!resolutionReason.trim() || !documentFile) return;
-    onResolve(item.id, resolutionReason.trim(), documentFile);
+  const favorOptions = favor ? resolutionOptionsFor(favor) : [];
+  const selectedOption = findResolutionOption(resolutionOption);
+  const parsedPercentage = Number.parseInt(refundPercentage, 10);
+  const percentageValid =
+    !selectedOption?.requiresPercentage ||
+    (Number.isFinite(parsedPercentage) && parsedPercentage >= 1 && parsedPercentage <= 100);
+  const veredictoReady =
+    !!favor && !!selectedOption && selectedOption.favor === favor && percentageValid;
+  const resolveReady = veredictoReady;
+
+  const handleFavorChange = (next: MediationFavor) => {
+    setFavor(next);
+    setResolutionOption('');
+    setRefundPercentage('');
   };
 
-  const handleDocumentChange = (event: ChangeEvent<HTMLInputElement>) => {
-    setDocumentFile(event.target.files?.[0] ?? null);
+  const handleResolve = () => {
+    if (decision !== 'resolve' || !resolveReady || !favor || !selectedOption) return;
+    onResolve(item.id, {
+      favor,
+      resolutionOption: selectedOption.key,
+      refundPercentage: selectedOption.requiresPercentage ? parsedPercentage : undefined,
+    });
   };
 
   return (
@@ -513,6 +596,11 @@ export default function MediationDetail({
               placeholder="Aún no hay mensajes en este chat."
               onSend={(value) => item?.id && onSendMessage(item.id, value, 'COMPRADOR')}
               disabled={item.status === MediationStatus.RESUELTA || item.accountBlocked || item.buyerMessages?.some((m) => m.closed)}
+              banner={
+                item.resolucionFavor === 'COMPRADOR' && (item.montoReembolso ?? 0) > 0
+                  ? <RefundStepsPanel item={item} />
+                  : null
+              }
             />
 
             <ChatCard
@@ -581,35 +669,110 @@ export default function MediationDetail({
                 </div>
               ) : null}
 
-              <label className="mediation-action-field">
-                <span>Fundamento / resolución *</span>
-                <p>Explica el análisis y la decisión tomada. Este campo es obligatorio.</p>
-                <textarea
-                  value={resolutionReason}
-                  onChange={(event) => setResolutionReason(event.target.value)}
-                  placeholder="Describe el fundamento de tu decisión..."
-                  rows={5}
-                />
-                <small>{resolutionReason.length} / 2000</small>
-              </label>
-
-              <label className="mediation-upload-card">
-                <span className="mediation-upload-title">Documento acreditador *</span>
-                <p>Adjunta un documento que respalde tu decisión. Este campo es obligatorio.</p>
-                <div className="mediation-upload-dropzone">
-                  <UiIcon name="upload" />
+              {decision === 'resolve' ? (
+                <div className="mediation-verdict-block" style={{ display: 'flex', flexDirection: 'column', gap: '12px', margin: '4px 0 8px' }}>
                   <div>
-                    <strong>Arrastra tu archivo aquí o selecciona un archivo</strong>
-                    <span>PDF, JPG, PNG hasta 10 MB</span>
+                    <span className="mediation-init-reason-kicker">Veredicto de la mediación *</span>
+                    <p style={{ fontSize: '12px', color: '#64748b', margin: '2px 0 8px' }}>
+                      Según la Ley N° 19.496 (Protección de los Derechos de los Consumidores), indica a favor de
+                      quién se resuelve y bajo qué figura legal.
+                    </p>
+                    <div className="mediation-verdict-toggle" style={{ display: 'flex', gap: '8px' }}>
+                      <button
+                        type="button"
+                        className={`mediation-choice ${favor === 'COMPRADOR' ? 'selected' : ''}`}
+                        style={{ flex: 1 }}
+                        onClick={() => handleFavorChange('COMPRADOR')}
+                      >
+                        <span className="mediation-choice-radio" />
+                        <div><strong>A favor del comprador</strong></div>
+                      </button>
+                      <button
+                        type="button"
+                        className={`mediation-choice ${favor === 'VENDEDOR' ? 'selected' : ''}`}
+                        style={{ flex: 1 }}
+                        onClick={() => handleFavorChange('VENDEDOR')}
+                      >
+                        <span className="mediation-choice-radio" />
+                        <div><strong>A favor de la tienda</strong></div>
+                      </button>
+                    </div>
                   </div>
-                  <input type="file" accept=".pdf,.png,.jpg,.jpeg,.webp" onChange={handleDocumentChange} />
+
+                  {favor ? (
+                    <label className="mediation-action-field">
+                      <span>Opción de resolución (Ley 19.496) *</span>
+                      <select
+                        className="select"
+                        value={resolutionOption}
+                        onChange={(event) => {
+                          setResolutionOption(event.target.value);
+                          setRefundPercentage('');
+                        }}
+                      >
+                        <option value="">Selecciona una figura legal…</option>
+                        {favorOptions.map((option) => (
+                          <option key={option.key} value={option.key}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                      {selectedOption ? (
+                        <small style={{ color: '#64748b' }}>{selectedOption.fundamentoLegal}.</small>
+                      ) : null}
+                    </label>
+                  ) : null}
+
+                  {selectedOption?.requiresPercentage ? (
+                    <label className="mediation-action-field">
+                      <span>Porcentaje de reembolso *</span>
+                      <p style={{ fontSize: '12px', color: '#64748b', margin: '2px 0 6px' }}>
+                        Se aplica sobre el subtotal de la compra en la tienda (líneas + envío). El monto exacto lo
+                        calcula el sistema.
+                      </p>
+                      <input
+                        className="input"
+                        type="number"
+                        min={1}
+                        max={100}
+                        value={refundPercentage}
+                        onChange={(event) => setRefundPercentage(event.target.value)}
+                        placeholder="Ej: 50"
+                      />
+                      {!percentageValid && refundPercentage ? (
+                        <small style={{ color: '#dc2626' }}>Ingresa un porcentaje entre 1 y 100.</small>
+                      ) : null}
+                    </label>
+                  ) : selectedOption?.appliesRefund ? (
+                    <div className="mediation-actions-note">
+                      <UiIcon name="info" />
+                      <p>Reembolso íntegro: se devolverá el 100% del subtotal de la compra en la tienda.</p>
+                    </div>
+                  ) : null}
+
+                  {selectedOption ? (
+                    <div className="mediation-blocking-warning" style={{ background: '#f8fafc', borderColor: 'rgba(15,23,42,0.08)' }}>
+                      <UiIcon name="scale" />
+                      <p style={{ whiteSpace: 'pre-line' }}>
+                        {buildVeredictoPreview({
+                          favor: favor as MediationFavor,
+                          option: selectedOption,
+                          refundPercentage: percentageValid ? parsedPercentage : undefined,
+                          externalId: item.externalId,
+                        })}
+                      </p>
+                    </div>
+                  ) : null}
                 </div>
-                {documentFile ? <small className="mediation-upload-name">{documentFile.name}</small> : null}
-              </label>
+              ) : null}
 
               <div className="mediation-actions-note">
                 <UiIcon name="info" />
-                <p>Para resolver o bloquear la cuenta, debes adjuntar un texto y un documento.</p>
+                <p>
+                  {decision === 'resolve'
+                    ? 'Al resolver, el fundamento legal y el mensaje cordial a ambas partes (chat, plataforma, correo y app) se generan automáticamente según la Ley N° 19.496. Si aplica reembolso, se solicita a la pasarela de pagos.'
+                    : 'La cuenta de la tienda quedará suspendida hasta que se resuelva una apelación.'}
+                </p>
               </div>
             </section>
           </section>
@@ -672,11 +835,11 @@ export default function MediationDetail({
             <button className="secondary-button" type="button" onClick={onClose}>
               Cancelar
             </button>
-            <button className="secondary-button" type="button" disabled={!resolutionReason.trim() && !documentFile}>
+            <button className="secondary-button" type="button" disabled={!favor}>
               Guardar borrador
             </button>
             <div className="mediation-management-footer-actions">
-              <button className="primary-button" type="button" onClick={handleResolve} disabled={decision !== 'resolve' || !resolutionReason.trim() || !documentFile}>
+              <button className="primary-button" type="button" onClick={handleResolve} disabled={decision !== 'resolve' || !resolveReady}>
                 <UiIcon name="check" /> Resolver caso
               </button>
               <button

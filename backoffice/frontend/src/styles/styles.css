@@ -8306,6 +8306,14 @@ tr.is-active {
   font-weight: 750;
 }
 
+.mediation-chat-banner {
+  margin: 4px 0 0;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid #bfdbfe;
+  background: #f0f7ff;
+}
+
 .mediation-chat-thread {
   display: flex;
   flex: 0 0 auto;
@@ -11734,6 +11742,19 @@ tr.is-active {
   font-size: 11.5px;
   line-height: 1.25;
   overflow-wrap: anywhere;
+}
+
+/* Resumen / Resolución: se muestran recortados en la tabla; el texto completo
+   vive en el detalle del caso. */
+.resolved-table-clamp {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  min-width: 240px;
+  max-width: 340px;
 }
 
 /* Compact Actions */

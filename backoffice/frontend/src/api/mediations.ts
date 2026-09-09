@@ -36,13 +36,8 @@ export async function blockAccount(id: number): Promise<MediationResponse> {
   return response.data;
 }
 
-export async function resolveCase(id: number, data: ResolveCaseRequest, document: File): Promise<ResolvedCaseResponse> {
-  const formData = new FormData();
-  formData.append('request', new Blob([JSON.stringify(data)], { type: 'application/json' }));
-  formData.append('document', document);
-  const response = await apiClient.post<ResolvedCaseResponse>(`/mediations/${id}/resolve`, formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  });
+export async function resolveCase(id: number, data: ResolveCaseRequest): Promise<ResolvedCaseResponse> {
+  const response = await apiClient.post<ResolvedCaseResponse>(`/mediations/${id}/resolve`, data);
   return response.data;
 }
 

@@ -1,7 +1,15 @@
 import { ResolvedCaseResponse } from '@/types/mediation';
-import { formatDateTime } from '@/utils/formatters';
+import { formatCurrency, formatDateTime } from '@/utils/formatters';
+import { favorLabel, resolutionOptionLabel } from '@/utils/mediationResolution';
 import UiIcon from '@/components/shared/UiIcon';
 import FounderSellerName from '@/components/shared/FounderSellerName';
+
+/** Primera línea del texto, recortada. El texto completo se ve en el detalle del caso. */
+function abbreviate(text: string | undefined | null, max: number): string {
+  if (!text) return '';
+  const firstLine = text.split('\n').map((line) => line.trim()).find(Boolean) ?? '';
+  return firstLine.length > max ? `${firstLine.slice(0, max).trimEnd()}…` : firstLine;
+}
 
 interface MediationResolvedTableProps {
   cases: ResolvedCaseResponse[];
@@ -37,6 +45,7 @@ export default function MediationResolvedTable({
               <th>Pedido</th>
               <th>Resumen</th>
               <th>Resolución</th>
+              <th>Veredicto</th>
               <th>Resuelto por</th>
               <th>Fecha resolución</th>
               <th>Acciones</th>
@@ -45,7 +54,7 @@ export default function MediationResolvedTable({
           <tbody>
             {isLoading ? (
               <tr>
-                <td colSpan={9}>
+                <td colSpan={10}>
                   <span className="row-sub">Cargando trazas de mediaciones resueltas...</span>
                 </td>
               </tr>
@@ -57,10 +66,32 @@ export default function MediationResolvedTable({
                   <td><FounderSellerName name={item.sellerName} founder={item.sellerFounder} /></td>
                   <td>{item.orderId}</td>
                   <td className="resolved-table-summary">
-                    <strong>{item.resolutionReason}</strong>
+                    <strong className="resolved-table-clamp" title={item.resolutionReason}>
+                      {abbreviate(item.resolutionReason, 110)}
+                    </strong>
                     <span>{item.buyer}</span>
                   </td>
-                  <td>{item.resolutionReason}</td>
+                  <td>
+                    <span className="resolved-table-clamp" title={item.resolutionReason}>
+                      {abbreviate(item.resolutionReason, 160)}
+                    </span>
+                  </td>
+                  <td className="resolved-table-summary">
+                    {item.resolucionFavor ? (
+                      <>
+                        <strong>{favorLabel(item.resolucionFavor)}</strong>
+                        <span>{resolutionOptionLabel(item.resolucionOpcion)}</span>
+                        {item.porcentajeReembolso ? (
+                          <span>
+                            Reembolso {item.porcentajeReembolso}%
+                            {item.montoReembolso ? ` · ${formatCurrency(item.montoReembolso)}` : ''}
+                          </span>
+                        ) : null}
+                      </>
+                    ) : (
+                      <span>—</span>
+                    )}
+                  </td>
                   <td>{item.resolvedBy || 'Mediador'}</td>
                   <td>{formatDateTime(item.createdAt)}</td>
                   <td>
@@ -80,7 +111,7 @@ export default function MediationResolvedTable({
               ))
             ) : (
               <tr>
-                <td colSpan={9}>
+                <td colSpan={10}>
                   <span className="row-sub">Aún no hay mediaciones resueltas para mostrar en la traza.</span>
                 </td>
               </tr>

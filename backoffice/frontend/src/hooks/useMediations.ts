@@ -75,8 +75,8 @@ export function useBlockAccount() {
 export function useResolveCase() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, data, document }: { id: number; data: ResolveCaseRequest; document: File }) =>
-      mediationsApi.resolveCase(id, data, document),
+    mutationFn: ({ id, data }: { id: number; data: ResolveCaseRequest }) =>
+      mediationsApi.resolveCase(id, data),
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['mediations'] });
       queryClient.invalidateQueries({ queryKey: ['mediation', variables.id] });
