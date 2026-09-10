@@ -13589,7 +13589,36 @@ tr.is-active {
 }
 
 .table-toolbar.table-toolbar-pedidos {
-  grid-template-columns: minmax(260px, 1fr) auto;
+  grid-template-columns: minmax(260px, 1fr) auto auto;
+}
+
+.month-filter {
+  min-width: 154px;
+}
+
+.table-sort-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  font-weight: inherit;
+  background: transparent;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.table-sort-button .ui-icon {
+  width: 15px;
+  height: 15px;
+  color: var(--blue);
+}
+
+.table-sort-button:hover,
+.table-sort-button:focus-visible {
+  color: var(--blue);
 }
 
 .table-footer {

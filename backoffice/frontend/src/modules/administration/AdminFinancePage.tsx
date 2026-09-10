@@ -459,6 +459,7 @@ export default function AdminFinancePage() {
   const lastSegment = pathSegments[pathSegments.length - 1] ?? '';
   const activeView: AdminView = (['resumen', 'pedidos', 'liquidaciones', 'gastos', 'retiros'].includes(lastSegment) ? lastSegment : 'resumen') as AdminView;
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>('');
+  const [updatedAtOrder, setUpdatedAtOrder] = useState<'asc' | 'desc'>('asc');
   const [orders, setOrders] = useState<Order[]>(initialOrders);
   const [expenses, setExpenses] = useState<Expense[]>(initialExpenses);
   const [withdrawals, setWithdrawals] = useState<Withdrawal[]>(initialWithdrawals);
@@ -607,8 +608,14 @@ export default function AdminFinancePage() {
       const matchesQuery = !query || [order.id, order.buyer, order.seller, order.product].some((value) => normalizeText(value).includes(query));
       const matchesStatus = !selectedStatusFilter || order.status === selectedStatusFilter;
       return matchesDate && matchesQuery && matchesStatus;
+    }).sort((first, second) => {
+      const firstUpdatedAt = Date.parse(first.updatedAt);
+      const secondUpdatedAt = Date.parse(second.updatedAt);
+      const firstTime = Number.isNaN(firstUpdatedAt) ? 0 : firstUpdatedAt;
+      const secondTime = Number.isNaN(secondUpdatedAt) ? 0 : secondUpdatedAt;
+      return updatedAtOrder === 'asc' ? firstTime - secondTime : secondTime - firstTime;
     });
-  }, [filters.pedidos, orders, selectedStatusFilter]);
+  }, [filters.pedidos, orders, selectedStatusFilter, updatedAtOrder]);
 
   const summaryOrders = useMemo(
     () => orders.filter((order) => isWithinRange(orderDate(order), filters.resumen.start, filters.resumen.end)),
@@ -2254,12 +2261,19 @@ export default function AdminFinancePage() {
           <section className="table-shell">
             <div className="table-toolbar table-toolbar-pedidos">
               <input className="input" type="search" placeholder="Buscar por ID, comprador, vendedor o producto..." value={filters.pedidos.query} onChange={(event) => updateFilter('pedidos', { query: event.target.value })} />
-              <select className="select" value={selectedStatusFilter} onChange={(event) => setSelectedStatusFilter(event.target.value)} aria-label="Filtrar por estado">
+              <select className="select" value={selectedStatusFilter} onChange={(event) => { setSelectedStatusFilter(event.target.value); setPagination((current) => ({ ...current, pedidos: { ...current.pedidos, page: 1 } })); }} aria-label="Filtrar por estado">
                 <option value="">Todos los estados</option>
                 {ORDER_STATUS_OPTIONS.map((status) => (
                   <option key={status} value={status}>{status}</option>
                 ))}
               </select>
+              <input
+                className="input month-filter"
+                type="month"
+                value={filters.pedidos.start.slice(0, 7)}
+                onChange={(event) => updateFilter('pedidos', event.target.value ? getMonthRange(event.target.value) : { start: '', end: '' })}
+                aria-label="Filtrar pedidos por mes y año"
+              />
             </div>
             {false ? (
               <table className="wide-table">
@@ -2289,7 +2303,7 @@ export default function AdminFinancePage() {
               <thead>
                 <tr>
                   <SelectionHeader view="pedidos" sourceIds={filteredOrders.map((order) => order.id)} selected={selectedRows.pedidos} onToggle={toggleMassSelection} />
-                  <th>ID pedido</th><th>Fecha</th><th>Comprador</th><th>Vendedor</th><th>Producto / Resumen</th><th>Total</th><th>Estado</th><th>Última actualización</th><th>Acciones</th>
+                  <th>ID pedido</th><th>Fecha</th><th>Comprador</th><th>Vendedor</th><th>Producto / Resumen</th><th>Total</th><th>Estado</th><th><button className="table-sort-button" type="button" onClick={() => { setUpdatedAtOrder((current) => current === 'asc' ? 'desc' : 'asc'); setPagination((current) => ({ ...current, pedidos: { ...current.pedidos, page: 1 } })); }} title={`Ordenar de más ${updatedAtOrder === 'asc' ? 'nuevo a más antiguo' : 'antiguo a más nuevo'}`} aria-label={`Última actualización: ordenada de más ${updatedAtOrder === 'asc' ? 'antiguo a más nuevo' : 'nuevo a más antiguo'}. Cambiar orden.`}>Última actualización <UiIcon name="sort" /><span aria-hidden="true">{updatedAtOrder === 'asc' ? '↑' : '↓'}</span></button></th><th>Acciones</th>
                 </tr>
               </thead>
               <tbody>
