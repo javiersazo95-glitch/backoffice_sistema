@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import MetricCard from '@/components/shared/MetricCard';
 import UiIcon from '@/components/shared/UiIcon';
 import AreaHomeShortcut from '@/components/shared/AreaHomeShortcut';
@@ -541,7 +541,9 @@ export default function AdminFinancePage() {
   const [settlementStatuses, setSettlementStatuses] = useState<Record<string, SettlementStatus>>({});
   const [liquidationTab, setLiquidationTab] = useState<LiquidationStatus>('PENDIENTE_LIQUIDACION');
   /** Tab del menú Pedidos: ventas de repuestos o compras de publicidad. */
-  const [ordersTab, setOrdersTab] = useState<'pedidos' | 'publicidad'>('pedidos');
+  const [searchParams] = useSearchParams();
+  /** Tab del menú Pedidos: ventas de repuestos o compras de publicidad. */
+  const [ordersTab, setOrdersTab] = useState<'pedidos' | 'publicidad'>(() => searchParams.get('tab') === 'publicidad' ? 'publicidad' : 'pedidos');
   /** Tab del menú Caja y gastos: 'caja' o 'gastos'. */
   const [cajaExpenseTab, setCajaExpenseTab] = useState<CajaExpenseTab>('caja');
   const [cajaSourceFilter, setCajaSourceFilter] = useState<CajaSourceFilter>('todos');
@@ -552,6 +554,16 @@ export default function AdminFinancePage() {
    * es el pendiente: la lista completa no le sirve a nadie para emitir.
    */
   const [advertisingDocFilter, setAdvertisingDocFilter] = useState<'todas' | 'sin' | 'con'>('sin');
+
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam === 'publicidad') {
+      setOrdersTab('publicidad');
+      setAdvertisingDocFilter('sin');
+    } else if (tabParam === 'pedidos') {
+      setOrdersTab('pedidos');
+    }
+  }, [searchParams]);
   const [docRecargaDraft, setDocRecargaDraft] = useState<{
     compraId: number; codigo: string; comprador: string; tipo: string; folio: string;
     rut: string; razonSocial: string; archivo: File | null; yaCargado: boolean;

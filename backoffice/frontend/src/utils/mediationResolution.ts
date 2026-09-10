@@ -75,7 +75,7 @@ export const MEDIATION_RESOLUTION_OPTIONS: MediationResolutionOption[] = [
     favor: 'VENDEDOR',
     label: 'Reclamo presentado fuera del plazo legal',
     fundamentoLegal:
-      'Artículo 21 inciso 1 (plazo de 3 meses) y artículo 3 bis de la Ley N° 19.496 (plazo de retracto)',
+      'Artículo 21 inciso 1 (plazo de 6 meses) y artículo 3 bis de la Ley N° 19.496 (plazo de retracto)',
     requiresPercentage: false,
     appliesRefund: false,
   },
@@ -173,3 +173,4 @@ export function buildVeredictoPreview(params: {
 
   return text;
 }
+

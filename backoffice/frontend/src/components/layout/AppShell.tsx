@@ -4,6 +4,7 @@ import { Outlet } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import Sidebar from './Sidebar';
 import HelpSupportWidget from '@/components/shared/HelpSupportWidget';
+import NotificationBell from './NotificationBell';
 
 export default function AppShell({ children, noSidebar }: { children?: ReactNode; noSidebar?: boolean }) {
   const { user } = useAuth();
@@ -13,6 +14,9 @@ export default function AppShell({ children, noSidebar }: { children?: ReactNode
     return (
       <div className="app-shell" style={{ display: 'block' }}>
         <main className="content" style={{ maxWidth: '1440px', margin: '0 auto', padding: '24px' }}>
+          <header className="app-shell-topbar">
+            <NotificationBell user={user} />
+          </header>
           {children ?? <Outlet />}
         </main>
       </div>
@@ -35,6 +39,7 @@ export default function AppShell({ children, noSidebar }: { children?: ReactNode
         </button>
         <img src="/assets/repuestop-logo-cropped.jpg" alt="RepuesTop" className="mobile-topbar-logo" />
         <div className="mobile-topbar-spacer" />
+        <NotificationBell user={user} />
       </header>
 
       {/* Overlay backdrop */}
@@ -49,6 +54,9 @@ export default function AppShell({ children, noSidebar }: { children?: ReactNode
       <Sidebar user={user} mobileOpen={sidebarOpen} onMobileClose={() => setSidebarOpen(false)} />
 
       <main className="content">
+        <header className="app-shell-topbar">
+          <NotificationBell user={user} />
+        </header>
         {children ?? <Outlet />}
       </main>
       <HelpSupportWidget />
