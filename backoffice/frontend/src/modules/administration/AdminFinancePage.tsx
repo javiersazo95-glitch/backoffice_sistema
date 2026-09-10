@@ -1069,6 +1069,25 @@ export default function AdminFinancePage() {
     [cajaMonthsWithSales, selectedCajaYear],
   );
 
+  // Pedidos usa exactamente el mismo par de selectores mes/año de Caja y gastos.
+  // El período se guarda en filters.pedidos para que métricas y tabla compartan el filtro.
+  const selectedOrderMonth = filters.pedidos.start.slice(0, 7);
+  const selectedOrderYear = selectedOrderMonth.slice(0, 4);
+  const orderMonthsWithSales = useMemo(() => {
+    const months = new Set(orders.map((order) => orderDate(order).slice(0, 7)).filter(Boolean));
+    if (selectedOrderMonth) months.add(selectedOrderMonth);
+    return [...months].sort((first, second) => second.localeCompare(first));
+  }, [orders, selectedOrderMonth]);
+  const orderYearOptions = useMemo(
+    () => [...new Set(orderMonthsWithSales.map((month) => month.slice(0, 4)))]
+      .sort((first, second) => second.localeCompare(first)),
+    [orderMonthsWithSales],
+  );
+  const orderMonthOptions = useMemo(
+    () => orderMonthsWithSales.filter((month) => month.startsWith(selectedOrderYear)),
+    [orderMonthsWithSales, selectedOrderYear],
+  );
+
   function pushActivity(iconName: string, title: string, description: string): void {
     setActivityLogs((current) => [{ id: createId(), iconName, title, description, time: 'Ahora' }, ...current]);
   }
@@ -1142,6 +1161,15 @@ export default function AdminFinancePage() {
   function selectCajaYear(year: string): void {
     const latestMonth = cajaMonthsWithSales.find((month) => month.startsWith(year));
     selectCajaMonth(latestMonth ?? `${year}-01`);
+  }
+
+  function selectOrderMonth(month: string): void {
+    updateFilter('pedidos', getMonthRange(month));
+  }
+
+  function selectOrderYear(year: string): void {
+    const latestMonth = orderMonthsWithSales.find((month) => month.startsWith(year));
+    selectOrderMonth(latestMonth ?? `${year}-01`);
   }
 
 
@@ -2267,13 +2295,12 @@ export default function AdminFinancePage() {
                   <option key={status} value={status}>{status}</option>
                 ))}
               </select>
-              <input
-                className="input month-filter"
-                type="month"
-                value={filters.pedidos.start.slice(0, 7)}
-                onChange={(event) => updateFilter('pedidos', event.target.value ? getMonthRange(event.target.value) : { start: '', end: '' })}
-                aria-label="Filtrar pedidos por mes y año"
-              />
+              <select className="input" style={{ width: 'auto', flexShrink: 0 }} value={selectedOrderMonth} onChange={(event) => selectOrderMonth(event.target.value)} aria-label="Filtrar pedidos por mes">
+                {orderMonthOptions.map((month) => <option key={month} value={month}>{formatMonthName(month)}</option>)}
+              </select>
+              <select className="input" style={{ width: 'auto', flexShrink: 0 }} value={selectedOrderYear} onChange={(event) => selectOrderYear(event.target.value)} aria-label="Filtrar pedidos por año">
+                {orderYearOptions.map((year) => <option key={year} value={year}>{year}</option>)}
+              </select>
             </div>
             {false ? (
               <table className="wide-table">
