@@ -6,9 +6,8 @@ const SYNC_EVENT = 'repuestop:manual-mediation-status-overrides-changed';
 
 export type ManualMediationStatusOverrides = Record<number, MediationStatus>;
 
-export function normalizeVisibleMediationStatus(status: MediationStatus, mediationStarted?: boolean): MediationStatus {
-  if (status === MediationStatus.ESCALADO) return MediationStatus.ESPERANDO_VENDEDOR;
-  if (status === MediationStatus.EN_MEDIACION && !mediationStarted) return MediationStatus.ESPERANDO_VENDEDOR;
+export function normalizeVisibleMediationStatus(status: MediationStatus, _mediationStarted?: boolean): MediationStatus {
+  // Ya no existe la etapa previa "En disputa": el único estado activo es EN_MEDIACION.
   return status;
 }
 
@@ -46,7 +45,7 @@ export function applyManualMediationStatusToActiveCases<T extends { id: number; 
   item: T,
   overrides: ManualMediationStatusOverrides,
 ): T {
-  if (item.status !== MediationStatus.EN_MEDIACION && item.status !== MediationStatus.ESPERANDO_VENDEDOR) {
+  if (item.status !== MediationStatus.EN_MEDIACION) {
     return item;
   }
 

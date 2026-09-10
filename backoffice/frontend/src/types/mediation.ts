@@ -1,8 +1,6 @@
 import type { MediationNoteType } from '@/utils/mediationNotes';
 
 export enum MediationStatus {
-  ESPERANDO_VENDEDOR = 'ESPERANDO_VENDEDOR',
-  ESCALADO = 'ESCALADO',
   EN_MEDIACION = 'EN_MEDIACION',
   RESUELTA = 'RESUELTA',
   CERRADA = 'CERRADA',

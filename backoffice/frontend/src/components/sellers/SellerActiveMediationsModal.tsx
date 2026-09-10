@@ -14,7 +14,6 @@ interface SellerActiveMediationsModalProps {
 }
 
 const ACTIVE_STATUSES = new Set<MediationStatus>([
-  MediationStatus.ESPERANDO_VENDEDOR,
   MediationStatus.EN_MEDIACION,
 ]);
 
@@ -31,8 +30,7 @@ function formatDate(value?: string | null) {
   }).format(date);
 }
 
-function activeMediationVariant(status: MediationStatus) {
-  if (status === MediationStatus.ESPERANDO_VENDEDOR) return 'amber';
+function activeMediationVariant(_status: MediationStatus) {
   return 'violet';
 }
 

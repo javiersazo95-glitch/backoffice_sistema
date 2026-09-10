@@ -53,7 +53,7 @@ export default function SellerTable({
               <th>RUT</th>
               <th>Ciudad</th>
               <th>ESTADO DE CUENTA</th>
-              <th>En disputa</th>
+              <th>En mediación</th>
               <th>Fecha de ingreso</th>
               <th>Mediaciones</th>
               <th>Acciones</th>
@@ -131,7 +131,7 @@ export default function SellerTable({
                               className="row-action account-lock-action"
                               type="button"
                               onClick={() => onOpenMediation?.(seller.id)}
-                              aria-label="Ver casos en disputa"
+                              aria-label="Ver casos en mediación"
                             >
                               <UiIcon name="clock" />
                             </button>

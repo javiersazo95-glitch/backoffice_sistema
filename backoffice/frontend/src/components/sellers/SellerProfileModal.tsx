@@ -136,7 +136,7 @@ function DocumentTable({ documents }: { documents: SellerDetailResponse['documen
 }
 
 function MediationCard({ mediation, iconName = 'scale' }: { mediation: MediationSummaryResponse | ImpactMediation; iconName?: string }) {
-  const isWaiting = iconName === 'clock' || mediation.status === 'ESPERANDO_VENDEDOR' || mediation.status === 'ESCALADO';
+  const isWaiting = iconName === 'clock';
   
   return (
     <div className="seller-profile-case-card">
@@ -573,7 +573,7 @@ export default function SellerProfileModal({
 
   const mediatedCases = seller.mediations.map((mediation) => applyManualMediationStatus(mediation, effectiveManualStatusOverrides));
   const inProgressMediations = mediatedCases.filter((m) => m.status === 'EN_MEDIACION');
-  const waitingSellerMediations = mediatedCases.filter((m) => m.status === 'ESPERANDO_VENDEDOR' || m.status === 'ESCALADO');
+  const waitingSellerMediations: typeof mediatedCases = [];
   const documents = seller.documents;
 
   const sellerRetirosSorted = [...sellerRetiros].sort(
@@ -584,7 +584,7 @@ export default function SellerProfileModal({
   const recentActivityRaw: Array<{ icon: string; title: string; detail: string; date: string; timestamp: number; tone: 'blue' | 'violet' | 'red' | 'green' | 'amber' }> = [
     ...waitingSellerMediations.map((mediation) => ({
       icon: 'clock',
-      title: 'En disputa',
+      title: 'En mediación',
       detail: mediation.reason,
       date: formatDate(mediation.updatedAt),
       timestamp: new Date(mediation.updatedAt).getTime(),
@@ -686,7 +686,7 @@ export default function SellerProfileModal({
               <div className="seller-profile-quick-panel">
                 <SectionHeader icon="shield" title="Resumen rápido" tone="violet" />
                 <InfoStat label="Mediaciones activas" value={inProgressMediations.length} />
-                <InfoStat label="En disputa" value={waitingSellerMediations.length} />
+                <InfoStat label="En mediación" value={waitingSellerMediations.length} />
                 <InfoStat label="Tickets abiertos" value={seller.tickets.filter((ticket) => ticket.status !== 'RESUELTO' && ticket.status !== 'CERRADO').length} />
                 <InfoStat label="Reportes" value={sellerReports.length || seller.pendingReceipts} />
               </div>
@@ -755,12 +755,12 @@ export default function SellerProfileModal({
                 </div>
 
                 <div className="seller-profile-panel risks-panel">
-                  <SectionHeader icon="clock" title="En disputa" count={`${waitingSellerMediations.length}`} tone="amber" />
+                  <SectionHeader icon="clock" title="En mediación" count={`${waitingSellerMediations.length}`} tone="amber" />
                   <div className="seller-profile-list">
-                    {waitingSellerMediations.length ? waitingSellerMediations.map((mediation) => <MediationCard key={mediation.id} mediation={mediation} iconName="clock" />) : <p className="row-sub">No hay casos en disputa.</p>}
+                    {waitingSellerMediations.length ? waitingSellerMediations.map((mediation) => <MediationCard key={mediation.id} mediation={mediation} iconName="clock" />) : <p className="row-sub">No hay casos en mediación.</p>}
                   </div>
                   <button className="profile-inline-link" type="button" onClick={() => onOpenMediation?.(seller.id)}>
-                    Ver todos los casos en disputa <UiIcon name="arrowRight" />
+                    Ver todos los casos en mediación <UiIcon name="arrowRight" />
                   </button>
                 </div>
 

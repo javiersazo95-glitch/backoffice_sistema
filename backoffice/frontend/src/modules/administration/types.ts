@@ -1,8 +1,8 @@
 export type AdminView = 'resumen' | 'pedidos' | 'liquidaciones' | 'gastos' | 'retiros';
 
-export type OrderStatus = 'Pendiente' | 'Preparando' | 'Enviado' | 'Recibido' | 'Finalizado' | 'En mediación' | 'En disputa' | 'Cancelado' | 'Cancelado parcialmente';
+export type OrderStatus = 'Pendiente' | 'Preparando' | 'Enviado' | 'Recibido' | 'Finalizado' | 'En mediación' | 'Cancelado' | 'Cancelado parcialmente';
 
-export type SettlementStatus = 'Completada' | 'Enviado' | 'En disputa' | 'Cancelado';
+export type SettlementStatus = 'Completada' | 'Enviado' | 'En mediación' | 'Cancelado';
 export type LiquidationStatus = 'PENDIENTE_LIQUIDACION' | 'EN_LIQUIDACION' | 'LIQUIDADO';
 
 export interface Order {

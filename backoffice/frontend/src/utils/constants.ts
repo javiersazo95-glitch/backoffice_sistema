@@ -67,8 +67,6 @@ export const STATUS_LABELS: Record<string, string> = {
   APROBADO: 'Aprobado',
   POR_CORREGIR: 'Por corregir',
   RECHAZADO: 'Rechazado',
-  ESPERANDO_VENDEDOR: 'En disputa',
-  ESCALADO: 'En disputa',
   EN_MEDIACION: 'En Mediación',
   RESUELTA: 'Resuelta',
   CERRADA: 'Cerrada',

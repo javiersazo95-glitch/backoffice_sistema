@@ -62,8 +62,6 @@ export function sellerStatusDisplay(status: string): string {
 export function mediationStatusDisplay(status: string, accountBlocked: boolean): string {
   if (accountBlocked) return 'Cuenta Bloqueada';
   const map: Record<string, string> = {
-    ESPERANDO_VENDEDOR: 'En disputa',
-    ESCALADO: 'En disputa',
     EN_MEDIACION: 'En Mediación',
     RESUELTA: 'Resuelta',
     CERRADA: 'Cerrada',
@@ -72,26 +70,19 @@ export function mediationStatusDisplay(status: string, accountBlocked: boolean):
 }
 
 export function mediationStatusOptions(): string[] {
-  return ['Todos', 'En mediación', 'Cuenta bloqueada', 'En disputa'];
+  return ['Todos', 'En mediación', 'Cuenta bloqueada'];
 }
 
 export function mediationStatusHelp(status: string): string {
   const help: Record<string, string> = {
-    'En mediación': 'Caso formal ya inicializado. El icono de mediación va en morado.',
-    'Cuenta bloqueada': 'Cuenta bloqueada desde una mediación inicializada. Solo corresponde reactivar si existe respaldo acreditador.',
-    'En disputa': 'Caso pendiente de respuesta del vendedor. Desde aquí el equipo puede iniciar mediación cuando corresponda.',
+    'En mediación': 'Caso con un mediador de RepuesTop en curso. El icono de mediación va en morado.',
+    'Cuenta bloqueada': 'Cuenta bloqueada desde una mediación. Solo corresponde reactivar si existe respaldo acreditador.',
   };
   return help[status] || 'Todos los casos visibles en el período seleccionado.';
 }
 
 export function mediationEscalationReason(item: { escalationReason?: string; status: string; reason: string }): string {
   if (item.escalationReason) return item.escalationReason;
-  if ((item.status === 'ESCALADO' || item.status === 'ESPERANDO_VENDEDOR') && item.reason.toLowerCase().includes('boleta')) {
-    return 'El vendedor aún no emite la boleta y el caso espera gestión.';
-  }
-  if (item.status === 'ESCALADO' || item.status === 'ESPERANDO_VENDEDOR') {
-    return 'El caso espera respuesta o gestión del vendedor.';
-  }
   return mediationStatusHelp(item.status);
 }
 

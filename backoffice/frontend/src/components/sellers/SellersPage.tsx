@@ -258,7 +258,7 @@ export default function SellersPage() {
         const mediation = applyManualMediationStatus(med, effectiveManualStatusOverrides);
         return { mediation, changed: mediation.status !== med.status };
       })
-      .filter(({ mediation }) => mediation.status === MediationStatus.EN_MEDIACION || mediation.status === MediationStatus.ESPERANDO_VENDEDOR)
+      .filter(({ mediation }) => mediation.status === MediationStatus.EN_MEDIACION)
       .forEach(({ mediation, changed }) => {
         const key = safeText(mediation.orderId, String(mediation.id));
         const current = byOrder.get(key);
@@ -286,7 +286,7 @@ export default function SellersPage() {
   };
 
   const risks: RiskCase[] = prioritizedActiveMediations
-    .filter((med: MediationResponse) => med.status === MediationStatus.ESPERANDO_VENDEDOR)
+    .filter((med: MediationResponse) => med.status === MediationStatus.EN_MEDIACION)
     .map((med: MediationResponse) => {
       const sellerObj = findSellerById(med.sellerId);
       const rawOwner = safeText(med.owner, 'Sin responsable');
@@ -303,8 +303,8 @@ export default function SellersPage() {
         id: String(med.id),
         sellerId: med.sellerId,
         seller: safeText(med.sellerName, 'Vendedor'),
-        status: 'En disputa',
-        reason: safeText(med.reason, 'En disputa'),
+        status: 'En mediación',
+        reason: safeText(med.reason, 'En mediación'),
         orderId: safeText(med.orderId, 'Sin pedido'),
         updated: safeText(med.createdAt, 'Sin fecha informada'),
         stage: resolvedStage,
@@ -427,10 +427,8 @@ export default function SellersPage() {
     let sellers = sellerPool.filter((seller) => isSellerVisibleInList(seller));
 
     // Mediation-status filter
-    if (filter.status === 'En disputa') {
-      sellers = sellers.filter((s) => !!risksBySeller[s.id]?.length);
-    } else if (filter.status === 'En mediación') {
-      sellers = sellers.filter((s) => !!mediationsBySeller[s.id]?.length);
+    if (filter.status === 'En mediación') {
+      sellers = sellers.filter((s) => !!mediationsBySeller[s.id]?.length || !!risksBySeller[s.id]?.length);
     }
 
     // Search filter

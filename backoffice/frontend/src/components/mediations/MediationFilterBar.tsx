@@ -62,7 +62,6 @@ export default function MediationFilterBar({
       >
         <option value="">Todos</option>
         <option value={MediationStatus.EN_MEDIACION}>En mediación</option>
-        <option value={MediationStatus.ESPERANDO_VENDEDOR}>En disputa</option>
       </select>
     </div>
   );

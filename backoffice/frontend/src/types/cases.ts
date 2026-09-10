@@ -2,7 +2,7 @@ export interface RiskCase {
   id: string;
   sellerId: number;
   seller: string;
-  status: 'En disputa';
+  status: 'En mediación';
   reason: string;
   orderId: string;
   updated: string;

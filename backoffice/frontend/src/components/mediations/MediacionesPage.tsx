@@ -232,8 +232,8 @@ export default function MediacionesPage() {
   });
 
   const { data: waitingData } = useQuery({
-    queryKey: ['mediations-count', 'ESPERANDO_VENDEDOR'],
-    queryFn: () => mediationsApi.getMediations({ status: MediationStatus.ESPERANDO_VENDEDOR, page: 0, size: 1 }),
+    queryKey: ['mediations-count', 'EN_MEDIACION-waiting'],
+    queryFn: () => mediationsApi.getMediations({ status: MediationStatus.EN_MEDIACION, page: 0, size: 1 }),
   });
 
   const initMutation = useInitMediation();
@@ -245,7 +245,6 @@ export default function MediacionesPage() {
   const deleteMessageMutation = useDeleteMessage();
 
   const activeStatuses = new Set([
-    MediationStatus.ESPERANDO_VENDEDOR,
     MediationStatus.EN_MEDIACION,
   ]);
   const mediations = (data?.content ?? [])
@@ -308,7 +307,7 @@ export default function MediacionesPage() {
           const sellerId = Number(searchParams.get('sellerId'));
           if (Number.isFinite(sellerId) && sellerId > 0) {
             const waitingCases = await mediationsApi.getMediations({
-              status: MediationStatus.ESPERANDO_VENDEDOR,
+              status: MediationStatus.EN_MEDIACION,
               page: 0,
               size: PAGE_SIZES.MAX,
             });
@@ -320,7 +319,7 @@ export default function MediacionesPage() {
           setSelectedId(targetId);
           setInitModalOpen(true);
         } else {
-          showToast('No se encontró un caso en disputa para inicializar mediación.');
+          showToast('No se encontró un caso de mediación para este vendedor.');
         }
 
         clearDeepLinkParams();
@@ -498,14 +497,7 @@ export default function MediacionesPage() {
               value={statusMetrics.active}
               tone="violet"
               iconName="scale"
-              description="Casos con mediación formal ya iniciada."
-            />
-            <MetricCard
-              label="En disputa"
-              value={statusMetrics.waiting}
-              tone="amber"
-              iconName="clock"
-              description="Casos pendientes de respuesta o gestión del vendedor."
+              description="Casos con un mediador de RepuesTop en curso."
             />
             <MetricCard
               label="Casos resueltos"

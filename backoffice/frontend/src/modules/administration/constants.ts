@@ -8,8 +8,8 @@ export const GATEWAY_IVA = 0.19;
 export const MAX_RECEIPT_SIZE = 5 * 1024 * 1024;
 export const RECEIPT_TYPES = ['application/pdf', 'image/jpeg', 'image/png'];
 export const EXPENSE_CATEGORIES = ['Tecnología', 'Marketing', 'Legal / Contabilidad', 'Operación', 'Otros'];
-export const ORDER_STATUS_OPTIONS = ['Pendiente', 'Preparando', 'Enviado', 'Recibido', 'Finalizado', 'En mediación', 'En disputa', 'Cancelado', 'Cancelado parcialmente'] as const;
-export const SETTLEMENT_STATUS_OPTIONS = ['Completada', 'Enviado', 'En disputa', 'Cancelado'] as const;
+export const ORDER_STATUS_OPTIONS = ['Pendiente', 'Preparando', 'Enviado', 'Recibido', 'Finalizado', 'En mediación', 'Cancelado', 'Cancelado parcialmente'] as const;
+export const SETTLEMENT_STATUS_OPTIONS = ['Completada', 'Enviado', 'En mediación', 'Cancelado'] as const;
 export const PARTNERS = ['Javier', 'Elías'] as const;
 // BO-SOCIOS-001: cada motivo precarga un monto distinto en el formulario de retiro
 // (ver montoSugeridoPorMotivo en AdminFinancePage). "Ajuste de retiro socio" se elimino

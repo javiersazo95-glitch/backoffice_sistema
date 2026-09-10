@@ -83,7 +83,6 @@ export default function DashboardPage() {
   const validationTotal = (data?.validationsApproved ?? 0) + (data?.validationsPending ?? 0) + (data?.validationsRejected ?? 0);
 
 
-  const escalatedCount = data?.unansweredClaims ?? 0;
   const inMediationCount = mediationsTotalData?.totalElements ?? 0;
   const reportsCount = reportsTotalData?.totalElements ?? 0;
 
@@ -101,10 +100,6 @@ export default function DashboardPage() {
             <p>Cargando datos...</p>
           ) : (
             <div className="trust-hero-kpis" aria-label="Indicadores principales">
-              <div className="trust-hero-kpi">
-                <span className="trust-hero-kpi-icon"><UiIcon name="clock" /></span>
-                <div><span>En disputa</span><strong>{compactNumber(escalatedCount)}</strong></div>
-              </div>
               <div className="trust-hero-kpi">
                 <span className="trust-hero-kpi-icon"><UiIcon name="scale" /></span>
                 <div><span>En mediación</span><strong>{compactNumber(inMediationCount)}</strong></div>
@@ -258,12 +253,12 @@ function EscalationsPanel({ expanded, onToggle }: { expanded: boolean; onToggle:
 
   const { data: totalData } = useQuery({
     queryKey: ['dashboard-escalations-panel-total'],
-    queryFn: () => mediationsApi.getMediations({ status: MediationStatus.ESPERANDO_VENDEDOR, page: 0, size: 1 }),
+    queryFn: () => mediationsApi.getMediations({ status: MediationStatus.EN_MEDIACION, page: 0, size: 1 }),
   });
 
   const { data, isLoading } = useQuery({
     queryKey: ['dashboard-escalations-panel', page],
-    queryFn: () => mediationsApi.getMediations({ status: MediationStatus.ESPERANDO_VENDEDOR, page, size: PAGE_SIZE }),
+    queryFn: () => mediationsApi.getMediations({ status: MediationStatus.EN_MEDIACION, page, size: PAGE_SIZE }),
     enabled: expanded,
   });
 
@@ -277,16 +272,16 @@ function EscalationsPanel({ expanded, onToggle }: { expanded: boolean; onToggle:
     <article className="trust-panel">
       <CollapsiblePanelHead
         eyebrow="Seguimiento"
-        title="Últimos en disputa"
+        title="Últimos en mediación"
         expanded={expanded}
         onToggle={onToggle}
-        action={<Badge text={`${total} casos`} variant="ESPERANDO_VENDEDOR" />}
+        action={<Badge text={`${total} casos`} variant="EN_MEDIACION" />}
       />
       {expanded && (
         <>
           <div className="trust-feed">
-            {isLoading && <EmptyState text="Actualizando casos en disputa..." />}
-            {!isLoading && items.length === 0 && <EmptyState text="Sin casos en disputa." />}
+            {isLoading && <EmptyState text="Actualizando casos en mediación..." />}
+            {!isLoading && items.length === 0 && <EmptyState text="Sin casos en mediación." />}
             {!isLoading && items.map((item) => {
               const ageDays = parseAgeDays(item);
               const tone = escalationTone(ageDays);
@@ -482,9 +477,9 @@ function TrustPulsePanel({
           <ProgressRow label="Validaciones pendientes" value={pending} total={validationTotal} tone="amber" />
           <ProgressRow label="Rechazos documentales" value={rejected} total={validationTotal} tone="red" />
 <div className="trust-cycle-strip" aria-label="Flujo de mediación">
-            <span>En disputa ({unansweredClaims})</span>
+            <span>Chat comprador-vendedor</span>
             <UiIcon name="arrowRight" />
-            <span>En mediación</span>
+            <span>En mediación ({unansweredClaims})</span>
             <UiIcon name="arrowRight" />
             <span>Resuelta o cuenta bloqueada</span>
           </div>

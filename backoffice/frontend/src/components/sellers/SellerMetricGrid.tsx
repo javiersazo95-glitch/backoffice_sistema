@@ -24,7 +24,7 @@ export default function SellerMetricGrid({ activeSellers, activeMediations, esca
         description="Mediaciones en curso asociadas a vendedores activos."
       />
       <MetricCard
-        label="En disputa"
+        label="En mediación"
         value={escalatedMediations}
         tone="amber"
         iconName="clock"
