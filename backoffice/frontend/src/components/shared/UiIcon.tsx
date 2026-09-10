@@ -12,6 +12,7 @@ export default function UiIcon({ name, className = '', style }: UiIconProps) {
     arrowLeft: '<path d="M19 12H5" /><path d="m11 18-6-6 6-6" />',
     arrowRight: '<path d="M5 12h14" /><path d="m13 6 6 6-6 6" />',
     audit: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6" /><path d="M8 13h8" /><path d="M8 17h6" />',
+    bell: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />',
     bank: '<path d="m3 10 9-6 9 6" /><path d="M4 10h16" /><path d="M6 10v8" /><path d="M10 10v8" /><path d="M14 10v8" /><path d="M18 10v8" /><path d="M4 18h16" />',
     building: '<rect x="4" y="3" width="16" height="18" rx="1" /><path d="M8 7h2" /><path d="M14 7h2" /><path d="M8 11h2" /><path d="M14 11h2" /><path d="M8 15h2" /><path d="M14 15h2" /><path d="M10 21v-3h4v3" />',
     calendar: '<path d="M8 2v4" /><path d="M16 2v4" /><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M3 10h18" />',
@@ -86,3 +87,4 @@ export default function UiIcon({ name, className = '', style }: UiIconProps) {
     />
   );
 }
+
