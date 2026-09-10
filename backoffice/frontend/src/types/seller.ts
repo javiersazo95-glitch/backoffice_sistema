@@ -32,6 +32,9 @@ export interface SellerResponse {
   returnsCount: number;
   claimsCount: number;
   pendingReceipts: number;
+  partsCount: number;
+  salesCount: number;
+  createdAt?: string;
   documentsSummary: string;
   bankStatus: BankStatus;
   lastActivityAt: string;
@@ -94,6 +97,20 @@ export interface SellerDocumentResponse {
   status: import('./validation').ValidationStatus;
   owner: string;
   notes: string;
+}
+
+export interface SellerSaleResponse {
+  id: number;
+  buyerName?: string;
+  total?: number;
+  totalSeller?: number;
+  status: string;
+  createdAt: string;
+  codigoSoporte?: string;
+  items: Array<{
+    name: string;
+    codigoVendedor?: string;
+  }>;
 }
 
 export interface SellerFilterRequest {

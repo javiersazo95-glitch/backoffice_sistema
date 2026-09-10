@@ -10,7 +10,7 @@ interface CaseCardProps {
   status: string;
   reason: string;
   orderId: string;
-  type: 'risk' | 'impact' | 'resolved';
+  type: 'risk' | 'impact' | 'resolved' | 'report';
   amount?: string;
   updated?: string;
   stage?: string;
@@ -22,6 +22,10 @@ interface CaseCardProps {
   purchase?: string;
   buyer?: string;
   nextAction?: string;
+  referenceLabel?: string;
+  participantLabel?: string;
+  stageLabel?: string;
+  statusVariant?: string;
   onOpenSeller?: (sellerId: number) => void;
   onOpenCase?: (caseId: string) => void;
 }
@@ -42,12 +46,16 @@ export default function CaseCard({
   documentName,
   buyer,
   nextAction,
+  referenceLabel = 'Pedido',
+  participantLabel = 'Comprador',
+  stageLabel = 'Etapa',
+  statusVariant,
   onOpenCase,
 }: CaseCardProps) {
   const [isOpen, setIsOpen] = useState(false);
 
-  const iconTone = type === 'risk' ? 'red' : type === 'impact' ? 'violet' : 'green';
-  const iconName = type === 'risk' ? 'trendUp' : type === 'impact' ? 'scale' : 'check';
+  const iconTone = type === 'risk' || type === 'report' ? 'red' : type === 'impact' ? 'violet' : 'green';
+  const iconName = type === 'risk' ? 'trendUp' : type === 'impact' ? 'scale' : type === 'report' ? 'flag' : 'check';
   const subtitle = `${reason} · ${orderId}${amount ? ` · ${amount}` : ''}`;
   const actionLabel = type === 'impact' ? 'Revisar mediación' : 'Tomar acción';
   const actionIcon = type === 'impact' ? 'scale' : 'trendUp';
@@ -57,9 +65,9 @@ export default function CaseCard({
     ? `${updated || 'Sin fecha informada'} · ${stage || status}`
     : nextAction || 'Revisar reincidencia y definir medida correctiva.';
   const detailRows = [
-    ['Pedido', orderId],
-    ['Comprador', buyer || 'Comprador'],
-    stage ? ['Etapa', stage] : null,
+    [referenceLabel, orderId],
+    [participantLabel, buyer || 'No informado'],
+    stage ? [stageLabel, stage] : null,
     owner ? ['Responsable', owner] : null,
     updated ? ['Actualización', updated] : null,
     amount ? ['Monto', amount] : null,
@@ -79,7 +87,7 @@ export default function CaseCard({
         <div className="signal-copy">
           <strong>{reason}</strong>
           <span className="signal-status-line">
-            {type === 'impact' ? <strong>En mediación</strong> : <Badge text={status} variant={status} />}
+            {type === 'impact' ? <strong>En mediación</strong> : <Badge text={status} variant={statusVariant || status} />}
           </span>
           <span>{subtitle}</span>
         </div>
@@ -106,17 +114,19 @@ export default function CaseCard({
               <DetailRow key={label} label={label} value={value} />
             ))}
           </div>
-          <div className={`case-support-box ${iconTone}`}>
-            <span>
-              <UiIcon name={supportingIcon} />
-            </span>
-            <div>
-              <strong>{supportingTitle}</strong>
-              <p>{supportingCopy}</p>
-              {type === 'impact' && owner ? <small>Por {owner}</small> : null}
+          {type !== 'report' && (
+            <div className={`case-support-box ${iconTone}`}>
+              <span>
+                <UiIcon name={supportingIcon} />
+              </span>
+              <div>
+                <strong>{supportingTitle}</strong>
+                <p>{supportingCopy}</p>
+                {type === 'impact' && owner ? <small>Por {owner}</small> : null}
+              </div>
             </div>
-          </div>
-          {type !== 'resolved' && (
+          )}
+          {type !== 'resolved' && type !== 'report' && (
             <button className={`case-primary-action ${iconTone}`} type="button" onClick={() => onOpenCase?.(id)}>
               <UiIcon name={actionIcon} />
               <span>{actionLabel}</span>

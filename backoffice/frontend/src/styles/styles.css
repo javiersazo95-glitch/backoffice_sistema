@@ -3520,6 +3520,10 @@ tr.is-active {
   align-items: start;
 }
 
+.seller-summary-grid.seller-summary-grid--single {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .seller-detail-card .seller-info-stats {
   margin-bottom: 14px;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3540,6 +3544,27 @@ tr.is-active {
 
 .seller-detail-card .seller-info-stat strong {
   font-size: 18px;
+}
+
+.seller-detail-card .detail-row {
+  grid-template-columns: minmax(130px, 0.72fr) minmax(0, 1.28fr);
+  align-items: start;
+}
+
+.seller-detail-card .detail-label,
+.seller-detail-card .detail-value {
+  min-width: 0;
+  overflow-wrap: break-word;
+  word-break: normal;
+  hyphens: none;
+}
+
+.seller-detail-card .bank-detail-value {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 .seller-case-summary {
@@ -4982,8 +5007,21 @@ tr.is-active {
   grid-template-columns: minmax(0, 1fr) 390px;
 }
 
+.mediation-layout.mediation-layout--full {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .mediation-table-panel {
   min-width: 0;
+}
+
+.mediation-tabs {
+  margin: 16px 16px 0;
+}
+
+.mediation-tabs button {
+  flex: 1 1 0;
+  justify-content: center;
 }
 
 .mediation-layout > .side-panel {
@@ -15887,9 +15925,9 @@ button:disabled {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.04fr);
   grid-template-areas:
-    "documents mediation"
-    "risks retiros"
-    "info activity";
+    "documents retiros"
+    "sales sales"
+    "activity activity";
   gap: 14px;
   align-items: start;
 }
@@ -15928,6 +15966,19 @@ button:disabled {
 
 .retiros-panel {
   grid-area: retiros;
+}
+
+.sales-panel {
+  grid-area: sales;
+}
+
+.seller-reports-table-wrap {
+  width: min(100%, 880px);
+  margin: 10px auto 0;
+}
+
+.seller-reports-table-wrap .seller-profile-table {
+  width: 100%;
 }
 
 .seller-profile-section-header {
@@ -16979,10 +17030,8 @@ button:disabled {
   .seller-profile-content-grid {
     grid-template-areas:
       "documents"
-      "mediation"
-      "risks"
       "retiros"
-      "info"
+      "sales"
       "activity";
   }
 

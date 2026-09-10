@@ -10,13 +10,17 @@ interface SellerCaseSummaryCardProps {
   summary: string;
   orderId: string;
   reason: string;
+  referenceLabel?: string;
   buyer?: string;
+  participantLabel?: string;
   purchase?: string;
   stage?: string;
+  stageLabel?: string;
   owner?: string;
   updated?: string;
   amount?: string;
   nextAction?: string;
+  statusVariant?: string;
   onPrimaryAction?: () => void;
 }
 
@@ -45,12 +49,16 @@ export default function SellerCaseSummaryCard({
   status,
   summary,
   orderId,
+  referenceLabel = 'Pedido',
   buyer,
+  participantLabel = 'Comprador',
   stage,
+  stageLabel = 'Etapa',
   owner,
   updated,
   amount,
   nextAction,
+  statusVariant,
   onPrimaryAction,
 }: SellerCaseSummaryCardProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -61,16 +69,16 @@ export default function SellerCaseSummaryCard({
   const statusNode = isMediation ? (
     <span className="seller-case-summary-status-text violet">{status}</span>
   ) : (
-    <Badge text={status} variant={status} />
+    <Badge text={status} variant={statusVariant || status} />
   );
   const actionLabel = isMediation ? 'Revisar mediación' : 'Tomar acción';
   const actionIcon = isMediation ? 'scale' : 'trendUp';
   const collapseToggleToneClass = isMediation ? 'mediation-state-violet' : 'account-lock-action';
   const displayUpdated = formatCaseDateTime(updated);
   const detailRows = [
-    ['Pedido', visibleOrder],
-    ['Comprador', buyer || 'Comprador'],
-    stage ? ['Etapa', stage] : null,
+    [referenceLabel, visibleOrder],
+    [participantLabel, buyer || 'No informado'],
+    stage ? [stageLabel, stage] : null,
     owner ? ['Responsable', owner] : null,
     displayUpdated ? ['Fecha reporte', displayUpdated] : null,
     amount ? ['Monto', amount] : null,

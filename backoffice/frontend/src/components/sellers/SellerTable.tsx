@@ -1,6 +1,6 @@
 import { Fragment } from 'react';
 import { type SellerResponse } from '@/types/seller';
-import type { ImpactMediation, RiskCase } from '@/types/cases';
+import type { ImpactMediation } from '@/types/cases';
 import Badge from '@/components/shared/Badge';
 import UiIcon from '@/components/shared/UiIcon';
 import FounderSellerName from '@/components/shared/FounderSellerName';
@@ -15,10 +15,10 @@ interface SellerTableProps {
   onViewDocs?: (id: number) => void;
   onReviewMediation?: (mediationId: number) => void;
   onOpenMediation?: (id: number) => void;
+  onOpenReports?: (id: number) => void;
   onShowBlockHistory?: (id: number) => void;
   expandedId?: number | null;
   onToggleExpand?: (id: number) => void;
-  risks?: Record<number, RiskCase[]>;
   mediations?: Record<number, ImpactMediation[]>;
   blockedMediations?: Record<number, ImpactMediation[]>;
   selectedSellerId?: number | null;
@@ -35,10 +35,10 @@ export default function SellerTable({
   onViewDocs,
   onReviewMediation,
   onOpenMediation,
+  onOpenReports,
   onShowBlockHistory,
   expandedId,
   onToggleExpand,
-  risks,
   mediations,
   blockedMediations,
   selectedSellerId,
@@ -53,7 +53,7 @@ export default function SellerTable({
               <th>RUT</th>
               <th>Ciudad</th>
               <th>ESTADO DE CUENTA</th>
-              <th>En mediación</th>
+              <th>Reportes</th>
               <th>Fecha de ingreso</th>
               <th>Mediaciones</th>
               <th>Acciones</th>
@@ -64,7 +64,6 @@ export default function SellerTable({
               sellers.map((seller, index) => {
                 const isExpanded = expandedId === seller.id;
                 const isSelected = selectedSellerId === seller.id;
-                const sellerRisks = risks?.[seller.id] || [];
                 const sellerMediations = mediations?.[seller.id] || [];
                 const sellerBlockedMediations = blockedMediations?.[seller.id] || [];
                 
@@ -91,7 +90,7 @@ export default function SellerTable({
                           variant={getSellerStatusTone(getSellerOperationalStatus(seller))}
                         />
                       </td>
-                      <td>{sellerRisks.length}</td>
+                      <td>{seller.pendingReceipts}</td>
                       <td>{seller.lastActivityAt ? formatDate(seller.lastActivityAt) : 'Sin fecha'}</td>
                       <td>{sellerMediations.length}</td>
                       <td>
@@ -126,14 +125,15 @@ export default function SellerTable({
                               <UiIcon name="scale" />
                             </button>
                           )}
-                          {sellerRisks.length > 0 && (
+                          {seller.pendingReceipts > 0 && (
                             <button
                               className="row-action account-lock-action"
                               type="button"
-                              onClick={() => onOpenMediation?.(seller.id)}
-                              aria-label="Ver casos en mediación"
+                              onClick={() => onOpenReports?.(seller.id)}
+                              aria-label="Ver reportes del vendedor"
+                              title="Ver reportes del vendedor"
                             >
-                              <UiIcon name="clock" />
+                              <UiIcon name="flag" />
                             </button>
                           )}
                           <button
@@ -151,7 +151,6 @@ export default function SellerTable({
                     {isExpanded && (
                       <SellerExpandedRow
                         seller={seller}
-                        risks={risks?.[seller.id]}
                         mediations={mediations?.[seller.id]}
                         blockedMediations={sellerBlockedMediations}
                         onViewDocs={onViewDocs}

@@ -9,6 +9,8 @@ interface BlockedAccountsTableProps {
   accounts: MediationResponse[];
   totalItems?: number;
   isLoading?: boolean;
+  selectedId?: number | null;
+  onSelect?: (item: MediationResponse) => void;
   onOpenHistory: (id: number) => void;
   onOpenAppeal: (id: number) => void;
   onOpenSellerInfo: (sellerId: number) => void;
@@ -34,6 +36,8 @@ export default function BlockedAccountsTable({
   accounts,
   totalItems,
   isLoading = false,
+  selectedId,
+  onSelect,
   onOpenHistory,
   onOpenAppeal,
   onOpenSellerInfo,
@@ -99,7 +103,7 @@ export default function BlockedAccountsTable({
               rows.map((item) => {
                 const hasAppeal = item.blockedAccountStatus === 'SOLICITUD_REVISION';
                 return (
-                  <tr key={item.id} className={hasAppeal ? 'blocked-row--appeal' : ''}>
+                  <tr key={item.id} className={`${hasAppeal ? 'blocked-row--appeal ' : ''}${selectedId === item.id ? 'is-active' : ''}`.trim()} onClick={() => onSelect?.(item)}>
                     <td>
                       <strong className="blue-link">{item.externalId}</strong>
                       <span className="row-sub">{mediationStatusDisplay(item.status, item.accountBlocked)}</span>

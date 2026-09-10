@@ -15,6 +15,8 @@ interface MediationResolvedTableProps {
   cases: ResolvedCaseResponse[];
   totalItems?: number;
   isLoading?: boolean;
+  selectedId?: number | null;
+  onSelect?: (item: ResolvedCaseResponse) => void;
   onOpenTimeline: (item: ResolvedCaseResponse) => void;
 }
 
@@ -22,6 +24,8 @@ export default function MediationResolvedTable({
   cases,
   totalItems,
   isLoading = false,
+  selectedId,
+  onSelect,
   onOpenTimeline,
 }: MediationResolvedTableProps) {
   const rows = [...cases].sort((a, b) => (new Date(b.createdAt).getTime() || 0) - (new Date(a.createdAt).getTime() || 0));
@@ -60,7 +64,7 @@ export default function MediationResolvedTable({
               </tr>
             ) : rows.length ? (
               rows.map((item) => (
-                <tr key={item.id}>
+                <tr key={item.id} className={selectedId === item.id ? 'is-active' : ''} onClick={() => onSelect?.(item)}>
                   <td><strong className="blue-link">{item.externalId}</strong></td>
                   <td>{item.reason}</td>
                   <td><FounderSellerName name={item.sellerName} founder={item.sellerFounder} /></td>

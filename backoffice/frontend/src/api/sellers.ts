@@ -10,6 +10,7 @@ import type {
   SellerDocumentResponse,
   SellerBlockHistoryResponse,
   SellerRetiroResponse,
+  SellerSaleResponse,
 } from '@/types/seller';
 import type { TicketResponse } from '@/types/ticket';
 import type { ValidationResponse } from '@/types/validation';
@@ -139,6 +140,13 @@ export async function getSellerTickets(id: number): Promise<TicketResponse[]> {
 
 export async function getSellerRetiros(id: number): Promise<SellerRetiroResponse[]> {
   const response = await apiClient.get<SellerRetiroResponse[]>(`/sellers/${id}/retiros`);
+  return response.data;
+}
+
+export async function getSellerSales(id: number, page = 0, size = 5): Promise<PageResponse<SellerSaleResponse>> {
+  const response = await apiClient.get<PageResponse<SellerSaleResponse>>(`/sellers/${id}/sales`, {
+    params: { page, size },
+  });
   return response.data;
 }
 

@@ -3,6 +3,7 @@ import { useQueries, useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import * as sellersApi from '@/api/sellers';
 import * as mediationsApi from '@/api/mediations';
+import * as reportsApi from '@/api/reports';
 import UiIcon from '@/components/shared/UiIcon';
 import PageHeader from '@/components/shared/PageHeader';
 import Notice from '@/components/shared/Notice';
@@ -10,7 +11,7 @@ import RegisteredSellersLegend from '@/components/shared/RegisteredSellersLegend
 import SellerMetricGrid from './SellerMetricGrid';
 import SellerFilterBar from './SellerFilterBar';
 import SellerTable from './SellerTable';
-import RisksPanel from './RisksPanel';
+import ReportsPanel from './ReportsPanel';
 import ImpactMediationsPanel from './ImpactMediationsPanel';
 import ResolvedCasesPanel from './ResolvedCasesPanel';
 import { useSellers, useSeller, useSellerDocuments, useSuspendSeller } from '@/hooks/useSellers';
@@ -20,7 +21,7 @@ import type { RiskCase, ImpactMediation, ResolvedCase } from '@/types/cases';
 import { MediationStatus, type MediationResponse, type ResolvedCaseResponse } from '@/types/mediation';
 import AreaHomeShortcut from '@/components/shared/AreaHomeShortcut';
 import SellerDocumentsModal from './SellerDocumentsModal';
-import SellerProfileModal, { SellerBlockHistoryModal } from './SellerProfileModal';
+import SellerProfileModal, { SellerBlockHistoryModal, SellerReportsModal } from './SellerProfileModal';
 import SellerActiveMediationsModal from './SellerActiveMediationsModal';
 import { showToast } from '@/components/layout/Toast';
 import { applyManualMediationStatus, useManualMediationStatusOverrides } from '@/utils/manualMediationStatus';
@@ -194,6 +195,7 @@ export default function SellersPage() {
   const [sellerInfoOpen, setSellerInfoOpen] = useState(false);
   const [sellerMediationsOpen, setSellerMediationsOpen] = useState(false);
   const [sellerBlockHistoryOpen, setSellerBlockHistoryOpen] = useState(false);
+  const [sellerReportsOpen, setSellerReportsOpen] = useState(false);
 
   const applyFilter = (updates: Partial<SellerFilterRequest>) => {
     setFilter((f) => ({ ...f, ...updates, page: 0 }));
@@ -243,9 +245,15 @@ export default function SellersPage() {
     },
   });
 
+  const { data: reportsData } = useQuery({
+    queryKey: ['reports', 'seller-received'],
+    queryFn: () => reportsApi.getReports({ page: 0, size: PAGE_SIZES.MAX }),
+  });
+
   const allSellers = allSellersData?.content ?? [];
   const listedSellers = data?.content ?? [];
   const activeMediationsSource = activeMediationsData?.content ?? [];
+  const receivedSellerReports = (reportsData?.content ?? []).filter((report) => report.reportadoType === 'VENDEDOR');
   const [manualStatusOverrides] = useManualMediationStatusOverrides();
   const [adminMode] = useManualMediationAdminMode();
   const effectiveManualStatusOverrides = adminMode ? manualStatusOverrides : {};
@@ -421,7 +429,6 @@ export default function SellersPage() {
   }, [listedSellers, rescuedSellers]);
 
   const activeMediationsCount = impactMediations.length;
-  const escalatedMediationsCount = risks.length;
 
   const visibleSellers = useMemo(() => {
     let sellers = sellerPool.filter((seller) => isSellerVisibleInList(seller));
@@ -471,7 +478,9 @@ export default function SellersPage() {
   const sellerMetricCounts = {
     active: allSellers.filter((seller) => seller.status === SellerStatus.APROBADO).length,
     activeMediations: activeMediationsCount,
-    escalatedMediations: escalatedMediationsCount,
+    receivedReports: allSellers
+      .filter((seller) => seller.status === SellerStatus.APROBADO)
+      .reduce((total, seller) => total + seller.pendingReceipts, 0),
   };
 
   const sellerDetailView = useMemo<SellerDetailResponse | null>(() => {
@@ -509,28 +518,45 @@ export default function SellersPage() {
 
   const handleOpenSellerDocuments = (sellerId: number) => {
     setSelectedSellerId(sellerId);
-    setSellerInfoOpen(false);
     setSellerMediationsOpen(false);
     setDocModalOpen(true);
   };
 
   const handleOpenSellerMediations = (sellerId: number) => {
     setSelectedSellerId(sellerId);
-    setSellerInfoOpen(false);
     setDocModalOpen(false);
     setSellerMediationsOpen(true);
   };
 
   const handleCloseSellerDocuments = () => {
     setDocModalOpen(false);
-    setSelectedSellerId(null);
-    setInfoSeller(null);
+    if (!sellerInfoOpen) {
+      setSelectedSellerId(null);
+      setInfoSeller(null);
+    }
   };
 
   const handleCloseSellerMediations = () => {
     setSellerMediationsOpen(false);
-    setSelectedSellerId(null);
-    setInfoSeller(null);
+    if (!sellerInfoOpen) {
+      setSelectedSellerId(null);
+      setInfoSeller(null);
+    }
+  };
+
+  const handleOpenSellerReports = (sellerId: number) => {
+    const seller = findSellerById(sellerId);
+    setSelectedSellerId(sellerId);
+    setInfoSeller(seller ?? null);
+    setSellerReportsOpen(true);
+  };
+
+  const handleCloseSellerReports = () => {
+    setSellerReportsOpen(false);
+    if (!sellerInfoOpen) {
+      setSelectedSellerId(null);
+      setInfoSeller(null);
+    }
   };
 
   const handleShowBlockHistory = (sellerId: number) => {
@@ -572,9 +598,11 @@ export default function SellersPage() {
     enabled: sellerBlockHistoryOpen && !!selectedSellerId,
   });
 
-  const handleStartMediation = (mediationId: number) => {
-    navigate(`/confianza/mediations?action=init&mediationId=${mediationId}`);
-  };
+  const { data: sellerReports = [], isLoading: isSellerReportsLoading } = useQuery({
+    queryKey: ['seller-reports', selectedSellerId],
+    queryFn: () => sellersApi.getSellerReports(selectedSellerId!),
+    enabled: sellerReportsOpen && !!selectedSellerId,
+  });
 
   const handleReviewMediation = (mediationId: number) => {
     navigate(`/confianza/mediations?action=review&mediationId=${mediationId}`);
@@ -591,7 +619,7 @@ export default function SellersPage() {
       <SellerMetricGrid
         activeSellers={sellerMetricCounts.active}
         activeMediations={sellerMetricCounts.activeMediations}
-        escalatedMediations={sellerMetricCounts.escalatedMediations}
+        receivedReports={sellerMetricCounts.receivedReports}
       />
 
       <Notice>
@@ -627,11 +655,11 @@ export default function SellersPage() {
                 onViewDocs={handleViewDocs}
                 expandedId={expandedId}
                 onToggleExpand={handleToggleExpand}
-                risks={risksBySeller}
                 mediations={mediationsBySeller}
                 blockedMediations={blockedMediationsBySeller}
                 onReviewMediation={handleReviewMediation}
                 onOpenMediation={handleOpenSellerMediations}
+                onOpenReports={handleOpenSellerReports}
                 onShowBlockHistory={handleShowBlockHistory}
                 selectedSellerId={selectedSellerId}
               />
@@ -676,11 +704,7 @@ export default function SellersPage() {
         </article>
 
         <div className="bottom-grid">
-          <RisksPanel
-            risks={risks}
-            onOpenSeller={handleSellerSelect}
-            onOpenCase={(caseId) => handleStartMediation(Number(caseId))}
-          />
+          <ReportsPanel reports={receivedSellerReports} />
           <ImpactMediationsPanel
             mediations={impactMediations}
             onOpenSeller={handleSellerSelect}
@@ -692,13 +716,6 @@ export default function SellersPage() {
           />
         </div>
       </section>
-
-      <SellerDocumentsModal
-        isOpen={docModalOpen}
-        onClose={handleCloseSellerDocuments}
-        seller={sellerDetailView || infoSeller}
-        documents={sellerDocumentList}
-      />
 
       <SellerProfileModal
         isOpen={sellerInfoOpen}
@@ -713,10 +730,25 @@ export default function SellersPage() {
         onSuspend={handleBlockAccount}
       />
 
+      <SellerDocumentsModal
+        isOpen={docModalOpen}
+        onClose={handleCloseSellerDocuments}
+        seller={sellerDetailView || infoSeller}
+        documents={sellerDocumentList}
+      />
+
       <SellerActiveMediationsModal
         isOpen={sellerMediationsOpen}
         onClose={handleCloseSellerMediations}
         seller={sellerDetailView || null}
+      />
+
+      <SellerReportsModal
+        isOpen={sellerReportsOpen}
+        onClose={handleCloseSellerReports}
+        seller={sellerDetailView || null}
+        reports={sellerReports}
+        isLoading={isSellerReportsLoading}
       />
 
       <SellerBlockHistoryModal

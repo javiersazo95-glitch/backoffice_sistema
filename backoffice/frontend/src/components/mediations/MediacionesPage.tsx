@@ -20,7 +20,7 @@ import MediationResolvedTable from './MediationResolvedTable';
 import BlockedAccountsTable from './BlockedAccountsTable';
 import MediationFilterBar from './MediationFilterBar';
 import FilterContext from './FilterContext';
-import MediationDetailPanel from './MediationDetailPanel';
+import MediationDetailPanel, { ResolvedMediationDetailPanel } from './MediationDetailPanel';
 import MediationDetail, { type MediationResolvePayload } from './MediationDetail';
 import SellerDocumentsModal from '@/components/sellers/SellerDocumentsModal';
 import SellerProfileModal from '@/components/sellers/SellerProfileModal';
@@ -186,7 +186,10 @@ export default function MediacionesPage() {
   const [endDate, setEndDate] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [blockedFilter, setBlockedFilter] = useState<boolean | undefined>(undefined);
+  const [activeTab, setActiveTab] = useState<'mediations' | 'resolved' | 'blocked'>('mediations');
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [selectedResolvedCase, setSelectedResolvedCase] = useState<ResolvedCaseResponse | null>(null);
+  const [selectedBlockedAccount, setSelectedBlockedAccount] = useState<MediationResponse | null>(null);
   const [pageSize, setPageSize] = useState<number>(PAGE_SIZES.MEDIATIONS);
 
   const [initModalOpen, setInitModalOpen] = useState(false);
@@ -273,8 +276,22 @@ export default function MediacionesPage() {
       active: activeMediationsData?.totalElements ?? 0,
       waiting: waitingData?.totalElements ?? 0,
       resolved: resolvedCases?.totalElements ?? resolvedCases?.content?.length ?? 0,
+      blocked: blockedAccounts?.totalElements ?? blockedAccounts?.content?.length ?? 0,
     }),
-    [activeMediationsData?.totalElements, resolvedCases?.content?.length, resolvedCases?.totalElements, waitingData?.totalElements],
+    [
+      activeMediationsData?.totalElements,
+      blockedAccounts?.content?.length,
+      blockedAccounts?.totalElements,
+      resolvedCases?.content?.length,
+      resolvedCases?.totalElements,
+      waitingData?.totalElements,
+    ],
+  );
+
+  const hasSelectedDetail = (
+    (activeTab === 'mediations' && !!selectedMediation)
+    || (activeTab === 'blocked' && !!selectedBlockedAccount)
+    || (activeTab === 'resolved' && !!selectedResolvedCase)
   );
 
   useEffect(() => {
@@ -361,6 +378,13 @@ export default function MediacionesPage() {
   const handlePageSizeChange = (size: number) => {
     setPageSize(size);
     setFilter((f) => ({ ...f, size, page: 0 }));
+  };
+
+  const handleTabChange = (tab: 'mediations' | 'resolved' | 'blocked') => {
+    setActiveTab(tab);
+    setSelectedId(null);
+    setSelectedResolvedCase(null);
+    setSelectedBlockedAccount(null);
   };
 
   const handleInitMediation = (id: number, message: string) => {
@@ -506,28 +530,48 @@ export default function MediacionesPage() {
               iconName="check"
               description="Mediaciones cerradas con respaldo registrado."
             />
+            <MetricCard
+              label="Cuentas bloqueadas"
+              value={statusMetrics.blocked}
+              tone="red"
+              iconName="lock"
+              description="Cuentas con bloqueo activo pendientes de revisión."
+            />
           </section>
 
-          <section className="module-layout mediation-layout">
+          <section className={`module-layout mediation-layout ${hasSelectedDetail ? '' : 'mediation-layout--full'}`}>
             <article className="panel mediation-table-panel">
-              <MediationFilterBar
-                search={search}
-                startDate={startDate}
-                endDate={endDate}
-                status={statusFilter}
-                blocked={blockedFilter}
-                onSearchChange={handleSearchChange}
-                onStartDateChange={handleStartDateChange}
-                onEndDateChange={handleEndDateChange}
-                onFilterChange={handleFilterChange}
-              />
+              <nav className="module-tabs mediation-tabs" role="tablist" aria-label="Vistas de mediaciones">
+                <button type="button" role="tab" aria-selected={activeTab === 'mediations'} className={activeTab === 'mediations' ? 'active' : ''} onClick={() => handleTabChange('mediations')}>
+                  Mediaciones ({statusMetrics.active})
+                </button>
+                <button type="button" role="tab" aria-selected={activeTab === 'resolved'} className={activeTab === 'resolved' ? 'active' : ''} onClick={() => handleTabChange('resolved')}>
+                  Casos resueltos ({statusMetrics.resolved})
+                </button>
+                <button type="button" role="tab" aria-selected={activeTab === 'blocked'} className={activeTab === 'blocked' ? 'active' : ''} onClick={() => handleTabChange('blocked')}>
+                  Bloqueos ({statusMetrics.blocked})
+                </button>
+              </nav>
 
-              <FilterContext status={statusFilter} />
-
-              {isLoading ? (
-                <div className="panel-body">Cargando mediaciones...</div>
-              ) : (
+              {activeTab === 'mediations' && (
                 <>
+                  <MediationFilterBar
+                    search={search}
+                    startDate={startDate}
+                    endDate={endDate}
+                    status={statusFilter}
+                    blocked={blockedFilter}
+                    onSearchChange={handleSearchChange}
+                    onStartDateChange={handleStartDateChange}
+                    onEndDateChange={handleEndDateChange}
+                    onFilterChange={handleFilterChange}
+                  />
+
+                  <FilterContext status={statusFilter} />
+
+                  {isLoading ? (
+                    <div className="panel-body">Cargando mediaciones...</div>
+                  ) : (
                   <section className="mediation-data-section active-mediations-section">
                     <div className="panel-header active-mediations-header">
                       <div>
@@ -555,27 +599,36 @@ export default function MediacionesPage() {
                       onPageSizeChange={handlePageSizeChange}
                     />
                   </section>
+                  )}
+                </>
+              )}
 
+              {activeTab === 'blocked' && (
                   <BlockedAccountsTable
                     accounts={blockedAccounts?.content ?? []}
                     totalItems={blockedAccounts?.totalElements ?? 0}
                     isLoading={isLoadingBlockedAccounts}
+                    selectedId={selectedBlockedAccount?.id}
+                    onSelect={setSelectedBlockedAccount}
                     onOpenSellerInfo={handleOpenSellerInfo}
                     onOpenHistory={(id) => { setBlockedHistoryId(id); setBlockedHistoryOpen(true); }}
                     onOpenAppeal={(id) => { setAppealMediationId(id); setAppealModalOpen(true); }}
                   />
+              )}
 
+              {activeTab === 'resolved' && (
                   <MediationResolvedTable
                     cases={resolvedCases?.content ?? []}
                     totalItems={resolvedCases?.totalElements ?? 0}
                     isLoading={isLoadingResolvedCases}
+                    selectedId={selectedResolvedCase?.id}
+                    onSelect={setSelectedResolvedCase}
                     onOpenTimeline={(item) => { setSelectedTimelineCase(item); setResolvedTimelineOpen(true); }}
                   />
-                </>
               )}
             </article>
 
-        {selectedMediation && (
+        {activeTab === 'mediations' && selectedMediation && (
           <MediationDetailPanel
             item={selectedMediation}
             onOpenReactivation={(id) => { setSelectedId(id); setReactivateModalOpen(true); }}
@@ -584,6 +637,25 @@ export default function MediacionesPage() {
             onOpenNote={(id) => { setSelectedId(id); setEditingNote(null); setNoteModalOpen(true); }}
             onOpenNotesHistory={(id) => { setSelectedId(id); setNotesHistoryModalOpen(true); }}
             onBlockAccount={handleBlockAccount}
+            onOpenSellerInfo={handleOpenSellerInfo}
+          />
+        )}
+        {activeTab === 'blocked' && selectedBlockedAccount && (
+          <MediationDetailPanel
+            item={selectedBlockedAccount}
+            onOpenReactivation={(id) => { setSelectedId(id); setReactivateModalOpen(true); }}
+            onOpenMediationCase={(id) => { setSelectedId(id); setReviewModalOpen(true); }}
+            onOpenInitMediation={(id) => { setSelectedId(id); setInitModalOpen(true); }}
+            onOpenNote={(id) => { setSelectedId(id); setEditingNote(null); setNoteModalOpen(true); }}
+            onOpenNotesHistory={(id) => { setSelectedId(id); setNotesHistoryModalOpen(true); }}
+            onBlockAccount={handleBlockAccount}
+            onOpenSellerInfo={handleOpenSellerInfo}
+          />
+        )}
+        {activeTab === 'resolved' && selectedResolvedCase && (
+          <ResolvedMediationDetailPanel
+            item={selectedResolvedCase}
+            onOpenTimeline={(item) => { setSelectedTimelineCase(item); setResolvedTimelineOpen(true); }}
             onOpenSellerInfo={handleOpenSellerInfo}
           />
         )}

@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { MediationResponse, MediationStatus } from '@/types/mediation';
+import { MediationResponse, MediationStatus, ResolvedCaseResponse } from '@/types/mediation';
 import Badge from '@/components/shared/Badge';
 import DetailRow from '@/components/shared/DetailRow';
 import ActionRow from '@/components/shared/ActionRow';
@@ -7,6 +7,7 @@ import QuickActions from '@/components/shared/QuickActions';
 import UiIcon from '@/components/shared/UiIcon';
 import FounderSellerName from '@/components/shared/FounderSellerName';
 import { mediationStatusDisplay } from '@/utils/formatters';
+import { formatDateTime } from '@/utils/formatters';
 
 interface MediationDetailPanelProps {
   item: MediationResponse;
@@ -128,6 +129,42 @@ export default function MediationDetailPanel({
         <ActionRow icon="users" onClick={() => onOpenSellerInfo(item.sellerId)}>
           Ver tienda
         </ActionRow>
+      </QuickActions>
+    </aside>
+  );
+}
+
+export function ResolvedMediationDetailPanel({
+  item,
+  onOpenTimeline,
+  onOpenSellerInfo,
+}: {
+  item: ResolvedCaseResponse;
+  onOpenTimeline: (item: ResolvedCaseResponse) => void;
+  onOpenSellerInfo: (sellerId: number) => void;
+}) {
+  return (
+    <aside className="side-panel">
+      <div className="side-panel-head">
+        <div>
+          <strong className="blue-link">{item.externalId}</strong>
+          <p className="row-sub">{item.reason}</p>
+        </div>
+        <Badge text="Resuelta" variant="green" />
+      </div>
+      <div className="side-section">
+        <DetailRow label="Tienda" value={<FounderSellerName name={item.sellerName} founder={item.sellerFounder} />} />
+        <DetailRow label="Comprador" value={item.buyer || 'No informado'} />
+        <DetailRow label="Pedido" value={item.orderId} />
+        <DetailRow label="Motivo" value={item.reason} />
+        <DetailRow label="Resolución" value={item.resolutionReason || 'Sin resumen registrado'} />
+        <DetailRow label="Resuelto por" value={item.resolvedBy || 'Mediador'} />
+        <DetailRow label="Fecha de resolución" value={formatDateTime(item.createdAt)} />
+        <DetailRow label="Monto" value={item.amount} />
+      </div>
+      <QuickActions>
+        <ActionRow icon="clock" onClick={() => onOpenTimeline(item)}>Ver historial del caso</ActionRow>
+        <ActionRow icon="users" onClick={() => onOpenSellerInfo(item.sellerId)}>Ver tienda</ActionRow>
       </QuickActions>
     </aside>
   );
