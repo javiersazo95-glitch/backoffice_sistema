@@ -234,7 +234,7 @@ export default function SellersPage() {
 
   const { data: activeMediationsData } = useQuery({
     queryKey: ['mediations', 'active-all'],
-    queryFn: () => mediationsApi.getMediations({ activeOnly: true, page: 0, size: PAGE_SIZES.MAX }),
+    queryFn: () => mediationsApi.getMediations({ activeOnly: true, blocked: false, page: 0, size: PAGE_SIZES.MAX }),
   });
 
   const { data: resolvedCasesData } = useQuery({

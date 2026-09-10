@@ -38,6 +38,12 @@ export interface MediationResponse {
   porcentajeReembolso?: number | null;
   montoReembolso?: number | null;
   estadoReembolso?: string | null;
+  suspensionTarget?: 'COMPRADOR' | 'VENDEDOR' | null;
+  suspensionDuracion?: string | null;
+  suspensionFechaFin?: string | null;
+  suspensionPuedeApelar?: boolean | null;
+  suspensionMotivo?: string | null;
+  suspensionDetalle?: string | null;
 }
 
 export interface MediationDetailResponse extends MediationResponse {
@@ -176,3 +182,19 @@ export interface MediationFilterRequest {
   page?: number;
   size?: number;
 }
+
+export type SuspensionDuration =
+  | '3_DIAS'
+  | '7_DIAS'
+  | '15_DIAS'
+  | '1_MES'
+  | '3_MESES'
+  | 'INDEFINIDO';
+
+export interface MediationSuspendPayload {
+  targetRole: 'COMPRADOR' | 'VENDEDOR';
+  duration: SuspensionDuration;
+  reason: string;
+  details?: string;
+}
+

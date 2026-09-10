@@ -8,7 +8,6 @@ import Badge from '@/components/shared/Badge';
 import AreaHomeShortcut from '@/components/shared/AreaHomeShortcut';
 import UiIcon from '@/components/shared/UiIcon';
 import FounderSellerName from '@/components/shared/FounderSellerName';
-import { MediationStatus } from '@/types/mediation';
 import { formatCurrency, formatDate, formatDateTime, mediationStatusDisplay, trustLevelToSpanish } from '@/utils/formatters';
 import type { MediationResponse } from '@/types/mediation';
 import type { ReportResponse } from '@/types/report';
@@ -70,7 +69,7 @@ export default function DashboardPage() {
   // Minimal queries just for hero KPI totals
   const { data: mediationsTotalData } = useQuery({
     queryKey: ['dashboard-mediations-total'],
-    queryFn: () => mediationsApi.getMediations({ status: MediationStatus.EN_MEDIACION, page: 0, size: 1 }),
+    queryFn: () => mediationsApi.getMediations({ activeOnly: true, blocked: false, page: 0, size: 1 }),
   });
   const { data: reportsTotalData } = useQuery({
     queryKey: ['dashboard-reports-total'],
@@ -197,12 +196,12 @@ function MediationsPanel({ expanded, onToggle }: { expanded: boolean; onToggle: 
 
   const { data: totalData } = useQuery({
     queryKey: ['dashboard-mediations-panel-total'],
-    queryFn: () => mediationsApi.getMediations({ status: MediationStatus.EN_MEDIACION, page: 0, size: 1 }),
+    queryFn: () => mediationsApi.getMediations({ activeOnly: true, blocked: false, page: 0, size: 1 }),
   });
 
   const { data, isLoading } = useQuery({
     queryKey: ['dashboard-mediations-panel', page],
-    queryFn: () => mediationsApi.getMediations({ status: MediationStatus.EN_MEDIACION, page, size: PAGE_SIZE }),
+    queryFn: () => mediationsApi.getMediations({ activeOnly: true, blocked: false, page, size: PAGE_SIZE }),
     enabled: expanded,
   });
 
@@ -253,12 +252,12 @@ function EscalationsPanel({ expanded, onToggle }: { expanded: boolean; onToggle:
 
   const { data: totalData } = useQuery({
     queryKey: ['dashboard-escalations-panel-total'],
-    queryFn: () => mediationsApi.getMediations({ status: MediationStatus.EN_MEDIACION, page: 0, size: 1 }),
+    queryFn: () => mediationsApi.getMediations({ activeOnly: true, blocked: false, page: 0, size: 1 }),
   });
 
   const { data, isLoading } = useQuery({
     queryKey: ['dashboard-escalations-panel', page],
-    queryFn: () => mediationsApi.getMediations({ status: MediationStatus.EN_MEDIACION, page, size: PAGE_SIZE }),
+    queryFn: () => mediationsApi.getMediations({ activeOnly: true, blocked: false, page, size: PAGE_SIZE }),
     enabled: expanded,
   });
 

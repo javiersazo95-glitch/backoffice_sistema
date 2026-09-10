@@ -6,6 +6,7 @@ import type {
   InitMediationRequest,
   MediationMessageRequest,
   ResolveCaseRequest,
+  MediationSuspendPayload,
 } from '@/types/mediation';
 
 export function useMediations(filter?: MediationFilterRequest) {
@@ -31,14 +32,25 @@ export function useMediationMessages(mediationId: number, page = 0, size = 4) {
   });
 }
 
+function invalidateMediationQueries(queryClient: ReturnType<typeof useQueryClient>) {
+  queryClient.invalidateQueries({ queryKey: ['mediations'] });
+  queryClient.invalidateQueries({ queryKey: ['mediations-count'] });
+  queryClient.invalidateQueries({ queryKey: ['resolved-cases'] });
+  queryClient.invalidateQueries({ queryKey: ['dashboard-mediations-total'] });
+  queryClient.invalidateQueries({ queryKey: ['dashboard-mediations-panel'] });
+  queryClient.invalidateQueries({ queryKey: ['dashboard-mediations-panel-total'] });
+  queryClient.invalidateQueries({ queryKey: ['dashboard-escalations-panel'] });
+  queryClient.invalidateQueries({ queryKey: ['dashboard-escalations-panel-total'] });
+  queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
+}
+
 export function useCreateMediation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: InitMediationRequest) => mediationsApi.createMediation(data),
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['mediations'] });
+      invalidateMediationQueries(queryClient);
       queryClient.invalidateQueries({ queryKey: ['seller', data.sellerId] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
     },
   });
 }
@@ -49,10 +61,9 @@ export function useInitMediation() {
     mutationFn: ({ id, data }: { id: number; data: InitMediationRequest }) =>
       mediationsApi.initMediation(id, data),
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['mediations'] });
+      invalidateMediationQueries(queryClient);
       queryClient.invalidateQueries({ queryKey: ['mediation', variables.id] });
       queryClient.invalidateQueries({ queryKey: ['seller', variables.data.sellerId] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
     },
   });
 }
@@ -60,14 +71,18 @@ export function useInitMediation() {
 export function useBlockAccount() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: number) => mediationsApi.blockAccount(id),
-    onSuccess: (data, id) => {
-      queryClient.invalidateQueries({ queryKey: ['mediations'] });
+    mutationFn: (variables: number | { id: number; data?: MediationSuspendPayload }) => {
+      const id = typeof variables === 'number' ? variables : variables.id;
+      const data = typeof variables === 'number' ? undefined : variables.data;
+      return mediationsApi.blockAccount(id, data);
+    },
+    onSuccess: (data, variables) => {
+      const id = typeof variables === 'number' ? variables : variables.id;
+      invalidateMediationQueries(queryClient);
       queryClient.invalidateQueries({ queryKey: ['mediation', id] });
       queryClient.invalidateQueries({ queryKey: ['seller', data.sellerId] });
       queryClient.invalidateQueries({ queryKey: ['audits'] });
       queryClient.invalidateQueries({ queryKey: ['seller-block-history', data.sellerId] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
     },
   });
 }
@@ -78,14 +93,13 @@ export function useResolveCase() {
     mutationFn: ({ id, data }: { id: number; data: ResolveCaseRequest }) =>
       mediationsApi.resolveCase(id, data),
     onSuccess: (data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['mediations'] });
+      invalidateMediationQueries(queryClient);
       queryClient.invalidateQueries({ queryKey: ['mediation', variables.id] });
       queryClient.invalidateQueries({ queryKey: ['seller', data.sellerId] });
       queryClient.invalidateQueries({ queryKey: ['audits'] });
       queryClient.invalidateQueries({ queryKey: ['administration-bootstrap'] });
       queryClient.invalidateQueries({ queryKey: ['seller-reports', data.sellerId] });
       queryClient.invalidateQueries({ queryKey: ['seller-block-history', data.sellerId] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
     },
   });
 }
@@ -96,14 +110,13 @@ export function useReactivateAccount() {
     mutationFn: ({ id, data, document }: { id: number; data: ResolveCaseRequest; document: File }) =>
       mediationsApi.reactivateAccount(id, data, document),
     onSuccess: (data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['mediations'] });
+      invalidateMediationQueries(queryClient);
       queryClient.invalidateQueries({ queryKey: ['mediation', variables.id] });
       queryClient.invalidateQueries({ queryKey: ['sellers'] });
       queryClient.invalidateQueries({ queryKey: ['seller', data.sellerId] });
       queryClient.invalidateQueries({ queryKey: ['audits'] });
       queryClient.invalidateQueries({ queryKey: ['seller-reports', data.sellerId] });
       queryClient.invalidateQueries({ queryKey: ['seller-block-history', data.sellerId] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
     },
   });
 }

@@ -1,6 +1,14 @@
 import { useEffect, useState, useMemo, type ChangeEvent, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { MediationResponse, MediationStatus, type MediationDetailResponse, type MediationEvidenceResponse, type MediationMessageResponse } from '@/types/mediation';
+import {
+  MediationResponse,
+  MediationStatus,
+  type MediationDetailResponse,
+  type MediationEvidenceResponse,
+  type MediationMessageResponse,
+  type MediationSuspendPayload,
+  type SuspensionDuration,
+} from '@/types/mediation';
 import Badge from '@/components/shared/Badge';
 import UiIcon from '@/components/shared/UiIcon';
 import FounderSellerName from '@/components/shared/FounderSellerName';
@@ -25,9 +33,111 @@ interface MediationDetailProps {
   item: MediationModalItem | null;
   onClose: () => void;
   onResolve: (id: number, payload: MediationResolvePayload) => void;
-  onBlockAccount: (id: number) => void;
+  onBlockAccount: (id: number, payload?: MediationSuspendPayload) => void;
   onSendMessage: (mediationId: number, text: string, targetRole: string) => void;
 }
+
+export const SUSPENSION_DURATIONS: Array<{ key: SuspensionDuration; label: string; days?: number; months?: number; canAppeal: boolean }> = [
+  { key: '3_DIAS', label: '3 días', days: 3, canAppeal: false },
+  { key: '7_DIAS', label: '7 días', days: 7, canAppeal: false },
+  { key: '15_DIAS', label: '15 días', days: 15, canAppeal: false },
+  { key: '1_MES', label: '1 mes', months: 1, canAppeal: false },
+  { key: '3_MESES', label: '3 meses', months: 3, canAppeal: false },
+  { key: 'INDEFINIDO', label: 'Indefinido con derecho a apelación', canAppeal: true },
+];
+
+export function formatUnlockDate(duration: SuspensionDuration): string {
+  const date = new Date();
+  if (duration === '3_DIAS') date.setDate(date.getDate() + 3);
+  else if (duration === '7_DIAS') date.setDate(date.getDate() + 7);
+  else if (duration === '15_DIAS') date.setDate(date.getDate() + 15);
+  else if (duration === '1_MES') date.setMonth(date.getMonth() + 1);
+  else if (duration === '3_MESES') date.setMonth(date.getMonth() + 3);
+  else return 'Indefinido (hasta que se resuelva una apelación formal)';
+  return date.toLocaleDateString('es-CL', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+}
+
+export interface SuspensionReasonOption {
+  key: string;
+  label: string;
+  defaultText: string;
+}
+
+export const COMMON_SUSPENSION_REASONS_SELLER: SuspensionReasonOption[] = [
+  {
+    key: 'repuesto_incompatible_defectuoso',
+    label: '1. Repuesto incompatible o con fallas técnicas',
+    defaultText: 'Entrega reiterada de repuestos incompatibles, defectuosos o sin correspondencia con las especificaciones publicadas en el catálogo.',
+  },
+  {
+    key: 'incumplimiento_despacho',
+    label: '2. Incumplimiento reiterado de plazos de despacho',
+    defaultText: 'Demora excesiva y no justificada en la preparación y entrega del pedido al transporte comprometido.',
+  },
+  {
+    key: 'falta_respuesta_mediacion',
+    label: '3. Falta de respuesta y colaboración en la mediación',
+    defaultText: 'Falta reiterada de respuesta a los requerimientos del mediador y desatención al comprador durante el proceso de mediación.',
+  },
+  {
+    key: 'negativa_garantia_devolucion',
+    label: '4. Negativa injustificada a cumplir garantía o devolución',
+    defaultText: 'Rechazo injustificado a aceptar la devolución del repuesto o hacer efectiva la garantía legal conforme a la Ley N° 19.496.',
+  },
+  {
+    key: 'conducta_inapropiada',
+    label: '5. Conducta inadecuada o trato irrespetuoso',
+    defaultText: 'Uso de lenguaje inapropiado, ofensivo o conductas contrarias a las políticas de convivencia y términos de servicio de la plataforma.',
+  },
+  {
+    key: 'publicacion_enganosa',
+    label: '6. Publicación engañosa o información inexacta de stock',
+    defaultText: 'Publicación reiterada de piezas sin disponibilidad efectiva, alteración de precios o información confusa sobre el estado real del producto.',
+  },
+  {
+    key: 'otro',
+    label: '7. Otro motivo (especificar motivo personalizado)',
+    defaultText: '',
+  },
+];
+
+export const COMMON_SUSPENSION_REASONS_BUYER: SuspensionReasonOption[] = [
+  {
+    key: 'falta_respuesta_mediacion',
+    label: '1. Falta de respuesta y colaboración en la mediación',
+    defaultText: 'Falta reiterada de respuesta y desatención a las solicitudes y requerimientos formulados por el mediador durante el caso.',
+  },
+  {
+    key: 'reclamo_fraudulento',
+    label: '2. Reclamo infundado o manipulación de antecedentes',
+    defaultText: 'Presentación de reclamos falsos, manipulación indebida de evidencias o intento ilegítimo de retención de fondos o reembolsos.',
+  },
+  {
+    key: 'devolucion_danada_incompleta',
+    label: '3. Devolución de repuesto dañado, incompleto o adulterado',
+    defaultText: 'Devolución de la pieza en condiciones diferentes a las recibidas, con signos de manipulación forzada, daño imputable o faltantes.',
+  },
+  {
+    key: 'conducta_inapropiada',
+    label: '4. Conducta inadecuada o trato irrespetuoso',
+    defaultText: 'Uso de lenguaje ofensivo, hostigamiento o trato inadecuado hacia la tienda vendedora o el equipo de soporte de la plataforma.',
+  },
+  {
+    key: 'rechazo_injustificado_entrega',
+    label: '5. Rechazo reiterado e injustificado de recepciones',
+    defaultText: 'Rechazo sistemático y no justificado a recibir entregas válidamente coordinadas con el transporte.',
+  },
+  {
+    key: 'uso_abusivo_garantias',
+    label: '6. Uso abusivo de aperturas de disputa o garantías',
+    defaultText: 'Reiteración indebida de reclamos sobre compras recibidas conforme, afectando la operativa de la plataforma.',
+  },
+  {
+    key: 'otro',
+    label: '7. Otro motivo (especificar motivo personalizado)',
+    defaultText: '',
+  },
+];
 
 export interface MediationResolvePayload {
   favor: MediationFavor;
@@ -404,6 +514,10 @@ export default function MediationDetail({
   const [favor, setFavor] = useState<MediationFavor | ''>('');
   const [resolutionOption, setResolutionOption] = useState('');
   const [refundPercentage, setRefundPercentage] = useState('');
+  const [suspensionTarget, setSuspensionTarget] = useState<'COMPRADOR' | 'VENDEDOR' | ''>('');
+  const [suspensionDuration, setSuspensionDuration] = useState<SuspensionDuration | ''>('');
+  const [suspensionReasonKey, setSuspensionReasonKey] = useState<string>('');
+  const [suspensionReason, setSuspensionReason] = useState('');
 
   useEffect(() => {
     if (!isOpen) return;
@@ -412,6 +526,10 @@ export default function MediationDetail({
     setFavor('');
     setResolutionOption('');
     setRefundPercentage('');
+    setSuspensionTarget('');
+    setSuspensionDuration('');
+    setSuspensionReasonKey('');
+    setSuspensionReason('');
   }, [isOpen, item?.id]);
 
   const { data: allReportsData } = useQuery({
@@ -484,6 +602,53 @@ export default function MediationDetail({
       favor,
       resolutionOption: selectedOption.key,
       refundPercentage: selectedOption.requiresPercentage ? parsedPercentage : undefined,
+    });
+  };
+
+  const handleTargetChange = (nextTarget: 'COMPRADOR' | 'VENDEDOR') => {
+    setSuspensionTarget(nextTarget);
+    setSuspensionReasonKey('');
+    setSuspensionReason('');
+  };
+
+  const handleReasonKeyChange = (key: string) => {
+    setSuspensionReasonKey(key);
+    if (!key) {
+      setSuspensionReason('');
+      return;
+    }
+    if (key === 'otro') {
+      setSuspensionReason('');
+    } else {
+      const list =
+        suspensionTarget === 'COMPRADOR'
+          ? COMMON_SUSPENSION_REASONS_BUYER
+          : COMMON_SUSPENSION_REASONS_SELLER;
+      const found = list.find((item) => item.key === key);
+      if (found) {
+        setSuspensionReason(found.defaultText);
+      }
+    }
+  };
+
+  const selectedDuration = SUSPENSION_DURATIONS.find((d) => d.key === suspensionDuration);
+  const isSellerDisabled = suspensionTarget === 'VENDEDOR' && !canBlockSeller;
+  const suspendReady = Boolean(
+    decision === 'block' &&
+    suspensionTarget &&
+    suspensionDuration &&
+    suspensionReasonKey &&
+    suspensionReason.trim().length >= 5 &&
+    !isSellerDisabled
+  );
+
+  const handleSuspend = () => {
+    if (!suspendReady || !item || !suspensionTarget || !suspensionDuration) return;
+    onBlockAccount(item.id, {
+      targetRole: suspensionTarget,
+      duration: suspensionDuration,
+      reason: suspensionReason.trim(),
+      details: suspensionReason.trim(),
     });
   };
 
@@ -640,34 +805,18 @@ export default function MediationDetail({
                 <button
                   className={`mediation-choice danger ${decision === 'block' ? 'selected' : ''}`}
                   type="button"
-                  onClick={() => {
-                    if (canBlockSeller) setDecision('block');
-                  }}
-                  disabled={!canBlockSeller}
+                  onClick={() => setDecision('block')}
                 >
                   <span className="mediation-choice-radio" />
                   <div>
-                    <strong>Bloquear cuenta de la tienda</strong>
-                    <p>
-                      {canBlockSeller
-                        ? 'Suspende la cuenta de la tienda.'
-                        : `No disponible: la cuenta ya fue bloqueada por ${blockingCode}.`}
-                    </p>
+                    <strong>Suspender cuenta</strong>
+                    <p>Aplica una sanción temporal o indefinida a una de las partes.</p>
                   </div>
                   <span className="mediation-choice-action danger">
                     <UiIcon name="shieldX" />
                   </span>
                 </button>
               </div>
-
-              {!canBlockSeller && blockingCode ? (
-                <div className="mediation-blocking-warning">
-                  <UiIcon name="lock" />
-                  <p>
-                    No se puede bloquear esta cuenta desde este caso porque la tienda ya fue bloqueada por la mediación <strong>{blockingCode}</strong>. Esta mediación puede continuar su curso, pero la acción de bloqueo queda inhabilitada.
-                  </p>
-                </div>
-              ) : null}
 
               {decision === 'resolve' ? (
                 <div className="mediation-verdict-block" style={{ display: 'flex', flexDirection: 'column', gap: '12px', margin: '4px 0 8px' }}>
@@ -766,12 +915,170 @@ export default function MediationDetail({
                 </div>
               ) : null}
 
+              {decision === 'block' ? (
+                <div className="mediation-verdict-block" style={{ display: 'flex', flexDirection: 'column', gap: '12px', margin: '4px 0 8px' }}>
+                  <div>
+                    <span className="mediation-init-reason-kicker">Parte sancionada con suspensión *</span>
+                    <p style={{ fontSize: '12px', color: '#64748b', margin: '2px 0 8px' }}>
+                      Selecciona a qué parte se le aplicará la suspensión de cuenta.
+                    </p>
+                    <div className="mediation-verdict-toggle" style={{ display: 'flex', gap: '8px' }}>
+                      <button
+                        type="button"
+                        className={`mediation-choice ${suspensionTarget === 'COMPRADOR' ? 'selected' : ''}`}
+                        style={{ flex: 1 }}
+                        onClick={() => handleTargetChange('COMPRADOR')}
+                      >
+                        <span className="mediation-choice-radio" />
+                        <div>
+                          <strong>Comprador</strong>
+                          <p style={{ fontSize: '11px', color: '#64748b', margin: '2px 0 0' }}>{buyerName}</p>
+                        </div>
+                      </button>
+                      <button
+                        type="button"
+                        className={`mediation-choice ${suspensionTarget === 'VENDEDOR' ? 'selected' : ''}`}
+                        style={{ flex: 1, opacity: !canBlockSeller ? 0.6 : 1 }}
+                        onClick={() => {
+                          if (canBlockSeller) handleTargetChange('VENDEDOR');
+                        }}
+                        disabled={!canBlockSeller}
+                      >
+                        <span className="mediation-choice-radio" />
+                        <div>
+                          <strong>Tienda / Vendedor</strong>
+                          <p style={{ fontSize: '11px', color: '#64748b', margin: '2px 0 0' }}>
+                            {sellerName} {!canBlockSeller && blockingCode ? `(Bloqueada por ${blockingCode})` : ''}
+                          </p>
+                        </div>
+                      </button>
+                    </div>
+                  </div>
+
+                  {!canBlockSeller && blockingCode && (
+                    <div className="mediation-blocking-warning">
+                      <UiIcon name="lock" />
+                      <p>
+                        La cuenta de la tienda ya fue bloqueada por la mediación <strong>{blockingCode}</strong>. No es posible volver a suspender la tienda desde este caso.
+                      </p>
+                    </div>
+                  )}
+
+                  {suspensionTarget ? (
+                    <>
+                      <label className="mediation-action-field">
+                        <span>Duración de la suspensión *</span>
+                        <select
+                          className="select"
+                          value={suspensionDuration}
+                          onChange={(event) => setSuspensionDuration(event.target.value as SuspensionDuration)}
+                        >
+                          <option value="">Selecciona la duración de la suspensión…</option>
+                          {SUSPENSION_DURATIONS.map((dur) => (
+                            <option key={dur.key} value={dur.key}>
+                              {dur.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+
+                      <label className="mediation-action-field">
+                        <span>Motivo de la suspensión *</span>
+                        <p style={{ fontSize: '12px', color: '#64748b', margin: '2px 0 6px' }}>
+                          Selecciona una de las 6 causas más comunes o elige &ldquo;Otro&rdquo; para redactar un motivo personalizado.
+                        </p>
+                        <select
+                          className="select"
+                          value={suspensionReasonKey}
+                          onChange={(event) => handleReasonKeyChange(event.target.value)}
+                        >
+                          <option value="">Selecciona un motivo común…</option>
+                          {(suspensionTarget === 'COMPRADOR'
+                            ? COMMON_SUSPENSION_REASONS_BUYER
+                            : COMMON_SUSPENSION_REASONS_SELLER
+                          ).map((opt) => (
+                            <option key={opt.key} value={opt.key}>
+                              {opt.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+
+                      {suspensionReasonKey ? (
+                        <label className="mediation-action-field">
+                          <span>
+                            {suspensionReasonKey === 'otro'
+                              ? 'Motivo y fundamentos de la suspensión *'
+                              : 'Detalle del motivo (editable) *'}
+                          </span>
+                          <p style={{ fontSize: '12px', color: '#64748b', margin: '2px 0 6px' }}>
+                            {suspensionReasonKey === 'otro'
+                              ? 'Escribe los antecedentes de la sanción. Este texto será notificado formalmente por correo a la parte afectada.'
+                              : 'El texto predeterminado fue cargado automáticamente. Puedes editarlo o complementar antecedentes específicos antes de suspender.'}
+                          </p>
+                          <textarea
+                            className="textarea"
+                            rows={3}
+                            placeholder={
+                              suspensionReasonKey === 'otro'
+                                ? 'Describe detalladamente el motivo de la suspensión...'
+                                : 'Detalle del motivo de la suspensión...'
+                            }
+                            value={suspensionReason}
+                            onChange={(e) => setSuspensionReason(e.target.value)}
+                          />
+                          {suspensionReason.trim().length > 0 && suspensionReason.trim().length < 5 ? (
+                            <small style={{ color: '#dc2626' }}>El motivo debe contener al menos 5 caracteres.</small>
+                          ) : null}
+                        </label>
+                      ) : null}
+
+                      {suspensionDuration ? (
+                        <div className="mediation-blocking-warning" style={{ background: '#fef2f2', borderColor: '#fecaca' }}>
+                          <UiIcon name="shieldX" />
+                          <div style={{ fontSize: '13px', lineHeight: '1.5' }}>
+                            <p style={{ margin: '0 0 4px', fontWeight: 600, color: '#991b1b' }}>
+                              Resumen de la suspensión a aplicar:
+                            </p>
+                            <ul style={{ margin: 0, paddingLeft: '18px', color: '#7f1d1d' }}>
+                              <li>
+                                <strong>Parte sancionada:</strong> {suspensionTarget === 'COMPRADOR' ? `Comprador (${buyerName})` : `Tienda (${sellerName})`}
+                              </li>
+                              <li>
+                                <strong>Plazo seleccionado:</strong> {selectedDuration?.label}
+                              </li>
+                              <li>
+                                <strong>Desbloqueo programado:</strong> {formatUnlockDate(suspensionDuration)}
+                              </li>
+                              {suspensionReason.trim() ? (
+                                <li>
+                                  <strong>Motivo a notificar:</strong> {suspensionReason.trim()}
+                                </li>
+                              ) : null}
+                              <li>
+                                <strong>Derecho a apelación:</strong>{' '}
+                                {suspensionDuration === 'INDEFINIDO'
+                                  ? 'Sí. El usuario tendrá habilitada la opción de presentar una apelación formal desde la aplicación.'
+                                  : 'No. Las suspensiones temporales no permiten apelación y se reactivan automáticamente al expirar el tiempo establecido.'}
+                              </li>
+                              <li>
+                                <strong>Notificación por correo:</strong> Se enviará un correo formal a la parte sancionada indicando el motivo, plazo y condiciones del desbloqueo.
+                              </li>
+                            </ul>
+                          </div>
+                        </div>
+                      ) : null}
+                    </>
+                  ) : null}
+                </div>
+              ) : null}
+
               <div className="mediation-actions-note">
                 <UiIcon name="info" />
                 <p>
                   {decision === 'resolve'
                     ? 'Al resolver, el fundamento legal y el mensaje cordial a ambas partes (chat, plataforma, correo y app) se generan automáticamente según la Ley N° 19.496. Si aplica reembolso, se solicita a la pasarela de pagos.'
-                    : 'La cuenta de la tienda quedará suspendida hasta que se resuelva una apelación.'}
+                    : 'Al suspender, la cuenta quedará inhabilitada temporal o indefinidamente según el plazo seleccionado y se le notificará por correo la decisión tomada por el mediador.'}
                 </p>
               </div>
             </section>
@@ -845,10 +1152,10 @@ export default function MediationDetail({
               <button
                 className="danger-button"
                 type="button"
-                onClick={() => onBlockAccount(item.id)}
-                disabled={decision !== 'block' || !canBlockSeller}
+                onClick={handleSuspend}
+                disabled={decision !== 'block' || !suspendReady}
               >
-                <UiIcon name="shieldX" /> Bloquear tienda
+                <UiIcon name="shieldX" /> Suspender cuenta
               </button>
             </div>
           </div>

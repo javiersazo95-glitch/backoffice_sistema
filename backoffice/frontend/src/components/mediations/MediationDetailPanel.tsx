@@ -33,7 +33,7 @@ export default function MediationDetailPanel({
   onOpenMediationCase,
   onOpenNote,
   onOpenNotesHistory,
-  onBlockAccount,
+  onBlockAccount: _onBlockAccount,
   onOpenSellerInfo,
 }: Omit<MediationDetailPanelProps, 'onOpenInitMediation'> & { onOpenInitMediation?: (id: number) => void }) {
   const canReview = item.status === MediationStatus.EN_MEDIACION && item.mediationStarted && !item.accountBlocked;
@@ -117,8 +117,8 @@ export default function MediationDetailPanel({
           Historial de reportes
         </ActionRow>
         {canBlock && (
-          <ActionRow icon="shieldX" variant="danger" onClick={() => onBlockAccount(item.id)}>
-            Bloquear cuenta
+          <ActionRow icon="shieldX" variant="danger" onClick={() => onOpenMediationCase(item.id)}>
+            Suspender cuenta
           </ActionRow>
         )}
         {!canBlock && canReview && blockingCode && (

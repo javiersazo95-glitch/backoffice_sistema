@@ -9,6 +9,7 @@ import type {
   MediationMessageRequest,
   ResolveCaseRequest,
   MediationFilterRequest,
+  MediationSuspendPayload,
 } from '@/types/mediation';
 
 export async function getMediations(params?: MediationFilterRequest): Promise<PageResponse<MediationResponse>> {
@@ -31,8 +32,8 @@ export async function initMediation(id: number, data: InitMediationRequest): Pro
   return response.data;
 }
 
-export async function blockAccount(id: number): Promise<MediationResponse> {
-  const response = await apiClient.patch<MediationResponse>(`/mediations/${id}/block-account`);
+export async function blockAccount(id: number, data?: MediationSuspendPayload): Promise<MediationResponse> {
+  const response = await apiClient.patch<MediationResponse>(`/mediations/${id}/block-account`, data);
   return response.data;
 }
 

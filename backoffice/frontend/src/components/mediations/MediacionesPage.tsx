@@ -9,7 +9,7 @@ import Pagination from '@/components/shared/Pagination';
 import PageHeader from '@/components/shared/PageHeader';
 import type { PageResponse } from '@/types/common';
 import { PAGE_SIZES } from '@/utils/constants';
-import { MediationStatus, type MediationResponse } from '@/types/mediation';
+import { MediationStatus, type MediationResponse, type MediationSuspendPayload } from '@/types/mediation';
 import { showToast } from '@/components/layout/Toast';
 import type { MediationFilterRequest } from '@/types/mediation';
 import type { MediationNoteType } from '@/utils/mediationNotes';
@@ -180,7 +180,7 @@ export default function MediacionesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const deepLinkHandledRef = useRef('');
-  const [filter, setFilter] = useState<MediationFilterRequest>({ activeOnly: true, page: 0, size: PAGE_SIZES.MEDIATIONS });
+  const [filter, setFilter] = useState<MediationFilterRequest>({ activeOnly: true, blocked: false, page: 0, size: PAGE_SIZES.MEDIATIONS });
   const [search, setSearch] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -211,7 +211,7 @@ export default function MediacionesPage() {
   const { data, isLoading } = useMediations(filter);
   const { data: mediationDetail } = useMediation(selectedId ?? 0);
   const { data: resolvedCases, isLoading: isLoadingResolvedCases } = useQuery({
-    queryKey: ['resolved-cases'],
+    queryKey: ['mediations', 'resolved-cases'],
     queryFn: async () => {
       const result = await mediationsApi.getMediations({ status: MediationStatus.RESUELTA, page: 0, size: 100 });
       return result as any;
@@ -230,13 +230,13 @@ export default function MediacionesPage() {
   }, [selectedSellerId, sellerDetail, sellerDocuments]);
 
   const { data: activeMediationsData } = useQuery({
-    queryKey: ['mediations-count', 'EN_MEDIACION'],
-    queryFn: () => mediationsApi.getMediations({ status: MediationStatus.EN_MEDIACION, page: 0, size: 1 }),
+    queryKey: ['mediations', 'count', 'active'],
+    queryFn: () => mediationsApi.getMediations({ activeOnly: true, blocked: false, page: 0, size: 1 }),
   });
 
   const { data: waitingData } = useQuery({
-    queryKey: ['mediations-count', 'EN_MEDIACION-waiting'],
-    queryFn: () => mediationsApi.getMediations({ status: MediationStatus.EN_MEDIACION, page: 0, size: 1 }),
+    queryKey: ['mediations', 'count', 'waiting'],
+    queryFn: () => mediationsApi.getMediations({ activeOnly: true, blocked: false, page: 0, size: 1 }),
   });
 
   const initMutation = useInitMediation();
@@ -273,7 +273,7 @@ export default function MediacionesPage() {
 
   const statusMetrics = useMemo(
     () => ({
-      active: activeMediationsData?.totalElements ?? 0,
+      active: activeMediationsData?.totalElements ?? data?.totalElements ?? mediations.length,
       waiting: waitingData?.totalElements ?? 0,
       resolved: resolvedCases?.totalElements ?? resolvedCases?.content?.length ?? 0,
       blocked: blockedAccounts?.totalElements ?? blockedAccounts?.content?.length ?? 0,
@@ -282,6 +282,8 @@ export default function MediacionesPage() {
       activeMediationsData?.totalElements,
       blockedAccounts?.content?.length,
       blockedAccounts?.totalElements,
+      data?.totalElements,
+      mediations.length,
       resolvedCases?.content?.length,
       resolvedCases?.totalElements,
       waitingData?.totalElements,
@@ -359,9 +361,15 @@ export default function MediacionesPage() {
     setStatusFilter(statusVal);
     setBlockedFilter(blockedVal);
     if (blockedVal !== undefined) {
-      setFilter((f) => ({ ...f, status: undefined, blocked: blockedVal, page: 0 }));
+      setFilter((f) => ({ ...f, status: undefined, blocked: blockedVal, activeOnly: !blockedVal, page: 0 }));
     } else {
-      setFilter((f) => ({ ...f, status: (statusVal || undefined) as MediationStatus | undefined, blocked: undefined, page: 0 }));
+      setFilter((f) => ({
+        ...f,
+        status: (statusVal || undefined) as MediationStatus | undefined,
+        blocked: false,
+        activeOnly: !statusVal || statusVal === MediationStatus.EN_MEDIACION,
+        page: 0,
+      }));
     }
   };
 
@@ -463,18 +471,26 @@ export default function MediacionesPage() {
     );
   };
 
-  const handleBlockAccount = (id: number) => {
-    if (confirm('¿Estás seguro de bloquear esta cuenta?')) {
-      blockMutation.mutate(id, {
-        onSuccess: () => {
-          setReviewModalOpen(false);
-          navigate('/confianza/mediations');
-          showToast('Cuenta bloqueada');
+  const handleBlockAccount = (id: number, payload?: MediationSuspendPayload) => {
+    const targetText = payload?.targetRole === 'COMPRADOR' ? 'la cuenta del comprador' : 'la cuenta de la tienda';
+    const confirmMsg = payload
+      ? `¿Estás seguro de suspender ${targetText}?`
+      : '¿Estás seguro de suspender esta cuenta?';
+
+    if (confirm(confirmMsg)) {
+      blockMutation.mutate(
+        { id, data: payload },
+        {
+          onSuccess: () => {
+            setReviewModalOpen(false);
+            navigate('/confianza/mediations');
+            showToast('Cuenta suspendida con éxito');
+          },
+          onError: (error: any) => {
+            showToast(error?.response?.data?.message || 'No se pudo suspender la cuenta');
+          },
         },
-        onError: (error: any) => {
-          showToast(error?.response?.data?.message || 'No se pudo bloquear la cuenta');
-        },
-      });
+      );
     }
   };
 
@@ -578,7 +594,7 @@ export default function MediacionesPage() {
                         <h2>Mediaciones activas</h2>
                         <span className="panel-hint">Casos abiertos que requieren seguimiento o gestión del equipo de mediación</span>
                       </div>
-                      <span className="panel-count active-count">{data?.totalElements ?? mediations.length}</span>
+                      <span className="panel-count active-count">{statusMetrics.active}</span>
                     </div>
 
                     <MediationTable
