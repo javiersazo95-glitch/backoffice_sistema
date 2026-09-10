@@ -674,6 +674,8 @@ export default function AdminFinancePage() {
     const filter = filters.pedidos;
     const query = normalizeText(filter.query);
     return orders.filter((order) => {
+      // Los pedidos finalizados pasan a liquidaciones: no requieren gestión ni alerta en esta vista.
+      if (order.status === 'Finalizado') return false;
       const matchesDate = isWithinRange(orderDate(order), filter.start, filter.end);
       const matchesQuery = !query || [order.id, order.buyer, order.seller, order.product].some((value) => normalizeText(value).includes(query));
       const matchesStatus = !selectedStatusFilter || order.status === selectedStatusFilter;
@@ -2437,7 +2439,8 @@ export default function AdminFinancePage() {
                       <span>{formatDateTime(order.updatedAt)}</span>
                       {(() => {
                         const criticality = getOrderCriticality(order);
-                        return <button className={`criticality-indicator ${criticality.level}`} type="button" onClick={() => setSelectedOrderCriticality(order)} title={`Criticidad: ${criticality.label}`} aria-label={`Ver criticidad del pedido ${order.id}: ${criticality.label}`}><UiIcon name={criticality.level === 'normal' ? 'check' : criticality.level === 'not-applicable' ? 'info' : 'alert'} /></button>;
+                        if (criticality.level !== 'warning' && criticality.level !== 'critical') return null;
+                        return <button className={`criticality-indicator ${criticality.level}`} type="button" onClick={() => setSelectedOrderCriticality(order)} title={`Alerta: ${criticality.label}`} aria-label={`Ver alerta del pedido ${order.id}: ${criticality.label}`}><UiIcon name="alert" /></button>;
                       })()}
                     </td>
                     <td>
