@@ -98,6 +98,16 @@ interface PaginationState {
   pageSize: number;
 }
 
+type OrderCriticalityLevel = 'normal' | 'warning' | 'critical' | 'not-applicable';
+
+interface OrderCriticality {
+  level: OrderCriticalityLevel;
+  label: string;
+  elapsedHours: number | null;
+  reason: string;
+  expectedAction: string;
+}
+
 interface LiquidationSellerGroup {
   key: string;
   seller: string;
@@ -170,6 +180,65 @@ function isIssuedDocumentComplete(document?: IssuedDocument): boolean {
     && document.ivaLiquidado?.trim()
     && document.pdfName?.trim(),
   );
+}
+
+function getOrderCriticality(order: Order): OrderCriticality {
+  const updatedAt = Date.parse(order.updatedAt);
+  if (Number.isNaN(updatedAt)) {
+    return {
+      level: 'warning',
+      label: 'Revisar fecha',
+      elapsedHours: null,
+      reason: 'El pedido no tiene una fecha de última actualización válida.',
+      expectedAction: 'Registrar o corregir la última actualización del pedido.',
+    };
+  }
+
+  const elapsedHours = Math.max(0, (Date.now() - updatedAt) / (1000 * 60 * 60));
+  const terminalStatuses: OrderStatus[] = ['Finalizado', 'Cancelado', 'Cancelado parcialmente', 'En mediación'];
+  if (terminalStatuses.includes(order.status)) {
+    return {
+      level: 'not-applicable',
+      label: 'Sin seguimiento',
+      elapsedHours,
+      reason: order.status === 'En mediación'
+        ? 'El caso está bajo seguimiento de mediación.'
+        : `El pedido está ${order.status.toLowerCase()}.`,
+      expectedAction: 'No requiere avance operativo automático.',
+    };
+  }
+
+  const ruleByStatus: Record<Exclude<OrderStatus, 'Finalizado' | 'Cancelado' | 'Cancelado parcialmente' | 'En mediación'>, { warning: number; critical: number; action: string }> = {
+    Pendiente: { warning: 24, critical: 48, action: 'Confirmar y avanzar la preparación del pedido.' },
+    Preparando: { warning: 48, critical: 72, action: 'Despachar el pedido o registrar el motivo del retraso.' },
+    Enviado: { warning: 72, critical: 120, action: 'Revisar transporte y confirmar la entrega al comprador.' },
+    Recibido: { warning: 48, critical: 72, action: 'Finalizar el pedido o registrar una incidencia.' },
+  };
+  const rule = ruleByStatus[order.status as keyof typeof ruleByStatus];
+  if (!rule) {
+    return {
+      level: 'not-applicable',
+      label: 'Sin seguimiento',
+      elapsedHours,
+      reason: `El pedido está ${order.status}.`,
+      expectedAction: 'No requiere avance operativo automático.',
+    };
+  }
+
+  if (elapsedHours >= rule.critical) {
+    return { level: 'critical', label: 'Crítico', elapsedHours, reason: `Lleva ${formatElapsedHours(elapsedHours)} sin pasar de “${order.status}”; supera el límite de ${rule.critical} h.`, expectedAction: rule.action };
+  }
+  if (elapsedHours >= rule.warning) {
+    return { level: 'warning', label: 'Atención', elapsedHours, reason: `Lleva ${formatElapsedHours(elapsedHours)} sin pasar de “${order.status}”; se acerca al límite de ${rule.critical} h.`, expectedAction: rule.action };
+  }
+  return { level: 'normal', label: 'En plazo', elapsedHours, reason: `Lleva ${formatElapsedHours(elapsedHours)} en “${order.status}”, dentro del plazo operativo.`, expectedAction: rule.action };
+}
+
+function formatElapsedHours(hours: number): string {
+  if (hours < 24) return `${Math.max(0, Math.floor(hours))} h`;
+  const days = Math.floor(hours / 24);
+  const remainingHours = Math.floor(hours % 24);
+  return `${days} d${remainingHours ? ` ${remainingHours} h` : ''}`;
 }
 
 interface WithdrawalDraft {
@@ -521,6 +590,7 @@ export default function AdminFinancePage() {
   const [selectedDetailOrder, setSelectedDetailOrder] = useState<Order | null>(null);
   const [selectedDetailSettlement, setSelectedDetailSettlement] = useState<Settlement | null>(null);
   const [selectedHistoryOrderId, setSelectedHistoryOrderId] = useState<string | null>(null);
+  const [selectedOrderCriticality, setSelectedOrderCriticality] = useState<Order | null>(null);
   const [backendWorkspace, setBackendWorkspace] = useState<{ module: string; status: string; views: string[]; persistenceMode: string } | null>(null);
 
   const { data: bootstrap } = useQuery({
@@ -2330,7 +2400,7 @@ export default function AdminFinancePage() {
               <thead>
                 <tr>
                   <SelectionHeader view="pedidos" sourceIds={filteredOrders.map((order) => order.id)} selected={selectedRows.pedidos} onToggle={toggleMassSelection} />
-                  <th>ID pedido</th><th>Fecha</th><th>Comprador</th><th>Vendedor</th><th>Producto / Resumen</th><th>Total</th><th>Estado</th><th><button className="table-sort-button" type="button" onClick={() => { setUpdatedAtOrder((current) => current === 'asc' ? 'desc' : 'asc'); setPagination((current) => ({ ...current, pedidos: { ...current.pedidos, page: 1 } })); }} title={`Ordenar de más ${updatedAtOrder === 'asc' ? 'nuevo a más antiguo' : 'antiguo a más nuevo'}`} aria-label={`Última actualización: ordenada de más ${updatedAtOrder === 'asc' ? 'antiguo a más nuevo' : 'nuevo a más antiguo'}. Cambiar orden.`}>Última actualización <UiIcon name="sort" /><span aria-hidden="true">{updatedAtOrder === 'asc' ? '↑' : '↓'}</span></button></th><th>Acciones</th>
+                  <th>ID pedido</th><th>Fecha</th><th>Comprador</th><th>Vendedor</th><th>Producto / Resumen</th><th>Total</th><th>Estado</th><th><button className="table-sort-button" type="button" onClick={() => { setUpdatedAtOrder((current) => current === 'asc' ? 'desc' : 'asc'); setPagination((current) => ({ ...current, pedidos: { ...current.pedidos, page: 1 } })); }} title={`Ordenar de más ${updatedAtOrder === 'asc' ? 'nuevo a más antiguo' : 'antiguo a más nuevo'}`} aria-label={`Última actualización: ordenada de más ${updatedAtOrder === 'asc' ? 'antiguo a más nuevo' : 'nuevo a más antiguo'}. Cambiar orden.`}>Última actualización <span className="sort-direction" aria-hidden="true">{updatedAtOrder === 'asc' ? '↑' : '↓'}</span></button></th><th>Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -2363,7 +2433,13 @@ export default function AdminFinancePage() {
                         {order.status}
                       </span>
                     </td>
-                    <td>{formatDateTime(order.updatedAt)}</td>
+                    <td className="updated-at-cell">
+                      <span>{formatDateTime(order.updatedAt)}</span>
+                      {(() => {
+                        const criticality = getOrderCriticality(order);
+                        return <button className={`criticality-indicator ${criticality.level}`} type="button" onClick={() => setSelectedOrderCriticality(order)} title={`Criticidad: ${criticality.label}`} aria-label={`Ver criticidad del pedido ${order.id}: ${criticality.label}`}><UiIcon name={criticality.level === 'normal' ? 'check' : criticality.level === 'not-applicable' ? 'info' : 'alert'} /></button>;
+                      })()}
+                    </td>
                     <td>
                       <div className="action-cell">
                         <button className="action-button neutral" type="button" onClick={() => showOrderDetail(order)} title="Ver detalle"><UiIcon name="eye" /></button>
@@ -4013,6 +4089,41 @@ export default function AdminFinancePage() {
           </div>
         </Modal>
       )}
+
+      {selectedOrderCriticality && (() => {
+        const criticality = getOrderCriticality(selectedOrderCriticality);
+        const iconName = criticality.level === 'normal' ? 'check' : criticality.level === 'not-applicable' ? 'info' : 'alert';
+        return (
+          <Modal
+            title="Seguimiento operativo"
+            subtitle={`Pedido ${selectedOrderCriticality.id}`}
+            onClose={() => setSelectedOrderCriticality(null)}
+          >
+            <div className="criticality-detail">
+              <div className="criticality-summary">
+                <span className={`criticality-indicator ${criticality.level}`}><UiIcon name={iconName} /></span>
+                <div>
+                  <strong>{criticality.label}</strong>
+                  <span>Estado actual: {selectedOrderCriticality.status}</span>
+                </div>
+              </div>
+              <dl>
+                <dt>Última actualización</dt>
+                <dd>{formatDateTime(selectedOrderCriticality.updatedAt)}</dd>
+                <dt>Tiempo sin avance</dt>
+                <dd>{criticality.elapsedHours === null ? 'No disponible' : formatElapsedHours(criticality.elapsedHours)}</dd>
+                <dt>Por qué</dt>
+                <dd>{criticality.reason}</dd>
+                <dt>Acción esperada</dt>
+                <dd>{criticality.expectedAction}</dd>
+              </dl>
+              <div className="form-actions">
+                <button className="primary-button" type="button" onClick={() => setSelectedOrderCriticality(null)}>Cerrar</button>
+              </div>
+            </div>
+          </Modal>
+        );
+      })()}
 
       {selectedHistoryOrderId && (
         <Modal
