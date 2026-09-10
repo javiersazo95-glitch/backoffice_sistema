@@ -1,14 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { getSellerBlockHistory, getSellerReports, getSellerRetiros } from '@/api/sellers';
-import type { SellerBlockHistoryResponse, SellerDetailResponse, SellerRetiroResponse } from '@/types/seller';
-import type { ImpactMediation } from '@/types/cases';
-import type { MediationSummaryResponse } from '@/types/mediation';
+import { getSellerBlockHistory, getSellerReports, getSellerRetiros, getSellerSales } from '@/api/sellers';
+import type { SellerBlockHistoryResponse, SellerDetailResponse, SellerRetiroResponse, SellerSaleResponse } from '@/types/seller';
 import type { ReportResponse } from '@/types/report';
 import Badge from '@/components/shared/Badge';
 import UiIcon from '@/components/shared/UiIcon';
 import FounderSellerName from '@/components/shared/FounderSellerName';
-import { mediationStatusDisplay } from '@/utils/formatters';
 import { applyManualMediationStatus, useManualMediationStatusOverrides } from '@/utils/manualMediationStatus';
 import { resolveProfileImageUrl } from '@/api/client';
 import { useManualMediationAdminMode } from '@/utils/manualMediationAdminMode';
@@ -104,6 +101,22 @@ function InfoStat({
   );
 }
 
+function ProfilePagination({ page, totalPages, onPageChange }: { page: number; totalPages: number; onPageChange: (page: number) => void }) {
+  if (totalPages <= 1) return null;
+
+  return (
+    <div className="pagination compact-pagination seller-profile-pagination">
+      <div className="page-buttons">
+        <button className="page-button page-prev" type="button" onClick={() => onPageChange(page - 1)} disabled={page === 0} aria-label="Página anterior"><UiIcon name="arrowRight" /></button>
+        {Array.from({ length: totalPages }, (_, index) => index).map((item) => (
+          <button key={item} className={`page-button ${item === page ? 'active' : ''}`} type="button" onClick={() => onPageChange(item)}>{item + 1}</button>
+        ))}
+        <button className="page-button" type="button" onClick={() => onPageChange(page + 1)} disabled={page === totalPages - 1} aria-label="Página siguiente"><UiIcon name="arrowRight" /></button>
+      </div>
+    </div>
+  );
+}
+
 function DocumentTable({ documents }: { documents: SellerDetailResponse['documents'] }) {
   if (!documents.length) {
     return <p className="row-sub">No hay documentos disponibles para este vendedor.</p>;
@@ -135,42 +148,41 @@ function DocumentTable({ documents }: { documents: SellerDetailResponse['documen
   );
 }
 
-function MediationCard({ mediation, iconName = 'scale' }: { mediation: MediationSummaryResponse | ImpactMediation; iconName?: string }) {
-  const isWaiting = iconName === 'clock';
-  
-  return (
-    <div className="seller-profile-case-card">
-      <div 
-        className="seller-profile-case-icon"
-        style={isWaiting ? { backgroundColor: '#fef3c7', color: '#d97706' } : undefined}
-      >
-        <UiIcon name={iconName} />
-      </div>
-      <div className="seller-profile-case-copy">
-        <strong>{mediation.reason}</strong>
-        <span>Pedido {mediation.orderId}</span>
-        {'amount' in mediation ? <small>Monto {mediation.amount}</small> : null}
-      </div>
-      <Badge
-        text={mediationStatusDisplay(mediation.status, 'accountBlocked' in mediation ? !!mediation.accountBlocked : false)}
-        variant={isWaiting ? 'amber' : 'violet'}
-      />
-    </div>
-  );
-}
+function SalesTable({ sales, isLoading }: { sales: SellerSaleResponse[]; isLoading: boolean }) {
+  if (isLoading) return <p className="row-sub">Cargando ventas...</p>;
+  if (!sales.length) return <p className="row-sub">La tienda aún no registra ventas.</p>;
 
-function ReportCard({ report }: { report: ReportResponse }) {
   return (
-    <div className="seller-profile-case-card">
-      <div className="seller-profile-case-icon" style={{ backgroundColor: '#fee2e2', color: '#dc2626' }}>
-        <UiIcon name="flag" />
-      </div>
-      <div className="seller-profile-case-copy">
-        <strong>{report.motivo}</strong>
-        <span>{report.idExterno || `#${report.id}`}</span>
-        <small>{report.descripcion || 'Sin descripción registrada'}</small>
-      </div>
-      <Badge text={report.reportanteType === 'VENDEDOR' ? 'Reporta tienda' : 'Reporta comprador'} variant="red" />
+    <div className="table-wrap seller-profile-sales-wrap">
+      <table className="wide-table seller-profile-table seller-profile-sales-table">
+        <thead>
+          <tr>
+            <th>ID de venta</th>
+            <th>Producto</th>
+            <th>Comprador</th>
+            <th>Monto</th>
+            <th>Fecha</th>
+            <th>Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+          {sales.map((sale) => {
+            const products = sale.items.map((item) => item.name).filter(Boolean).join(', ') || 'Producto no informado';
+            const saleId = sale.items.find((item) => item.codigoVendedor)?.codigoVendedor || sale.codigoSoporte || `#${sale.id}`;
+            const amount = sale.totalSeller ?? sale.total ?? 0;
+            return (
+              <tr key={sale.id}>
+                <td><strong>{saleId}</strong></td>
+                <td>{products}</td>
+                <td>{sale.buyerName || 'No informado'}</td>
+                <td>{formatCLP(amount)}</td>
+                <td>{formatDate(sale.createdAt)}</td>
+                <td><Badge text={sale.status} variant={sale.status} /></td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -262,7 +274,7 @@ export function SellerBlockHistoryModal({ isOpen, onClose, seller, blockHistory,
           {isLoading ? (
             <p className="row-sub">Cargando historial de bloqueos...</p>
           ) : blockHistory.length ? (
-            <div className="table-wrap" style={{ marginTop: '10px' }}>
+            <div className="table-wrap seller-reports-table-wrap">
               <table className="wide-table seller-profile-table">
                 <thead>
                   <tr>
@@ -366,7 +378,7 @@ interface SellerReportsModalProps {
   isLoading: boolean;
 }
 
-function SellerReportsModal({ isOpen, onClose, seller, reports, isLoading }: SellerReportsModalProps) {
+export function SellerReportsModal({ isOpen, onClose, seller, reports, isLoading }: SellerReportsModalProps) {
   if (!isOpen || !seller) return null;
 
   return (
@@ -550,6 +562,13 @@ export default function SellerProfileModal({
   const [isTimelineOpen, setIsTimelineOpen] = useState(false);
   const [isReportsModalOpen, setIsReportsModalOpen] = useState(false);
   const [isRetirosModalOpen, setIsRetirosModalOpen] = useState(false);
+  const [salesPage, setSalesPage] = useState(0);
+  const [activityPage, setActivityPage] = useState(0);
+
+  useEffect(() => {
+    setSalesPage(0);
+    setActivityPage(0);
+  }, [seller?.id, isOpen]);
 
   const { data: blockHistory = [], isLoading: isBlockHistoryLoading } = useQuery({
     queryKey: ['seller-block-history', seller?.id],
@@ -569,11 +588,16 @@ export default function SellerProfileModal({
     enabled: isOpen && !!seller,
   });
 
+  const { data: sellerSales, isLoading: isSellerSalesLoading } = useQuery({
+    queryKey: ['seller-sales', seller?.id, salesPage],
+    queryFn: () => getSellerSales(seller!.id, salesPage, 5),
+    enabled: isOpen && !!seller,
+  });
+
   if (!isOpen || !seller) return null;
 
   const mediatedCases = seller.mediations.map((mediation) => applyManualMediationStatus(mediation, effectiveManualStatusOverrides));
   const inProgressMediations = mediatedCases.filter((m) => m.status === 'EN_MEDIACION');
-  const waitingSellerMediations: typeof mediatedCases = [];
   const documents = seller.documents;
 
   const sellerRetirosSorted = [...sellerRetiros].sort(
@@ -582,14 +606,6 @@ export default function SellerProfileModal({
   const sellerRetirosRecent = sellerRetirosSorted.slice(0, 3);
 
   const recentActivityRaw: Array<{ icon: string; title: string; detail: string; date: string; timestamp: number; tone: 'blue' | 'violet' | 'red' | 'green' | 'amber' }> = [
-    ...waitingSellerMediations.map((mediation) => ({
-      icon: 'clock',
-      title: 'En mediación',
-      detail: mediation.reason,
-      date: formatDate(mediation.updatedAt),
-      timestamp: new Date(mediation.updatedAt).getTime(),
-      tone: 'amber' as const,
-    })),
     ...inProgressMediations.map((mediation) => ({
       icon: 'scale',
       title: 'Mediación iniciada',
@@ -633,9 +649,12 @@ export default function SellerProfileModal({
   ];
 
   const recentActivityRawSorted = [...recentActivityRaw].sort((a, b) => b.timestamp - a.timestamp);
-  const recentActivity = recentActivityRawSorted.slice(0, 6);
+  const activityPageSize = 5;
+  const activityTotalPages = Math.max(1, Math.ceil(recentActivityRawSorted.length / activityPageSize));
+  const currentActivityPage = Math.min(activityPage, activityTotalPages - 1);
+  const recentActivity = recentActivityRawSorted.slice(currentActivityPage * activityPageSize, (currentActivityPage + 1) * activityPageSize);
 
-  const latestActivityDate = recentActivity[0] ? recentActivity[0].date : (seller.lastActivityAt ? formatDate(seller.lastActivityAt) : 'Sin datos');
+  const latestActivityDate = recentActivityRawSorted[0] ? recentActivityRawSorted[0].date : (seller.lastActivityAt ? formatDate(seller.lastActivityAt) : 'Sin datos');
 
   return (
     <>
@@ -686,7 +705,6 @@ export default function SellerProfileModal({
               <div className="seller-profile-quick-panel">
                 <SectionHeader icon="shield" title="Resumen rápido" tone="violet" />
                 <InfoStat label="Mediaciones activas" value={inProgressMediations.length} />
-                <InfoStat label="En mediación" value={waitingSellerMediations.length} />
                 <InfoStat label="Tickets abiertos" value={seller.tickets.filter((ticket) => ticket.status !== 'RESUELTO' && ticket.status !== 'CERRADO').length} />
                 <InfoStat label="Reportes" value={sellerReports.length || seller.pendingReceipts} />
               </div>
@@ -731,7 +749,7 @@ export default function SellerProfileModal({
               <section className="seller-profile-metric-strip" style={{ gridTemplateColumns: 'repeat(4, minmax(0, 1fr))' }}>
                 <InfoStat className="seller-profile-metric-stat" label="Estado actual" value={seller.status} sub={`Desde ${latestActivityDate}`} />
                 <InfoStat className="seller-profile-metric-stat" label="Última actividad" value={latestActivityDate} sub={seller.responseTime} />
-                <InfoStat className="seller-profile-metric-stat" label="Reclamos" value={seller.claimsCount} sub="Total" />
+                <InfoStat className="seller-profile-metric-stat" label="Mediaciones" value={inProgressMediations.length} sub="Activas" />
                 <InfoStat className="seller-profile-metric-stat" label="Reportes" value={sellerReports.length || seller.pendingReceipts} sub="Total" />
               </section>
 
@@ -741,26 +759,6 @@ export default function SellerProfileModal({
                   <DocumentTable documents={documents} />
                   <button className="profile-inline-link" type="button" onClick={() => onOpenDocuments?.(seller.id)}>
                     Ver todos los documentos <UiIcon name="arrowRight" />
-                  </button>
-                </div>
-
-                <div className="seller-profile-panel mediation-panel">
-                  <SectionHeader icon="scale" title="Casos en mediación" count={`${inProgressMediations.length} activos`} tone="violet" />
-                  <div className="seller-profile-list">
-                    {inProgressMediations.length ? inProgressMediations.map((mediation) => <MediationCard key={mediation.id} mediation={mediation} />) : <p className="row-sub">No hay casos en mediación.</p>}
-                  </div>
-                  <button className="profile-inline-link" type="button" onClick={() => onOpenMediation?.(seller.id)}>
-                    Ver todos los casos en mediación <UiIcon name="arrowRight" />
-                  </button>
-                </div>
-
-                <div className="seller-profile-panel risks-panel">
-                  <SectionHeader icon="clock" title="En mediación" count={`${waitingSellerMediations.length}`} tone="amber" />
-                  <div className="seller-profile-list">
-                    {waitingSellerMediations.length ? waitingSellerMediations.map((mediation) => <MediationCard key={mediation.id} mediation={mediation} iconName="clock" />) : <p className="row-sub">No hay casos en mediación.</p>}
-                  </div>
-                  <button className="profile-inline-link" type="button" onClick={() => onOpenMediation?.(seller.id)}>
-                    Ver todos los casos en mediación <UiIcon name="arrowRight" />
                   </button>
                 </div>
 
@@ -780,20 +778,10 @@ export default function SellerProfileModal({
                   </button>
                 </div>
 
-                <div className="seller-profile-panel info-panel">
-                  <SectionHeader icon="alert" title="Reportes de la tienda" count={`${sellerReports.length}`} tone="red" />
-                  <div className="seller-profile-list" style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                    {isSellerReportsLoading ? (
-                      <p className="row-sub">Cargando reportes...</p>
-                    ) : sellerReports.length ? (
-                      sellerReports.map((report) => <ReportCard key={report.id} report={report} />)
-                    ) : (
-                      <p className="row-sub">No hay reportes registrados para esta tienda.</p>
-                    )}
-                  </div>
-                  <button className="profile-inline-link" type="button" onClick={() => setIsReportsModalOpen(true)}>
-                    Ver todos los casos de reporte <UiIcon name="arrowRight" />
-                  </button>
+                <div className="seller-profile-panel sales-panel">
+                  <SectionHeader icon="cart" title="Ventas realizadas" count={`${sellerSales?.totalElements ?? 0}`} tone="green" />
+                  <SalesTable sales={sellerSales?.content ?? []} isLoading={isSellerSalesLoading} />
+                  <ProfilePagination page={salesPage} totalPages={sellerSales?.totalPages ?? 0} onPageChange={setSalesPage} />
                 </div>
 
                 <div className="seller-profile-panel activity-panel">
@@ -801,6 +789,7 @@ export default function SellerProfileModal({
                   <div className="seller-profile-activity">
                     {recentActivity.length ? recentActivity.map((activity, index) => <ActivityCard key={`${activity.title}-${index}`} {...activity} />) : <p className="row-sub">No hay actividad reciente.</p>}
                   </div>
+                  <ProfilePagination page={currentActivityPage} totalPages={activityTotalPages} onPageChange={setActivityPage} />
                   <button className="profile-inline-link" type="button" onClick={() => setIsTimelineOpen(true)}>
                     Ver toda la actividad <UiIcon name="arrowRight" />
                   </button>

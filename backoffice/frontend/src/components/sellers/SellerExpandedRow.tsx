@@ -1,12 +1,11 @@
 import SellerDetailCard from './SellerDetailCard';
-import RisksSummary from './RisksSummary';
 import MediationsSummary from './MediationsSummary';
+import ReportsSummary from './ReportsSummary';
 import type { SellerResponse } from '@/types/seller';
-import type { ImpactMediation, RiskCase } from '@/types/cases';
+import type { ImpactMediation } from '@/types/cases';
 
 interface SellerExpandedRowProps {
   seller: SellerResponse;
-  risks?: RiskCase[];
   mediations?: ImpactMediation[];
   blockedMediations?: ImpactMediation[];
   onViewDocs?: (id: number) => void;
@@ -17,7 +16,6 @@ interface SellerExpandedRowProps {
 
 export default function SellerExpandedRow({
   seller,
-  risks = [],
   mediations = [],
   blockedMediations = [],
   onViewDocs,
@@ -25,6 +23,9 @@ export default function SellerExpandedRow({
   onReviewMediation,
   onShowBlockHistory,
 }: SellerExpandedRowProps) {
+  const latestMediation = [...mediations]
+    .sort((a, b) => new Date(b.updated).getTime() - new Date(a.updated).getTime())[0];
+
   return (
     <tr className="seller-expanded-row">
       <td colSpan={8}>
@@ -32,15 +33,16 @@ export default function SellerExpandedRow({
           <SellerDetailCard
             seller={seller}
             activeMediationCount={mediations.length}
-            activeMediation={mediations[0]}
-            waitingSellerCount={risks.length}
+            activeMediation={latestMediation}
             blockedMediation={blockedMediations[0]}
             onViewDocs={onViewDocs}
             onOpenMediation={onOpenMediation}
             onShowBlockHistory={onShowBlockHistory}
           />
-          <div className="seller-summary-grid">
-            <RisksSummary risks={risks} />
+          <div className={`seller-summary-grid ${seller.pendingReceipts > 0 ? '' : 'seller-summary-grid--single'}`}>
+            {seller.pendingReceipts > 0 && (
+              <ReportsSummary sellerId={seller.id} reportCount={seller.pendingReceipts} />
+            )}
             <MediationsSummary
               sellerId={seller.id}
               mediations={mediations}

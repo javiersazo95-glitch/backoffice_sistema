@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { getSellerReports } from '@/api/sellers';
 import UiIcon from '@/components/shared/UiIcon';
 import FounderSellerName from '@/components/shared/FounderSellerName';
 import Badge from '@/components/shared/Badge';
@@ -21,11 +23,25 @@ const getBankDetails = (seller: SellerResponse) => ({
   beneficiary: seller.bankAccountHolderName || seller.owner || seller.storeName,
 });
 
+function formatSeniority(createdAt?: string) {
+  if (!createdAt) return 'Sin registro';
+
+  const start = new Date(createdAt);
+  if (Number.isNaN(start.getTime())) return 'Sin registro';
+
+  const months = Math.max(0, (new Date().getFullYear() - start.getFullYear()) * 12 + new Date().getMonth() - start.getMonth());
+  if (months < 1) return 'Menos de 1 mes';
+  if (months < 12) return `${months} ${months === 1 ? 'mes' : 'meses'}`;
+
+  const years = Math.floor(months / 12);
+  const remainingMonths = months % 12;
+  return `${years} ${years === 1 ? 'año' : 'años'}${remainingMonths ? ` ${remainingMonths} ${remainingMonths === 1 ? 'mes' : 'meses'}` : ''}`;
+}
+
 interface SellerDetailCardProps {
   seller: SellerResponse;
   activeMediationCount?: number;
   activeMediation?: ImpactMediation;
-  waitingSellerCount?: number;
   blockedMediation?: ImpactMediation;
   onViewDocs?: (id: number) => void;
   onOpenMediation?: (id: number) => void;
@@ -36,7 +52,6 @@ export default function SellerDetailCard({
   seller,
   activeMediationCount = seller.mediationCount,
   activeMediation,
-  waitingSellerCount = 0,
   blockedMediation,
   onViewDocs,
   onOpenMediation,
@@ -44,6 +59,10 @@ export default function SellerDetailCard({
 }: SellerDetailCardProps) {
   const [blockModalOpen, setBlockModalOpen] = useState(false);
   const [showBankModal, setShowBankModal] = useState(false);
+  const { data: sellerReports = [], isLoading: isLoadingReports } = useQuery({
+    queryKey: ['seller-reports', seller.id],
+    queryFn: () => getSellerReports(seller.id),
+  });
   const opStatus = getSellerOperationalStatus({
     status: seller.status,
     activeMediationCount,
@@ -64,6 +83,12 @@ export default function SellerDetailCard({
 
   const isBlocked = seller.bankStatus === 'BLOQUEADA';
   const blockReason = blockedMediation?.escalationReason || blockedMediation?.reason || 'No hay motivo registrado para el bloqueo.';
+  const latestReport = sellerReports[0];
+  const latestReportLabel = isLoadingReports
+    ? 'Cargando último reporte...'
+    : latestReport
+      ? `${latestReport.idExterno || `#${latestReport.id}`} · ${latestReport.motivo}`
+      : 'Sin reportes registrados';
 
   return (
     <section className="seller-detail-card">
@@ -95,16 +120,16 @@ export default function SellerDetailCard({
 
       <div className="seller-info-stats" style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))' }}>
         <div className="seller-info-stat">
-          <span>Esperando vendedor</span>
-          <strong>{waitingSellerCount}</strong>
+          <span>Antigüedad</span>
+          <strong>{formatSeniority(seller.createdAt)}</strong>
         </div>
         <div className="seller-info-stat">
-          <span>Mediaciones activas</span>
-          <strong>{activeMediationCount}</strong>
+          <span>Repuestos</span>
+          <strong>{seller.partsCount}</strong>
         </div>
         <div className="seller-info-stat">
-          <span>Reportes</span>
-          <strong>{seller.pendingReceipts}</strong>
+          <span>Ventas</span>
+          <strong>{seller.salesCount}</strong>
         </div>
       </div>
 
@@ -113,7 +138,7 @@ export default function SellerDetailCard({
       <DetailRow 
         label="Cuenta bancaria" 
         value={
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div className="bank-detail-value">
             {seller.bankStatus && seller.bankStatus.trim() ? (
               <Badge text={seller.bankStatus} variant={getBankBadge(seller.bankStatus)} />
             ) : null}
@@ -129,7 +154,7 @@ export default function SellerDetailCard({
           </div>
         } 
       />
-      <DetailRow label="En mediación" value={waitingSellerCount} />
+      <DetailRow label="Último reporte" value={latestReportLabel} />
       <DetailRow label="Mediación activa" value={activeMediation ? `${activeMediation.id} · ${activeMediation.reason}` : 'Sin mediación en curso'} />
       <DetailRow label="Ultima actividad" value={formatDate(seller.lastActivityAt)} />
 
@@ -160,8 +185,8 @@ export default function SellerDetailCard({
 
       <SellerBehavior
         rating={seller.rating}
-        claims={seller.claimsCount}
-        pendingReceipts={seller.pendingReceipts}
+        reports={seller.pendingReceipts}
+        mediations={seller.mediationCount}
       />
 
       {!isBlocked && (

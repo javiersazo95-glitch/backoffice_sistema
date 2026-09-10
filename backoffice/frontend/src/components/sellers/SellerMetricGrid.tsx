@@ -3,10 +3,10 @@ import MetricCard from '@/components/shared/MetricCard';
 interface SellerMetricGridProps {
   activeSellers: number;
   activeMediations: number;
-  escalatedMediations: number;
+  receivedReports: number;
 }
 
-export default function SellerMetricGrid({ activeSellers, activeMediations, escalatedMediations }: SellerMetricGridProps) {
+export default function SellerMetricGrid({ activeSellers, activeMediations, receivedReports }: SellerMetricGridProps) {
   return (
     <section className="metric-grid compact seller-metric-grid">
       <MetricCard
@@ -24,11 +24,11 @@ export default function SellerMetricGrid({ activeSellers, activeMediations, esca
         description="Mediaciones en curso asociadas a vendedores activos."
       />
       <MetricCard
-        label="En mediación"
-        value={escalatedMediations}
-        tone="amber"
-        iconName="clock"
-        description="Casos esperando respuesta o gestión del vendedor."
+        label="Reportes"
+        value={receivedReports}
+        tone="red"
+        iconName="flag"
+        description="Reportes registrados contra vendedores activos."
       />
     </section>
   );
