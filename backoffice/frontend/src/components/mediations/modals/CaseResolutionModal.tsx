@@ -5,7 +5,7 @@ import ModalField from '@/components/shared/ModalField';
 import Badge from '@/components/shared/Badge';
 import UiIcon from '@/components/shared/UiIcon';
 import FounderSellerName from '@/components/shared/FounderSellerName';
-import { mediationStatusDisplay } from '@/utils/formatters';
+import { mediationStatusDisplay, getBlockedTargetInfo, resolveBuyerName } from '@/utils/formatters';
 
 interface CaseResolutionModalProps {
   isOpen: boolean;
@@ -21,8 +21,13 @@ export default function CaseResolutionModal({ isOpen, onClose, item, mode, onSub
 
   if (!item) return null;
 
-  const title = mode === 'reactivate' ? 'Reactivar cuenta' : 'Registrar resolución';
-  const kicker = mode === 'reactivate' ? 'Cuenta bloqueada o suspendida por mediación' : 'Resolución de caso';
+  const blockedTarget = getBlockedTargetInfo(item);
+  const title = mode === 'reactivate'
+    ? `Reactivar cuenta ${blockedTarget.isBuyer ? `del comprador (${blockedTarget.targetName})` : `de la tienda (${blockedTarget.targetName})`}`
+    : 'Registrar resolución';
+  const kicker = mode === 'reactivate'
+    ? `Cuenta de ${blockedTarget.roleLabel.toLowerCase()} bloqueada o suspendida por mediación`
+    : 'Resolución de caso';
   const buttonLabel = mode === 'reactivate' ? 'Reactivar cuenta' : 'Guardar resolución';
   const kind = 'Mediación';
 
@@ -66,7 +71,10 @@ export default function CaseResolutionModal({ isOpen, onClose, item, mode, onSub
             <ModalField label="Tipo de caso" value={kind} />
             <ModalField label="Pedido" value={item.orderId} />
             <ModalField label="Tienda" value={<FounderSellerName name={item.sellerName} founder={item.sellerFounder} />} />
-            <ModalField label="Comprador" value={item.title.replace('Comprador vs ', '')} />
+            <ModalField label="Comprador" value={resolveBuyerName(item)} />
+            {mode === 'reactivate' && (
+              <ModalField label="Cuenta bloqueada" value={blockedTarget.fullTargetLabel} />
+            )}
             <ModalField label="Monto" value={item.amount} />
             <ModalField label="Fecha actual" value={item.updatedAt} />
           </div>

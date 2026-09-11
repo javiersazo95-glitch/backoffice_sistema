@@ -605,7 +605,7 @@ export default function SellersPage() {
   });
 
   const handleReviewMediation = (mediationId: number) => {
-    navigate(`/confianza/mediations?action=review&mediationId=${mediationId}`);
+    navigate(`/confianza/mediations/${mediationId}`);
   };
 
   return (

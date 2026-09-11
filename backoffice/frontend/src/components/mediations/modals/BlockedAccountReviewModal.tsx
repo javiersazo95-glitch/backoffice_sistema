@@ -3,7 +3,7 @@ import type { MediationResponse } from '@/types/mediation';
 import Badge from '@/components/shared/Badge';
 import UiIcon from '@/components/shared/UiIcon';
 import FounderSellerName from '@/components/shared/FounderSellerName';
-import { formatCurrency, formatDateTime, mediationStatusDisplay } from '@/utils/formatters';
+import { formatCurrency, formatDateTime, mediationStatusDisplay, getBlockedTargetInfo } from '@/utils/formatters';
 
 interface BlockedAccountReviewModalProps {
   isOpen: boolean;
@@ -14,9 +14,11 @@ interface BlockedAccountReviewModalProps {
 }
 
 function buildBlockedSummary(item: MediationResponse): string {
+  const blockedTarget = getBlockedTargetInfo(item);
+  const targetLabel = blockedTarget.isBuyer ? `del comprador ${blockedTarget.targetName}` : `de la tienda ${blockedTarget.targetName}`;
   const reason = item.escalationReason || item.reason || 'No hay motivo registrado';
   const nextAction = item.nextAction || 'Sin siguiente acción registrada';
-  return `La cuenta de ${item.sellerName} permanece bloqueada por el caso ${item.externalId}, asociado al pedido ${item.orderId}. El motivo registrado es "${reason}". La etapa actual es "${item.stage || item.status}" y la responsable es ${item.owner || 'no informada'}, con ${nextAction}.`;
+  return `La cuenta ${targetLabel} permanece bloqueada por el caso ${item.externalId}, asociado al pedido ${item.orderId}. El motivo registrado es "${reason}". La etapa actual es "${item.stage || item.status}" y la responsable es ${item.owner || 'no informada'}, con ${nextAction}.`;
 }
 
 export default function BlockedAccountReviewModal({
@@ -38,6 +40,7 @@ export default function BlockedAccountReviewModal({
 
   if (!isOpen || !item) return null;
 
+  const blockedTarget = getBlockedTargetInfo(item);
   const blockReason = item.escalationReason || item.reason || 'Motivo no informado';
   const canSubmit = Boolean(reason.trim() && file && !isSubmitting);
 
@@ -57,9 +60,15 @@ export default function BlockedAccountReviewModal({
                 <UiIcon name="lock" />
               </span>
               <div className="blocked-review-title">
-                <span className="blocked-review-kicker">Cuenta bloqueada</span>
-                <h2><FounderSellerName name={item.sellerName} founder={item.sellerFounder} /></h2>
-                <p>{item.externalId} · Pedido {item.orderId}</p>
+                <span className="blocked-review-kicker">
+                  {blockedTarget.isBuyer ? 'Comprador bloqueado' : 'Cuenta de tienda bloqueada'}
+                </span>
+                <h2>
+                  {blockedTarget.isBuyer
+                    ? `Comprador: ${blockedTarget.targetName}`
+                    : <FounderSellerName name={item.sellerName} founder={item.sellerFounder} />}
+                </h2>
+                <p>{item.externalId} · Pedido {item.orderId} · Tienda: {item.sellerName}</p>
               </div>
             </div>
 
@@ -144,7 +153,7 @@ export default function BlockedAccountReviewModal({
                 </div>
                 <div className="blocked-review-summary-row">
                   <span>Responsable</span>
-                  <strong>{item.owner || 'No informado'}</strong>
+                  <strong>{blockedTarget.fullTargetLabel} (Mediador: {item.owner || 'No informado'})</strong>
                 </div>
                 <div className="blocked-review-summary-row">
                   <span>Última actualización</span>

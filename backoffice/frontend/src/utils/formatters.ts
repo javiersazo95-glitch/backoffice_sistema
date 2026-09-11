@@ -90,3 +90,74 @@ export function mediationCaseSummary(item: { id: string | number; orderId: strin
   const buyer = item.title.replace('Comprador vs ', '') || 'Comprador';
   return `Caso ${item.id} asociado al pedido ${item.orderId}. Comprador: ${buyer}. Vendedor: ${sellerName}. Motivo: ${item.reason}. Monto involucrado: ${item.amount}. Estado actual: ${item.status}.`;
 }
+
+export function resolveBuyerName(item?: { buyer?: string | null; title?: string | null } | null): string {
+  if (!item) return 'Comprador';
+  if (item.buyer && item.buyer.trim()) return item.buyer.trim();
+  if (item.title) {
+    const fromTitle = item.title.replace(/^Comprador vs /i, '').trim();
+    if (fromTitle) return fromTitle;
+  }
+  return 'Comprador';
+}
+
+export interface BlockedTargetInfo {
+  isBuyer: boolean;
+  targetRole: 'COMPRADOR' | 'VENDEDOR';
+  roleLabel: string;
+  targetName: string;
+  fullTargetLabel: string;
+}
+
+export function getBlockedTargetInfo(item?: {
+  suspensionTarget?: 'COMPRADOR' | 'VENDEDOR' | string | null;
+  suspensionMotivo?: string | null;
+  suspensionDetalle?: string | null;
+  buyer?: string | null;
+  title?: string | null;
+  sellerName?: string | null;
+  reason?: string | null;
+  escalationReason?: string | null;
+  targetRole?: string | null;
+  [key: string]: any;
+} | null): BlockedTargetInfo {
+  if (!item) {
+    return {
+      isBuyer: false,
+      targetRole: 'VENDEDOR',
+      roleLabel: 'Tienda',
+      targetName: 'Tienda',
+      fullTargetLabel: 'Tienda',
+    };
+  }
+
+  const buyerName = resolveBuyerName(item);
+  const sellerName = item.sellerName?.trim() || 'Tienda';
+
+  const rawTarget = String(item.suspensionTarget || item.targetRole || '').toUpperCase();
+  const isBuyer =
+    rawTarget === 'COMPRADOR' ||
+    (!rawTarget && (
+      Boolean(item.suspensionMotivo && /comprador/i.test(item.suspensionMotivo)) ||
+      Boolean(item.suspensionDetalle && /comprador/i.test(item.suspensionDetalle))
+    ));
+
+  if (isBuyer) {
+    return {
+      isBuyer: true,
+      targetRole: 'COMPRADOR',
+      roleLabel: 'Comprador',
+      targetName: buyerName,
+      fullTargetLabel: `Comprador: ${buyerName}`,
+    };
+  }
+
+  return {
+    isBuyer: false,
+    targetRole: 'VENDEDOR',
+    roleLabel: 'Tienda',
+    targetName: sellerName,
+    fullTargetLabel: `Tienda: ${sellerName}`,
+  };
+}
+

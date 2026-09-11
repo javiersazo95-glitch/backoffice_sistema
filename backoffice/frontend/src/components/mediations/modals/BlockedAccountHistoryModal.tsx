@@ -4,7 +4,7 @@ import Modal from '@/components/shared/Modal';
 import Badge from '@/components/shared/Badge';
 import UiIcon from '@/components/shared/UiIcon';
 import FounderSellerName from '@/components/shared/FounderSellerName';
-import { formatDateTime } from '@/utils/formatters';
+import { formatDateTime, getBlockedTargetInfo } from '@/utils/formatters';
 import { resolveDocumentUrl } from '@/utils/documentUrls';
 
 interface BlockedAccountHistoryModalProps {
@@ -62,6 +62,7 @@ export default function BlockedAccountHistoryModal({ isOpen, onClose, item }: Bl
 
   if (!item) return null;
 
+  const blockedTarget = getBlockedTargetInfo(item);
   const buyerDocs = detail?.buyerEvidence ?? [];
   const sellerDocs = detail?.sellerEvidence ?? [];
   const allDocs = [...buyerDocs, ...sellerDocs];
@@ -77,9 +78,9 @@ export default function BlockedAccountHistoryModal({ isOpen, onClose, item }: Bl
           <UiIcon name="lock" />
         </span>
         <div className="case-modal-title">
-          <span className="case-modal-kicker">Historial de la mediación</span>
+          <span className="case-modal-kicker">{blockedTarget.isBuyer ? 'Historial de bloqueo de comprador' : 'Historial de bloqueo de tienda'}</span>
           <h2>{item.externalId}</h2>
-          <p><FounderSellerName name={item.sellerName} founder={item.sellerFounder} /> · Pedido {item.orderId}</p>
+          <p>{blockedTarget.isBuyer ? `Comprador: ${blockedTarget.targetName} · Tienda: ${item.sellerName}` : <FounderSellerName name={item.sellerName} founder={item.sellerFounder} />} · Pedido {item.orderId}</p>
         </div>
       </div>
 
@@ -153,7 +154,7 @@ export default function BlockedAccountHistoryModal({ isOpen, onClose, item }: Bl
                 </div>
                 <div className="resolved-timeline-field">
                   <span className="resolved-timeline-field-label">Responsable</span>
-                  <span className="resolved-timeline-field-value">{item.owner || 'No informado'}</span>
+                  <span className="resolved-timeline-field-value">{blockedTarget.fullTargetLabel} (Mediador: {item.owner || 'No informado'})</span>
                 </div>
                 <div className="resolved-timeline-field">
                   <span className="resolved-timeline-field-label">Etapa</span>

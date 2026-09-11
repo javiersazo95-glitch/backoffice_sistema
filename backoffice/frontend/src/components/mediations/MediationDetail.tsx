@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo, type ChangeEvent, type ReactNode } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   MediationResponse,
@@ -9,6 +10,8 @@ import {
   type MediationSuspendPayload,
   type SuspensionDuration,
 } from '@/types/mediation';
+import { useMediation, useResolveCase, useBlockAccount, useAddMessage } from '@/hooks/useMediations';
+import { showToast } from '@/components/layout/Toast';
 import Badge from '@/components/shared/Badge';
 import UiIcon from '@/components/shared/UiIcon';
 import FounderSellerName from '@/components/shared/FounderSellerName';
@@ -28,13 +31,14 @@ import mediatorProfileImage from '@/assets/mediator-profile.jpg';
 
 type MediationModalItem = MediationResponse & Partial<MediationDetailResponse>;
 
-interface MediationDetailProps {
-  isOpen: boolean;
-  item: MediationModalItem | null;
-  onClose: () => void;
-  onResolve: (id: number, payload: MediationResolvePayload) => void;
-  onBlockAccount: (id: number, payload?: MediationSuspendPayload) => void;
-  onSendMessage: (mediationId: number, text: string, targetRole: string) => void;
+export interface MediationDetailProps {
+  isOpen?: boolean;
+  item?: MediationModalItem | null;
+  onClose?: () => void;
+  onBack?: () => void;
+  onResolve?: (id: number, payload: MediationResolvePayload) => void;
+  onBlockAccount?: (id: number, payload?: MediationSuspendPayload) => void;
+  onSendMessage?: (mediationId: number, text: string, targetRole: string) => void;
 }
 
 export const SUSPENSION_DURATIONS: Array<{ key: SuspensionDuration; label: string; days?: number; months?: number; canAppeal: boolean }> = [
@@ -503,12 +507,100 @@ function RefundStepsPanel({ item }: { item: MediationModalItem }) {
 
 export default function MediationDetail({
   isOpen,
-  item,
+  item: propItem,
   onClose,
+  onBack,
   onResolve,
   onBlockAccount,
   onSendMessage,
 }: MediationDetailProps) {
+  const navigate = useNavigate();
+  const { id: paramId } = useParams<{ id: string }>();
+  const parsedId = paramId ? Number(paramId) : null;
+  const effectiveId = propItem?.id ?? (parsedId && Number.isFinite(parsedId) ? parsedId : 0);
+
+  const { data: fetchedMediation, isLoading: isLoadingMediation } = useMediation(effectiveId);
+  const item = (propItem ?? fetchedMediation) as MediationModalItem | undefined;
+
+  const isViewOpen = isOpen ?? true;
+
+  const resolveMutation = useResolveCase();
+  const blockMutation = useBlockAccount();
+  const addMessageMutation = useAddMessage();
+
+  const handleBack = () => {
+    if (onBack) {
+      onBack();
+    } else if (onClose) {
+      onClose();
+    } else {
+      navigate('/confianza/mediations');
+    }
+  };
+
+  const handleSendMessage = (mediationId: number, text: string, targetRole: string) => {
+    if (onSendMessage) {
+      onSendMessage(mediationId, text, targetRole);
+    } else {
+      addMessageMutation.mutate({
+        mediationId,
+        data: { message: text, targetRole },
+      });
+    }
+  };
+
+  const handleInternalResolve = (id: number, payload: MediationResolvePayload) => {
+    if (onResolve) {
+      onResolve(id, payload);
+    } else {
+      resolveMutation.mutate(
+        {
+          id,
+          data: {
+            favor: payload.favor,
+            resolutionOption: payload.resolutionOption,
+            refundPercentage: payload.refundPercentage,
+          },
+        },
+        {
+          onSuccess: () => {
+            showToast('Caso resuelto');
+            navigate('/confianza/mediations');
+          },
+          onError: (error: any) => {
+            showToast(error?.response?.data?.message || 'Error al resolver el caso');
+          },
+        },
+      );
+    }
+  };
+
+  const handleInternalBlockAccount = (id: number, payload?: MediationSuspendPayload) => {
+    if (onBlockAccount) {
+      onBlockAccount(id, payload);
+    } else {
+      const targetText = payload?.targetRole === 'COMPRADOR' ? 'la cuenta del comprador' : 'la cuenta de la tienda';
+      const confirmMsg = payload
+        ? `¿Estás seguro de suspender ${targetText}?`
+        : '¿Estás seguro de suspender esta cuenta?';
+
+      if (confirm(confirmMsg)) {
+        blockMutation.mutate(
+          { id, data: payload },
+          {
+            onSuccess: () => {
+              showToast('Cuenta suspendida con éxito');
+              navigate('/confianza/mediations');
+            },
+            onError: (error: any) => {
+              showToast(error?.response?.data?.message || 'No se pudo suspender la cuenta');
+            },
+          },
+        );
+      }
+    }
+  };
+
   const [decision, setDecision] = useState<'resolve' | 'block'>('resolve');
   const [historyFilter, setHistoryFilter] = useState<string>('all');
   const [favor, setFavor] = useState<MediationFavor | ''>('');
@@ -520,7 +612,7 @@ export default function MediationDetail({
   const [suspensionReason, setSuspensionReason] = useState('');
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isViewOpen) return;
     setDecision('resolve');
     setHistoryFilter('all');
     setFavor('');
@@ -530,12 +622,12 @@ export default function MediationDetail({
     setSuspensionDuration('');
     setSuspensionReasonKey('');
     setSuspensionReason('');
-  }, [isOpen, item?.id]);
+  }, [isViewOpen, item?.id]);
 
   const { data: allReportsData } = useQuery({
     queryKey: ['all-reports-for-mediation-detail'],
     queryFn: () => getReports({ size: 1000 }),
-    enabled: !!item && isOpen,
+    enabled: !!item && isViewOpen,
   });
 
   const buyerName = item ? resolveBuyerName(item) : 'Comprador';
@@ -576,7 +668,60 @@ export default function MediationDetail({
     });
   }, [unifiedHistory, historyFilter]);
 
-  if (!isOpen || !item) return null;
+  if (isViewOpen && isLoadingMediation && !item) {
+    return (
+      <div className="mediation-management-view">
+        <div className="mediation-management-shell">
+          <div className="mediation-management-header">
+            <div className="mediation-management-heading">
+              <span className="mediation-management-icon">
+                <UiIcon name="scale" />
+              </span>
+              <div className="mediation-management-title">
+                <h2>Gestionar mediación</h2>
+              </div>
+            </div>
+            <button className="secondary-button mediation-back-button" type="button" onClick={handleBack}>
+              <UiIcon name="arrowLeft" />
+              <span>Volver atrás</span>
+            </button>
+          </div>
+          <div className="panel" style={{ padding: '48px 24px', textAlign: 'center' }}>
+            <p>Cargando información del caso de mediación...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isViewOpen || !item) {
+    if (isViewOpen && !isLoadingMediation) {
+      return (
+        <div className="mediation-management-view">
+          <div className="mediation-management-shell">
+            <div className="mediation-management-header">
+              <div className="mediation-management-heading">
+                <span className="mediation-management-icon">
+                  <UiIcon name="scale" />
+                </span>
+                <div className="mediation-management-title">
+                  <h2>Gestionar mediación</h2>
+                </div>
+              </div>
+              <button className="secondary-button mediation-back-button" type="button" onClick={handleBack}>
+                <UiIcon name="arrowLeft" />
+                <span>Volver atrás</span>
+              </button>
+            </div>
+            <div className="panel" style={{ padding: '48px 24px', textAlign: 'center' }}>
+              <p>No se encontró el caso de mediación solicitado.</p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    return null;
+  }
 
   const initializationReason = resolveInitializationReason(item);
 
@@ -597,8 +742,8 @@ export default function MediationDetail({
   };
 
   const handleResolve = () => {
-    if (decision !== 'resolve' || !resolveReady || !favor || !selectedOption) return;
-    onResolve(item.id, {
+    if (decision !== 'resolve' || !resolveReady || !favor || !selectedOption || !item) return;
+    handleInternalResolve(item.id, {
       favor,
       resolutionOption: selectedOption.key,
       refundPercentage: selectedOption.requiresPercentage ? parsedPercentage : undefined,
@@ -644,7 +789,7 @@ export default function MediationDetail({
 
   const handleSuspend = () => {
     if (!suspendReady || !item || !suspensionTarget || !suspensionDuration) return;
-    onBlockAccount(item.id, {
+    handleInternalBlockAccount(item.id, {
       targetRole: suspensionTarget,
       duration: suspensionDuration,
       reason: suspensionReason.trim(),
@@ -653,28 +798,27 @@ export default function MediationDetail({
   };
 
   return (
-    <div className="case-modal-backdrop mediation-management-backdrop" onClick={onClose}>
-      <div className="mediation-management-modal" onClick={(event) => event.stopPropagation()}>
-        <div className="mediation-management-shell">
-          <div className="mediation-management-header">
-            <div className="mediation-management-heading">
-              <span className="mediation-management-icon">
-                <UiIcon name="scale" />
-              </span>
-              <div className="mediation-management-title">
-                <h2>Gestionar mediación</h2>
-                <div className="mediation-management-meta">
-                  <span>{item.externalId}</span>
-                  <Badge text={mediationStatusDisplay(item.status, item.accountBlocked)} variant={item.accountBlocked ? 'cuenta-bloqueada' : item.status} />
-                </div>
+    <div className="mediation-management-view">
+      <div className="mediation-management-shell">
+        <div className="mediation-management-header">
+          <div className="mediation-management-heading">
+            <span className="mediation-management-icon">
+              <UiIcon name="scale" />
+            </span>
+            <div className="mediation-management-title">
+              <h2>Gestionar mediación</h2>
+              <div className="mediation-management-meta">
+                <span>{item.externalId}</span>
+                <Badge text={mediationStatusDisplay(item.status, item.accountBlocked)} variant={item.accountBlocked ? 'cuenta-bloqueada' : item.status} />
               </div>
             </div>
-
-            <button className="mediation-management-close" type="button" onClick={onClose}>
-              <UiIcon name="close" />
-              <span>Cerrar</span>
-            </button>
           </div>
+
+          <button className="secondary-button mediation-back-button" type="button" onClick={handleBack}>
+            <UiIcon name="arrowLeft" />
+            <span>Volver atrás</span>
+          </button>
+        </div>
 
           <section className="mediation-summary-strip">
             <div className="mediation-summary-item">
@@ -759,7 +903,7 @@ export default function MediationDetail({
               messages={mapBackendMessages(item.buyerMessages, 'buyer')}
               accent="blue"
               placeholder="Aún no hay mensajes en este chat."
-              onSend={(value) => item?.id && onSendMessage(item.id, value, 'COMPRADOR')}
+              onSend={(value) => item?.id && handleSendMessage(item.id, value, 'COMPRADOR')}
               disabled={item.status === MediationStatus.RESUELTA || item.accountBlocked || item.buyerMessages?.some((m) => m.closed)}
               banner={
                 item.resolucionFavor === 'COMPRADOR' && (item.montoReembolso ?? 0) > 0
@@ -776,7 +920,7 @@ export default function MediationDetail({
               messages={mapBackendMessages(item.sellerMessages, 'seller')}
               accent="violet"
               placeholder="Aún no hay mensajes en este chat."
-              onSend={(value) => item?.id && onSendMessage(item.id, value, 'VENDEDOR')}
+              onSend={(value) => item?.id && handleSendMessage(item.id, value, 'VENDEDOR')}
               disabled={item.status === MediationStatus.RESUELTA || item.accountBlocked || item.sellerMessages?.some((m) => m.closed)}
             />
 
@@ -1139,8 +1283,8 @@ export default function MediationDetail({
           </section>
 
           <div className="mediation-management-footer">
-            <button className="secondary-button" type="button" onClick={onClose}>
-              Cancelar
+            <button className="secondary-button" type="button" onClick={handleBack}>
+              Volver atrás
             </button>
             <button className="secondary-button" type="button" disabled={!favor}>
               Guardar borrador
@@ -1161,6 +1305,5 @@ export default function MediationDetail({
           </div>
         </div>
       </div>
-    </div>
-  );
+    );
 }

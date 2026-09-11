@@ -3,7 +3,7 @@ import type { MediationResponse } from '@/types/mediation';
 import UiIcon from '@/components/shared/UiIcon';
 import FounderSellerName from '@/components/shared/FounderSellerName';
 import Badge from '@/components/shared/Badge';
-import { mediationStatusDisplay } from '@/utils/formatters';
+import { mediationStatusDisplay, getBlockedTargetInfo } from '@/utils/formatters';
 
 interface BlockedAccountsTableProps {
   accounts: MediationResponse[];
@@ -22,9 +22,10 @@ const STATUS_OPTIONS = [
   { value: 'SOLICITUD_REVISION', label: 'Solicitud de revisión' },
 ] as const;
 
-function getBlockedStatusLabel(status?: string): string {
-  if (status === 'SOLICITUD_REVISION') return 'Solicitud de revisión';
-  return 'Cuenta bloqueada';
+function getBlockedStatusLabel(status?: string, isBuyer = false): string {
+  const target = isBuyer ? 'Comprador' : 'Tienda';
+  if (status === 'SOLICITUD_REVISION') return `Revisión (${target})`;
+  return `${target} bloquead${isBuyer ? 'o' : 'a'}`;
 }
 
 function getBlockedStatusVariant(status?: string): string {
@@ -102,6 +103,7 @@ export default function BlockedAccountsTable({
             ) : rows.length ? (
               rows.map((item) => {
                 const hasAppeal = item.blockedAccountStatus === 'SOLICITUD_REVISION';
+                const blockedTarget = getBlockedTargetInfo(item);
                 return (
                   <tr key={item.id} className={`${hasAppeal ? 'blocked-row--appeal ' : ''}${selectedId === item.id ? 'is-active' : ''}`.trim()} onClick={() => onSelect?.(item)}>
                     <td>
@@ -109,7 +111,7 @@ export default function BlockedAccountsTable({
                       <span className="row-sub">{mediationStatusDisplay(item.status, item.accountBlocked)}</span>
                     </td>
                     <td>
-                      <Badge text={getBlockedStatusLabel(item.blockedAccountStatus)} variant={getBlockedStatusVariant(item.blockedAccountStatus)} />
+                      <Badge text={getBlockedStatusLabel(item.blockedAccountStatus, blockedTarget.isBuyer)} variant={getBlockedStatusVariant(item.blockedAccountStatus)} />
                     </td>
                     <td><FounderSellerName name={item.sellerName} founder={item.sellerFounder} /></td>
                     <td>{item.orderId}</td>
@@ -120,7 +122,14 @@ export default function BlockedAccountsTable({
                     <td>
                       <Badge text={item.stage || item.status} variant={item.accountBlocked ? 'cuenta-bloqueada' : item.status} />
                     </td>
-                    <td>{item.owner || 'No informado'}</td>
+                    <td>
+                      <div>
+                        <strong style={{ display: 'block', color: 'var(--text-main, #1e293b)' }}>
+                          {blockedTarget.fullTargetLabel}
+                        </strong>
+                        <span className="row-sub">Mediador: {item.owner || 'No informado'}</span>
+                      </div>
+                    </td>
                     <td className="centered-action-cell">
                       <div className="seller-actions compact-actions centered-actions">
                         <button

@@ -15,6 +15,7 @@ import SellersPage from '@/components/sellers/SellersPage';
 import CapturersPage from '@/components/capturers/CapturersPage';
 import ValidationsPage from '@/components/validations/ValidationsPage';
 import MediationsPage from '@/components/mediations/MediacionesPage';
+import MediationDetail from '@/components/mediations/MediationDetail';
 import AlertsPage from '@/components/alerts/AlertsPage';
 import AuditPage from '@/components/audit/AuditPage';
 import ReportsPage from '@/components/reports/ReportsPage';
@@ -143,6 +144,7 @@ export default function App() {
               <Route path="captadores" element={<CapturersPage />} />
               <Route path="validations" element={<ValidationsPage />} />
               <Route path="mediations" element={<MediationsPage />} />
+              <Route path="mediations/:id" element={<MediationDetail />} />
               <Route path="alertas" element={<AlertsPage />} />
               <Route path="bitacora" element={<AuditPage />} />
               <Route path="reports" element={<ReportsPage />} />

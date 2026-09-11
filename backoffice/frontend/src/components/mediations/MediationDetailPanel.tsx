@@ -6,7 +6,7 @@ import ActionRow from '@/components/shared/ActionRow';
 import QuickActions from '@/components/shared/QuickActions';
 import UiIcon from '@/components/shared/UiIcon';
 import FounderSellerName from '@/components/shared/FounderSellerName';
-import { mediationStatusDisplay } from '@/utils/formatters';
+import { mediationStatusDisplay, resolveBuyerName, getBlockedTargetInfo } from '@/utils/formatters';
 import { formatDateTime } from '@/utils/formatters';
 
 interface MediationDetailPanelProps {
@@ -20,13 +20,6 @@ interface MediationDetailPanelProps {
   onOpenSellerInfo: (sellerId: number) => void;
 }
 
-
-function resolveBuyerName(item: MediationResponse) {
-  if (item.buyer && item.buyer.trim()) return item.buyer.trim();
-  const fromTitle = item.title.replace('Comprador vs ', '').trim();
-  return fromTitle || 'Comprador';
-}
-
 export default function MediationDetailPanel({
   item,
   onOpenReactivation,
@@ -38,9 +31,14 @@ export default function MediationDetailPanel({
 }: Omit<MediationDetailPanelProps, 'onOpenInitMediation'> & { onOpenInitMediation?: (id: number) => void }) {
   const canReview = item.status === MediationStatus.EN_MEDIACION && item.mediationStarted && !item.accountBlocked;
   const canBlock = canReview && item.canBlockAccount !== false;
-  const canReactivate = item.status === MediationStatus.EN_MEDIACION && item.accountBlocked;
+  // `blockAccount` (backend) fuerza la mediacion bloqueante a RESUELTA en cuanto su
+  // pedido es resoluble -el caso comun-, aunque `cuentaBloqueada` siga en true: exigir
+  // EN_MEDIACION aqui escondia "Reactivar cuenta" justo en el caso mas frecuente,
+  // dejando la cuenta bloqueada sin ninguna accion visible para desbloquearla.
+  const canReactivate = Boolean(item.accountBlocked);
   const blockingCode = item.blockingMediationExternalId || (item.blockingMediationId ? `MED-${item.blockingMediationId}` : '');
   const buyerName = resolveBuyerName(item);
+  const blockedTarget = getBlockedTargetInfo(item);
 
   const daysElapsed = useMemo(() => {
     if (!item?.createdAt) return '0';
@@ -66,12 +64,54 @@ export default function MediationDetailPanel({
 
 
       <div className="side-section">
-        <DetailRow label="Tienda" value={<FounderSellerName name={item.sellerName} founder={item.sellerFounder} />} />
-        <DetailRow label="Comprador" value={buyerName} />
+        <DetailRow
+          label="Tienda"
+          value={(
+            <span>
+              <FounderSellerName name={item.sellerName} founder={item.sellerFounder} />
+              {item.accountBlocked && !blockedTarget.isBuyer && (
+                <span style={{ marginLeft: 6, fontSize: '11px', color: 'var(--danger, #dc2626)', fontWeight: 600 }}>
+                  (Bloqueada)
+                </span>
+              )}
+            </span>
+          )}
+        />
+        <DetailRow
+          label="Comprador"
+          value={(
+            <span>
+              {buyerName}
+              {item.accountBlocked && blockedTarget.isBuyer && (
+                <span style={{ marginLeft: 6, fontSize: '11px', color: 'var(--danger, #dc2626)', fontWeight: 600 }}>
+                  (Bloqueado)
+                </span>
+              )}
+            </span>
+          )}
+        />
         <DetailRow label="Pedido" value={item.orderId} />
         <DetailRow label="Motivo" value={item.reason} />
         <DetailRow label="Etapa del pedido" value={item.stage} />
-        <DetailRow label="Responsable" value={item.owner} />
+        <DetailRow
+          label="Responsable"
+          value={
+            item.accountBlocked ? (
+              <div>
+                <strong style={{ display: 'block', color: 'var(--text-main, #1e293b)' }}>
+                  {blockedTarget.fullTargetLabel}
+                </strong>
+                {item.owner && (
+                  <span style={{ display: 'block', fontSize: '11px', color: 'var(--text-muted, #64748b)', fontWeight: 400 }}>
+                    Mediador: {item.owner}
+                  </span>
+                )}
+              </div>
+            ) : (
+              item.owner
+            )
+          }
+        />
         <DetailRow label="Monto" value={item.amount} />
         <DetailRow label="Días transcurridos" value={daysElapsed} />
       </div>
@@ -82,7 +122,9 @@ export default function MediationDetailPanel({
             <UiIcon name="lock" />
           </span>
           <p>
-            La cuenta de la tienda está bloqueada. Considere reactivar o resolver el caso.
+            {blockedTarget.isBuyer
+              ? `La cuenta del comprador (${buyerName}) está bloqueada. Considere reactivar o resolver el caso.`
+              : `La cuenta de la tienda (${item.sellerName}) está bloqueada. Considere reactivar o resolver el caso.`}
           </p>
         </div>
       )}

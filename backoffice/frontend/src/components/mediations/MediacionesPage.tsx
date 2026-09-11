@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { useMediations, useMediation, useInitMediation, useBlockAccount, useResolveCase, useReactivateAccount, useAddMessage, useEditMessage, useDeleteMessage } from '@/hooks/useMediations';
+import { useMediations, useMediation, useInitMediation, useBlockAccount, useReactivateAccount, useAddMessage, useEditMessage, useDeleteMessage } from '@/hooks/useMediations';
 import { useSeller, useSellerDocuments } from '@/hooks/useSellers';
 import { useQuery } from '@tanstack/react-query';
 import * as mediationsApi from '@/api/mediations';
@@ -21,7 +21,6 @@ import BlockedAccountsTable from './BlockedAccountsTable';
 import MediationFilterBar from './MediationFilterBar';
 import FilterContext from './FilterContext';
 import MediationDetailPanel, { ResolvedMediationDetailPanel } from './MediationDetailPanel';
-import MediationDetail, { type MediationResolvePayload } from './MediationDetail';
 import SellerDocumentsModal from '@/components/sellers/SellerDocumentsModal';
 import SellerProfileModal from '@/components/sellers/SellerProfileModal';
 import SellerActiveMediationsModal from '@/components/sellers/SellerActiveMediationsModal';
@@ -195,7 +194,6 @@ export default function MediacionesPage() {
   const [initModalOpen, setInitModalOpen] = useState(false);
   const [noteModalOpen, setNoteModalOpen] = useState(false);
   const [notesHistoryModalOpen, setNotesHistoryModalOpen] = useState(false);
-  const [reviewModalOpen, setReviewModalOpen] = useState(false);
   const [reactivateModalOpen, setReactivateModalOpen] = useState(false);
   const [resolvedTimelineOpen, setResolvedTimelineOpen] = useState(false);
   const [selectedTimelineCase, setSelectedTimelineCase] = useState<ResolvedCaseResponse | null>(null);
@@ -241,7 +239,6 @@ export default function MediacionesPage() {
 
   const initMutation = useInitMediation();
   const blockMutation = useBlockAccount();
-  const resolveMutation = useResolveCase();
   const reactivateMutation = useReactivateAccount();
   const addMessageMutation = useAddMessage();
   const editMessageMutation = useEditMessage();
@@ -313,9 +310,8 @@ export default function MediacionesPage() {
       const mediationId = Number(searchParams.get('mediationId'));
 
       if (action === 'review' && Number.isFinite(mediationId) && mediationId > 0) {
-        setSelectedId(mediationId);
-        setReviewModalOpen(true);
         clearDeepLinkParams();
+        navigate(`/confianza/mediations/${mediationId}`);
         return;
       }
 
@@ -447,23 +443,6 @@ export default function MediacionesPage() {
     }
   };
 
-  const handleResolve = (id: number, payload: MediationResolvePayload) => {
-    resolveMutation.mutate(
-      {
-        id,
-        data: {
-          favor: payload.favor,
-          resolutionOption: payload.resolutionOption,
-          refundPercentage: payload.refundPercentage,
-        },
-      },
-      {
-        onSuccess: () => { setReviewModalOpen(false); showToast('Caso resuelto'); },
-        onError: (error: any) => { showToast(error?.response?.data?.message || 'Error al resolver el caso'); },
-      },
-    );
-  };
-
   const handleReactivate = (id: number, reason: string, file: File) => {
     reactivateMutation.mutate(
       { id, data: { resolutionReason: reason }, document: file },
@@ -482,7 +461,6 @@ export default function MediacionesPage() {
         { id, data: payload },
         {
           onSuccess: () => {
-            setReviewModalOpen(false);
             navigate('/confianza/mediations');
             showToast('Cuenta suspendida con éxito');
           },
@@ -601,7 +579,7 @@ export default function MediacionesPage() {
                       mediations={mediations}
                       selectedId={selectedId}
                       onSelect={setSelectedId}
-                      onOpenMediationCase={(id) => { setSelectedId(id); setReviewModalOpen(true); }}
+                      onOpenMediationCase={(id) => navigate(`/confianza/mediations/${id}`)}
                       onOpenReactivation={(id) => { setSelectedId(id); setReactivateModalOpen(true); }}
                       onOpenSellerInfo={handleOpenSellerInfo}
                     />
@@ -648,7 +626,7 @@ export default function MediacionesPage() {
           <MediationDetailPanel
             item={selectedMediation}
             onOpenReactivation={(id) => { setSelectedId(id); setReactivateModalOpen(true); }}
-            onOpenMediationCase={(id) => { setSelectedId(id); setReviewModalOpen(true); }}
+            onOpenMediationCase={(id) => navigate(`/confianza/mediations/${id}`)}
             onOpenInitMediation={(id) => { setSelectedId(id); setInitModalOpen(true); }}
             onOpenNote={(id) => { setSelectedId(id); setEditingNote(null); setNoteModalOpen(true); }}
             onOpenNotesHistory={(id) => { setSelectedId(id); setNotesHistoryModalOpen(true); }}
@@ -660,7 +638,7 @@ export default function MediacionesPage() {
           <MediationDetailPanel
             item={selectedBlockedAccount}
             onOpenReactivation={(id) => { setSelectedId(id); setReactivateModalOpen(true); }}
-            onOpenMediationCase={(id) => { setSelectedId(id); setReviewModalOpen(true); }}
+            onOpenMediationCase={(id) => navigate(`/confianza/mediations/${id}`)}
             onOpenInitMediation={(id) => { setSelectedId(id); setInitModalOpen(true); }}
             onOpenNote={(id) => { setSelectedId(id); setEditingNote(null); setNoteModalOpen(true); }}
             onOpenNotesHistory={(id) => { setSelectedId(id); setNotesHistoryModalOpen(true); }}
@@ -759,17 +737,6 @@ export default function MediacionesPage() {
         isOpen={sellerMediationsOpen}
         onClose={handleCloseSellerMediations}
         seller={sellerDetail || null}
-      />
-
-      <MediationDetail
-        isOpen={reviewModalOpen}
-        item={selectedMediation}
-        onClose={() => setReviewModalOpen(false)}
-        onResolve={handleResolve}
-        onBlockAccount={handleBlockAccount}
-        onSendMessage={(mediationId, text, targetRole) =>
-          addMessageMutation.mutate({ mediationId, data: { message: text, targetRole } })
-        }
       />
     </>
   );

@@ -8069,6 +8069,47 @@ tr.is-active {
   animation: mediation-feedback-spin 800ms linear infinite;
 }
 
+.mediation-management-view {
+  width: 100%;
+  max-width: 1440px;
+  margin: 0 auto;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.mediation-management-view .mediation-management-shell {
+  display: grid;
+  gap: 20px;
+  padding: 0 0 40px;
+}
+
+.mediation-back-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 650;
+  cursor: pointer;
+  background: #ffffff;
+  border: 1px solid #dbe3ef;
+  color: #334155;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.mediation-back-button:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+.mediation-back-button .ui-icon {
+  width: 18px;
+  height: 18px;
+}
+
 .mediation-management-backdrop {
   padding: 20px;
 }

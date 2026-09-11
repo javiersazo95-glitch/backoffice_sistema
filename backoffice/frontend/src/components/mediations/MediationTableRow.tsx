@@ -39,7 +39,9 @@ export default function MediationTableRow({
       );
     }
 
-    if (item.status === 'EN_MEDIACION' && item.accountBlocked) {
+    // Igual que en MediationDetailPanel: `blockAccount` deja la mediacion bloqueante en
+    // RESUELTA en cuanto el pedido es resoluble, aunque `accountBlocked` siga en true.
+    if (item.accountBlocked) {
       return (
         <button
           className="row-action account-lock-action"
