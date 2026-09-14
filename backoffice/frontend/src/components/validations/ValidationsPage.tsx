@@ -397,15 +397,21 @@ export default function ValidationsPage() {
   });
 
   const rejectMutation = useMutation({
-    mutationFn: ({ ids, notes }: { ids: number[]; notes: string }) =>
-      Promise.all(ids.map((id) => validationsApi.rejectValidation(id, notes))),
+    mutationFn: ({ ids, notes }: { ids: number[]; notes: string }) => {
+      // El rechazo elimina la postulación completa, no cada documento por separado.
+      // Todos los IDs del grupo representan la misma verificación en el backend.
+      const validationId = ids[0];
+      if (validationId === undefined) throw new Error('No hay una validación para rechazar.');
+      return validationsApi.rejectValidation(validationId, notes);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['validations-workspace'] });
       queryClient.invalidateQueries({ queryKey: ['validations'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-validations-preview'] });
       setDecisionNotes('');
-      showToast('Solicitud rechazada');
+      setSelectedSellerId(null);
+      showToast('Solicitud eliminada. El motivo fue enviado por correo al solicitante.');
     },
   });
 
@@ -845,7 +851,7 @@ export default function ValidationsPage() {
                 <div>
                   <PanelTitle icon="scale" title="Decisión" />
                   <label className="validation-notes-label" htmlFor="validation-decision-notes">
-                    Notas internas o solicitud de corrección (opcional)
+                    Motivo del rechazo o solicitud de corrección
                   </label>
                   <div className="validation-notes-box">
                     <textarea
@@ -853,7 +859,7 @@ export default function ValidationsPage() {
                       maxLength={500}
                       value={decisionNotes}
                       onChange={(event) => setDecisionNotes(event.target.value)}
-                      placeholder="Escribe una nota o indica qué información debe corregir el vendedor..."
+                      placeholder="Indica el motivo que recibirá el solicitante si rechazas la solicitud..."
                     />
                     <span>{decisionNotes.length} / 500</span>
                   </div>
@@ -881,11 +887,11 @@ export default function ValidationsPage() {
                   <button
                     className="validation-action-button reject"
                     type="button"
-                    disabled={!canResolveRequest || mutationInProgress}
+                    disabled={!canResolveRequest || !decisionNotes.trim() || mutationInProgress}
                     onClick={rejectSelectedRequest}
                   >
                     <UiIcon name="close" />
-                    Rechazar solicitud
+                    Eliminar solicitud
                   </button>
                 </div>
 
