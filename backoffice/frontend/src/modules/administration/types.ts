@@ -17,6 +17,7 @@ export interface Order {
   product: string;
   total: number;
   subtotalPublicado?: number;
+  descuento?: number;
   comisionServicio?: number;
   comisionServicioPorcentaje?: number;
   ivaComisionServicio?: number;
@@ -149,6 +150,7 @@ export interface Settlement {
   sellerEmail?: string;
   orderId: string;
   saleTotal: number;
+  descuento?: number;
   saleDetail: Record<string, number>;
   saleTooltip?: string;
   commission: number;

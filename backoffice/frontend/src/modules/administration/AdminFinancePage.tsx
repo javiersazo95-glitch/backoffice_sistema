@@ -94,22 +94,43 @@ const serviceCommissionLabel = (settlement: Settlement) =>
     : `Comisión RepuesTop (${Math.round(settlement.serviceCommissionRate * 100)}%)`;
 
 /** El despacho integra la venta gravada: todos los cobros siguientes usan esta base. */
-const SettlementSaleBreakdown = ({ settlement }: { settlement: Settlement }) => <>
-  {Object.entries(settlement.saleDetail).map(([label, value]) => (
-    <div className="tooltip-row" key={label}><span>{label}</span><span>{formatMoney(value)}</span></div>
-  ))}
-  <div className="tooltip-divider" />
-  <div className="tooltip-row total"><span>Base de comisiones: productos + despacho</span><span>{formatMoney(settlement.saleTotal)}</span></div>
-</>;
+const SettlementSaleBreakdown = ({ settlement }: { settlement: Settlement }) => {
+  const hasDiscount = Object.entries(settlement.saleDetail).some(([label, value]) => value < 0 || label.toLowerCase().includes('descuento'));
+  return (
+    <>
+      {Object.entries(settlement.saleDetail).map(([label, value]) => (
+        <div className="tooltip-row" key={label}>
+          <span>{label}</span>
+          <span style={value < 0 ? { color: '#dc2626', fontWeight: 600 } : undefined}>
+            {value < 0 ? `-${formatMoney(Math.abs(value))}` : formatMoney(value)}
+          </span>
+        </div>
+      ))}
+      <div className="tooltip-divider" />
+      <div className="tooltip-row total">
+        <span>Base de comisiones: {hasDiscount ? 'productos + despacho - descuento' : 'productos + despacho'}</span>
+        <span>{formatMoney(settlement.saleTotal)}</span>
+      </div>
+    </>
+  );
+};
 
-const SettlementFeeBreakdown = ({ settlement }: { settlement: Settlement }) => <>
-  <div className="tooltip-row"><span>Base de cálculo: productos + despacho</span><span>{formatMoney(settlement.saleTotal)}</span></div>
-  <div className="tooltip-row"><span>{serviceCommissionLabel(settlement)}</span><span>{formatMoney(settlement.serviceCommission)}</span></div>
-  <div className="tooltip-row"><span>IVA de tarifa de servicio</span><span>{formatMoney(settlement.serviceCommissionIva)}</span></div>
-  <div className="tooltip-row"><span>Comisión PagoFlow sobre venta total</span><span>{formatMoney(settlement.gatewayFeeSeller)}</span></div>
-  <div className="tooltip-divider" />
-  <div className="tooltip-row total"><span>Total descuentos al vendedor</span><span>{formatMoney(settlement.commission)}</span></div>
-</>;
+const SettlementFeeBreakdown = ({ settlement }: { settlement: Settlement }) => {
+  const hasDiscount = Boolean(settlement.descuento && settlement.descuento > 0);
+  return (
+    <>
+      <div className="tooltip-row">
+        <span>Base de cálculo: {hasDiscount ? 'productos + despacho - descuento' : 'productos + despacho'}</span>
+        <span>{formatMoney(settlement.saleTotal)}</span>
+      </div>
+      <div className="tooltip-row"><span>{serviceCommissionLabel(settlement)}</span><span>{formatMoney(settlement.serviceCommission)}</span></div>
+      <div className="tooltip-row"><span>IVA de tarifa de servicio</span><span>{formatMoney(settlement.serviceCommissionIva)}</span></div>
+      <div className="tooltip-row"><span>Comisión PagoFlow sobre venta total</span><span>{formatMoney(settlement.gatewayFeeSeller)}</span></div>
+      <div className="tooltip-divider" />
+      <div className="tooltip-row total"><span>Total descuentos al vendedor</span><span>{formatMoney(settlement.commission)}</span></div>
+    </>
+  );
+};
 
 const SettlementNetBreakdown = ({ settlement }: { settlement: Settlement }) => <>
   <div className="tooltip-row"><span>Tarifa de servicio cobrada</span><span>{formatMoney(settlement.commission)}</span></div>
@@ -3675,7 +3696,7 @@ export default function AdminFinancePage() {
             </section>
 
             <section className="settlement-stat-grid">
-              <article><span>Base: productos + despacho</span><strong>{formatMoney(selectedDetailSettlement.saleTotal)}</strong></article>
+              <article><span>Base: productos + despacho{selectedDetailSettlement.descuento && selectedDetailSettlement.descuento > 0 ? ' - descuento' : ''}</span><strong>{formatMoney(selectedDetailSettlement.saleTotal)}</strong></article>
               <article><span>{serviceCommissionLabel(selectedDetailSettlement)}</span><strong>{formatMoney(selectedDetailSettlement.serviceCommission)}</strong></article>
               <article><span>IVA de tarifa de servicio</span><strong>{formatMoney(selectedDetailSettlement.serviceCommissionIva)}</strong></article>
               <article><span>PagoFlow sobre venta total</span><strong>{formatMoney(selectedDetailSettlement.gatewayFeeSeller)}</strong></article>
@@ -3694,6 +3715,9 @@ export default function AdminFinancePage() {
               <div><dt>Vendedor</dt><dd><FounderSellerName name={selectedDetailSettlement.seller} founder={selectedDetailSettlement.sellerFounder} /></dd></div>
               <div><dt>ID liquidación</dt><dd>{selectedDetailSettlement.id}</dd></div>
               <div><dt>Pedido asociado</dt><dd>{selectedDetailSettlement.orderId}</dd></div>
+              {Boolean(selectedDetailSettlement.descuento && selectedDetailSettlement.descuento > 0) && (
+                <div><dt>Descuento cotización</dt><dd style={{ color: '#dc2626', fontWeight: 600 }}>-{formatMoney(selectedDetailSettlement.descuento!)}</dd></div>
+              )}
             </dl>
 
             <div className="form-actions">
@@ -4010,6 +4034,15 @@ export default function AdminFinancePage() {
                   <dd style={{ margin: 0, color: '#10b981', fontSize: '14px', fontWeight: 800 }}>
                     {formatMoney(selectedDetailOrder.total)}
                   </dd>
+
+                  {Boolean(selectedDetailOrder.descuento && selectedDetailOrder.descuento > 0) && (
+                    <>
+                      <dt style={{ color: '#64748b', fontSize: '13px', fontWeight: 600 }}>Descuento cotización:</dt>
+                      <dd style={{ margin: 0, color: '#dc2626', fontSize: '13px', fontWeight: 700 }}>
+                        -{formatMoney(selectedDetailOrder.descuento!)}
+                      </dd>
+                    </>
+                  )}
 
                   <dt style={{ color: '#64748b', fontSize: '13px', fontWeight: 600 }}>Estado:</dt>
                   <dd style={{ margin: 0 }}>

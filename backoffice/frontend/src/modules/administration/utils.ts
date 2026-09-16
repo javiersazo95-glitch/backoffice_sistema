@@ -106,7 +106,8 @@ export function getSettlements(orders: Order[], statuses: Record<string, Settlem
     .filter((order) => order.status === 'Finalizado')
     .map((order) => {
       const subtotal = Number(order.subtotalPublicado ?? order.total);
-      const saleTotal = Number(order.total ?? subtotal);
+      const descuento = Number(order.descuento ?? 0);
+      const saleTotal = Number(order.total ?? (Math.max(0, subtotal - descuento) + Number(order.costoEnvio ?? 0)));
       const serviceCommission = Number(order.comisionServicio ?? 0);
       const serviceCommissionRate = Number(order.comisionServicioPorcentaje ?? (order.sellerFounder ? 0.05 : subtotal > 250000 ? 0.05 : subtotal > 100000 ? 0.07 : 0.10));
       const serviceCommissionIva = Number(order.ivaComisionServicio ?? 0);
@@ -114,7 +115,8 @@ export function getSettlements(orders: Order[], statuses: Record<string, Settlem
       const gatewayFeeRepuestop = Number(order.comisionPagoFlowRepuestop ?? 0);
       const grossEarnings = Number(order.descuentosVendedor ?? serviceCommission + serviceCommissionIva + gatewayFeeSeller);
       const netSettlement = Number(order.liquidacionServicio ?? serviceCommission + serviceCommissionIva);
-      const paidAmount = subtotal - grossEarnings;
+      const baseComisiones = Math.max(0, subtotal - descuento) + Number(order.costoEnvio ?? 0);
+      const paidAmount = baseComisiones - grossEarnings;
       const sellerPayout = Number(order.montoPagarVendedor ?? paidAmount);
       const settlementId = getSettlementId(order.id);
       return {
@@ -127,8 +129,10 @@ export function getSettlements(orders: Order[], statuses: Record<string, Settlem
         sellerEmail: order.sellerEmail,
         orderId: order.id,
         saleTotal,
+        descuento,
         saleDetail: order.totalVentaDetalle ?? {
           'Valor publicado por el vendedor': subtotal,
+          ...(descuento > 0 ? { 'Descuento en cotización': -descuento } : {}),
           'Costo de despacho': Number(order.costoEnvio ?? 0),
         },
         saleTooltip: order.totalVentaTooltip,
