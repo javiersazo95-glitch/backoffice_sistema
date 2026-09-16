@@ -93,6 +93,32 @@ const serviceCommissionLabel = (settlement: Settlement) =>
     ? 'Tarifa RepuesTop Fundador (5%)'
     : `Comisión RepuesTop (${Math.round(settlement.serviceCommissionRate * 100)}%)`;
 
+/** El despacho integra la venta gravada: todos los cobros siguientes usan esta base. */
+const SettlementSaleBreakdown = ({ settlement }: { settlement: Settlement }) => <>
+  {Object.entries(settlement.saleDetail).map(([label, value]) => (
+    <div className="tooltip-row" key={label}><span>{label}</span><span>{formatMoney(value)}</span></div>
+  ))}
+  <div className="tooltip-divider" />
+  <div className="tooltip-row total"><span>Base de comisiones: productos + despacho</span><span>{formatMoney(settlement.saleTotal)}</span></div>
+</>;
+
+const SettlementFeeBreakdown = ({ settlement }: { settlement: Settlement }) => <>
+  <div className="tooltip-row"><span>Base de cálculo: productos + despacho</span><span>{formatMoney(settlement.saleTotal)}</span></div>
+  <div className="tooltip-row"><span>{serviceCommissionLabel(settlement)}</span><span>{formatMoney(settlement.serviceCommission)}</span></div>
+  <div className="tooltip-row"><span>IVA de tarifa de servicio</span><span>{formatMoney(settlement.serviceCommissionIva)}</span></div>
+  <div className="tooltip-row"><span>Comisión PagoFlow sobre venta total</span><span>{formatMoney(settlement.gatewayFeeSeller)}</span></div>
+  <div className="tooltip-divider" />
+  <div className="tooltip-row total"><span>Total descuentos al vendedor</span><span>{formatMoney(settlement.commission)}</span></div>
+</>;
+
+const SettlementNetBreakdown = ({ settlement }: { settlement: Settlement }) => <>
+  <div className="tooltip-row"><span>Tarifa de servicio cobrada</span><span>{formatMoney(settlement.commission)}</span></div>
+  <div className="tooltip-row"><span>IVA de tarifa de servicio</span><span>-{formatMoney(settlement.serviceCommissionIva)}</span></div>
+  <div className="tooltip-row"><span>Comisión PagoFlow sobre productos + despacho</span><span>-{formatMoney(settlement.gatewayFeeSeller)}</span></div>
+  <div className="tooltip-divider" />
+  <div className="tooltip-row total"><span>Ganancia neta RepuesTop</span><span>{formatMoney(settlement.netSettlement)}</span></div>
+</>;
+
 interface PaginationState {
   page: number;
   pageSize: number;
@@ -2026,7 +2052,6 @@ export default function AdminFinancePage() {
   const paidTotal = paidPaymentsForPeriod.reduce((sum, payment) => sum + payment.montoTotal, 0);
   const paidNetProfit = paidPeriodSettlements.reduce((sum, settlement) => sum + settlement.netSettlement, 0);
   const paidIva = paidPeriodSettlements.reduce((sum, settlement) => sum + settlement.serviceCommissionIva, 0);
-  const localDeliverySettlements = selectedSettlementRows.filter((settlement) => settlement.gatewayFeeRepuestop > 0);
   const selectedLiquidationPeriod = selectedLiquidationSeller?.settlements[0] ? getLiquidationPeriod(selectedLiquidationSeller.settlements[0].date) : '';
   const activeLiquidationPeriod = liquidationTab === 'EN_LIQUIDACION' && filteredSettlements[0] ? getLiquidationPeriod(filteredSettlements[0].date) : '';
   const { cashFund } = getCashAllocation(totalCommission);
@@ -2393,7 +2418,7 @@ export default function AdminFinancePage() {
                   {enLiquidationGroups.length ? enLiquidationGroups.map((group) => (
                     <>
                       <tr key={group.key}><td><FounderSellerName name={group.seller} founder={group.sellerFounder} /></td><td>{group.rut}</td><td>{group.legalName}</td><td>{group.email}</td><td>{group.settlements.length}</td><td>{formatMoney(group.total)}</td><td><button className="action-button neutral" type="button" onClick={() => setExpandedLiquidationSellers((current) => { const next = new Set(current); next.has(group.key) ? next.delete(group.key) : next.add(group.key); return next; })} title="Ver liquidaciones"><UiIcon name="chevronDown" /></button></td></tr>
-                      {expandedLiquidationSellers.has(group.key) && <tr key={`${group.key}-details`}><td colSpan={7}><table className="wide-table"><thead><tr><th>ID liquidación</th><th>Pedido</th><th>Venta total</th><th>Ganancias de la venta</th><th>Ganancia neta</th><th>Acciones</th></tr></thead><tbody>{group.settlements.map((settlement) => <tr key={settlement.id}><td>{settlement.id}</td><td>{settlement.orderId}</td><td>{formatMoney(settlement.saleTotal)}</td><td>{formatMoney(settlement.commission)}</td><td>{formatMoney(settlement.netSettlement)}</td><td><div className="action-cell"><button className="action-button neutral" type="button" onClick={() => showSettlementDetail(settlement)} title="Ver detalle"><UiIcon name="eye" /></button>{(() => { const order = orders.find((candidate) => candidate.id === settlement.orderId); const documentComplete = order ? isIssuedDocumentComplete(issuedDocuments[order.id]) : false; return order ? <button className={`action-button ${documentComplete ? 'success' : 'issue'}`} type="button" onClick={() => openDocument(order)} title="Emitir boleta o factura"><UiIcon name={documentComplete ? 'check' : 'receipt'} /></button> : null; })()}</div></td></tr>)}</tbody></table></td></tr>}
+                      {expandedLiquidationSellers.has(group.key) && <tr key={`${group.key}-details`}><td colSpan={7}><table className="wide-table"><thead><tr><th>ID liquidación</th><th>Pedido</th><th>Venta total</th><th>Descuentos al vendedor</th><th>Ganancia neta RepuesTop</th><th>Acciones</th></tr></thead><tbody>{group.settlements.map((settlement) => <tr key={settlement.id}><td>{settlement.id}</td><td>{settlement.orderId}</td><td>{formatMoney(settlement.saleTotal)}</td><td>{formatMoney(settlement.commission)}</td><td>{formatMoney(settlement.netSettlement)}</td><td><div className="action-cell"><button className="action-button neutral" type="button" onClick={() => showSettlementDetail(settlement)} title="Ver detalle"><UiIcon name="eye" /></button>{(() => { const order = orders.find((candidate) => candidate.id === settlement.orderId); const documentComplete = order ? isIssuedDocumentComplete(issuedDocuments[order.id]) : false; return order ? <button className={`action-button ${documentComplete ? 'success' : 'issue'}`} type="button" onClick={() => openDocument(order)} title="Emitir boleta o factura"><UiIcon name={documentComplete ? 'check' : 'receipt'} /></button> : null; })()}</div></td></tr>)}</tbody></table></td></tr>}
                     </>
                   )) : <tr><td colSpan={7}><div className="empty-state">No hay liquidaciones en curso para el rango seleccionado.</div></td></tr>}
                 </tbody>
@@ -2537,7 +2562,6 @@ export default function AdminFinancePage() {
                     : 'Después de IVA de servicio y PagoFlow'
               }
               iconName="percent"
-              infoContent={liquidationTab !== 'LIQUIDADO' && localDeliverySettlements.length ? <><strong>Envíos dentro de la comuna</strong><p>La comisión de PagoFlow del valor del despacho se descuenta de la ganancia neta de RepuesTop.</p>{localDeliverySettlements.map((settlement) => <div className="metric-info-tooltip-row" key={settlement.id}><b>{settlement.orderId}</b><span>PagoFlow despacho: {formatMoney(settlement.gatewayFeeRepuestop)}</span></div>)}</> : null}
             />
             <MetricCard
               label={
@@ -2580,7 +2604,7 @@ export default function AdminFinancePage() {
               <thead>
                 <tr>
                   <SelectionHeader view="liquidaciones" sourceIds={filteredSettlements.map((settlement) => settlement.id)} selected={selectedRows.liquidaciones} onToggle={toggleMassSelection} />
-                  <th>ID liquidación</th><th>Fecha</th><th>Vendedor</th><th>Pedidos asociados</th><th>Venta total</th><th>Ganancias de la venta</th><th>Ganancia neta</th><th>Estado</th><th>Acciones</th>
+                  <th>ID liquidación</th><th>Fecha</th><th>Vendedor</th><th>Pedidos asociados</th><th>Venta total</th><th>Descuentos al vendedor</th><th>Ganancia neta RepuesTop</th><th>Estado</th><th>Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -2599,11 +2623,7 @@ export default function AdminFinancePage() {
                       <div className="tooltip-content">
                         <div className="tooltip-arrow"></div>
                         <div className="tooltip-body">
-                          {Object.entries(settlement.saleDetail).map(([label, value]) => (
-                            <div className="tooltip-row" key={label}><span>{label}</span><span>{formatMoney(value)}</span></div>
-                          ))}
-                          <div className="tooltip-divider"></div>
-                          <div className="tooltip-row total"><span>Total de la venta</span><span>{formatMoney(settlement.saleTotal)}</span></div>
+                          <SettlementSaleBreakdown settlement={settlement} />
                         </div>
                       </div>
                     </td>
@@ -2615,11 +2635,7 @@ export default function AdminFinancePage() {
                       <div className="tooltip-content">
                         <div className="tooltip-arrow"></div>
                         <div className="tooltip-body">
-                          <div className="tooltip-row"><span>{serviceCommissionLabel(settlement)}</span><span>{formatMoney(settlement.serviceCommission)}</span></div>
-                          <div className="tooltip-row"><span>IVA de comisión</span><span>{formatMoney(settlement.serviceCommissionIva)}</span></div>
-                          <div className="tooltip-row"><span>Comisión PagoFlow a cargo del vendedor</span><span>{formatMoney(settlement.gatewayFeeSeller)}</span></div>
-                          <div className="tooltip-divider"></div>
-                          <div className="tooltip-row total"><span>Ganancias de la venta</span><span>{formatMoney(settlement.commission)}</span></div>
+                          <SettlementFeeBreakdown settlement={settlement} />
                         </div>
                       </div>
                     </td>
@@ -2631,12 +2647,7 @@ export default function AdminFinancePage() {
                       <div className="tooltip-content net-settlement-tooltip">
                         <div className="tooltip-arrow"></div>
                         <div className="tooltip-body">
-                          <div className="tooltip-row"><span>Ganancias de la venta</span><span>{formatMoney(settlement.commission)}</span></div>
-                          <div className="tooltip-row"><span>IVA de comisión RepuesTop</span><span>-{formatMoney(settlement.serviceCommissionIva)}</span></div>
-                          <div className="tooltip-row"><span>Comisión PagoFlow cobrada al vendedor</span><span>-{formatMoney(settlement.gatewayFeeSeller)}</span></div>
-                          {settlement.gatewayFeeRepuestop > 0 && <div className="tooltip-row"><span>PagoFlow de despacho local (costo RepuesTop)</span><span>-{formatMoney(settlement.gatewayFeeRepuestop)}</span></div>}
-                          <div className="tooltip-divider"></div>
-                          <div className="tooltip-row total"><span>Ganancia neta</span><span>{formatMoney(settlement.netSettlement)}</span></div>
+                          <SettlementNetBreakdown settlement={settlement} />
                         </div>
                       </div>
                     </td>
@@ -3523,8 +3534,8 @@ export default function AdminFinancePage() {
 
       {selectedLiquidationSeller && (
         <Modal title={<>Liquidaciones de <FounderSellerName name={selectedLiquidationSeller.seller} founder={selectedLiquidationSeller.sellerFounder} /></>} subtitle={`${selectedLiquidationSeller.settlements.length} liquidaciones · ${formatMoney(selectedLiquidationSeller.total)} · Período: ${selectedLiquidationPeriod}`} onClose={() => setSelectedLiquidationSeller(null)}>
-          <div className="table-shell liquidation-preview-shell"><table className="wide-table liquidation-preview-table"><thead><tr><th>ID liquidación</th><th>Pedido</th><th>Fecha</th><th>Venta total</th><th>Ganancias de la venta</th><th>Ganancia neta</th><th>Monto a pagar vendedor</th><th>IVA</th></tr></thead><tbody>
-            {selectedLiquidationSeller.settlements.map((settlement) => <tr key={settlement.id}><td>{settlement.id}</td><td>{settlement.orderId}</td><td>{formatDate(settlement.date)}</td><td className="value-cell tooltip-container"><span className="tooltip-trigger-value">{formatMoney(settlement.saleTotal)}<UiIcon name="info" /></span><div className="tooltip-content"><div className="tooltip-arrow"></div><div className="tooltip-body">{Object.entries(settlement.saleDetail).map(([label, value]) => <div className="tooltip-row" key={label}><span>{label}</span><span>{formatMoney(value)}</span></div>)}<div className="tooltip-divider"></div><div className="tooltip-row total"><span>Total de la venta</span><span>{formatMoney(settlement.saleTotal)}</span></div></div></div></td><td className="value-cell tooltip-container"><span className="tooltip-trigger-value">{formatMoney(settlement.commission)}<UiIcon name="info" /></span><div className="tooltip-content"><div className="tooltip-arrow"></div><div className="tooltip-body"><div className="tooltip-row"><span>{serviceCommissionLabel(settlement)}</span><span>{formatMoney(settlement.serviceCommission)}</span></div><div className="tooltip-row"><span>IVA de comisión</span><span>{formatMoney(settlement.serviceCommissionIva)}</span></div><div className="tooltip-row"><span>Comisión PagoFlow a cargo del vendedor</span><span>{formatMoney(settlement.gatewayFeeSeller)}</span></div><div className="tooltip-divider"></div><div className="tooltip-row total"><span>Ganancias de la venta</span><span>{formatMoney(settlement.commission)}</span></div></div></div></td><td className="value-cell tooltip-container"><span className="tooltip-trigger-value">{formatMoney(settlement.netSettlement)}<UiIcon name="info" /></span><div className="tooltip-content net-settlement-tooltip"><div className="tooltip-arrow"></div><div className="tooltip-body"><div className="tooltip-row"><span>Ganancias de la venta</span><span>{formatMoney(settlement.commission)}</span></div><div className="tooltip-row"><span>IVA de comisión RepuesTop</span><span>-{formatMoney(settlement.serviceCommissionIva)}</span></div><div className="tooltip-row"><span>Comisión PagoFlow cobrada al vendedor</span><span>-{formatMoney(settlement.gatewayFeeSeller)}</span></div>{settlement.gatewayFeeRepuestop > 0 && <div className="tooltip-row"><span>PagoFlow de despacho local (costo RepuesTop)</span><span>-{formatMoney(settlement.gatewayFeeRepuestop)}</span></div>}<div className="tooltip-divider"></div><div className="tooltip-row total"><span>Ganancia neta</span><span>{formatMoney(settlement.netSettlement)}</span></div></div></div></td><td>{formatMoney(settlement.sellerPayout)}</td><td>{formatMoney(settlement.serviceCommissionIva)}</td></tr>)}
+          <div className="table-shell liquidation-preview-shell"><table className="wide-table liquidation-preview-table"><thead><tr><th>ID liquidación</th><th>Pedido</th><th>Fecha</th><th>Venta total</th><th>Descuentos al vendedor</th><th>Ganancia neta RepuesTop</th><th>Monto a pagar vendedor</th><th>IVA</th></tr></thead><tbody>
+            {selectedLiquidationSeller.settlements.map((settlement) => <tr key={settlement.id}><td>{settlement.id}</td><td>{settlement.orderId}</td><td>{formatDate(settlement.date)}</td><td className="value-cell tooltip-container"><span className="tooltip-trigger-value">{formatMoney(settlement.saleTotal)}<UiIcon name="info" /></span><div className="tooltip-content"><div className="tooltip-arrow"></div><div className="tooltip-body"><SettlementSaleBreakdown settlement={settlement} /></div></div></td><td className="value-cell tooltip-container"><span className="tooltip-trigger-value">{formatMoney(settlement.commission)}<UiIcon name="info" /></span><div className="tooltip-content"><div className="tooltip-arrow"></div><div className="tooltip-body"><SettlementFeeBreakdown settlement={settlement} /></div></div></td><td className="value-cell tooltip-container"><span className="tooltip-trigger-value">{formatMoney(settlement.netSettlement)}<UiIcon name="info" /></span><div className="tooltip-content net-settlement-tooltip"><div className="tooltip-arrow"></div><div className="tooltip-body"><SettlementNetBreakdown settlement={settlement} /></div></div></td><td>{formatMoney(settlement.sellerPayout)}</td><td>{formatMoney(settlement.serviceCommissionIva)}</td></tr>)}
           </tbody><tfoot><tr><th colSpan={3}>Total acumulado</th><td>{formatMoney(selectedLiquidationSeller.settlements.reduce((total, settlement) => total + settlement.saleTotal, 0))}</td><td>{formatMoney(selectedLiquidationSeller.settlements.reduce((total, settlement) => total + settlement.commission, 0))}</td><td>{formatMoney(selectedLiquidationSeller.settlements.reduce((total, settlement) => total + settlement.netSettlement, 0))}</td><td>{formatMoney(selectedLiquidationSeller.settlements.reduce((total, settlement) => total + settlement.sellerPayout, 0))}</td><td>{formatMoney(selectedLiquidationSeller.settlements.reduce((total, settlement) => total + settlement.serviceCommissionIva, 0))}</td></tr></tfoot></table></div>
         </Modal>
       )}
@@ -3658,24 +3669,24 @@ export default function AdminFinancePage() {
               <div>
                 <span><FounderSellerName name={selectedDetailSettlement.seller} founder={selectedDetailSettlement.sellerFounder} /></span>
                 <strong>{formatMoney(selectedDetailSettlement.netSettlement)}</strong>
-                <p>Comisión RepuesTop después de IVA y PagoFlow</p>
+                <p>Ganancia neta RepuesTop después de IVA y PagoFlow</p>
               </div>
               <span className={`status-pill ${slug(selectedDetailSettlement.status)}`}>{selectedDetailSettlement.status}</span>
             </section>
 
             <section className="settlement-stat-grid">
-              <article><span>Venta total</span><strong>{formatMoney(selectedDetailSettlement.saleTotal)}</strong></article>
+              <article><span>Base: productos + despacho</span><strong>{formatMoney(selectedDetailSettlement.saleTotal)}</strong></article>
               <article><span>{serviceCommissionLabel(selectedDetailSettlement)}</span><strong>{formatMoney(selectedDetailSettlement.serviceCommission)}</strong></article>
-              <article><span>IVA de comisión</span><strong>{formatMoney(selectedDetailSettlement.serviceCommissionIva)}</strong></article>
-              <article><span>PagoFlow a cargo del vendedor</span><strong>{formatMoney(selectedDetailSettlement.gatewayFeeSeller)}</strong></article>
+              <article><span>IVA de tarifa de servicio</span><strong>{formatMoney(selectedDetailSettlement.serviceCommissionIva)}</strong></article>
+              <article><span>PagoFlow sobre venta total</span><strong>{formatMoney(selectedDetailSettlement.gatewayFeeSeller)}</strong></article>
             </section>
 
             <section className="settlement-net-card">
-              <div><span>Ganancias de la venta</span><strong>{formatMoney(selectedDetailSettlement.commission)}</strong></div>
+              <div><span>Descuentos al vendedor</span><strong>{formatMoney(selectedDetailSettlement.commission)}</strong></div>
               <UiIcon name="minus" />
-              <div><span>Deducciones: IVA y PagoFlow</span><strong>{formatMoney(selectedDetailSettlement.serviceCommissionIva + selectedDetailSettlement.gatewayFeeSeller + selectedDetailSettlement.gatewayFeeRepuestop)}</strong></div>
+              <div><span>IVA y PagoFlow sobre venta total</span><strong>{formatMoney(selectedDetailSettlement.serviceCommissionIva + selectedDetailSettlement.gatewayFeeSeller)}</strong></div>
               <UiIcon name="arrowRight" />
-              <div className="success"><span>Ganancia neta</span><strong>{formatMoney(selectedDetailSettlement.netSettlement)}</strong></div>
+              <div className="success"><span>Ganancia neta RepuesTop</span><strong>{formatMoney(selectedDetailSettlement.netSettlement)}</strong></div>
             </section>
 
             <dl className="settlement-meta">
