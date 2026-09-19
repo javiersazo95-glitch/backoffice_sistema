@@ -127,8 +127,33 @@ export default function PermissionsConfigPage() {
   const { data: capturers = [], isLoading: isLoadingCapturers } = useQuery({
     queryKey: ['managed-capturers'],
     queryFn: capturersApi.listManagedCapturers,
-    enabled: activeTab === 'captadores',
+    enabled: activeTab === 'captadores' || activeTab === 'permisos',
+    staleTime: 30_000,
   });
+
+  const normalizedInviteEmail = inviteEmail.trim().toLowerCase();
+  const isValidEmailFormat = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedInviteEmail);
+
+  const isCapturerEmailLocal = useMemo(() => {
+    if (!isValidEmailFormat) return false;
+    return capturers.some(
+      (c) => c.email?.trim().toLowerCase() === normalizedInviteEmail && !isDeleted(c as unknown as Record<string, unknown>)
+    );
+  }, [normalizedInviteEmail, isValidEmailFormat, capturers]);
+
+  const { data: emailValidation } = useQuery({
+    queryKey: ['validate-employee-email', normalizedInviteEmail],
+    queryFn: () => permissionsApi.validateEmployeeEmail(normalizedInviteEmail),
+    enabled: isValidEmailFormat && activeTab === 'permisos',
+    staleTime: 10_000,
+  });
+
+  const isCapturerEmail = isCapturerEmailLocal || Boolean(emailValidation?.isCaptador);
+  const emailValidationError = isCapturerEmail
+    ? 'Este correo ya pertenece a un captador en RepuesTop. No está permitido ser empleado y captador a la vez.'
+    : emailValidation?.valid === false && emailValidation?.message
+    ? emailValidation.message
+    : null;
 
   const permissionUsers = useMemo(
     () => usersData?.content.filter((user) => !isDeleted(user)) ?? [],
@@ -348,10 +373,33 @@ export default function PermissionsConfigPage() {
                 <div className="permission-entry-heading"><span className="permission-entry-icon"><UiIcon name="users" /></span><div><h3>Invitar empleado</h3><p>Crea una cuenta y envía un enlace de activación.</p></div></div>
                 <div className="invite-fields">
                   <input value={inviteName} onChange={e => setInviteName(e.target.value)} placeholder="Nombre completo" />
-                  <input type="email" value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} placeholder="correo@empresa.cl" />
+                  <input
+                    type="email"
+                    value={inviteEmail}
+                    onChange={e => setInviteEmail(e.target.value)}
+                    placeholder="correo@empresa.cl"
+                    style={emailValidationError ? { borderColor: '#e04f44', backgroundColor: '#fff8f8' } : undefined}
+                  />
                 </div>
+                {emailValidationError && (
+                  <div className="employee-invite-feedback error" style={{ margin: '6px 0 0', padding: '9px 12px', fontSize: '12.5px' }} role="alert">
+                    <UiIcon name="alert" />
+                    <span>{emailValidationError}</span>
+                  </div>
+                )}
                 <small>{invitePermissions.length ? `${invitePermissions.length} permiso${invitePermissions.length === 1 ? '' : 's'} seleccionado${invitePermissions.length === 1 ? '' : 's'} para la invitación.` : 'Selecciona al menos un permiso más abajo para habilitar el envío.'}</small>
-                <button className="primary-button invite-submit" type="button" disabled={!inviteName.trim() || !inviteEmail.trim() || !invitePermissions.length || inviteMutation.isPending} onClick={() => inviteMutation.mutate()}>
+                <button
+                  className="primary-button invite-submit"
+                  type="button"
+                  disabled={!inviteName.trim() || !inviteEmail.trim() || !invitePermissions.length || inviteMutation.isPending || Boolean(emailValidationError)}
+                  onClick={() => {
+                    if (emailValidationError) {
+                      showToast(emailValidationError);
+                      return;
+                    }
+                    inviteMutation.mutate();
+                  }}
+                >
                   {inviteMutation.isPending ? 'Enviando…' : 'Enviar invitación'}
                 </button>
               </section>

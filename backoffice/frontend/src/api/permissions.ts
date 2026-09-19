@@ -104,3 +104,18 @@ export async function deleteEmployee(userId: number): Promise<void> {
   await apiClient.delete(`/backoffice/permissions/users/${userId}`);
 }
 
+export interface EmailValidationResult {
+  valid: boolean;
+  isCaptador?: boolean;
+  isEmployee?: boolean;
+  message?: string;
+}
+
+export async function validateEmployeeEmail(email: string): Promise<EmailValidationResult> {
+  const response = await apiClient.get<EmailValidationResult>('/backoffice/permissions/validate-email', {
+    params: { email },
+  });
+  return response.data;
+}
+
+
