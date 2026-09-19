@@ -518,7 +518,19 @@ export default function PermissionsConfigPage() {
                         <td>
                           <div className="permission-chip-list">
                             {user.permissions.length === 0 ? (
-                              <span className="muted">Sin permisos</span>
+                              <div className="employee-no-permissions-container">
+                                <span className="employee-no-permissions-badge">
+                                  <UiIcon name="lock" /> Sin permisos activos
+                                </span>
+                                <button
+                                  type="button"
+                                  className="employee-assign-shortcut-btn"
+                                  onClick={() => handleOpenEdit(user)}
+                                  title="Asignar permisos a este empleado"
+                                >
+                                  <UiIcon name="plus" /> Asignar
+                                </button>
+                              </div>
                             ) : user.permissions.map((permission) => (
                               <span className={`permission-removable-chip ${permission.slot === 'QA' ? 'danger' : ''}`} key={permission.id ?? `${permission.area}-${permission.slot}`}>
                                 {AREA_LABELS[permission.area]} · {SLOT_LABELS[permission.slot]}
