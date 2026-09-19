@@ -80,4 +80,11 @@ const apiClient: AxiosInstance = axios.create({
   },
 });
 
+apiClient.interceptors.request.use((config) => {
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    config.headers['X-App-Url'] = window.location.origin;
+  }
+  return config;
+});
+
 export default apiClient;
