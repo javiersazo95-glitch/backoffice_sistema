@@ -96,7 +96,7 @@ export default function ActivateEmployeePage() {
         )}
 
         <form onSubmit={activate}>
-          {/* Correo (Bloqueado) */}
+          {/* Correo electrónico (Bloqueado / Solo lectura) */}
           <div style={fieldGroupStyle}>
             <label style={labelStyle}>
               Correo electrónico
@@ -115,28 +115,6 @@ export default function ActivateEmployeePage() {
             </div>
             <span style={fieldHelpStyle}>
               Tu cuenta de empleado quedará vinculada a esta dirección.
-            </span>
-          </div>
-
-          {/* Código de activación (Bloqueado) */}
-          <div style={fieldGroupStyle}>
-            <label style={labelStyle}>
-              Código de activación
-              <span style={lockedTagStyle}>🔒 Bloqueado</span>
-            </label>
-            <div style={{ position: 'relative' }}>
-              <input
-                style={{ ...lockedInputStyle, letterSpacing: '4px', fontWeight: 700, fontFamily: 'monospace' }}
-                type="text"
-                value={code || '••••••'}
-                readOnly
-                disabled
-                tabIndex={-1}
-              />
-              <span style={lockIconStyle}>🔒</span>
-            </div>
-            <span style={fieldHelpStyle}>
-              Código de seguridad verificado automáticamente desde tu enlace de invitación.
             </span>
           </div>
 
