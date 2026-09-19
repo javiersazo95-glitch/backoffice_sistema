@@ -32,7 +32,14 @@ interface CapturerFormState {
 export default function CapturerRegisterPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { login } = useAuth();
+  const { login, user } = useAuth();
+
+  // Si ya inició sesión como empleado del backoffice, advertir inmediatamente
+  useEffect(() => {
+    if (user && user.role !== 'CAPTADOR') {
+      setError('Has iniciado sesión como parte del personal de RepuesTop. No está permitido registrarse como captador.');
+    }
+  }, [user]);
 
   // Estados de catálogo geográfico
   const [regions, setRegions] = useState<Place[]>([]);
@@ -169,6 +176,12 @@ export default function CapturerRegisterPage() {
       return;
     }
 
+    if (user && user.role !== 'CAPTADOR') {
+      setError('Ya formas parte del equipo de RepuesTop. No está permitido ser empleado y captador a la vez.');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
     if (!form.acceptsTerms) {
       setError('Debes aceptar los términos y condiciones para continuar.');
       return;
@@ -223,6 +236,7 @@ export default function CapturerRegisterPage() {
       }
     } catch (err: unknown) {
       setError(registrationErrorMessage(err, 'No se pudo completar el registro de postulación.'));
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } finally {
       setBusy(false);
     }
