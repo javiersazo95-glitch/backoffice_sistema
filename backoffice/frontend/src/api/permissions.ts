@@ -99,3 +99,8 @@ export async function deleteUserPermission(userId: number, permissionId: number)
 export async function deleteUserAccount(userId: number, perfil: 'COMPRADOR' | 'PROVEEDOR' | 'CAPTADOR' = 'COMPRADOR'): Promise<void> {
   await apiClient.delete(`/auth/users/${userId}`, { params: { perfil } });
 }
+
+export async function deleteEmployee(userId: number): Promise<void> {
+  await apiClient.delete(`/backoffice/permissions/users/${userId}`);
+}
+
