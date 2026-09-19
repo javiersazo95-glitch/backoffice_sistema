@@ -9,14 +9,18 @@ export default function ActivateEmployeePage() {
   const initialEmail = (params.get('email') ?? '').trim();
   const initialCode = (params.get('code') ?? '').trim();
 
-  const [email, setEmail] = useState(initialEmail);
-  const [code, setCode] = useState(initialCode);
+  // El correo y código provienen del enlace de activación y están estrictamente bloqueados (solo lectura)
+  const email = initialEmail;
+  const code = initialCode;
+
   const [password, setPassword] = useState('');
   const [confirmation, setConfirmation] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+
+  const isMissingParams = !email || !code;
 
   const activate = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -25,11 +29,8 @@ export default function ActivateEmployeePage() {
     const cleanEmail = email.trim().toLowerCase();
     const cleanCode = code.trim();
 
-    if (!cleanEmail) {
-      return setError('Por favor ingresa tu correo electrónico.');
-    }
-    if (!cleanCode || cleanCode.length < 6) {
-      return setError('El código de invitación debe tener 6 dígitos.');
+    if (!cleanEmail || !cleanCode) {
+      return setError('El enlace no contiene el correo o código de activación. Abre el enlace directamente desde tu correo.');
     }
     if (password.length < 8) {
       return setError('La contraseña debe tener al menos 8 caracteres.');
@@ -69,18 +70,20 @@ export default function ActivateEmployeePage() {
             />
           </div>
           <h1 style={{ margin: '0 0 6px', fontSize: 22, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em' }}>
-            Activa tu cuenta de empleado
+            Crea tu contraseña de acceso
           </h1>
           <p style={{ margin: 0, color: '#64748b', fontSize: 13.5, lineHeight: 1.45 }}>
-            Define tu nueva contraseña para ingresar al Backoffice de <strong>RepuesTop</strong>.
+            Ingresa tu nueva contraseña para activar tu cuenta de empleado en <strong>RepuesTop</strong>.
           </p>
         </div>
 
-        {/* Mensaje de código detectado */}
-        {initialCode && (
-          <div style={noticeBoxStyle}>
-            <span style={{ fontSize: 16 }}>🔑</span>
-            <span>Código de invitación cargado automáticamente desde tu enlace.</span>
+        {/* Alerta si el enlace está incompleto */}
+        {isMissingParams && (
+          <div style={errorBoxStyle}>
+            <span style={{ fontWeight: 700, marginRight: 6 }}>⚠️</span>
+            <span>
+              Enlace incompleto: Falta el correo o código de activación. Por favor abre el enlace que recibiste en tu correo electrónico.
+            </span>
           </div>
         )}
 
@@ -93,36 +96,58 @@ export default function ActivateEmployeePage() {
         )}
 
         <form onSubmit={activate}>
-          {/* Correo */}
+          {/* Correo (Bloqueado) */}
           <div style={fieldGroupStyle}>
-            <label style={labelStyle}>Correo electrónico</label>
-            <input
-              style={inputStyle}
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="tu-correo@repuestop.cl"
-              required
-            />
+            <label style={labelStyle}>
+              Correo electrónico
+              <span style={lockedTagStyle}>🔒 Bloqueado</span>
+            </label>
+            <div style={{ position: 'relative' }}>
+              <input
+                style={lockedInputStyle}
+                type="email"
+                value={email || 'Sin correo en el enlace'}
+                readOnly
+                disabled
+                tabIndex={-1}
+              />
+              <span style={lockIconStyle}>🔒</span>
+            </div>
+            <span style={fieldHelpStyle}>
+              Tu cuenta de empleado quedará vinculada a esta dirección.
+            </span>
           </div>
 
-          {/* Código */}
+          {/* Código de activación (Bloqueado) */}
           <div style={fieldGroupStyle}>
-            <label style={labelStyle}>Código de invitación (6 dígitos)</label>
-            <input
-              style={{ ...inputStyle, letterSpacing: '2px', fontWeight: 700 }}
-              value={code}
-              onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-              inputMode="numeric"
-              maxLength={6}
-              placeholder="123456"
-              required
-            />
+            <label style={labelStyle}>
+              Código de activación
+              <span style={lockedTagStyle}>🔒 Bloqueado</span>
+            </label>
+            <div style={{ position: 'relative' }}>
+              <input
+                style={{ ...lockedInputStyle, letterSpacing: '4px', fontWeight: 700, fontFamily: 'monospace' }}
+                type="text"
+                value={code || '••••••'}
+                readOnly
+                disabled
+                tabIndex={-1}
+              />
+              <span style={lockIconStyle}>🔒</span>
+            </div>
+            <span style={fieldHelpStyle}>
+              Código de seguridad verificado automáticamente desde tu enlace de invitación.
+            </span>
           </div>
 
-          {/* Nueva Contraseña */}
+          {/* Divisor */}
+          <div style={{ margin: '20px 0 16px', borderTop: '1px solid #f1f5f9' }} />
+
+          {/* Nueva Contraseña (Editable) */}
           <div style={fieldGroupStyle}>
-            <label style={labelStyle}>Nueva contraseña (mínimo 8 caracteres)</label>
+            <label style={labelStyle}>
+              Nueva contraseña <span style={{ color: '#ef4444' }}>*</span>
+            </label>
             <div style={{ position: 'relative' }}>
               <input
                 style={{ ...inputStyle, paddingRight: 40 }}
@@ -130,8 +155,10 @@ export default function ActivateEmployeePage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 minLength={8}
-                placeholder="••••••••"
+                placeholder="Mínimo 8 caracteres"
+                disabled={isMissingParams || saving}
                 required
+                autoFocus={!isMissingParams}
               />
               <button
                 type="button"
@@ -143,19 +170,29 @@ export default function ActivateEmployeePage() {
                 {showPassword ? '👁️' : '🔒'}
               </button>
             </div>
+            <span style={fieldHelpStyle}>
+              Debe tener un mínimo de 8 caracteres.
+            </span>
           </div>
 
-          {/* Confirmar Contraseña */}
+          {/* Confirmar Contraseña (Editable) */}
           <div style={fieldGroupStyle}>
-            <label style={labelStyle}>Confirma tu nueva contraseña</label>
+            <label style={labelStyle}>
+              Confirma tu nueva contraseña <span style={{ color: '#ef4444' }}>*</span>
+            </label>
             <div style={{ position: 'relative' }}>
               <input
-                style={{ ...inputStyle, paddingRight: 40 }}
+                style={{
+                  ...inputStyle,
+                  paddingRight: 40,
+                  borderColor: password && confirmation && password !== confirmation ? '#ef4444' : '#cbd5e1',
+                }}
                 type={showConfirmation ? 'text' : 'password'}
                 value={confirmation}
                 onChange={(e) => setConfirmation(e.target.value)}
                 minLength={8}
-                placeholder="••••••••"
+                placeholder="Repite tu contraseña"
+                disabled={isMissingParams || saving}
                 required
               />
               <button
@@ -169,7 +206,7 @@ export default function ActivateEmployeePage() {
               </button>
             </div>
             {password && confirmation && password !== confirmation && (
-              <span style={{ fontSize: 12, color: '#dc2626', marginTop: 4, display: 'block' }}>
+              <span style={{ fontSize: 12, color: '#dc2626', marginTop: 4, display: 'block', fontWeight: 500 }}>
                 Las contraseñas no coinciden.
               </span>
             )}
@@ -178,11 +215,11 @@ export default function ActivateEmployeePage() {
           {/* Botón principal */}
           <button
             type="submit"
-            disabled={saving}
+            disabled={saving || isMissingParams || password.length < 8 || password !== confirmation}
             style={{
               ...primaryButtonStyle,
-              opacity: saving ? 0.75 : 1,
-              cursor: saving ? 'wait' : 'pointer',
+              opacity: (saving || isMissingParams || password.length < 8 || password !== confirmation) ? 0.6 : 1,
+              cursor: saving ? 'wait' : (isMissingParams || password.length < 8 || password !== confirmation) ? 'not-allowed' : 'pointer',
             }}
           >
             {saving ? 'Guardando contraseña y activando…' : 'Crear contraseña y activar cuenta'}
@@ -220,20 +257,6 @@ const cardStyle: React.CSSProperties = {
   boxShadow: '0 12px 32px rgba(15, 23, 42, 0.08)',
 };
 
-const noticeBoxStyle: React.CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: 10,
-  padding: '10px 14px',
-  borderRadius: 10,
-  background: '#eff6ff',
-  border: '1px solid #bfdbfe',
-  color: '#1e40af',
-  fontSize: 12.5,
-  lineHeight: 1.4,
-  marginBottom: 18,
-};
-
 const errorBoxStyle: React.CSSProperties = {
   display: 'flex',
   alignItems: 'flex-start',
@@ -252,11 +275,54 @@ const fieldGroupStyle: React.CSSProperties = {
 };
 
 const labelStyle: React.CSSProperties = {
-  display: 'block',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
   marginBottom: 6,
   color: '#334155',
   fontSize: 13,
   fontWeight: 600,
+};
+
+const lockedTagStyle: React.CSSProperties = {
+  fontSize: 11,
+  fontWeight: 600,
+  color: '#64748b',
+  background: '#f1f5f9',
+  border: '1px solid #e2e8f0',
+  padding: '1px 6px',
+  borderRadius: 4,
+};
+
+const lockedInputStyle: React.CSSProperties = {
+  width: '100%',
+  padding: '10px 36px 10px 14px',
+  borderRadius: 8,
+  border: '1.5px solid #e2e8f0',
+  background: '#f8fafc',
+  fontSize: 14,
+  color: '#64748b',
+  fontWeight: 500,
+  cursor: 'not-allowed',
+  outline: 'none',
+  boxSizing: 'border-box',
+};
+
+const lockIconStyle: React.CSSProperties = {
+  position: 'absolute',
+  right: 12,
+  top: '50%',
+  transform: 'translateY(-50%)',
+  fontSize: 13,
+  opacity: 0.5,
+  pointerEvents: 'none',
+};
+
+const fieldHelpStyle: React.CSSProperties = {
+  display: 'block',
+  fontSize: 11.5,
+  color: '#64748b',
+  marginTop: 4,
 };
 
 const inputStyle: React.CSSProperties = {
