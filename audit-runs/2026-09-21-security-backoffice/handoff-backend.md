@@ -242,7 +242,7 @@ Para que no lo busques ni lo dupliques. Todo en `audit-fix/security/backoffice`.
 
 ## Un dato que necesito de vuelta
 
-Para cerrar `SEC-BACKOFFICE-015` (Content-Security-Policy) necesito el **origen real de la API en produccion**. Lo escribi a mano como `https://api.repuestop.cl`, tomado de `.env.example`, porque `vercel.json` no puede leer variables. Si el `VITE_API_URL` real es otro, `connect-src` lo bloquea y **la consola se queda sin backend**. Confirmamelo antes de que eso se despliegue.
+Para cerrar `SEC-BACKOFFICE-015` (Content-Security-Policy) necesito el **origen real de la API en produccion**. RESUELTO: el usuario confirmo `https://api.repuestop.cl` en produccion y `https://api-dev.repuestop.cl` en desarrollo. Ambos estan en `connect-src`, porque las cabeceras de `vercel.json` se aplican igual a produccion y a los preview deployments. La CSP quedo verificada en ejecucion sobre el build de produccion. **Nada pendiente de tu lado aqui.**
 
 ## Como devolver los resultados
 

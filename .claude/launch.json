@@ -6,6 +6,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev", "--prefix", "backoffice/frontend"],
       "autoPort": true
+    },
+    {
+      "name": "backoffice-frontend-preview",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "preview", "--prefix", "backoffice/frontend"],
+      "port": 4173
     }
   ]
 }
