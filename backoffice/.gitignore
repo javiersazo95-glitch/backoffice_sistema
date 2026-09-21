@@ -4,3 +4,14 @@
 *.p12
 *.jks
 .DS_Store
+
+# Registros del servidor de desarrollo: ruido que no debe versionarse y que con el tiempo puede
+# acabar capturando datos de peticiones.
+*.log
+
+# Distribucion de Maven que estuvo versionada aqui (zip de 9,5 MB mas el arbol extraido, 20 MB y
+# 90 ficheros). Este repositorio es solo frontend: no contiene ningun pom.xml, mvnw ni
+# build.gradle que la use. Un binario de cadena de herramientas sin checksum ni procedencia
+# verificable no debe viajar en el repositorio; usar el Maven Wrapper (mvnw), que descarga la
+# distribucion oficial y valida su hash.
+tools/

@@ -1,7 +1,9 @@
-import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import type { BackofficePermission, UserSummaryResponse } from '@/types/auth';
 import { Role } from '@/types/auth';
-import apiClient from '@/api/client';
+import apiClient, { registrarManejadorDeSesionCaducada } from '@/api/client';
+import { showToast } from '@/components/layout/Toast';
 
 interface BackofficeUserResponse {
   id: number;
@@ -112,11 +114,44 @@ function clearStoredToken() {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient();
   const [state, setState] = useState<AuthState>({
     user: null,
     isAuthenticated: false,
     isLoading: true,
   });
+
+  // Espejo del estado de sesion. Permite consultarlo desde el manejador de 401 sin volver a
+  // registrarlo en cada cambio, y sin meter efectos secundarios dentro de un updater de
+  // setState (React los invoca dos veces en StrictMode y el aviso saldria duplicado).
+  const estaAutenticadoRef = useRef(false);
+
+  useEffect(() => {
+    estaAutenticadoRef.current = state.isAuthenticated;
+  }, [state.isAuthenticated]);
+
+  /**
+   * Cierra la sesion cuando el backend responde 401 con un token que se creia valido.
+   *
+   * Vacia tambien la cache de react-query: si no, los datos ya descargados seguirian
+   * pintandose bajo la pantalla de acceso y podrian reaparecer al volver a entrar con otra
+   * cuenta. Al quedar isAuthenticated en false, las guardas de ruta llevan a /login solas.
+   */
+  useEffect(() => {
+    registrarManejadorDeSesionCaducada(() => {
+      // Varias consultas pueden fallar con 401 a la vez: solo la primera cierra la sesion.
+      if (!estaAutenticadoRef.current) return;
+      estaAutenticadoRef.current = false;
+
+      clearStoredToken();
+      clearAuthHeader();
+      queryClient.clear();
+      setState({ user: null, isAuthenticated: false, isLoading: false });
+      showToast('Tu sesión expiró. Vuelve a iniciar sesión.');
+    });
+
+    return () => registrarManejadorDeSesionCaducada(null);
+  }, [queryClient]);
 
   useEffect(() => {
     async function restoreSession() {

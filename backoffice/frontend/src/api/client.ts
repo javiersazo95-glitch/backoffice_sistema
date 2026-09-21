@@ -80,4 +80,59 @@ const apiClient: AxiosInstance = axios.create({
   },
 });
 
+/**
+ * Rutas donde un 401 es la respuesta normal, no una sesion caducada.
+ *
+ * En todas ellas el 401 significa "estas credenciales no sirven" y lo gestiona la pantalla que
+ * hizo la llamada. Tratarlo como expiracion de sesion provocaria un cierre de sesion en cada
+ * intento de acceso fallido.
+ */
+const RUTAS_DE_SESION = [
+  '/auth/login',
+  '/auth/google',
+  '/auth/backoffice/login',
+  '/auth/backoffice/google',
+  '/auth/refresh',
+  '/auth/logout',
+];
+
+type ManejadorDeSesionCaducada = () => void;
+
+let alCaducarSesion: ManejadorDeSesionCaducada | null = null;
+
+/**
+ * Registra que hacer cuando el backend responde 401 con una sesion que se creia valida.
+ *
+ * Existe este registro en vez de una llamada directa porque quien sabe cerrar la sesion es
+ * AuthContext, y AuthContext ya importa este modulo: llamarlo desde aqui crearia un ciclo.
+ * AuthProvider se registra al montar y se da de baja al desmontar.
+ */
+export function registrarManejadorDeSesionCaducada(handler: ManejadorDeSesionCaducada | null) {
+  alCaducarSesion = handler;
+}
+
+/**
+ * Un 401 inesperado significa que el token caduco o fue revocado.
+ *
+ * Sin esto, cada consulta fallaba por separado y la aplicacion seguia mostrandose como
+ * autenticada con los datos que react-query ya tenia en cache: el operador veia una pantalla
+ * viva, con informacion que ya no podia refrescar, y podia decidir sobre ella.
+ *
+ * El interceptor solo avisa y deja pasar el error: cada pantalla sigue gestionando su propio
+ * fallo como hasta ahora.
+ */
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const status = error?.response?.status;
+    const url = typeof error?.config?.url === 'string' ? error.config.url : '';
+
+    if (status === 401 && !RUTAS_DE_SESION.some((ruta) => url.startsWith(ruta))) {
+      alCaducarSesion?.();
+    }
+
+    return Promise.reject(error);
+  },
+);
+
 export default apiClient;
