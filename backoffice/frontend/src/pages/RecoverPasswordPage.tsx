@@ -1,10 +1,17 @@
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { isAxiosError } from 'axios';
 import apiClient from '@/api/client';
 
-function message(error: unknown, fallback: string) {
-  return isAxiosError(error) && typeof error.response?.data?.message === 'string' ? error.response.data.message : fallback;
+/**
+ * Mensaje a mostrar ante un error.
+ *
+ * Devuelve siempre el texto fijo de esta pantalla, nunca el del servidor. La recuperacion de
+ * contrasena se alcanza sin sesion: si el mensaje distingue "ese correo no existe" de "codigo
+ * incorrecto", cualquiera puede enumerar cuentas validas del backoffice antes de intentar fuerza
+ * bruta sobre el codigo de seis digitos.
+ */
+function message(_error: unknown, fallback: string) {
+  return fallback;
 }
 
 export default function RecoverPasswordPage() {

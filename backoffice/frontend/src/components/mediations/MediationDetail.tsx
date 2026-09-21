@@ -26,6 +26,7 @@ import {
   type MediationFavor,
 } from '@/utils/mediationResolution';
 import { getReports } from '@/api/reports';
+import { resolveNavigableDocumentUrl } from '@/utils/documentUrls';
 import { resolveProfileImageUrl } from '@/api/client';
 import mediatorProfileImage from '@/assets/mediator-profile.jpg';
 
@@ -330,6 +331,10 @@ function EvidenceSection({
         <div className="mediation-evidence-list">
           {evidence.map((file) => {
             const name = file.fileName || `Evidencia ${file.id}`;
+            // Las evidencias las suben el comprador y el vendedor, asi que file.url es un dato de
+            // tercero. Solo se enlaza si la sirve nuestro backend: enlazar a otro host convertiria
+            // el expediente de mediacion en un trampolin con la marca del backoffice detras.
+            const href = resolveNavigableDocumentUrl(file.url);
             return (
               <div className="mediation-evidence-file" key={file.id}>
                 <span className="mediation-evidence-file-icon"><UiIcon name="document" /></span>
@@ -338,12 +343,20 @@ function EvidenceSection({
                   <small>{file.uploadedAt ? new Date(file.uploadedAt).toLocaleString('es-CL') : file.mimeType || 'Documento de evidencia'}</small>
                 </div>
                 <div className="mediation-evidence-actions">
-                  <a href={file.url} target="_blank" rel="noreferrer" aria-label={`Abrir ${name}`} title="Abrir evidencia">
-                    <UiIcon name="eye" />
-                  </a>
-                  <a href={file.url} download={name} aria-label={`Descargar ${name}`} title="Descargar evidencia">
-                    <UiIcon name="download" />
-                  </a>
+                  {href ? (
+                    <>
+                      <a href={href} target="_blank" rel="noreferrer" aria-label={`Abrir ${name}`} title="Abrir evidencia">
+                        <UiIcon name="eye" />
+                      </a>
+                      <a href={href} download={name} aria-label={`Descargar ${name}`} title="Descargar evidencia">
+                        <UiIcon name="download" />
+                      </a>
+                    </>
+                  ) : (
+                    <span title="Evidencia de origen externo: no se puede abrir desde el backoffice">
+                      <UiIcon name="alert" />
+                    </span>
+                  )}
                 </div>
               </div>
             );

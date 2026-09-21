@@ -6,9 +6,7 @@ import type { ReportResponse } from '@/types/report';
 import Badge from '@/components/shared/Badge';
 import UiIcon from '@/components/shared/UiIcon';
 import FounderSellerName from '@/components/shared/FounderSellerName';
-import { applyManualMediationStatus, useManualMediationStatusOverrides } from '@/utils/manualMediationStatus';
 import { resolveProfileImageUrl } from '@/api/client';
-import { useManualMediationAdminMode } from '@/utils/manualMediationAdminMode';
 
 interface SellerProfileModalProps {
   isOpen: boolean;
@@ -554,9 +552,6 @@ export default function SellerProfileModal({
   onOpenMediation,
   onSuspend,
 }: SellerProfileModalProps) {
-  const [manualStatusOverrides] = useManualMediationStatusOverrides();
-  const [adminMode] = useManualMediationAdminMode();
-  const effectiveManualStatusOverrides = adminMode ? manualStatusOverrides : {};
 
   const [isBlockHistoryOpen, setIsBlockHistoryOpen] = useState(false);
   const [isTimelineOpen, setIsTimelineOpen] = useState(false);
@@ -596,7 +591,7 @@ export default function SellerProfileModal({
 
   if (!isOpen || !seller) return null;
 
-  const mediatedCases = seller.mediations.map((mediation) => applyManualMediationStatus(mediation, effectiveManualStatusOverrides));
+  const mediatedCases = seller.mediations;
   const inProgressMediations = mediatedCases.filter((m) => m.status === 'EN_MEDIACION');
   const documents = seller.documents;
 

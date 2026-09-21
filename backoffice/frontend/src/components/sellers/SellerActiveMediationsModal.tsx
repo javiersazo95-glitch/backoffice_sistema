@@ -4,8 +4,6 @@ import Badge from '@/components/shared/Badge';
 import UiIcon from '@/components/shared/UiIcon';
 import FounderSellerName from '@/components/shared/FounderSellerName';
 import { mediationStatusDisplay } from '@/utils/formatters';
-import { applyManualMediationStatus, useManualMediationStatusOverrides } from '@/utils/manualMediationStatus';
-import { useManualMediationAdminMode } from '@/utils/manualMediationAdminMode';
 
 interface SellerActiveMediationsModalProps {
   isOpen: boolean;
@@ -39,14 +37,9 @@ export default function SellerActiveMediationsModal({
   onClose,
   seller,
 }: SellerActiveMediationsModalProps) {
-  const [manualStatusOverrides] = useManualMediationStatusOverrides();
-  const [adminMode] = useManualMediationAdminMode();
-  const effectiveManualStatusOverrides = adminMode ? manualStatusOverrides : {};
-
   if (!isOpen || !seller) return null;
 
   const activeMediations = [...seller.mediations]
-    .map((mediation) => applyManualMediationStatus(mediation, effectiveManualStatusOverrides))
     .filter((mediation) => ACTIVE_STATUSES.has(mediation.status))
     .sort((a, b) => (new Date(b.updatedAt).getTime() || 0) - (new Date(a.updatedAt).getTime() || 0));
 

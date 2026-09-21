@@ -5,11 +5,34 @@ import { isAxiosError } from 'axios';
 import { useAuth } from '@/context/AuthContext';
 import { Role } from '@/types/auth';
 
-function extractErrorMessage(error: unknown, fallback: string): string {
+/**
+ * Mensajes fijos de esta pantalla.
+ *
+ * Son constantes a proposito: el detalle que devuelve el servidor no se muestra nunca en una
+ * pantalla sin sesion. Distinguir "esa cuenta no existe" de "contrasena incorrecta" permite
+ * enumerar cuentas validas del backoffice, que es el trabajo previo de cualquier ataque de
+ * fuerza bruta contra los flujos de activacion y recuperacion.
+ */
+const ERROR_CREDENCIALES = 'Credenciales inválidas. Intente nuevamente.';
+const ERROR_GOOGLE = 'No se pudo iniciar sesión con Google. Verifica que tu cuenta esté habilitada.';
+
+/**
+ * Marcador neutro para el campo de correo del personal. Antes decia "admin@repuestop.com", lo que
+ * regalaba el patron de las cuentas administrativas a cualquier visitante sin sesion.
+ */
+const PLACEHOLDER_CORREO_PERSONAL = 'correo@empresa.cl';
+
+/**
+ * Lee el mensaje del servidor SOLO para decidir el flujo (no para mostrarlo).
+ *
+ * El unico uso legitimo es detectar que el captador todavia no verifico su correo y desviarlo al
+ * alta. Lo que se pinta en pantalla siempre es una de las constantes de arriba.
+ */
+function serverMessageForRouting(error: unknown): string {
   if (isAxiosError(error) && typeof error.response?.data?.message === 'string') {
     return error.response.data.message;
   }
-  return fallback;
+  return '';
 }
 
 const loginStyles = `
@@ -241,14 +264,13 @@ export default function LoginPage() {
       }
       navigate(loggedUser.role === Role.CAPTADOR ? '/captador' : '/', { replace: true });
     } catch (err) {
-      const message = isAxiosError(err)
-        ? extractErrorMessage(err, 'Credenciales inválidas. Intente nuevamente.')
-        : err instanceof Error ? err.message : 'Credenciales inválidas. Intente nuevamente.';
-      if (accessType === 'capturer' && /verificar.*correo|correo.*verific/i.test(message)) {
+      if (accessType === 'capturer' && /verificar.*correo|correo.*verific/i.test(serverMessageForRouting(err))) {
         navigate(`/registro-captador?email=${encodeURIComponent(username.trim().toLowerCase())}`, { replace: true });
         return;
       }
-      setError(message);
+      // Los errores lanzados por esta misma pantalla (tipo de acceso equivocado) son nuestros y
+      // si se muestran; los del servidor se reemplazan por el mensaje generico.
+      setError(!isAxiosError(err) && err instanceof Error ? err.message : ERROR_CREDENCIALES);
     } finally {
       setLoading(false);
     }
@@ -275,7 +297,8 @@ export default function LoginPage() {
       }
       navigate(loggedUser.role === Role.CAPTADOR ? '/captador' : '/', { replace: true });
     } catch (err) {
-      setError(extractErrorMessage(err, 'No se pudo iniciar sesión con Google. Verifica que tu cuenta esté habilitada.'));
+      // Mismo criterio que en el acceso con contrasena: lo nuestro se muestra, lo del servidor no.
+      setError(!isAxiosError(err) && err instanceof Error ? err.message : ERROR_GOOGLE);
     } finally {
       setLoading(false);
     }
@@ -494,7 +517,7 @@ export default function LoginPage() {
                 </span>
                 <input
                   type="email"
-                  placeholder={accessType === 'capturer' ? 'tu-correo@ejemplo.com' : 'admin@repuestop.com'}
+                  placeholder={accessType === 'capturer' ? 'tu-correo@ejemplo.com' : PLACEHOLDER_CORREO_PERSONAL}
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   required

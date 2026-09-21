@@ -1,77 +1,18 @@
-import { useEffect, useState } from 'react';
 import { MediationStatus } from '@/types/mediation';
 
-const STORAGE_KEY = 'repuestop.manual-mediation-status-overrides';
-const SYNC_EVENT = 'repuestop:manual-mediation-status-overrides-changed';
-
-export type ManualMediationStatusOverrides = Record<number, MediationStatus>;
-
+/**
+ * Estado de mediacion tal como debe mostrarse en pantalla.
+ *
+ * Hoy es la identidad: ya no existe la etapa previa "En disputa" y el unico estado activo es
+ * EN_MEDIACION. Se conserva como punto unico de traduccion por si vuelve a haber diferencia
+ * entre el estado que guarda el backend y el que ve el operador.
+ *
+ * Aqui vivia ademas un mecanismo de overrides manuales guardado en localStorage
+ * (repuestop.manual-mediation-status-overrides y repuestop.manual-mediation-admin-mode). Se
+ * retiro: no tenia ninguna via de activacion en la interfaz --solo se encendia editando
+ * localStorage a mano-- y permitia que el listado de vendedores mostrara un estado de mediacion
+ * distinto del real, que es justo el dato sobre el que se decide suspender a un vendedor.
+ */
 export function normalizeVisibleMediationStatus(status: MediationStatus, _mediationStarted?: boolean): MediationStatus {
-  // Ya no existe la etapa previa "En disputa": el único estado activo es EN_MEDIACION.
   return status;
-}
-
-function readOverrides(): ManualMediationStatusOverrides {
-  if (typeof window === 'undefined') return {};
-
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return {};
-
-    const parsed = JSON.parse(raw) as Record<string, MediationStatus>;
-    return Object.fromEntries(
-      Object.entries(parsed).map(([id, status]) => [Number(id), status]),
-    );
-  } catch {
-    return {};
-  }
-}
-
-function writeOverrides(overrides: ManualMediationStatusOverrides) {
-  if (typeof window === 'undefined') return;
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(overrides));
-  window.dispatchEvent(new Event(SYNC_EVENT));
-}
-
-export function applyManualMediationStatus<T extends { id: number; status: MediationStatus; mediationStarted?: boolean }>(
-  item: T,
-  overrides: ManualMediationStatusOverrides,
-): T {
-  const status = normalizeVisibleMediationStatus(overrides[item.id] ?? item.status, item.mediationStarted);
-  return status === item.status ? item : { ...item, status };
-}
-
-export function applyManualMediationStatusToActiveCases<T extends { id: number; status: MediationStatus; mediationStarted?: boolean }>(
-  item: T,
-  overrides: ManualMediationStatusOverrides,
-): T {
-  if (item.status !== MediationStatus.EN_MEDIACION) {
-    return item;
-  }
-
-  return applyManualMediationStatus(item, overrides);
-}
-
-export function useManualMediationStatusOverrides() {
-  const [overrides, setOverrides] = useState<ManualMediationStatusOverrides>(() => readOverrides());
-
-  useEffect(() => {
-    const sync = () => setOverrides(readOverrides());
-    window.addEventListener('storage', sync);
-    window.addEventListener(SYNC_EVENT, sync);
-    return () => {
-      window.removeEventListener('storage', sync);
-      window.removeEventListener(SYNC_EVENT, sync);
-    };
-  }, []);
-
-  const setOverride = (id: number, status: MediationStatus) => {
-    setOverrides((current) => {
-      const next = { ...current, [id]: status };
-      writeOverrides(next);
-      return next;
-    });
-  };
-
-  return [overrides, setOverride] as const;
 }

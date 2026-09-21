@@ -67,6 +67,22 @@ export function getAuthHeadersFor(url: string): Record<string, string> {
   return isBackendUrl(url) ? getAuthHeaders() : {};
 }
 
+/**
+ * URL de un documento apta para poner en un href o para abrir en una pestana nueva, o undefined
+ * si el documento no lo sirve nuestro backend.
+ *
+ * resolveDocumentUrl() se limita a normalizar y devuelve intacta cualquier URL absoluta, incluida
+ * una de un host ajeno. Navegar ahi desde la consola administrativa es una redireccion abierta:
+ * la pestana se abre con la confianza del backoffice detras. Quien vaya a NAVEGAR usa esta
+ * funcion; quien solo vaya a descargar con fetch puede seguir usando resolveDocumentUrl, porque
+ * getAuthHeadersFor ya impide que el token salga del backend.
+ */
+export function resolveNavigableDocumentUrl(documentUrl?: string): string | undefined {
+  const resolved = resolveDocumentUrl(documentUrl);
+  if (!resolved || !isBackendUrl(resolved)) return undefined;
+  return resolved;
+}
+
 function getAbsoluteApiBaseUrl() {
   if (API_BASE_URL.startsWith('http://') || API_BASE_URL.startsWith('https://')) {
     return API_BASE_URL;
@@ -161,6 +177,10 @@ export async function downloadDocument(documentUrl?: string, fileName = 'documen
     window.setTimeout(() => URL.revokeObjectURL(objectUrl), 0);
     return true;
   } catch {
+    // Plan B: dejar que el navegador descargue por su cuenta. Solo si el documento lo sirve
+    // nuestro backend; con una URL de otro host esto seria navegar a donde diga un tercero.
+    if (!isBackendUrl(resolvedUrl)) return false;
+
     const link = window.document.createElement('a');
     link.href = resolvedUrl;
     link.download = fileName;
@@ -203,7 +223,11 @@ export async function previewDocument(documentUrl?: string) {
       win.close();
     }
     console.error('Error al previsualizar documento:', err);
-    window.open(resolvedUrl, '_blank');
+    // Plan B: abrir el documento directo. Solo si lo sirve nuestro backend; abrir una URL de
+    // otro host desde la consola administrativa es una redireccion abierta.
+    if (isBackendUrl(resolvedUrl)) {
+      window.open(resolvedUrl, '_blank', 'noopener,noreferrer');
+    }
     return false;
   }
 }

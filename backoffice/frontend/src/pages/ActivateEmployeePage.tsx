@@ -21,8 +21,11 @@ export default function ActivateEmployeePage() {
     try {
       await apiClient.post('/auth/backoffice/activate', { email, code, newPassword: password });
       navigate('/login?activated=1', { replace: true });
-    } catch (requestError: any) {
-      setError(requestError.response?.data?.message || 'No se pudo activar la cuenta. Revisa el enlace e inténtalo nuevamente.');
+    } catch {
+      // Mensaje fijo: esta pantalla se alcanza sin sesion y el detalle del servidor permitiria
+      // distinguir "ese correo no tiene invitacion" de "el codigo no es correcto", que es
+      // justo lo que necesita quien recorre el espacio de codigos de seis digitos.
+      setError('No se pudo activar la cuenta. Revisa el enlace e inténtalo nuevamente.');
     } finally { setSaving(false); }
   };
 
