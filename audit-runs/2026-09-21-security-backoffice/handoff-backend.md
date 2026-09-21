@@ -240,9 +240,21 @@ Para que no lo busques ni lo dupliques. Todo en `audit-fix/security/backoffice`.
 
 **Lo mas importante de esa lista para ti:** en `SEC-BACKOFFICE-018` el frontend todavia depende de que el mensaje de error de `/auth/backoffice/login` contenga algo como "verificar correo" cuando un captador no ha confirmado su cuenta. Es lo unico que dispara el desvio a `/registro-captador`. Si cambias ese texto o lo conviertes en un codigo, dimelo y ajusto el cliente.
 
-## Un dato que necesito de vuelta
+## Content-Security-Policy: cerrado, pero afecta a lo que expongas
 
-Para cerrar `SEC-BACKOFFICE-015` (Content-Security-Policy) necesito el **origen real de la API en produccion**. RESUELTO: el usuario confirmo `https://api.repuestop.cl` en produccion y `https://api-dev.repuestop.cl` en desarrollo. Ambos estan en `connect-src`, porque las cabeceras de `vercel.json` se aplican igual a produccion y a los preview deployments. La CSP quedo verificada en ejecucion sobre el build de produccion. **Nada pendiente de tu lado aqui.**
+`SEC-BACKOFFICE-015` ya esta **verificado en ejecucion**. La consola publica ahora una CSP
+restrictiva, con `connect-src` limitado a `https://api.repuestop.cl`, `https://api-dev.repuestop.cl`
+y `https://accounts.google.com`.
+
+**Lo que eso implica para ti:** si el backend empieza a servirse desde otro origen --un dominio
+nuevo, un CDN delante, un bucket de ficheros en otro host, un websocket--, **el navegador
+bloqueara la conexion** y la consola se quedara sin esa parte, con un error de CSP en vez de un
+fallo de red. Avisame antes de introducir cualquier origen nuevo y lo agrego a la politica.
+
+Lo mismo vale para las descargas de documentos: hoy funcionan porque el frontend las baja con
+`fetch` desde el origen de la API y las pinta como `blob:`. Si alguna pasa a servirse por
+redireccion a un host distinto (por ejemplo una URL firmada de S3 o R2 en su propio dominio),
+dejara de cargar hasta que ese origen entre en `connect-src` e `img-src`.
 
 ## Como devolver los resultados
 
