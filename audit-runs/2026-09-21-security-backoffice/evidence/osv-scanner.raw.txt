@@ -1,0 +1,1671 @@
+{
+  "results": [
+    {
+      "source": {
+        "path": "C:/ProyectoRepuestop/backoffice_sistema/backoffice/frontend/package-lock.json",
+        "type": "lockfile"
+      },
+      "packages": [
+        {
+          "package": {
+            "name": "@remix-run/router",
+            "version": "1.23.0",
+            "ecosystem": "npm"
+          },
+          "groups": [
+            {
+              "ids": [
+                "GHSA-2j2x-hqr9-3h42"
+              ],
+              "aliases": [
+                "CVE-2026-40181",
+                "GHSA-2j2x-hqr9-3h42"
+              ],
+              "max_severity": "6.6"
+            },
+            {
+              "ids": [
+                "GHSA-2w69-qvjg-hvjx"
+              ],
+              "aliases": [
+                "CVE-2026-22029",
+                "GHSA-2w69-qvjg-hvjx"
+              ],
+              "max_severity": "8.0"
+            }
+          ],
+          "vulnerabilities": [
+            {
+              "affected": [
+                {
+                  "database_specific": {
+                    "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/06/GHSA-2j2x-hqr9-3h42/GHSA-2j2x-hqr9-3h42.json"
+                  },
+                  "package": {
+                    "ecosystem": "npm",
+                    "name": "react-router",
+                    "purl": "pkg:npm/react-router"
+                  },
+                  "ranges": [
+                    {
+                      "events": [
+                        {
+                          "introduced": "7.0.0"
+                        },
+                        {
+                          "fixed": "7.14.1"
+                        }
+                      ],
+                      "type": "SEMVER"
+                    }
+                  ]
+                },
+                {
+                  "database_specific": {
+                    "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/06/GHSA-2j2x-hqr9-3h42/GHSA-2j2x-hqr9-3h42.json"
+                  },
+                  "package": {
+                    "ecosystem": "npm",
+                    "name": "react-router",
+                    "purl": "pkg:npm/react-router"
+                  },
+                  "ranges": [
+                    {
+                      "events": [
+                        {
+                          "introduced": "6.7.0"
+                        },
+                        {
+                          "fixed": "6.30.4"
+                        }
+                      ],
+                      "type": "SEMVER"
+                    }
+                  ]
+                },
+                {
+                  "database_specific": {
+                    "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/06/GHSA-2j2x-hqr9-3h42/GHSA-2j2x-hqr9-3h42.json"
+                  },
+                  "package": {
+                    "ecosystem": "npm",
+                    "name": "@remix-run/router",
+                    "purl": "pkg:npm/%40remix-run/router"
+                  },
+                  "ranges": [
+                    {
+                      "events": [
+                        {
+                          "introduced": "1.3.0"
+                        },
+                        {
+                          "fixed": "1.23.3"
+                        }
+                      ],
+                      "type": "SEMVER"
+                    }
+                  ]
+                }
+              ],
+              "aliases": [
+                "CVE-2026-40181"
+              ],
+              "database_specific": {
+                "cwe_ids": [
+                  "CWE-601"
+                ],
+                "github_reviewed": true,
+                "github_reviewed_at": "2026-06-03T20:58:01Z",
+                "nvd_published_at": "2026-06-02T20:16:35Z",
+                "severity": "MODERATE"
+              },
+              "details": "Certain URLs passed to the `redirect` function can trigger an open redirect to an external domain depending on the level of validation done by the application prior to returning the `redirect`.\n\n\u003e [!NOTE]\n\u003e This does not impact your React Router application if you are using [Declarative Mode](https://reactrouter.com/start/modes#declarative) (`\u003cBrowserRouter\u003e`)",
+              "id": "GHSA-2j2x-hqr9-3h42",
+              "modified": "2026-09-10T03:50:55.348600076Z",
+              "published": "2026-06-03T20:58:01Z",
+              "references": [
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/remix-run/react-router/security/advisories/GHSA-2j2x-hqr9-3h42"
+                },
+                {
+                  "type": "ADVISORY",
+                  "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-40181"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/remix-run/react-router/commit/d77f6b1"
+                },
+                {
+                  "type": "PACKAGE",
+                  "url": "https://github.com/remix-run/react-router"
+                }
+              ],
+              "schema_version": "1.9.0",
+              "severity": [
+                {
+                  "score": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:N/VI:H/VA:N/SC:N/SI:N/SA:N/E:U",
+                  "type": "CVSS_V4"
+                }
+              ],
+              "summary": "React Router's same-origin redirect with path starting // causes open redirect via protocol-relative URL reinterpretation"
+            },
+            {
+              "affected": [
+                {
+                  "database_specific": {
+                    "last_known_affected_version_range": "\u003c= 7.11.0",
+                    "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/01/GHSA-2w69-qvjg-hvjx/GHSA-2w69-qvjg-hvjx.json"
+                  },
+                  "package": {
+                    "ecosystem": "npm",
+                    "name": "react-router",
+                    "purl": "pkg:npm/react-router"
+                  },
+                  "ranges": [
+                    {
+                      "events": [
+                        {
+                          "introduced": "7.0.0"
+                        },
+                        {
+                          "fixed": "7.12.0"
+                        }
+                      ],
+                      "type": "SEMVER"
+                    }
+                  ]
+                },
+                {
+                  "database_specific": {
+                    "last_known_affected_version_range": "\u003c= 1.23.1",
+                    "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/01/GHSA-2w69-qvjg-hvjx/GHSA-2w69-qvjg-hvjx.json"
+                  },
+                  "package": {
+                    "ecosystem": "npm",
+                    "name": "@remix-run/router",
+                    "purl": "pkg:npm/%40remix-run/router"
+                  },
+                  "ranges": [
+                    {
+                      "events": [
+                        {
+                          "introduced": "0"
+                        },
+                        {
+                          "fixed": "1.23.2"
+                        }
+                      ],
+                      "type": "SEMVER"
+                    }
+                  ]
+                }
+              ],
+              "aliases": [
+                "CVE-2026-22029"
+              ],
+              "database_specific": {
+                "cwe_ids": [
+                  "CWE-79"
+                ],
+                "github_reviewed": true,
+                "github_reviewed_at": "2026-01-08T20:54:18Z",
+                "nvd_published_at": "2026-01-10T03:15:48Z",
+                "severity": "HIGH"
+              },
+              "details": "React Router (and Remix v1/v2) SPA open navigation redirects originating from loaders or actions in [Framework Mode](https://reactrouter.com/start/modes#framework), [Data Mode](https://reactrouter.com/start/modes#data), or the unstable RSC modes can result in unsafe URLs causing unintended javascript execution on the client. This is only an issue if developers are creating redirect paths from untrusted content or via an open redirect.\n\n\u003e [!NOTE]\n\u003e This does not impact applications that use [Declarative Mode](https://reactrouter.com/start/modes#declarative) (`\u003cBrowserRouter\u003e`).",
+              "id": "GHSA-2w69-qvjg-hvjx",
+              "modified": "2026-02-03T03:15:00.320749Z",
+              "published": "2026-01-08T20:54:18Z",
+              "references": [
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/remix-run/react-router/security/advisories/GHSA-2w69-qvjg-hvjx"
+                },
+                {
+                  "type": "ADVISORY",
+                  "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-22029"
+                },
+                {
+                  "type": "PACKAGE",
+                  "url": "https://github.com/remix-run/react-router"
+                }
+              ],
+              "schema_version": "1.9.0",
+              "severity": [
+                {
+                  "score": "CVSS:3.1/AV:N/AC:H/PR:N/UI:R/S:C/C:H/I:H/A:N",
+                  "type": "CVSS_V3"
+                }
+              ],
+              "summary": "React Router vulnerable to XSS via Open Redirects"
+            }
+          ]
+        },
+        {
+          "package": {
+            "name": "brace-expansion",
+            "version": "1.1.16",
+            "ecosystem": "npm"
+          },
+          "groups": [
+            {
+              "ids": [
+                "GHSA-mh99-v99m-4gvg"
+              ],
+              "aliases": [
+                "CVE-2026-14257",
+                "GHSA-mh99-v99m-4gvg"
+              ],
+              "max_severity": "7.5"
+            },
+            {
+              "ids": [
+                "GHSA-rgw5-rvv9-x895"
+              ],
+              "aliases": [
+                "CVE-2026-69152",
+                "GHSA-rgw5-rvv9-x895"
+              ],
+              "max_severity": "7.5"
+            }
+          ],
+          "vulnerabilities": [
+            {
+              "affected": [
+                {
+                  "database_specific": {
+                    "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/07/GHSA-mh99-v99m-4gvg/GHSA-mh99-v99m-4gvg.json"
+                  },
+                  "package": {
+                    "ecosystem": "npm",
+                    "name": "brace-expansion",
+                    "purl": "pkg:npm/brace-expansion"
+                  },
+                  "ranges": [
+                    {
+                      "events": [
+                        {
+                          "introduced": "4.0.0"
+                        },
+                        {
+                          "fixed": "5.0.8"
+                        }
+                      ],
+                      "type": "SEMVER"
+                    }
+                  ]
+                },
+                {
+                  "database_specific": {
+                    "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/07/GHSA-mh99-v99m-4gvg/GHSA-mh99-v99m-4gvg.json"
+                  },
+                  "package": {
+                    "ecosystem": "npm",
+                    "name": "brace-expansion",
+                    "purl": "pkg:npm/brace-expansion"
+                  },
+                  "ranges": [
+                    {
+                      "events": [
+                        {
+                          "introduced": "3.0.0"
+                        },
+                        {
+                          "fixed": "3.0.3"
+                        }
+                      ],
+                      "type": "SEMVER"
+                    }
+                  ]
+                },
+                {
+                  "database_specific": {
+                    "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/07/GHSA-mh99-v99m-4gvg/GHSA-mh99-v99m-4gvg.json"
+                  },
+                  "package": {
+                    "ecosystem": "npm",
+                    "name": "brace-expansion",
+                    "purl": "pkg:npm/brace-expansion"
+                  },
+                  "ranges": [
+                    {
+                      "events": [
+                        {
+                          "introduced": "2.0.0"
+                        },
+                        {
+                          "fixed": "2.1.3"
+                        }
+                      ],
+                      "type": "SEMVER"
+                    }
+                  ]
+                },
+                {
+                  "database_specific": {
+                    "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/07/GHSA-mh99-v99m-4gvg/GHSA-mh99-v99m-4gvg.json"
+                  },
+                  "package": {
+                    "ecosystem": "npm",
+                    "name": "brace-expansion",
+                    "purl": "pkg:npm/brace-expansion"
+                  },
+                  "ranges": [
+                    {
+                      "events": [
+                        {
+                          "introduced": "0"
+                        },
+                        {
+                          "fixed": "1.1.17"
+                        }
+                      ],
+                      "type": "SEMVER"
+                    }
+                  ]
+                }
+              ],
+              "aliases": [
+                "CVE-2026-14257"
+              ],
+              "database_specific": {
+                "cwe_ids": [
+                  "CWE-400",
+                  "CWE-770"
+                ],
+                "github_reviewed": true,
+                "github_reviewed_at": "2026-07-24T21:53:14Z",
+                "nvd_published_at": "2026-07-23T14:17:00Z",
+                "severity": "HIGH"
+              },
+              "details": "### Summary\n\n`expand()` bounds the *number* of results it produces (the `max` option,\n`100_000` by default) but not their *length*. By chaining many brace groups,\nan attacker keeps the result count under `max` while making every result grow\nwith the number of groups. Building `max` long results â€” plus the intermediate\narrays combined at each brace group â€” exhausts memory and crashes the Node\nprocess with an **uncatchable** out-of-memory error. `try/catch` around\n`expand()` does not help: the fatal error terminates the process.\n\nA ~7.5 KB input (`'{a,b}'.repeat(1500)`) is enough to crash a default Node\nprocess.\n\n### Details\n\nFor `N` chained brace groups such as `'{a,b}'.repeat(N)`:\n\n- the result count is `2^N`, immediately capped at `max` (`100_000`), so the\n  `max` protection appears to hold, but\n- each result is `N` characters long, so the total output size is\n  `max Ã— N` characters, which grows without bound in `N`.\n\n`expand_` combines each brace set with the fully-expanded tail:\n\n```js\nconst post = m.post.length ? expand_(m.post, max, false) : ['']\n...\nfor (let j = 0; j \u003c N.length; j++) {\n  for (let k = 0; k \u003c post.length \u0026\u0026 expansions.length \u003c max; k++) {\n    const expansion = pre + N[j] + post[k]   // grows one group longer per level\n    ...\n    expansions.push(expansion)\n  }\n}\n```\n\nThe loop guard `expansions.length \u003c max` limits how many strings are built, but\nnothing limits how long they get. Each recursion level materializes another\narray of up to `max` strings, one character longer than the level below, and â€”\nbecause V8 represents `pre + N[j] + post[k]` as a cons-string (rope) that\nreferences `post[k]` â€” those intermediate strings stay reachable through the\nwhole chain. Memory therefore scales with `max Ã— N`.\n\nMeasured on `5.0.7` (`'{a,b}'.repeat(N)`, default `max`):\n\n| groups (N) | input bytes | result count | peak RSS |\n|---|---|---|---|\n| 20 | 100 | 100,000 | ~80 MB |\n| 50 | 250 | 100,000 | ~214 MB |\n| 100 | 500 | 100,000 | ~409 MB |\n| 300 | 1,500 | 100,000 | ~1,148 MB |\n| 1500 | 7,500 | â€” | **OOM crash** |\n\n### Proof of concept\n\n```js\nconst { expand } = require('brace-expansion')\n\n// ~7.5 KB input â€” crashes the process with a fatal, uncatchable OOM:\n//   FATAL ERROR: ... JavaScript heap out of memory\ntry {\n  expand('{a,b}'.repeat(1500))\n} catch (e) {\n  // never reached â€” the process is already dead\n}\n```\n\n### Impact\n\nAny application that passes attacker-influenced strings to\n`brace-expansion.expand()` â€” directly, or transitively via `minimatch` / `glob`\nbrace patterns â€” can be crashed by a small request. Because the failure is a\nfatal V8 out-of-memory error rather than a thrown exception, it cannot be caught\nand it takes down the whole worker/process, denying service.\n\n### Remediation\n\nUpgrade to a patched release. The fix bounds the total number of characters a\nsingle `expand()` call may accumulate (`EXPANSION_MAX_LENGTH`, default\n`4_000_000`, configurable via a new `maxLength` option), applied inside the\noutput-building loops so intermediate arrays are bounded too. Once the limit is\nreached, output is truncated â€” consistent with how `max` already truncates â€”\ninstead of growing without bound. The limit sits well above any realistic\nexpansion (100,000 results hitting `max` measure ~1M characters), so legitimate\ninput is unaffected.\n\nAfter the fix, `'{a,b}'.repeat(1500)` returns a bounded, truncated result in\n~0.7 s using ~340 MB and never crashes, including under a constrained 512 MB\nheap.\n\nThe fix bounds memory but the algorithm still rebuilds intermediate arrays at\neach level (roughly `O(N Ã— maxLength)` work on this input class). A streaming\nrewrite that produces output in `O(total output size)` can be a non-urgent\nfollow-up.\n\nIf immediate upgrade isn't possible, avoid passing untrusted input to\n`expand()` / glob brace patterns, or pass a small explicit `max` **and**\n`maxLength`.",
+              "id": "GHSA-mh99-v99m-4gvg",
+              "modified": "2026-09-10T03:50:12.282849322Z",
+              "published": "2026-07-24T21:53:14Z",
+              "references": [
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/juliangruber/brace-expansion/security/advisories/GHSA-mh99-v99m-4gvg"
+                },
+                {
+                  "type": "ADVISORY",
+                  "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-14257"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/juliangruber/brace-expansion/pull/129"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/juliangruber/brace-expansion/pull/130"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/juliangruber/brace-expansion/pull/136"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/juliangruber/brace-expansion/commit/139d015104e71433ad52a41d19467c48ecbb2c7d"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/juliangruber/brace-expansion/commit/a1bd33999ea75262c4749fff3bbb0d1372bd07b5"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/juliangruber/brace-expansion/commit/cb4b9e47cc2ec777c14b2b4492fb431a56f6a031"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/juliangruber/brace-expansion/commit/d13ff455a58b0d56704f0111e3c2a0b16ceb06eb"
+                },
+                {
+                  "type": "PACKAGE",
+                  "url": "https://github.com/juliangruber/brace-expansion"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://www.npmjs.com/package/brace-expansion"
+                }
+              ],
+              "schema_version": "1.9.0",
+              "severity": [
+                {
+                  "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+                  "type": "CVSS_V3"
+                }
+              ],
+              "summary": "brace-expansion: DoS via unbounded expansion length causing an out-of-memory process crash"
+            },
+            {
+              "affected": [
+                {
+                  "database_specific": {
+                    "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/08/GHSA-rgw5-rvv9-x895/GHSA-rgw5-rvv9-x895.json"
+                  },
+                  "package": {
+                    "ecosystem": "npm",
+                    "name": "brace-expansion",
+                    "purl": "pkg:npm/brace-expansion"
+                  },
+                  "ranges": [
+                    {
+                      "events": [
+                        {
+                          "introduced": "0"
+                        },
+                        {
+                          "fixed": "1.1.18"
+                        }
+                      ],
+                      "type": "SEMVER"
+                    }
+                  ]
+                },
+                {
+                  "database_specific": {
+                    "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/08/GHSA-rgw5-rvv9-x895/GHSA-rgw5-rvv9-x895.json"
+                  },
+                  "package": {
+                    "ecosystem": "npm",
+                    "name": "brace-expansion",
+                    "purl": "pkg:npm/brace-expansion"
+                  },
+                  "ranges": [
+                    {
+                      "events": [
+                        {
+                          "introduced": "2.0.0"
+                        },
+                        {
+                          "fixed": "2.1.4"
+                        }
+                      ],
+                      "type": "SEMVER"
+                    }
+                  ]
+                },
+                {
+                  "database_specific": {
+                    "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/08/GHSA-rgw5-rvv9-x895/GHSA-rgw5-rvv9-x895.json"
+                  },
+                  "package": {
+                    "ecosystem": "npm",
+                    "name": "brace-expansion",
+                    "purl": "pkg:npm/brace-expansion"
+                  },
+                  "ranges": [
+                    {
+                      "events": [
+                        {
+                          "introduced": "3.0.0"
+                        },
+                        {
+                          "fixed": "3.0.6"
+                        }
+                      ],
+                      "type": "SEMVER"
+                    }
+                  ]
+                },
+                {
+                  "database_specific": {
+                    "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/08/GHSA-rgw5-rvv9-x895/GHSA-rgw5-rvv9-x895.json"
+                  },
+                  "package": {
+                    "ecosystem": "npm",
+                    "name": "brace-expansion",
+                    "purl": "pkg:npm/brace-expansion"
+                  },
+                  "ranges": [
+                    {
+                      "events": [
+                        {
+                          "introduced": "4.0.0"
+                        },
+                        {
+                          "fixed": "5.0.9"
+                        }
+                      ],
+                      "type": "SEMVER"
+                    }
+                  ]
+                }
+              ],
+              "aliases": [
+                "CVE-2026-69152"
+              ],
+              "database_specific": {
+                "cwe_ids": [
+                  "CWE-400",
+                  "CWE-770"
+                ],
+                "github_reviewed": true,
+                "github_reviewed_at": "2026-08-03T16:35:32Z",
+                "nvd_published_at": "2026-08-03T17:16:45Z",
+                "severity": "HIGH"
+              },
+              "details": "### Summary\n\nThe `maxLength` mitigation added in `5.0.8` for GHSA-mh99-v99m-4gvg / CVE-2026-14257 is incomplete. It bounds the accumulator where results are *combined*, but not the intermediate arrays that feed it. A ~25 KB input still crashes the Node process with an **uncatchable** out-of-memory error, so `try/catch` around `expand()` does not help.\n\nA second, related path in the same function lets a ~400 KB input block the event loop for over two minutes without ever exceeding the memory bound.\n\n### Details\n\n`maxLength` was enforced in `combine()`, the single place output grows. Two arrays are built *before* `combine()` runs, and neither was bounded.\n\n**1. Comma alternatives accumulate without a running total (memory exhaustion)**\n\nEach alternative in `{a,b,c,...}` is expanded by its own recursive `expand_()` call, so each receives a full, independent `maxLength` allowance. The results were then concatenated into a single `values` array with no cumulative limit:\n\n```js\nvalues = []\nfor (let j = 0; j \u003c n.length; j++) {\n  values.push.apply(values, expand_(n[j], max, maxLength, false))\n}\n\nacc = combine(acc, pre, values, max, maxLength, ...)\n```\n\nWith `A` alternatives, `values` can reach `A * maxLength` characters before `combine()` gets a chance to truncate it. At the default `maxLength` of 4,000,000 and 400 alternatives, that is well past any default heap.\n\n**2. Padded sequences ignore `maxLength` while generating (CPU exhaustion)**\n\n`expandSequence()` was bounded by `max` (the result *count*) but never consulted `maxLength`. A padded sequence's element width follows the input, so `{0...01..100000}` with a wide pad generates `max` elements, each as wide as the input, only for `combine()` to discard all but a handful.\n\nMemory stays flat here, because V8 represents the padded strings as cons-strings, which is likely why this path was not caught alongside the original issue. The cost is time: work proportional to `max * width`.\n\n| pad width | input bytes | results kept | time (5.0.8) | time (patched) |\n|---|---|---|---|---|\n| 20,000 | 20 KB | 199 | ~7.3 s | ~20 ms |\n| 100,000 | 100 KB | 39 | ~32 s | ~20 ms |\n| 400,000 | 400 KB | 9 | ~124 s | ~18 ms |\n\nOutput is byte-identical before and after the fix; only the wasted work is removed.\n\n### Proof of concept\n\nMemory exhaustion, against `5.0.8`:\n\n```js\nimport { expand } from 'brace-expansion'\n\nconst part = '{' + '0'.repeat(50) + '1..100000}'\nconst input = '{' + Array(400).fill(part).join(',') + '}'  // ~25 KB\n\ntry {\n  expand(input)\n} catch (e) {\n  // never reached - the process is already dead\n}\n```\n\n```\nFATAL ERROR: Ineffective mark-compacts near heap limit Allocation failed - JavaScript heap out of memory\nAborted\n```\n\nEvent-loop stall, against `5.0.8`:\n\n```js\nimport { expand } from 'brace-expansion'\n\n// ~400 KB input, returns 9 results after roughly two minutes of blocking CPU\nexpand('{' + '0'.repeat(400_000) + '1..100000}')\n```\n\n### Impact\n\nDenial of service. Any application that passes attacker-controlled input to `expand()`, directly or transitively through a glob or pattern-matching library, can be remotely crashed or stalled. The out-of-memory variant terminates the process and cannot be handled with `try/catch`.\n\nApplications already on `5.0.8` are affected: the `5.0.8` mitigation does not cover these paths.\n\n### Patches\n\nBoth intermediate arrays are now bounded as they are built, using the same `max` and `maxLength` limits already applied in `combine()`:\n\n- `values` tracks a running result count and character length while alternatives are appended, and stops once either bound is reached.\n- `expandSequence()` accepts `maxLength` and stops generating once the sequence's own characters reach it.\n\nAs with the existing limits, output is truncated rather than allowed to grow without bound, which matches how `max` already behaves. The defaults sit well above any realistic expansion, so legitimate input is unaffected.\n\n### Workarounds\n\nIf upgrading is not immediately possible, avoid passing untrusted input to `expand()` or to glob brace patterns, or pass an explicitly small `max` **and** `maxLength`.\n\nNote that a small `maxLength` alone was not sufficient on affected versions: it was applied per alternative rather than cumulatively, which is the root of the first issue above.\n\n### Credits\n\nThe memory-exhaustion bypass was reported by Alessio Della Libera, CEO \u0026 Co-founder at [Numyra](https://numyra.ai/).\n\nThe sequence-generation issue was found while verifying that report.",
+              "id": "GHSA-rgw5-rvv9-x895",
+              "modified": "2026-09-10T03:51:14.535270857Z",
+              "published": "2026-08-03T16:35:32Z",
+              "references": [
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/juliangruber/brace-expansion/security/advisories/GHSA-rgw5-rvv9-x895"
+                },
+                {
+                  "type": "ADVISORY",
+                  "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-69152"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/juliangruber/brace-expansion/commit/139d015104e71433ad52a41d19467c48ecbb2c7d"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/juliangruber/brace-expansion/commit/1e30c930238d7162802d88a94189182def178dac"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/juliangruber/brace-expansion/commit/688a99eeaab02627c2b89ba8ba4821fecfa659cf"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/juliangruber/brace-expansion/commit/cb4b9e47cc2ec777c14b2b4492fb431a56f6a031"
+                },
+                {
+                  "type": "PACKAGE",
+                  "url": "https://github.com/juliangruber/brace-expansion"
+                }
+              ],
+              "schema_version": "1.9.0",
+              "severity": [
+                {
+                  "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+                  "type": "CVSS_V3"
+                }
+              ],
+              "summary": "brace-expansion: DoS via unbounded intermediate arrays, bypassing the CVE-2026-14257 mitigation"
+            }
+          ]
+        },
+        {
+          "package": {
+            "name": "brace-expansion",
+            "version": "2.1.2",
+            "ecosystem": "npm"
+          },
+          "groups": [
+            {
+              "ids": [
+                "GHSA-mh99-v99m-4gvg"
+              ],
+              "aliases": [
+                "CVE-2026-14257",
+                "GHSA-mh99-v99m-4gvg"
+              ],
+              "max_severity": "7.5"
+            },
+            {
+              "ids": [
+                "GHSA-rgw5-rvv9-x895"
+              ],
+              "aliases": [
+                "CVE-2026-69152",
+                "GHSA-rgw5-rvv9-x895"
+              ],
+              "max_severity": "7.5"
+            }
+          ],
+          "vulnerabilities": [
+            {
+              "affected": [
+                {
+                  "database_specific": {
+                    "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/07/GHSA-mh99-v99m-4gvg/GHSA-mh99-v99m-4gvg.json"
+                  },
+                  "package": {
+                    "ecosystem": "npm",
+                    "name": "brace-expansion",
+                    "purl": "pkg:npm/brace-expansion"
+                  },
+                  "ranges": [
+                    {
+                      "events": [
+                        {
+                          "introduced": "4.0.0"
+                        },
+                        {
+                          "fixed": "5.0.8"
+                        }
+                      ],
+                      "type": "SEMVER"
+                    }
+                  ]
+                },
+                {
+                  "database_specific": {
+                    "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/07/GHSA-mh99-v99m-4gvg/GHSA-mh99-v99m-4gvg.json"
+                  },
+                  "package": {
+                    "ecosystem": "npm",
+                    "name": "brace-expansion",
+                    "purl": "pkg:npm/brace-expansion"
+                  },
+                  "ranges": [
+                    {
+                      "events": [
+                        {
+                          "introduced": "3.0.0"
+                        },
+                        {
+                          "fixed": "3.0.3"
+                        }
+                      ],
+                      "type": "SEMVER"
+                    }
+                  ]
+                },
+                {
+                  "database_specific": {
+                    "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/07/GHSA-mh99-v99m-4gvg/GHSA-mh99-v99m-4gvg.json"
+                  },
+                  "package": {
+                    "ecosystem": "npm",
+                    "name": "brace-expansion",
+                    "purl": "pkg:npm/brace-expansion"
+                  },
+                  "ranges": [
+                    {
+                      "events": [
+                        {
+                          "introduced": "2.0.0"
+                        },
+                        {
+                          "fixed": "2.1.3"
+                        }
+                      ],
+                      "type": "SEMVER"
+                    }
+                  ]
+                },
+                {
+                  "database_specific": {
+                    "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/07/GHSA-mh99-v99m-4gvg/GHSA-mh99-v99m-4gvg.json"
+                  },
+                  "package": {
+                    "ecosystem": "npm",
+                    "name": "brace-expansion",
+                    "purl": "pkg:npm/brace-expansion"
+                  },
+                  "ranges": [
+                    {
+                      "events": [
+                        {
+                          "introduced": "0"
+                        },
+                        {
+                          "fixed": "1.1.17"
+                        }
+                      ],
+                      "type": "SEMVER"
+                    }
+                  ]
+                }
+              ],
+              "aliases": [
+                "CVE-2026-14257"
+              ],
+              "database_specific": {
+                "cwe_ids": [
+                  "CWE-400",
+                  "CWE-770"
+                ],
+                "github_reviewed": true,
+                "github_reviewed_at": "2026-07-24T21:53:14Z",
+                "nvd_published_at": "2026-07-23T14:17:00Z",
+                "severity": "HIGH"
+              },
+              "details": "### Summary\n\n`expand()` bounds the *number* of results it produces (the `max` option,\n`100_000` by default) but not their *length*. By chaining many brace groups,\nan attacker keeps the result count under `max` while making every result grow\nwith the number of groups. Building `max` long results â€” plus the intermediate\narrays combined at each brace group â€” exhausts memory and crashes the Node\nprocess with an **uncatchable** out-of-memory error. `try/catch` around\n`expand()` does not help: the fatal error terminates the process.\n\nA ~7.5 KB input (`'{a,b}'.repeat(1500)`) is enough to crash a default Node\nprocess.\n\n### Details\n\nFor `N` chained brace groups such as `'{a,b}'.repeat(N)`:\n\n- the result count is `2^N`, immediately capped at `max` (`100_000`), so the\n  `max` protection appears to hold, but\n- each result is `N` characters long, so the total output size is\n  `max Ã— N` characters, which grows without bound in `N`.\n\n`expand_` combines each brace set with the fully-expanded tail:\n\n```js\nconst post = m.post.length ? expand_(m.post, max, false) : ['']\n...\nfor (let j = 0; j \u003c N.length; j++) {\n  for (let k = 0; k \u003c post.length \u0026\u0026 expansions.length \u003c max; k++) {\n    const expansion = pre + N[j] + post[k]   // grows one group longer per level\n    ...\n    expansions.push(expansion)\n  }\n}\n```\n\nThe loop guard `expansions.length \u003c max` limits how many strings are built, but\nnothing limits how long they get. Each recursion level materializes another\narray of up to `max` strings, one character longer than the level below, and â€”\nbecause V8 represents `pre + N[j] + post[k]` as a cons-string (rope) that\nreferences `post[k]` â€” those intermediate strings stay reachable through the\nwhole chain. Memory therefore scales with `max Ã— N`.\n\nMeasured on `5.0.7` (`'{a,b}'.repeat(N)`, default `max`):\n\n| groups (N) | input bytes | result count | peak RSS |\n|---|---|---|---|\n| 20 | 100 | 100,000 | ~80 MB |\n| 50 | 250 | 100,000 | ~214 MB |\n| 100 | 500 | 100,000 | ~409 MB |\n| 300 | 1,500 | 100,000 | ~1,148 MB |\n| 1500 | 7,500 | â€” | **OOM crash** |\n\n### Proof of concept\n\n```js\nconst { expand } = require('brace-expansion')\n\n// ~7.5 KB input â€” crashes the process with a fatal, uncatchable OOM:\n//   FATAL ERROR: ... JavaScript heap out of memory\ntry {\n  expand('{a,b}'.repeat(1500))\n} catch (e) {\n  // never reached â€” the process is already dead\n}\n```\n\n### Impact\n\nAny application that passes attacker-influenced strings to\n`brace-expansion.expand()` â€” directly, or transitively via `minimatch` / `glob`\nbrace patterns â€” can be crashed by a small request. Because the failure is a\nfatal V8 out-of-memory error rather than a thrown exception, it cannot be caught\nand it takes down the whole worker/process, denying service.\n\n### Remediation\n\nUpgrade to a patched release. The fix bounds the total number of characters a\nsingle `expand()` call may accumulate (`EXPANSION_MAX_LENGTH`, default\n`4_000_000`, configurable via a new `maxLength` option), applied inside the\noutput-building loops so intermediate arrays are bounded too. Once the limit is\nreached, output is truncated â€” consistent with how `max` already truncates â€”\ninstead of growing without bound. The limit sits well above any realistic\nexpansion (100,000 results hitting `max` measure ~1M characters), so legitimate\ninput is unaffected.\n\nAfter the fix, `'{a,b}'.repeat(1500)` returns a bounded, truncated result in\n~0.7 s using ~340 MB and never crashes, including under a constrained 512 MB\nheap.\n\nThe fix bounds memory but the algorithm still rebuilds intermediate arrays at\neach level (roughly `O(N Ã— maxLength)` work on this input class). A streaming\nrewrite that produces output in `O(total output size)` can be a non-urgent\nfollow-up.\n\nIf immediate upgrade isn't possible, avoid passing untrusted input to\n`expand()` / glob brace patterns, or pass a small explicit `max` **and**\n`maxLength`.",
+              "id": "GHSA-mh99-v99m-4gvg",
+              "modified": "2026-09-10T03:50:12.282849322Z",
+              "published": "2026-07-24T21:53:14Z",
+              "references": [
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/juliangruber/brace-expansion/security/advisories/GHSA-mh99-v99m-4gvg"
+                },
+                {
+                  "type": "ADVISORY",
+                  "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-14257"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/juliangruber/brace-expansion/pull/129"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/juliangruber/brace-expansion/pull/130"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/juliangruber/brace-expansion/pull/136"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/juliangruber/brace-expansion/commit/139d015104e71433ad52a41d19467c48ecbb2c7d"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/juliangruber/brace-expansion/commit/a1bd33999ea75262c4749fff3bbb0d1372bd07b5"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/juliangruber/brace-expansion/commit/cb4b9e47cc2ec777c14b2b4492fb431a56f6a031"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/juliangruber/brace-expansion/commit/d13ff455a58b0d56704f0111e3c2a0b16ceb06eb"
+                },
+                {
+                  "type": "PACKAGE",
+                  "url": "https://github.com/juliangruber/brace-expansion"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://www.npmjs.com/package/brace-expansion"
+                }
+              ],
+              "schema_version": "1.9.0",
+              "severity": [
+                {
+                  "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+                  "type": "CVSS_V3"
+                }
+              ],
+              "summary": "brace-expansion: DoS via unbounded expansion length causing an out-of-memory process crash"
+            },
+            {
+              "affected": [
+                {
+                  "database_specific": {
+                    "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/08/GHSA-rgw5-rvv9-x895/GHSA-rgw5-rvv9-x895.json"
+                  },
+                  "package": {
+                    "ecosystem": "npm",
+                    "name": "brace-expansion",
+                    "purl": "pkg:npm/brace-expansion"
+                  },
+                  "ranges": [
+                    {
+                      "events": [
+                        {
+                          "introduced": "0"
+                        },
+                        {
+                          "fixed": "1.1.18"
+                        }
+                      ],
+                      "type": "SEMVER"
+                    }
+                  ]
+                },
+                {
+                  "database_specific": {
+                    "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/08/GHSA-rgw5-rvv9-x895/GHSA-rgw5-rvv9-x895.json"
+                  },
+                  "package": {
+                    "ecosystem": "npm",
+                    "name": "brace-expansion",
+                    "purl": "pkg:npm/brace-expansion"
+                  },
+                  "ranges": [
+                    {
+                      "events": [
+                        {
+                          "introduced": "2.0.0"
+                        },
+                        {
+                          "fixed": "2.1.4"
+                        }
+                      ],
+                      "type": "SEMVER"
+                    }
+                  ]
+                },
+                {
+                  "database_specific": {
+                    "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/08/GHSA-rgw5-rvv9-x895/GHSA-rgw5-rvv9-x895.json"
+                  },
+                  "package": {
+                    "ecosystem": "npm",
+                    "name": "brace-expansion",
+                    "purl": "pkg:npm/brace-expansion"
+                  },
+                  "ranges": [
+                    {
+                      "events": [
+                        {
+                          "introduced": "3.0.0"
+                        },
+                        {
+                          "fixed": "3.0.6"
+                        }
+                      ],
+                      "type": "SEMVER"
+                    }
+                  ]
+                },
+                {
+                  "database_specific": {
+                    "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/08/GHSA-rgw5-rvv9-x895/GHSA-rgw5-rvv9-x895.json"
+                  },
+                  "package": {
+                    "ecosystem": "npm",
+                    "name": "brace-expansion",
+                    "purl": "pkg:npm/brace-expansion"
+                  },
+                  "ranges": [
+                    {
+                      "events": [
+                        {
+                          "introduced": "4.0.0"
+                        },
+                        {
+                          "fixed": "5.0.9"
+                        }
+                      ],
+                      "type": "SEMVER"
+                    }
+                  ]
+                }
+              ],
+              "aliases": [
+                "CVE-2026-69152"
+              ],
+              "database_specific": {
+                "cwe_ids": [
+                  "CWE-400",
+                  "CWE-770"
+                ],
+                "github_reviewed": true,
+                "github_reviewed_at": "2026-08-03T16:35:32Z",
+                "nvd_published_at": "2026-08-03T17:16:45Z",
+                "severity": "HIGH"
+              },
+              "details": "### Summary\n\nThe `maxLength` mitigation added in `5.0.8` for GHSA-mh99-v99m-4gvg / CVE-2026-14257 is incomplete. It bounds the accumulator where results are *combined*, but not the intermediate arrays that feed it. A ~25 KB input still crashes the Node process with an **uncatchable** out-of-memory error, so `try/catch` around `expand()` does not help.\n\nA second, related path in the same function lets a ~400 KB input block the event loop for over two minutes without ever exceeding the memory bound.\n\n### Details\n\n`maxLength` was enforced in `combine()`, the single place output grows. Two arrays are built *before* `combine()` runs, and neither was bounded.\n\n**1. Comma alternatives accumulate without a running total (memory exhaustion)**\n\nEach alternative in `{a,b,c,...}` is expanded by its own recursive `expand_()` call, so each receives a full, independent `maxLength` allowance. The results were then concatenated into a single `values` array with no cumulative limit:\n\n```js\nvalues = []\nfor (let j = 0; j \u003c n.length; j++) {\n  values.push.apply(values, expand_(n[j], max, maxLength, false))\n}\n\nacc = combine(acc, pre, values, max, maxLength, ...)\n```\n\nWith `A` alternatives, `values` can reach `A * maxLength` characters before `combine()` gets a chance to truncate it. At the default `maxLength` of 4,000,000 and 400 alternatives, that is well past any default heap.\n\n**2. Padded sequences ignore `maxLength` while generating (CPU exhaustion)**\n\n`expandSequence()` was bounded by `max` (the result *count*) but never consulted `maxLength`. A padded sequence's element width follows the input, so `{0...01..100000}` with a wide pad generates `max` elements, each as wide as the input, only for `combine()` to discard all but a handful.\n\nMemory stays flat here, because V8 represents the padded strings as cons-strings, which is likely why this path was not caught alongside the original issue. The cost is time: work proportional to `max * width`.\n\n| pad width | input bytes | results kept | time (5.0.8) | time (patched) |\n|---|---|---|---|---|\n| 20,000 | 20 KB | 199 | ~7.3 s | ~20 ms |\n| 100,000 | 100 KB | 39 | ~32 s | ~20 ms |\n| 400,000 | 400 KB | 9 | ~124 s | ~18 ms |\n\nOutput is byte-identical before and after the fix; only the wasted work is removed.\n\n### Proof of concept\n\nMemory exhaustion, against `5.0.8`:\n\n```js\nimport { expand } from 'brace-expansion'\n\nconst part = '{' + '0'.repeat(50) + '1..100000}'\nconst input = '{' + Array(400).fill(part).join(',') + '}'  // ~25 KB\n\ntry {\n  expand(input)\n} catch (e) {\n  // never reached - the process is already dead\n}\n```\n\n```\nFATAL ERROR: Ineffective mark-compacts near heap limit Allocation failed - JavaScript heap out of memory\nAborted\n```\n\nEvent-loop stall, against `5.0.8`:\n\n```js\nimport { expand } from 'brace-expansion'\n\n// ~400 KB input, returns 9 results after roughly two minutes of blocking CPU\nexpand('{' + '0'.repeat(400_000) + '1..100000}')\n```\n\n### Impact\n\nDenial of service. Any application that passes attacker-controlled input to `expand()`, directly or transitively through a glob or pattern-matching library, can be remotely crashed or stalled. The out-of-memory variant terminates the process and cannot be handled with `try/catch`.\n\nApplications already on `5.0.8` are affected: the `5.0.8` mitigation does not cover these paths.\n\n### Patches\n\nBoth intermediate arrays are now bounded as they are built, using the same `max` and `maxLength` limits already applied in `combine()`:\n\n- `values` tracks a running result count and character length while alternatives are appended, and stops once either bound is reached.\n- `expandSequence()` accepts `maxLength` and stops generating once the sequence's own characters reach it.\n\nAs with the existing limits, output is truncated rather than allowed to grow without bound, which matches how `max` already behaves. The defaults sit well above any realistic expansion, so legitimate input is unaffected.\n\n### Workarounds\n\nIf upgrading is not immediately possible, avoid passing untrusted input to `expand()` or to glob brace patterns, or pass an explicitly small `max` **and** `maxLength`.\n\nNote that a small `maxLength` alone was not sufficient on affected versions: it was applied per alternative rather than cumulatively, which is the root of the first issue above.\n\n### Credits\n\nThe memory-exhaustion bypass was reported by Alessio Della Libera, CEO \u0026 Co-founder at [Numyra](https://numyra.ai/).\n\nThe sequence-generation issue was found while verifying that report.",
+              "id": "GHSA-rgw5-rvv9-x895",
+              "modified": "2026-09-10T03:51:14.535270857Z",
+              "published": "2026-08-03T16:35:32Z",
+              "references": [
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/juliangruber/brace-expansion/security/advisories/GHSA-rgw5-rvv9-x895"
+                },
+                {
+                  "type": "ADVISORY",
+                  "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-69152"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/juliangruber/brace-expansion/commit/139d015104e71433ad52a41d19467c48ecbb2c7d"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/juliangruber/brace-expansion/commit/1e30c930238d7162802d88a94189182def178dac"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/juliangruber/brace-expansion/commit/688a99eeaab02627c2b89ba8ba4821fecfa659cf"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/juliangruber/brace-expansion/commit/cb4b9e47cc2ec777c14b2b4492fb431a56f6a031"
+                },
+                {
+                  "type": "PACKAGE",
+                  "url": "https://github.com/juliangruber/brace-expansion"
+                }
+              ],
+              "schema_version": "1.9.0",
+              "severity": [
+                {
+                  "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+                  "type": "CVSS_V3"
+                }
+              ],
+              "summary": "brace-expansion: DoS via unbounded intermediate arrays, bypassing the CVE-2026-14257 mitigation"
+            }
+          ]
+        },
+        {
+          "package": {
+            "name": "nanoid",
+            "version": "3.3.16",
+            "ecosystem": "npm"
+          },
+          "dependency_groups": [
+            "dev"
+          ],
+          "groups": [
+            {
+              "ids": [
+                "GHSA-2v37-7h3g-55p8"
+              ],
+              "aliases": [
+                "CVE-2026-67213",
+                "GHSA-2v37-7h3g-55p8"
+              ],
+              "max_severity": "8.2"
+            }
+          ],
+          "vulnerabilities": [
+            {
+              "affected": [
+                {
+                  "database_specific": {
+                    "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/07/GHSA-2v37-7h3g-55p8/GHSA-2v37-7h3g-55p8.json"
+                  },
+                  "package": {
+                    "ecosystem": "npm",
+                    "name": "nanoid",
+                    "purl": "pkg:npm/nanoid"
+                  },
+                  "ranges": [
+                    {
+                      "events": [
+                        {
+                          "introduced": "0"
+                        },
+                        {
+                          "fixed": "3.3.18"
+                        }
+                      ],
+                      "type": "SEMVER"
+                    }
+                  ]
+                },
+                {
+                  "database_specific": {
+                    "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/07/GHSA-2v37-7h3g-55p8/GHSA-2v37-7h3g-55p8.json"
+                  },
+                  "package": {
+                    "ecosystem": "npm",
+                    "name": "nanoid",
+                    "purl": "pkg:npm/nanoid"
+                  },
+                  "ranges": [
+                    {
+                      "events": [
+                        {
+                          "introduced": "4.0.0"
+                        },
+                        {
+                          "fixed": "5.1.6"
+                        }
+                      ],
+                      "type": "SEMVER"
+                    }
+                  ]
+                }
+              ],
+              "aliases": [
+                "CVE-2026-67213"
+              ],
+              "database_specific": {
+                "cwe_ids": [
+                  "CWE-835"
+                ],
+                "github_reviewed": true,
+                "github_reviewed_at": "2026-08-07T20:50:34Z",
+                "nvd_published_at": "2026-07-29T14:16:34Z",
+                "severity": "HIGH"
+              },
+              "details": "nanoid (Nano ID) before 5.1.6 contains an infinite loop in the customAlphabet and customRandom functions. When these functions are configured with a size of 0, the internal generation loop never satisfies its exit condition and spins indefinitely, hanging the calling thread. An application that passes an unvalidated, attacker-controlled size of 0 to these functions is exposed to a denial-of-service condition.",
+              "id": "GHSA-2v37-7h3g-55p8",
+              "modified": "2026-09-10T03:50:51.243328986Z",
+              "published": "2026-07-29T15:31:12Z",
+              "references": [
+                {
+                  "type": "ADVISORY",
+                  "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-67213"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/ai/nanoid/commit/cb3626d0f3342fdf179cd425fd9c4fbb92c7d0e7"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/ai/nanoid/commit/e10f8d40ce9d1ab47f66d65a16b48086432730d0"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/ai/nanoid/commit/f9d13f150847d117877adee3460a46eceb0cf49b"
+                },
+                {
+                  "type": "PACKAGE",
+                  "url": "https://github.com/ai/nanoid"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/ai/nanoid/releases/tag/3.3.17"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/ai/nanoid/releases/tag/3.3.18"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/ai/nanoid/releases/tag/5.1.6"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://www.vulncheck.com/advisories/nanoid-before-infinite-loop-via-zero-size-in-customalphabet-and-customrandom"
+                }
+              ],
+              "schema_version": "1.9.0",
+              "severity": [
+                {
+                  "score": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:N/A:H",
+                  "type": "CVSS_V3"
+                },
+                {
+                  "score": "CVSS:4.0/AV:N/AC:L/AT:P/PR:N/UI:N/VC:N/VI:N/VA:H/SC:N/SI:N/SA:N",
+                  "type": "CVSS_V4"
+                }
+              ],
+              "summary": "nanoid: custom generators can loop indefinitely when size is zero"
+            }
+          ]
+        },
+        {
+          "package": {
+            "name": "react-router",
+            "version": "6.30.0",
+            "ecosystem": "npm"
+          },
+          "groups": [
+            {
+              "ids": [
+                "GHSA-2j2x-hqr9-3h42"
+              ],
+              "aliases": [
+                "CVE-2026-40181",
+                "GHSA-2j2x-hqr9-3h42"
+              ],
+              "max_severity": "6.6"
+            },
+            {
+              "ids": [
+                "GHSA-337j-9hxr-rhxg"
+              ],
+              "aliases": [
+                "CVE-2026-53666",
+                "GHSA-337j-9hxr-rhxg"
+              ],
+              "max_severity": "6.1"
+            },
+            {
+              "ids": [
+                "GHSA-9jcx-v3wj-wh4m"
+              ],
+              "aliases": [
+                "CVE-2025-68470",
+                "GHSA-9jcx-v3wj-wh4m"
+              ],
+              "max_severity": "6.5"
+            },
+            {
+              "ids": [
+                "GHSA-wrjc-x8rr-h8h6"
+              ],
+              "aliases": [
+                "CVE-2026-53669",
+                "GHSA-wrjc-x8rr-h8h6"
+              ],
+              "max_severity": "5.1"
+            }
+          ],
+          "vulnerabilities": [
+            {
+              "affected": [
+                {
+                  "database_specific": {
+                    "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/06/GHSA-2j2x-hqr9-3h42/GHSA-2j2x-hqr9-3h42.json"
+                  },
+                  "package": {
+                    "ecosystem": "npm",
+                    "name": "react-router",
+                    "purl": "pkg:npm/react-router"
+                  },
+                  "ranges": [
+                    {
+                      "events": [
+                        {
+                          "introduced": "7.0.0"
+                        },
+                        {
+                          "fixed": "7.14.1"
+                        }
+                      ],
+                      "type": "SEMVER"
+                    }
+                  ]
+                },
+                {
+                  "database_specific": {
+                    "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/06/GHSA-2j2x-hqr9-3h42/GHSA-2j2x-hqr9-3h42.json"
+                  },
+                  "package": {
+                    "ecosystem": "npm",
+                    "name": "react-router",
+                    "purl": "pkg:npm/react-router"
+                  },
+                  "ranges": [
+                    {
+                      "events": [
+                        {
+                          "introduced": "6.7.0"
+                        },
+                        {
+                          "fixed": "6.30.4"
+                        }
+                      ],
+                      "type": "SEMVER"
+                    }
+                  ]
+                },
+                {
+                  "database_specific": {
+                    "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/06/GHSA-2j2x-hqr9-3h42/GHSA-2j2x-hqr9-3h42.json"
+                  },
+                  "package": {
+                    "ecosystem": "npm",
+                    "name": "@remix-run/router",
+                    "purl": "pkg:npm/%40remix-run/router"
+                  },
+                  "ranges": [
+                    {
+                      "events": [
+                        {
+                          "introduced": "1.3.0"
+                        },
+                        {
+                          "fixed": "1.23.3"
+                        }
+                      ],
+                      "type": "SEMVER"
+                    }
+                  ]
+                }
+              ],
+              "aliases": [
+                "CVE-2026-40181"
+              ],
+              "database_specific": {
+                "cwe_ids": [
+                  "CWE-601"
+                ],
+                "github_reviewed": true,
+                "github_reviewed_at": "2026-06-03T20:58:01Z",
+                "nvd_published_at": "2026-06-02T20:16:35Z",
+                "severity": "MODERATE"
+              },
+              "details": "Certain URLs passed to the `redirect` function can trigger an open redirect to an external domain depending on the level of validation done by the application prior to returning the `redirect`.\n\n\u003e [!NOTE]\n\u003e This does not impact your React Router application if you are using [Declarative Mode](https://reactrouter.com/start/modes#declarative) (`\u003cBrowserRouter\u003e`)",
+              "id": "GHSA-2j2x-hqr9-3h42",
+              "modified": "2026-09-10T03:50:55.348600076Z",
+              "published": "2026-06-03T20:58:01Z",
+              "references": [
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/remix-run/react-router/security/advisories/GHSA-2j2x-hqr9-3h42"
+                },
+                {
+                  "type": "ADVISORY",
+                  "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-40181"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/remix-run/react-router/commit/d77f6b1"
+                },
+                {
+                  "type": "PACKAGE",
+                  "url": "https://github.com/remix-run/react-router"
+                }
+              ],
+              "schema_version": "1.9.0",
+              "severity": [
+                {
+                  "score": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:N/VI:H/VA:N/SC:N/SI:N/SA:N/E:U",
+                  "type": "CVSS_V4"
+                }
+              ],
+              "summary": "React Router's same-origin redirect with path starting // causes open redirect via protocol-relative URL reinterpretation"
+            },
+            {
+              "affected": [
+                {
+                  "database_specific": {
+                    "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/07/GHSA-337j-9hxr-rhxg/GHSA-337j-9hxr-rhxg.json"
+                  },
+                  "package": {
+                    "ecosystem": "npm",
+                    "name": "react-router",
+                    "purl": "pkg:npm/react-router"
+                  },
+                  "ranges": [
+                    {
+                      "events": [
+                        {
+                          "introduced": "6.4.0"
+                        },
+                        {
+                          "fixed": "7.18.0"
+                        }
+                      ],
+                      "type": "SEMVER"
+                    }
+                  ]
+                }
+              ],
+              "aliases": [
+                "CVE-2026-53666"
+              ],
+              "database_specific": {
+                "cwe_ids": [
+                  "CWE-470"
+                ],
+                "github_reviewed": true,
+                "github_reviewed_at": "2026-07-23T19:34:14Z",
+                "nvd_published_at": null,
+                "severity": "MODERATE"
+              },
+              "details": "If application code allows attacker supplied input to overwrite certain aspects of errors caught by the SSR process, then it was possible for attacker to trigger unexpected constructor execution on the client which would trigger outbound network traffic.  This is only possible with very specific (and unlikely) application layer code.\n\n\u003e [!NOTE]\n\u003e This does not impact your application if you are using Declarative Mode.  This only impacts Framework Mode and Data Mode applications doing manual SSR/hydration",
+              "id": "GHSA-337j-9hxr-rhxg",
+              "modified": "2026-09-10T03:50:51.309163082Z",
+              "published": "2026-07-23T19:34:14Z",
+              "references": [
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/remix-run/react-router/security/advisories/GHSA-337j-9hxr-rhxg"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/remix-run/react-router/pull/15175"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/remix-run/react-router/commit/9d22943fd46c8ae4b08236425fa3549e10e9ad1a"
+                },
+                {
+                  "type": "PACKAGE",
+                  "url": "https://github.com/remix-run/react-router"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/remix-run/react-router/blob/main/CHANGELOG.md#v7180"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/remix-run/react-router/releases/tag/react-router@7.18.0"
+                }
+              ],
+              "schema_version": "1.9.0",
+              "severity": [
+                {
+                  "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N",
+                  "type": "CVSS_V3"
+                }
+              ],
+              "summary": "React Router: Arbitrary Constructor Injection via deserializeErrors() in React Router SSR Hydration"
+            },
+            {
+              "affected": [
+                {
+                  "database_specific": {
+                    "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/01/GHSA-9jcx-v3wj-wh4m/GHSA-9jcx-v3wj-wh4m.json"
+                  },
+                  "package": {
+                    "ecosystem": "npm",
+                    "name": "react-router",
+                    "purl": "pkg:npm/react-router"
+                  },
+                  "ranges": [
+                    {
+                      "events": [
+                        {
+                          "introduced": "6.0.0"
+                        },
+                        {
+                          "fixed": "6.30.2"
+                        }
+                      ],
+                      "type": "SEMVER"
+                    }
+                  ]
+                },
+                {
+                  "database_specific": {
+                    "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/01/GHSA-9jcx-v3wj-wh4m/GHSA-9jcx-v3wj-wh4m.json"
+                  },
+                  "package": {
+                    "ecosystem": "npm",
+                    "name": "react-router",
+                    "purl": "pkg:npm/react-router"
+                  },
+                  "ranges": [
+                    {
+                      "events": [
+                        {
+                          "introduced": "7.0.0"
+                        },
+                        {
+                          "fixed": "7.9.6"
+                        }
+                      ],
+                      "type": "SEMVER"
+                    }
+                  ]
+                }
+              ],
+              "aliases": [
+                "CVE-2025-68470"
+              ],
+              "database_specific": {
+                "cwe_ids": [
+                  "CWE-601"
+                ],
+                "github_reviewed": true,
+                "github_reviewed_at": "2026-01-08T20:48:21Z",
+                "nvd_published_at": "2026-01-10T03:15:48Z",
+                "severity": "MODERATE"
+              },
+              "details": "An attacker-supplied path can be crafted so that when a React Router application navigates to it via `navigate()`, `\u003cLink\u003e`, or `redirect()`, the app performs a navigation/redirect to an external URL. This is only an issue if developers pass untrusted content into navigation paths in their application code.",
+              "id": "GHSA-9jcx-v3wj-wh4m",
+              "modified": "2026-02-03T03:14:56.431029Z",
+              "published": "2026-01-08T20:48:21Z",
+              "references": [
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/remix-run/react-router/security/advisories/GHSA-9jcx-v3wj-wh4m"
+                },
+                {
+                  "type": "ADVISORY",
+                  "url": "https://nvd.nist.gov/vuln/detail/CVE-2025-68470"
+                },
+                {
+                  "type": "PACKAGE",
+                  "url": "https://github.com/remix-run/react-router"
+                }
+              ],
+              "schema_version": "1.9.0",
+              "severity": [
+                {
+                  "score": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:N/I:H/A:N",
+                  "type": "CVSS_V3"
+                }
+              ],
+              "summary": "React Router has unexpected external redirect via untrusted paths"
+            },
+            {
+              "affected": [
+                {
+                  "database_specific": {
+                    "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/07/GHSA-wrjc-x8rr-h8h6/GHSA-wrjc-x8rr-h8h6.json"
+                  },
+                  "package": {
+                    "ecosystem": "npm",
+                    "name": "react-router",
+                    "purl": "pkg:npm/react-router"
+                  },
+                  "ranges": [
+                    {
+                      "events": [
+                        {
+                          "introduced": "6.0.0"
+                        },
+                        {
+                          "fixed": "7.18.0"
+                        }
+                      ],
+                      "type": "SEMVER"
+                    }
+                  ]
+                }
+              ],
+              "aliases": [
+                "CVE-2026-53669"
+              ],
+              "database_specific": {
+                "cwe_ids": [
+                  "CWE-601"
+                ],
+                "github_reviewed": true,
+                "github_reviewed_at": "2026-07-23T19:38:28Z",
+                "nvd_published_at": null,
+                "severity": "MODERATE"
+              },
+              "details": "This is a follow up to [CVE-2025-68470](https://github.com/remix-run/react-router/security/advisories/GHSA-9jcx-v3wj-wh4m).  React Router was alerted to certain scenarios in which the fix there was incomplete so there still existed some scenarios where attacker supplied paths passed to navigation mechanisms could result in unexpected external navigations.",
+              "id": "GHSA-wrjc-x8rr-h8h6",
+              "modified": "2026-09-10T03:51:12.418370518Z",
+              "published": "2026-07-23T19:38:28Z",
+              "references": [
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/remix-run/react-router/security/advisories/GHSA-wrjc-x8rr-h8h6"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/remix-run/react-router/pull/15176"
+                },
+                {
+                  "type": "PACKAGE",
+                  "url": "https://github.com/remix-run/react-router"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/remix-run/react-router/blob/main/CHANGELOG.md#v7180"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/remix-run/react-router/releases/tag/react-router@7.18.0"
+                },
+                {
+                  "type": "WEB",
+                  "url": "http://github.com/remix-run/react-router/pull/15176"
+                }
+              ],
+              "schema_version": "1.9.0",
+              "severity": [
+                {
+                  "score": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:A/VC:N/VI:L/VA:N/SC:L/SI:L/SA:N",
+                  "type": "CVSS_V4"
+                }
+              ],
+              "summary": "React Router: Open redirect via backslash in \u003cLink\u003e and useNavigate (CVE-2025-68470 bypass)"
+            }
+          ]
+        },
+        {
+          "package": {
+            "name": "uuid",
+            "version": "8.3.2",
+            "ecosystem": "npm"
+          },
+          "groups": [
+            {
+              "ids": [
+                "GHSA-w5hq-g745-h8pq"
+              ],
+              "aliases": [
+                "CVE-2026-41907",
+                "CVE-2026-41988",
+                "GHSA-w5hq-g745-h8pq"
+              ],
+              "max_severity": "7.5"
+            }
+          ],
+          "vulnerabilities": [
+            {
+              "affected": [
+                {
+                  "database_specific": {
+                    "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/04/GHSA-w5hq-g745-h8pq/GHSA-w5hq-g745-h8pq.json"
+                  },
+                  "package": {
+                    "ecosystem": "npm",
+                    "name": "uuid",
+                    "purl": "pkg:npm/uuid"
+                  },
+                  "ranges": [
+                    {
+                      "events": [
+                        {
+                          "introduced": "0"
+                        },
+                        {
+                          "fixed": "11.1.1"
+                        }
+                      ],
+                      "type": "SEMVER"
+                    }
+                  ]
+                },
+                {
+                  "database_specific": {
+                    "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/04/GHSA-w5hq-g745-h8pq/GHSA-w5hq-g745-h8pq.json"
+                  },
+                  "package": {
+                    "ecosystem": "npm",
+                    "name": "uuid",
+                    "purl": "pkg:npm/uuid"
+                  },
+                  "ranges": [
+                    {
+                      "events": [
+                        {
+                          "introduced": "12.0.0"
+                        },
+                        {
+                          "fixed": "12.0.1"
+                        }
+                      ],
+                      "type": "SEMVER"
+                    }
+                  ]
+                },
+                {
+                  "database_specific": {
+                    "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2026/04/GHSA-w5hq-g745-h8pq/GHSA-w5hq-g745-h8pq.json"
+                  },
+                  "package": {
+                    "ecosystem": "npm",
+                    "name": "uuid",
+                    "purl": "pkg:npm/uuid"
+                  },
+                  "ranges": [
+                    {
+                      "events": [
+                        {
+                          "introduced": "13.0.0"
+                        },
+                        {
+                          "fixed": "13.0.1"
+                        }
+                      ],
+                      "type": "SEMVER"
+                    }
+                  ]
+                }
+              ],
+              "aliases": [
+                "CVE-2026-41907",
+                "CVE-2026-41988"
+              ],
+              "database_specific": {
+                "cwe_ids": [
+                  "CWE-1285",
+                  "CWE-787"
+                ],
+                "github_reviewed": true,
+                "github_reviewed_at": "2026-04-22T20:53:24Z",
+                "nvd_published_at": "2026-04-24T19:17:14Z",
+                "severity": "MODERATE"
+              },
+              "details": "### Summary\n\nThe `v3()`, `v5()`, and `v6()` [API methods](https://github.com/uuidjs/uuid#api-summary) (not `uuid` release versions) accept external output buffers but do not reject out-of-range writes (small `buf` or large `offset`).  \nBy contrast, `v4()`, `v1()`, and `v7()` API methods explicitly throw `RangeError` on invalid bounds.\n\nThis inconsistency allows **silent partial writes** into caller-provided buffers.\n\n\n### Affected code\n\n- `src/v35.ts` (`v3()`/`v5()` path) writes `buf[offset + i]` without bounds validation.\n- `src/v6.ts` writes `buf[offset + i]` without bounds validation.\n\n### Reproducible PoC\n\n```bash\ncd /home/StrawHat/uuid\nnpm ci\nnpm run build\n\nnode --input-type=module -e \"\nimport {v4,v5,v6} from './dist-node/index.js';\nconst ns='6ba7b810-9dad-11d1-80b4-00c04fd430c8';\nfor (const [name,fn] of [\n  ['v4()',()=\u003ev4({},new Uint8Array(8),4)],\n  ['v5()',()=\u003ev5('x',ns,new Uint8Array(8),4)],\n  ['v6()',()=\u003ev6({},new Uint8Array(8),4)],\n]) {\n  try { fn(); console.log(name,'NO_THROW'); }\n  catch(e){ console.log(name,'THREW',e.name); }\n}\"\n```\n\nObserved:\n\n- `v4() THREW RangeError`\n- `v5() NO_THROW`\n- `v6() NO_THROW`\n\nExample partial overwrite evidence captured during audit:\n\n```text\nsame true buf [\n  170, 170, 170, 170,\n   75, 224, 100,  63\n]\nv6 [\n  187, 187, 187, 187,\n   31,  19, 185,  64\n]\n```\n\n### Security impact\n\n- **Primary**: integrity/robustness issue (silent partial output).\n- If an application assumes full UUID writes into preallocated buffers, this can produce malformed/truncated/partially stale identifiers without error.\n- In systems where caller-controlled offsets/buffer sizes are exposed indirectly, this may become a security-relevant logic flaw.\n\n### Suggested fix\n\nAdd the same guard used by `v4()`/`v1()`/`v7()`:\n\n```ts\nif (offset \u003c 0 || offset + 16 \u003e buf.length) {\n  throw new RangeError(`UUID byte range ${offset}:${offset + 15} is out of buffer bounds`);\n}\n```\n\nApply to:\n\n- `src/v35.ts` (covers `v3()` and `v5()`)\n- `src/v6.ts`",
+              "id": "GHSA-w5hq-g745-h8pq",
+              "modified": "2026-09-10T03:51:03.663336650Z",
+              "published": "2026-04-22T20:53:24Z",
+              "references": [
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/uuidjs/uuid/security/advisories/GHSA-w5hq-g745-h8pq"
+                },
+                {
+                  "type": "ADVISORY",
+                  "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-41907"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/uuidjs/uuid/commit/32389c887c9e75f90442ee4cc95bbab0c4e8346e"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/uuidjs/uuid/commit/3d2c5b0342f0fcb52a5ac681c3d47c13e7444b34"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/uuidjs/uuid/commit/3d61d6ac1f782cf6b1dd8661c60f11722cd49a0d"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/uuidjs/uuid/commit/9d27ddf7046ce496ef39569ff84d948eeff9cb2a"
+                },
+                {
+                  "type": "PACKAGE",
+                  "url": "https://github.com/uuidjs/uuid"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/uuidjs/uuid/releases/tag/v11.1.1"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/uuidjs/uuid/releases/tag/v12.0.1"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/uuidjs/uuid/releases/tag/v13.0.1"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/uuidjs/uuid/releases/tag/v14.0.0"
+                }
+              ],
+              "schema_version": "1.9.0",
+              "severity": [
+                {
+                  "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N",
+                  "type": "CVSS_V3"
+                },
+                {
+                  "score": "CVSS:4.0/AV:N/AC:L/AT:P/PR:N/UI:N/VC:N/VI:L/VA:N/SC:N/SI:N/SA:N",
+                  "type": "CVSS_V4"
+                }
+              ],
+              "summary": "uuid: Missing buffer bounds check in v3/v5/v6 when buf is provided"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "experimental_config": {
+    "licenses": {
+      "summary": false,
+      "allowlist": null
+    }
+  }
+}

@@ -1,0 +1,86 @@
+{
+  "run": "2026-09-21-security-backoffice",
+  "platform": "backoffice",
+  "repo": "C:/ProyectoRepuestop/backoffice_sistema",
+  "scope_note": "Repositorio de solo frontend (Vite + React + TypeScript). El servicio que implementa /api/v1/** no forma parte de este repositorio.",
+  "stack": {
+    "languages": [
+      {
+        "name": "TypeScript",
+        "files": 162,
+        "loc": 36070
+      }
+    ],
+    "package_managers": [
+      "npm"
+    ],
+    "frameworks": [
+      "React"
+    ],
+    "manifests": [
+      "backoffice/frontend/package.json"
+    ],
+    "has_ci": false,
+    "containerized": true,
+    "iac": false
+  },
+  "units": {
+    "A_endpoints_unicos": 135,
+    "A2_sinks_fetch_fuera_de_apiClient": 4,
+    "B_rutas_spa": 38,
+    "C_puntos_token_sesion": 16,
+    "D_sinks_render_navegacion": 42,
+    "E_dependencias_vulnerables": 7,
+    "F_artefactos_configuracion": 8,
+    "TOTAL": 250
+  },
+  "endpoints_por_grupo": {
+    "administration": 32,
+    "validations": 21,
+    "auth": 15,
+    "backoffice": 12,
+    "mediations": 9,
+    "sellers": 9,
+    "captadores": 9,
+    "support": 7,
+    "usuarios": 4,
+    "anuncios": 3,
+    "feedback": 3,
+    "alerts": 2,
+    "reports": 2,
+    "users": 2,
+    "audits": 1,
+    "dashboard": 1,
+    "geografia": 1,
+    "receipts": 1,
+    "uploads": 1
+  },
+  "endpoints_sin_autenticar": 12,
+  "rutas_sin_autenticar": [
+    "/login",
+    "/activar-empleado",
+    "/recuperar-contrasena",
+    "/registro-captador"
+  ],
+  "guardas_de_cliente": [
+    "RequireAuth",
+    "RequireSuperAdmin",
+    "RequireArea",
+    "RequireCapturer",
+    "RequireApprovedCapturer"
+  ],
+  "no_presente_en_este_repo": {
+    "X-Backoffice-Api-Key": "Cero coincidencias en el arbol de trabajo. Presente unicamente en el historial de git, en PLAN_BACKOFFICE_POLLING.md (commit 32bb1a0b, archivo borrado). Ver SEC-BACKOFFICE-012.",
+    "/api/v1/external/backoffice/**": "Ningun consumo desde el frontend. Documentado solo en el mismo archivo borrado del historial."
+  },
+  "scoring": {
+    "pass": 52,
+    "partial": 39,
+    "fail": 43,
+    "unverified": 139,
+    "na": 1,
+    "puntuables": 273,
+    "score": 26.2,
+    "umbral_exigido": 95
+  }
+}

@@ -1,0 +1,568 @@
+{
+  "path": "C:\\ProyectoRepuestop\\backoffice_sistema",
+  "generated_at": "2026-09-21T15:42:58+00:00",
+  "tools_ran": [
+    "gitleaks",
+    "pip-audit",
+    "osv-scanner",
+    "semgrep"
+  ],
+  "tools_skipped": [],
+  "pre_findings": [
+    {
+      "source": "pip-audit",
+      "suggested_domain": "security",
+      "severity": "high",
+      "title": "Dependencia vulnerable: pillow 12.2.0",
+      "location": "requirements:pillow",
+      "reference": "PYSEC-2026-2253",
+      "status": "needs-triage"
+    },
+    {
+      "source": "pip-audit",
+      "suggested_domain": "security",
+      "severity": "high",
+      "title": "Dependencia vulnerable: pillow 12.2.0",
+      "location": "requirements:pillow",
+      "reference": "PYSEC-2026-2255",
+      "status": "needs-triage"
+    },
+    {
+      "source": "pip-audit",
+      "suggested_domain": "security",
+      "severity": "high",
+      "title": "Dependencia vulnerable: pillow 12.2.0",
+      "location": "requirements:pillow",
+      "reference": "PYSEC-2026-2257",
+      "status": "needs-triage"
+    },
+    {
+      "source": "pip-audit",
+      "suggested_domain": "security",
+      "severity": "high",
+      "title": "Dependencia vulnerable: pillow 12.2.0",
+      "location": "requirements:pillow",
+      "reference": "PYSEC-2026-2256",
+      "status": "needs-triage"
+    },
+    {
+      "source": "pip-audit",
+      "suggested_domain": "security",
+      "severity": "high",
+      "title": "Dependencia vulnerable: pillow 12.2.0",
+      "location": "requirements:pillow",
+      "reference": "PYSEC-2026-2254",
+      "status": "needs-triage"
+    },
+    {
+      "source": "pip-audit",
+      "suggested_domain": "security",
+      "severity": "high",
+      "title": "Dependencia vulnerable: pillow 12.2.0",
+      "location": "requirements:pillow",
+      "reference": "PYSEC-2026-3453",
+      "status": "needs-triage"
+    },
+    {
+      "source": "pip-audit",
+      "suggested_domain": "security",
+      "severity": "high",
+      "title": "Dependencia vulnerable: pillow 12.2.0",
+      "location": "requirements:pillow",
+      "reference": "PYSEC-2026-3451",
+      "status": "needs-triage"
+    },
+    {
+      "source": "pip-audit",
+      "suggested_domain": "security",
+      "severity": "high",
+      "title": "Dependencia vulnerable: pillow 12.2.0",
+      "location": "requirements:pillow",
+      "reference": "PYSEC-2026-3452",
+      "status": "needs-triage"
+    },
+    {
+      "source": "pip-audit",
+      "suggested_domain": "security",
+      "severity": "high",
+      "title": "Dependencia vulnerable: pillow 12.2.0",
+      "location": "requirements:pillow",
+      "reference": "PYSEC-2026-3493",
+      "status": "needs-triage"
+    },
+    {
+      "source": "pip-audit",
+      "suggested_domain": "security",
+      "severity": "high",
+      "title": "Dependencia vulnerable: pillow 12.2.0",
+      "location": "requirements:pillow",
+      "reference": "PYSEC-2026-2254",
+      "status": "needs-triage"
+    },
+    {
+      "source": "pip-audit",
+      "suggested_domain": "security",
+      "severity": "high",
+      "title": "Dependencia vulnerable: pillow 12.2.0",
+      "location": "requirements:pillow",
+      "reference": "PYSEC-2026-2253",
+      "status": "needs-triage"
+    },
+    {
+      "source": "pip-audit",
+      "suggested_domain": "security",
+      "severity": "high",
+      "title": "Dependencia vulnerable: pillow 12.2.0",
+      "location": "requirements:pillow",
+      "reference": "PYSEC-2026-2256",
+      "status": "needs-triage"
+    },
+    {
+      "source": "pip-audit",
+      "suggested_domain": "security",
+      "severity": "high",
+      "title": "Dependencia vulnerable: pillow 12.2.0",
+      "location": "requirements:pillow",
+      "reference": "PYSEC-2026-2255",
+      "status": "needs-triage"
+    },
+    {
+      "source": "pip-audit",
+      "suggested_domain": "security",
+      "severity": "high",
+      "title": "Dependencia vulnerable: pillow 12.2.0",
+      "location": "requirements:pillow",
+      "reference": "PYSEC-2026-3454",
+      "status": "needs-triage"
+    },
+    {
+      "source": "pip-audit",
+      "suggested_domain": "security",
+      "severity": "high",
+      "title": "Dependencia vulnerable: pillow 12.2.0",
+      "location": "requirements:pillow",
+      "reference": "PYSEC-2026-3451",
+      "status": "needs-triage"
+    },
+    {
+      "source": "pip-audit",
+      "suggested_domain": "security",
+      "severity": "high",
+      "title": "Dependencia vulnerable: pillow 12.2.0",
+      "location": "requirements:pillow",
+      "reference": "PYSEC-2026-3494",
+      "status": "needs-triage"
+    },
+    {
+      "source": "pip-audit",
+      "suggested_domain": "security",
+      "severity": "high",
+      "title": "Dependencia vulnerable: pillow 12.2.0",
+      "location": "requirements:pillow",
+      "reference": "PYSEC-2026-3452",
+      "status": "needs-triage"
+    },
+    {
+      "source": "pip-audit",
+      "suggested_domain": "security",
+      "severity": "high",
+      "title": "Dependencia vulnerable: pillow 12.2.0",
+      "location": "requirements:pillow",
+      "reference": "PYSEC-2026-3495",
+      "status": "needs-triage"
+    },
+    {
+      "source": "pip-audit",
+      "suggested_domain": "security",
+      "severity": "high",
+      "title": "Dependencia vulnerable: pillow 12.2.0",
+      "location": "requirements:pillow",
+      "reference": "PYSEC-2026-3496",
+      "status": "needs-triage"
+    },
+    {
+      "source": "pip-audit",
+      "suggested_domain": "security",
+      "severity": "high",
+      "title": "Dependencia vulnerable: pillow 12.2.0",
+      "location": "requirements:pillow",
+      "reference": "PYSEC-2026-3453",
+      "status": "needs-triage"
+    },
+    {
+      "source": "pip-audit",
+      "suggested_domain": "security",
+      "severity": "high",
+      "title": "Dependencia vulnerable: pillow 12.2.0",
+      "location": "requirements:pillow",
+      "reference": "PYSEC-2026-3454",
+      "status": "needs-triage"
+    },
+    {
+      "source": "pip-audit",
+      "suggested_domain": "security",
+      "severity": "high",
+      "title": "Dependencia vulnerable: pillow 12.2.0",
+      "location": "requirements:pillow",
+      "reference": "PYSEC-2026-3495",
+      "status": "needs-triage"
+    },
+    {
+      "source": "pip-audit",
+      "suggested_domain": "security",
+      "severity": "high",
+      "title": "Dependencia vulnerable: pillow 12.2.0",
+      "location": "requirements:pillow",
+      "reference": "PYSEC-2026-3496",
+      "status": "needs-triage"
+    },
+    {
+      "source": "pip-audit",
+      "suggested_domain": "security",
+      "severity": "high",
+      "title": "Dependencia vulnerable: pillow 12.2.0",
+      "location": "requirements:pillow",
+      "reference": "PYSEC-2026-3494",
+      "status": "needs-triage"
+    },
+    {
+      "source": "pip-audit",
+      "suggested_domain": "security",
+      "severity": "high",
+      "title": "Dependencia vulnerable: pillow 12.2.0",
+      "location": "requirements:pillow",
+      "reference": "PYSEC-2026-3493",
+      "status": "needs-triage"
+    },
+    {
+      "source": "pip-audit",
+      "suggested_domain": "security",
+      "severity": "high",
+      "title": "Dependencia vulnerable: pip 22.3.1",
+      "location": "requirements:pip",
+      "reference": "PYSEC-2023-228",
+      "status": "needs-triage"
+    },
+    {
+      "source": "pip-audit",
+      "suggested_domain": "security",
+      "severity": "high",
+      "title": "Dependencia vulnerable: pip 22.3.1",
+      "location": "requirements:pip",
+      "reference": "PYSEC-2023-228",
+      "status": "needs-triage"
+    },
+    {
+      "source": "pip-audit",
+      "suggested_domain": "security",
+      "severity": "high",
+      "title": "Dependencia vulnerable: pip 22.3.1",
+      "location": "requirements:pip",
+      "reference": "PYSEC-2026-1795",
+      "status": "needs-triage"
+    },
+    {
+      "source": "pip-audit",
+      "suggested_domain": "security",
+      "severity": "high",
+      "title": "Dependencia vulnerable: pip 22.3.1",
+      "location": "requirements:pip",
+      "reference": "PYSEC-2026-1796",
+      "status": "needs-triage"
+    },
+    {
+      "source": "pip-audit",
+      "suggested_domain": "security",
+      "severity": "high",
+      "title": "Dependencia vulnerable: pip 22.3.1",
+      "location": "requirements:pip",
+      "reference": "PYSEC-2026-2875",
+      "status": "needs-triage"
+    },
+    {
+      "source": "pip-audit",
+      "suggested_domain": "security",
+      "severity": "high",
+      "title": "Dependencia vulnerable: pip 22.3.1",
+      "location": "requirements:pip",
+      "reference": "PYSEC-2026-2876",
+      "status": "needs-triage"
+    },
+    {
+      "source": "pip-audit",
+      "suggested_domain": "security",
+      "severity": "high",
+      "title": "Dependencia vulnerable: pip 22.3.1",
+      "location": "requirements:pip",
+      "reference": "PYSEC-2026-196",
+      "status": "needs-triage"
+    },
+    {
+      "source": "pip-audit",
+      "suggested_domain": "security",
+      "severity": "high",
+      "title": "Dependencia vulnerable: pip 22.3.1",
+      "location": "requirements:pip",
+      "reference": "PYSEC-2026-1795",
+      "status": "needs-triage"
+    },
+    {
+      "source": "pip-audit",
+      "suggested_domain": "security",
+      "severity": "high",
+      "title": "Dependencia vulnerable: pip 22.3.1",
+      "location": "requirements:pip",
+      "reference": "PYSEC-2026-1796",
+      "status": "needs-triage"
+    },
+    {
+      "source": "pip-audit",
+      "suggested_domain": "security",
+      "severity": "high",
+      "title": "Dependencia vulnerable: pip 22.3.1",
+      "location": "requirements:pip",
+      "reference": "PYSEC-2026-196",
+      "status": "needs-triage"
+    },
+    {
+      "source": "pip-audit",
+      "suggested_domain": "security",
+      "severity": "high",
+      "title": "Dependencia vulnerable: pip 22.3.1",
+      "location": "requirements:pip",
+      "reference": "PYSEC-2026-2875",
+      "status": "needs-triage"
+    },
+    {
+      "source": "pip-audit",
+      "suggested_domain": "security",
+      "severity": "high",
+      "title": "Dependencia vulnerable: pip 22.3.1",
+      "location": "requirements:pip",
+      "reference": "PYSEC-2026-2876",
+      "status": "needs-triage"
+    },
+    {
+      "source": "pip-audit",
+      "suggested_domain": "security",
+      "severity": "high",
+      "title": "Dependencia vulnerable: pip 22.3.1",
+      "location": "requirements:pip",
+      "reference": "PYSEC-2026-3721",
+      "status": "needs-triage"
+    },
+    {
+      "source": "pip-audit",
+      "suggested_domain": "security",
+      "severity": "high",
+      "title": "Dependencia vulnerable: pip 22.3.1",
+      "location": "requirements:pip",
+      "reference": "PYSEC-2026-3721",
+      "status": "needs-triage"
+    },
+    {
+      "source": "pip-audit",
+      "suggested_domain": "security",
+      "severity": "high",
+      "title": "Dependencia vulnerable: setuptools 65.5.0",
+      "location": "requirements:setuptools",
+      "reference": "PYSEC-2022-43012",
+      "status": "needs-triage"
+    },
+    {
+      "source": "pip-audit",
+      "suggested_domain": "security",
+      "severity": "high",
+      "title": "Dependencia vulnerable: setuptools 65.5.0",
+      "location": "requirements:setuptools",
+      "reference": "PYSEC-2022-43012",
+      "status": "needs-triage"
+    },
+    {
+      "source": "pip-audit",
+      "suggested_domain": "security",
+      "severity": "high",
+      "title": "Dependencia vulnerable: setuptools 65.5.0",
+      "location": "requirements:setuptools",
+      "reference": "PYSEC-2025-49",
+      "status": "needs-triage"
+    },
+    {
+      "source": "pip-audit",
+      "suggested_domain": "security",
+      "severity": "high",
+      "title": "Dependencia vulnerable: setuptools 65.5.0",
+      "location": "requirements:setuptools",
+      "reference": "PYSEC-2025-49",
+      "status": "needs-triage"
+    },
+    {
+      "source": "pip-audit",
+      "suggested_domain": "security",
+      "severity": "high",
+      "title": "Dependencia vulnerable: setuptools 65.5.0",
+      "location": "requirements:setuptools",
+      "reference": "PYSEC-2026-1918",
+      "status": "needs-triage"
+    },
+    {
+      "source": "pip-audit",
+      "suggested_domain": "security",
+      "severity": "high",
+      "title": "Dependencia vulnerable: setuptools 65.5.0",
+      "location": "requirements:setuptools",
+      "reference": "PYSEC-2026-1918",
+      "status": "needs-triage"
+    },
+    {
+      "source": "pip-audit",
+      "suggested_domain": "security",
+      "severity": "high",
+      "title": "Dependencia vulnerable: setuptools 65.5.0",
+      "location": "requirements:setuptools",
+      "reference": "PYSEC-2026-3447",
+      "status": "needs-triage"
+    },
+    {
+      "source": "pip-audit",
+      "suggested_domain": "security",
+      "severity": "high",
+      "title": "Dependencia vulnerable: setuptools 65.5.0",
+      "location": "requirements:setuptools",
+      "reference": "PYSEC-2026-3447",
+      "status": "needs-triage"
+    },
+    {
+      "source": "osv-scanner",
+      "suggested_domain": "security",
+      "severity": "high",
+      "title": "Dependencia vulnerable: @remix-run/router",
+      "location": "@remix-run/router",
+      "reference": "GHSA-2j2x-hqr9-3h42",
+      "status": "needs-triage"
+    },
+    {
+      "source": "osv-scanner",
+      "suggested_domain": "security",
+      "severity": "high",
+      "title": "Dependencia vulnerable: @remix-run/router",
+      "location": "@remix-run/router",
+      "reference": "GHSA-2w69-qvjg-hvjx",
+      "status": "needs-triage"
+    },
+    {
+      "source": "osv-scanner",
+      "suggested_domain": "security",
+      "severity": "high",
+      "title": "Dependencia vulnerable: brace-expansion",
+      "location": "brace-expansion",
+      "reference": "GHSA-mh99-v99m-4gvg",
+      "status": "needs-triage"
+    },
+    {
+      "source": "osv-scanner",
+      "suggested_domain": "security",
+      "severity": "high",
+      "title": "Dependencia vulnerable: brace-expansion",
+      "location": "brace-expansion",
+      "reference": "GHSA-rgw5-rvv9-x895",
+      "status": "needs-triage"
+    },
+    {
+      "source": "osv-scanner",
+      "suggested_domain": "security",
+      "severity": "high",
+      "title": "Dependencia vulnerable: brace-expansion",
+      "location": "brace-expansion",
+      "reference": "GHSA-mh99-v99m-4gvg",
+      "status": "needs-triage"
+    },
+    {
+      "source": "osv-scanner",
+      "suggested_domain": "security",
+      "severity": "high",
+      "title": "Dependencia vulnerable: brace-expansion",
+      "location": "brace-expansion",
+      "reference": "GHSA-rgw5-rvv9-x895",
+      "status": "needs-triage"
+    },
+    {
+      "source": "osv-scanner",
+      "suggested_domain": "security",
+      "severity": "high",
+      "title": "Dependencia vulnerable: nanoid",
+      "location": "nanoid",
+      "reference": "GHSA-2v37-7h3g-55p8",
+      "status": "needs-triage"
+    },
+    {
+      "source": "osv-scanner",
+      "suggested_domain": "security",
+      "severity": "high",
+      "title": "Dependencia vulnerable: react-router",
+      "location": "react-router",
+      "reference": "GHSA-2j2x-hqr9-3h42",
+      "status": "needs-triage"
+    },
+    {
+      "source": "osv-scanner",
+      "suggested_domain": "security",
+      "severity": "high",
+      "title": "Dependencia vulnerable: react-router",
+      "location": "react-router",
+      "reference": "GHSA-337j-9hxr-rhxg",
+      "status": "needs-triage"
+    },
+    {
+      "source": "osv-scanner",
+      "suggested_domain": "security",
+      "severity": "high",
+      "title": "Dependencia vulnerable: react-router",
+      "location": "react-router",
+      "reference": "GHSA-9jcx-v3wj-wh4m",
+      "status": "needs-triage"
+    },
+    {
+      "source": "osv-scanner",
+      "suggested_domain": "security",
+      "severity": "high",
+      "title": "Dependencia vulnerable: react-router",
+      "location": "react-router",
+      "reference": "GHSA-wrjc-x8rr-h8h6",
+      "status": "needs-triage"
+    },
+    {
+      "source": "osv-scanner",
+      "suggested_domain": "security",
+      "severity": "high",
+      "title": "Dependencia vulnerable: uuid",
+      "location": "uuid",
+      "reference": "GHSA-w5hq-g745-h8pq",
+      "status": "needs-triage"
+    },
+    {
+      "source": "semgrep",
+      "suggested_domain": "security",
+      "severity": "high",
+      "title": "By not specifying a USER, a program in the container may run as 'root'. This is a security hazard. If an attacker can control a process runn",
+      "location": "C:\\ProyectoRepuestop\\backoffice_sistema\\backoffice\\frontend\\Dockerfile:12",
+      "reference": "dockerfile.security.missing-user.missing-user",
+      "status": "needs-triage"
+    },
+    {
+      "source": "semgrep",
+      "suggested_domain": "security",
+      "severity": "medium",
+      "title": "Detection of dangerouslySetInnerHTML from non-constant definition. This can inadvertently expose users to cross-site scripting (XSS) attacks",
+      "location": "C:\\ProyectoRepuestop\\backoffice_sistema\\backoffice\\frontend\\src\\components\\shared\\UiIcon.tsx:86",
+      "reference": "typescript.react.security.audit.react-dangerouslysetinnerhtml.react-dangerouslysetinnerhtml",
+      "status": "needs-triage"
+    }
+  ],
+  "counts_by_severity": {
+    "high": 60,
+    "medium": 1
+  },
+  "total_pre_findings": 61,
+  "note": "Hallazgos pre-cargados por herramientas: el agente debe triarlos, verificarlos y promoverlos a findings.jsonl con evidencia y reproducción."
+}

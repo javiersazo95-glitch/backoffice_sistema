@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
-import type { UserSummaryResponse } from '@/types/auth';
+import type { BackofficePermission, UserSummaryResponse } from '@/types/auth';
 import { Role } from '@/types/auth';
 import apiClient from '@/api/client';
 
@@ -8,6 +8,12 @@ interface BackofficeUserResponse {
   nombre: string;
   email: string;
   rol: string;
+  /**
+   * El backend puede acompanar la respuesta en castellano con la lista de permisos por area.
+   * Se declara para no descartarla al mapear: hasBackofficePermission solo consulta la lista si
+   * llega, y si falta cae a un fallback por rol mucho mas amplio (ver SEC-BACKOFFICE-002).
+   */
+  permissions?: BackofficePermission[];
 }
 
 interface BackofficeLoginResponse {
@@ -74,6 +80,10 @@ function mapCurrentUser(response: UserSummaryResponse | BackofficeUserResponse):
     fullName: response.nombre,
     initials: response.nombre.substring(0, 2).toUpperCase(),
     role: mapRole(response.rol),
+    // Se propaga tal cual: si el backend la envia, la decision de permisos pasa a basarse en la
+    // lista explicita en vez del fallback por rol. Si no la envia, queda undefined y el
+    // comportamiento es el de antes.
+    permissions: response.permissions,
   };
 }
 
@@ -188,7 +198,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return mapped;
   }, []);
 
+  /**
+   * Cierra la sesion. Avisa primero al backend para que revoque el token y despues limpia el
+   * estado local.
+   *
+   * El aviso al servidor importa: sin el, el token seguia siendo valido hasta expirar, asi que
+   * cualquier copia extraida antes sobrevivia al "cerrar sesion". La llamada va primero porque
+   * necesita la cabecera Authorization todavia puesta.
+   *
+   * Es best-effort a proposito: si la red falla o el backend responde error, la sesion local se
+   * cierra igual. Dejar al usuario dentro porque el servidor no contesto seria peor que no
+   * revocar. Se omite la llamada cuando no hay token guardado, porque LoginPage invoca logout()
+   * antes de cada intento de acceso para partir de una sesion limpia.
+   */
   const logout = useCallback(async () => {
+    const hadToken = Boolean(getStoredToken());
+
+    if (hadToken) {
+      try {
+        await apiClient.post('/auth/logout');
+      } catch {
+        // Revocacion no confirmada; se continua con el cierre local de todos modos.
+      }
+    }
+
     clearStoredToken();
     clearAuthHeader();
     setState({
