@@ -24,6 +24,7 @@ export interface InviteEmployeeRequest {
   fullName: string;
   email: string;
   permissions: BackofficePermission[];
+  appUrl?: string;
 }
 
 export interface ListPermissionUsersParams {
@@ -47,17 +48,34 @@ export async function getUserPermissions(userId: number): Promise<PermissionUser
 }
 
 export async function updateUserPermissions(userId: number, permissions: BackofficePermission[]): Promise<PermissionUser> {
-  const response = await apiClient.put<PermissionUser>(`/backoffice/permissions/users/${userId}`, { permissions });
+  const appUrl = typeof window !== 'undefined' ? window.location.origin : undefined;
+  const response = await apiClient.put<PermissionUser>(`/backoffice/permissions/users/${userId}`, { permissions, appUrl }, {
+    params: appUrl ? { appUrl } : undefined,
+    headers: appUrl ? { 'X-App-Url': appUrl } : undefined,
+  });
   return response.data;
 }
 
 export async function inviteEmployee(data: InviteEmployeeRequest): Promise<PermissionUser> {
-  const response = await apiClient.post<PermissionUser>('/backoffice/permissions/invitations', data);
+  const appUrl = typeof window !== 'undefined' ? window.location.origin : undefined;
+  const effectiveAppUrl = data.appUrl || appUrl;
+  const payload: InviteEmployeeRequest = {
+    ...data,
+    appUrl: effectiveAppUrl,
+  };
+  const response = await apiClient.post<PermissionUser>('/backoffice/permissions/invitations', payload, {
+    params: effectiveAppUrl ? { appUrl: effectiveAppUrl } : undefined,
+    headers: effectiveAppUrl ? { 'X-App-Url': effectiveAppUrl } : undefined,
+  });
   return response.data;
 }
 
 export async function resendEmployeeInvitation(userId: number): Promise<PermissionUser> {
-  const response = await apiClient.post<PermissionUser>(`/backoffice/permissions/users/${userId}/resend-invitation`);
+  const appUrl = typeof window !== 'undefined' ? window.location.origin : undefined;
+  const response = await apiClient.post<PermissionUser>(`/backoffice/permissions/users/${userId}/resend-invitation`, { appUrl }, {
+    params: appUrl ? { appUrl } : undefined,
+    headers: appUrl ? { 'X-App-Url': appUrl } : undefined,
+  });
   return response.data;
 }
 
@@ -81,3 +99,23 @@ export async function deleteUserPermission(userId: number, permissionId: number)
 export async function deleteUserAccount(userId: number, perfil: 'COMPRADOR' | 'PROVEEDOR' | 'CAPTADOR' = 'COMPRADOR'): Promise<void> {
   await apiClient.delete(`/auth/users/${userId}`, { params: { perfil } });
 }
+
+export async function deleteEmployee(userId: number): Promise<void> {
+  await apiClient.delete(`/backoffice/permissions/users/${userId}`);
+}
+
+export interface EmailValidationResult {
+  valid: boolean;
+  isCaptador?: boolean;
+  isEmployee?: boolean;
+  message?: string;
+}
+
+export async function validateEmployeeEmail(email: string): Promise<EmailValidationResult> {
+  const response = await apiClient.get<EmailValidationResult>('/backoffice/permissions/validate-email', {
+    params: { email },
+  });
+  return response.data;
+}
+
+

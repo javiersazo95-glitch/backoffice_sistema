@@ -127,8 +127,33 @@ export default function PermissionsConfigPage() {
   const { data: capturers = [], isLoading: isLoadingCapturers } = useQuery({
     queryKey: ['managed-capturers'],
     queryFn: capturersApi.listManagedCapturers,
-    enabled: activeTab === 'captadores',
+    enabled: activeTab === 'captadores' || activeTab === 'permisos',
+    staleTime: 30_000,
   });
+
+  const normalizedInviteEmail = inviteEmail.trim().toLowerCase();
+  const isValidEmailFormat = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedInviteEmail);
+
+  const isCapturerEmailLocal = useMemo(() => {
+    if (!isValidEmailFormat) return false;
+    return capturers.some(
+      (c) => c.email?.trim().toLowerCase() === normalizedInviteEmail && !isDeleted(c as unknown as Record<string, unknown>)
+    );
+  }, [normalizedInviteEmail, isValidEmailFormat, capturers]);
+
+  const { data: emailValidation } = useQuery({
+    queryKey: ['validate-employee-email', normalizedInviteEmail],
+    queryFn: () => permissionsApi.validateEmployeeEmail(normalizedInviteEmail),
+    enabled: isValidEmailFormat && activeTab === 'permisos',
+    staleTime: 10_000,
+  });
+
+  const isCapturerEmail = isCapturerEmailLocal || Boolean(emailValidation?.isCaptador);
+  const emailValidationError = isCapturerEmail
+    ? 'Este correo ya pertenece a un captador en RepuesTop. No está permitido ser empleado y captador a la vez.'
+    : emailValidation?.valid === false && emailValidation?.message
+    ? emailValidation.message
+    : null;
 
   const permissionUsers = useMemo(
     () => usersData?.content.filter((user) => !isDeleted(user)) ?? [],
@@ -202,6 +227,57 @@ export default function PermissionsConfigPage() {
       showToast(text);
     },
   });
+
+  const [editingEmployee, setEditingEmployee] = useState<permissionsApi.PermissionUser | null>(null);
+  const [editingPermissions, setEditingPermissions] = useState<BackofficePermission[]>([]);
+
+  const updatePermissionsMutation = useMutation({
+    mutationFn: ({ userId, permissions }: { userId: number; permissions: BackofficePermission[] }) =>
+      permissionsApi.updateUserPermissions(userId, permissions),
+    onSuccess: (updatedUser) => {
+      queryClient.invalidateQueries({ queryKey: ['permission-users'] });
+      showToast(`Permisos actualizados para ${updatedUser.fullName || updatedUser.email}`);
+      setEditingEmployee(null);
+    },
+    onError: (error: any) => {
+      const text = error.response?.data?.message || error.message || 'No se pudieron actualizar los permisos';
+      showToast(text);
+    },
+  });
+
+  const deleteEmployeeMutation = useMutation({
+    mutationFn: (userId: number) => permissionsApi.deleteEmployee(userId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['permission-users'] });
+      showToast('Empleado eliminado del sistema');
+    },
+    onError: (error: any) => {
+      const text = error.response?.data?.message || error.message || 'No se pudo eliminar al empleado';
+      showToast(text);
+    },
+  });
+
+  const handleOpenEdit = (user: permissionsApi.PermissionUser) => {
+    setEditingEmployee(user);
+    setEditingPermissions(user.permissions.map((p) => ({ area: p.area, slot: p.slot })));
+  };
+
+  const handleToggleEditingPermission = (area: BackofficeArea, slot: BackofficePermissionSlot) => {
+    setEditingPermissions((current) => togglePermission(current, area, slot));
+  };
+
+  const handleDeleteEmployee = (user: permissionsApi.PermissionUser) => {
+    if (user.role?.toUpperCase() === 'SUPER_ADMIN') {
+      showToast('No es posible eliminar a un Super Administrador.');
+      return;
+    }
+    const confirmed = window.confirm(
+      `¿Estás seguro de eliminar a ${user.fullName} (${user.email})?\n\n` +
+      `Esta acción eliminará todos sus accesos al Backoffice y liberará el correo para futuras recontrataciones o nuevos registros en RepuesTop.`
+    );
+    if (!confirmed) return;
+    deleteEmployeeMutation.mutate(user.id);
+  };
 
   const deleteMutation = useMutation({
     mutationFn: ({ userId, permissionId }: { userId: number; permissionId: number }) =>
@@ -297,10 +373,33 @@ export default function PermissionsConfigPage() {
                 <div className="permission-entry-heading"><span className="permission-entry-icon"><UiIcon name="users" /></span><div><h3>Invitar empleado</h3><p>Crea una cuenta y envía un enlace de activación.</p></div></div>
                 <div className="invite-fields">
                   <input value={inviteName} onChange={e => setInviteName(e.target.value)} placeholder="Nombre completo" />
-                  <input type="email" value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} placeholder="correo@empresa.cl" />
+                  <input
+                    type="email"
+                    value={inviteEmail}
+                    onChange={e => setInviteEmail(e.target.value)}
+                    placeholder="correo@empresa.cl"
+                    style={emailValidationError ? { borderColor: '#e04f44', backgroundColor: '#fff8f8' } : undefined}
+                  />
                 </div>
+                {emailValidationError && (
+                  <div className="employee-invite-feedback error" style={{ margin: '6px 0 0', padding: '9px 12px', fontSize: '12.5px' }} role="alert">
+                    <UiIcon name="alert" />
+                    <span>{emailValidationError}</span>
+                  </div>
+                )}
                 <small>{invitePermissions.length ? `${invitePermissions.length} permiso${invitePermissions.length === 1 ? '' : 's'} seleccionado${invitePermissions.length === 1 ? '' : 's'} para la invitación.` : 'Selecciona al menos un permiso más abajo para habilitar el envío.'}</small>
-                <button className="primary-button invite-submit" type="button" disabled={!inviteName.trim() || !inviteEmail.trim() || !invitePermissions.length || inviteMutation.isPending} onClick={() => inviteMutation.mutate()}>
+                <button
+                  className="primary-button invite-submit"
+                  type="button"
+                  disabled={!inviteName.trim() || !inviteEmail.trim() || !invitePermissions.length || inviteMutation.isPending || Boolean(emailValidationError)}
+                  onClick={() => {
+                    if (emailValidationError) {
+                      showToast(emailValidationError);
+                      return;
+                    }
+                    inviteMutation.mutate();
+                  }}
+                >
                   {inviteMutation.isPending ? 'Enviando…' : 'Enviar invitación'}
                 </button>
               </section>
@@ -389,13 +488,14 @@ export default function PermissionsConfigPage() {
                       <th>Usuario</th>
                       <th>Estado</th>
                       <th>Permisos registrados</th>
+                      <th>Acciones</th>
                     </tr>
                   </thead>
                   <tbody>
                     {isLoadingUsers ? (
-                      <tr><td colSpan={4}>Cargando usuarios...</td></tr>
+                      <tr><td colSpan={5}>Cargando usuarios...</td></tr>
                     ) : permissionUsers.length === 0 ? (
-                      <tr><td colSpan={4}>No hay usuarios para los filtros seleccionados.</td></tr>
+                      <tr><td colSpan={5}>No hay usuarios para los filtros seleccionados.</td></tr>
                     ) : permissionUsers.map((user) => (
                       <tr key={user.id}>
                         <td><strong>{user.email}</strong></td>
@@ -418,7 +518,19 @@ export default function PermissionsConfigPage() {
                         <td>
                           <div className="permission-chip-list">
                             {user.permissions.length === 0 ? (
-                              <span className="muted">Sin permisos</span>
+                              <div className="employee-no-permissions-container">
+                                <span className="employee-no-permissions-badge">
+                                  <UiIcon name="lock" /> Sin permisos activos
+                                </span>
+                                <button
+                                  type="button"
+                                  className="employee-assign-shortcut-btn"
+                                  onClick={() => handleOpenEdit(user)}
+                                  title="Asignar permisos a este empleado"
+                                >
+                                  <UiIcon name="plus" /> Asignar
+                                </button>
+                              </div>
                             ) : user.permissions.map((permission) => (
                               <span className={`permission-removable-chip ${permission.slot === 'QA' ? 'danger' : ''}`} key={permission.id ?? `${permission.area}-${permission.slot}`}>
                                 {AREA_LABELS[permission.area]} · {SLOT_LABELS[permission.slot]}
@@ -429,6 +541,27 @@ export default function PermissionsConfigPage() {
                                 )}
                               </span>
                             ))}
+                          </div>
+                        </td>
+                        <td>
+                          <div className="seller-actions">
+                            <button
+                              className="row-action"
+                              type="button"
+                              title="Editar permisos"
+                              onClick={() => handleOpenEdit(user)}
+                            >
+                              <UiIcon name="edit" />
+                            </button>
+                            <button
+                              className="row-action danger"
+                              type="button"
+                              title={user.role?.toUpperCase() === 'SUPER_ADMIN' ? 'No se puede eliminar a un Super Administrador' : 'Eliminar empleado'}
+                              disabled={deleteEmployeeMutation.isPending || user.role?.toUpperCase() === 'SUPER_ADMIN'}
+                              onClick={() => handleDeleteEmployee(user)}
+                            >
+                              <UiIcon name="trash" />
+                            </button>
                           </div>
                         </td>
                       </tr>
@@ -537,6 +670,115 @@ export default function PermissionsConfigPage() {
               <button className="page-button" disabled={founderPage === 0} onClick={() => setFounderPage((value) => value - 1)}>Anterior</button>
               <button className="page-button" disabled={founderPage >= founderData.totalPages - 1} onClick={() => setFounderPage((value) => value + 1)}>Siguiente</button>
             </div></div> : null}
+          </div>
+        )}
+
+        {editingEmployee && (
+          <div className="case-modal-backdrop" onClick={() => setEditingEmployee(null)}>
+            <div className="case-modal" style={{ maxWidth: '640px' }} onClick={(e) => e.stopPropagation()}>
+              <div className="case-modal-header">
+                <span className="case-modal-icon" style={{ background: '#eaf3ff', color: '#0b5ed8' }}>
+                  <UiIcon name="shieldCheck" />
+                </span>
+                <div className="case-modal-title">
+                  <h2 style={{ fontSize: '17px', fontWeight: 700, margin: 0, color: '#172b4d' }}>Editar permisos de empleado</h2>
+                  <p style={{ margin: '2px 0 0', fontSize: '13px', color: '#626f86' }}>
+                    {editingEmployee.fullName} · {editingEmployee.email}
+                  </p>
+                </div>
+                <button
+                  className="ghost-button icon-only"
+                  type="button"
+                  onClick={() => setEditingEmployee(null)}
+                  aria-label="Cerrar modal"
+                >
+                  <UiIcon name="close" />
+                </button>
+              </div>
+
+              <div style={{ padding: '20px', display: 'grid', gap: '16px' }}>
+                <div style={{ padding: '12px 14px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '13px', color: '#475569' }}>
+                  <p style={{ margin: 0 }}>
+                    Configura las áreas y ranuras que tendrá habilitadas <strong>{editingEmployee.fullName}</strong>. Los cambios se aplicarán de inmediato y el empleado los verá la próxima vez que inicie sesión o actualice la página.
+                  </p>
+                  {editingPermissions.length === 0 && (
+                    <p style={{ margin: '8px 0 0', color: '#b42318', fontWeight: 600 }}>
+                      ⚠️ Sin permisos asignados: El empleado no podrá ingresar a las áreas del Backoffice.
+                    </p>
+                  )}
+                </div>
+
+                <div className="permission-section-title" style={{ marginTop: '4px' }}>
+                  <div>
+                    <h3 style={{ fontSize: '14px' }}>Áreas operativas</h3>
+                    <p>Activa o desactiva las ranuras correspondientes.</p>
+                  </div>
+                  <span style={{ fontSize: '12px', fontWeight: 700, color: '#0b5ed8' }}>
+                    {editingPermissions.length} {editingPermissions.length === 1 ? 'permiso seleccionado' : 'permisos seleccionados'}
+                  </span>
+                </div>
+
+                <div className="permissions-config-grid" style={{ gridTemplateColumns: '1fr', gap: '12px' }}>
+                  {PERMISSION_GROUPS.map((group) => (
+                    <article key={group.area} className="permissions-config-card" style={{ padding: '14px 16px' }}>
+                      <div className="permissions-config-card-header">
+                        <span className={`seller-profile-section-icon ${group.tone}`}>
+                          <UiIcon name={group.icon} />
+                        </span>
+                        <div>
+                          <h3 style={{ fontSize: '14px' }}>{AREA_LABELS[group.area]}</h3>
+                          <p style={{ fontSize: '12px' }}>Ranuras disponibles para esta área.</p>
+                        </div>
+                      </div>
+
+                      <div className="permissions-config-card-roles">
+                        {group.slots.map((slot) => {
+                          const checked = hasPermission(editingPermissions, group.area, slot);
+                          return (
+                            <div className="role-toggle" key={slot}>
+                              <label className="role-toggle-label">
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={() => handleToggleEditingPermission(group.area, slot)}
+                                />
+                                <span className="role-toggle-switch" />
+                                <span className="role-toggle-text">
+                                  <UiIcon name={slot === 'QA' ? 'alert' : 'users'} />
+                                  {SLOT_LABELS[slot]}
+                                </span>
+                              </label>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </article>
+                  ))}
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px', paddingTop: '16px', borderTop: '1px solid #e2e8f0' }}>
+                  <button
+                    className="ghost-button"
+                    type="button"
+                    onClick={() => setEditingEmployee(null)}
+                    disabled={updatePermissionsMutation.isPending}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    className="primary-button"
+                    type="button"
+                    disabled={updatePermissionsMutation.isPending}
+                    onClick={() => updatePermissionsMutation.mutate({
+                      userId: editingEmployee.id,
+                      permissions: editingPermissions,
+                    })}
+                  >
+                    {updatePermissionsMutation.isPending ? 'Guardando…' : 'Guardar permisos'}
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </div>

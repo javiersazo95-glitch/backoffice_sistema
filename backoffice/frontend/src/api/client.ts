@@ -80,6 +80,13 @@ const apiClient: AxiosInstance = axios.create({
   },
 });
 
+apiClient.interceptors.request.use((config) => {
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    config.headers['X-App-Url'] = window.location.origin;
+  }
+  return config;
+});
+
 /**
  * Rutas donde un 401 es la respuesta normal, no una sesion caducada.
  *

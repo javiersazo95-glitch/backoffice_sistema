@@ -267,7 +267,11 @@ body:has(.login-wrapper) {
 
 export default function LoginPage() {
   const [searchParams] = useSearchParams();
-  const [accessType, setAccessType] = useState<'staff' | 'capturer'>(searchParams.get('type') === 'capturer' ? 'capturer' : 'staff');
+  const isActivatedParam = searchParams.get('activated') === '1';
+  const [accessType, setAccessType] = useState<'staff' | 'capturer'>(() => {
+    if (searchParams.get('activated') === '1') return 'staff';
+    return searchParams.get('type') === 'capturer' ? 'capturer' : 'staff';
+  });
   const [username, setUsername] = useState(() => searchParams.get('email')?.trim().toLowerCase() || '');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -498,6 +502,27 @@ export default function LoginPage() {
               gap: 8,
             }}>
               <span>✓ Correo verificado con éxito. Ya puedes ingresar.</span>
+            </div>
+          )}
+
+          {isActivatedParam && (
+            <div style={{
+              background: '#ecfdf5',
+              border: '1px solid #a7f3d0',
+              borderRadius: 8,
+              padding: '12px 14px',
+              color: '#047857',
+              fontSize: 13,
+              lineHeight: 1.45,
+              marginBottom: 14,
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: 8,
+            }}>
+              <span style={{ fontSize: 16 }}>✓</span>
+              <div>
+                <strong>¡Cuenta activada exitosamente!</strong> Tu contraseña ha sido creada. Ingresa a continuación para acceder al Backoffice.
+              </div>
             </div>
           )}
 
