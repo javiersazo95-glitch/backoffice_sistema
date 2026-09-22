@@ -267,6 +267,10 @@ export default function SupportTicketDetailModal({
   const [assigneeMenuOpen, setAssigneeMenuOpen] = useState(false);
   const [supportOperators, setSupportOperators] = useState<PermissionUser[]>([]);
   const [operatorsLoading, setOperatorsLoading] = useState(false);
+  // Se distingue "no hay operadores" de "no puedo consultarlos": el backend exige SUPER_ADMIN
+  // en /backoffice/permissions/**, asi que un operador de SOPORTE recibe 403 al abrir esta
+  // lista. Mostrarle "No hay operadores de soporte" seria decirle algo falso.
+  const [operatorsForbidden, setOperatorsForbidden] = useState(false);
   const [selectedAssignee, setSelectedAssignee] = useState<PermissionUser | null>(() => getStoredAssignee(ticket.id));
   const [reviewPopupOpen, setReviewPopupOpen] = useState(false);
   const [attachments, setAttachments] = useState<TicketAttachment[]>([]);
@@ -340,8 +344,15 @@ export default function SupportTicketDetailModal({
       page: 0,
       size: 100,
     })
-      .then((response) => setSupportOperators(response.content ?? []))
-      .catch(() => setSupportOperators([]))
+      .then((response) => {
+        setSupportOperators(response.content ?? []);
+        setOperatorsForbidden(false);
+      })
+      .catch((error: unknown) => {
+        setSupportOperators([]);
+        const status = (error as { response?: { status?: number } })?.response?.status;
+        setOperatorsForbidden(status === 403);
+      })
       .finally(() => setOperatorsLoading(false));
   }, [assigneeMenuOpen, operatorsLoading, supportOperators.length]);
 
@@ -662,6 +673,8 @@ export default function SupportTicketDetailModal({
                       </button>
                       {operatorsLoading ? (
                         <div className="jira-assignee-menu-empty">Cargando operadores...</div>
+                      ) : operatorsForbidden ? (
+                        <div className="jira-assignee-menu-empty">Tu cuenta no puede consultar la lista de operadores. Pide a un super administrador que asigne el ticket.</div>
                       ) : supportOperators.length === 0 ? (
                         <div className="jira-assignee-menu-empty">No hay operadores de soporte</div>
                       ) : supportOperators.map((operator) => (

@@ -44,3 +44,10 @@ export const BANCOS_BCI = [
 ] as const;
 
 export const TIPO_CUENTA_OPTIONS = ['Cuenta Corriente', 'Cuenta Vista', 'Cuenta de Ahorro'] as const;
+
+/**
+ * Tipo MIME de la nomina "Pago en Linea" de BCI. Solo se usa como respaldo: el archivo lo emite
+ * el backend con su propio Content-Type (ver api/administration.generarNominaBci).
+ */
+export const BCI_NOMINA_MIME_TYPE =
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';

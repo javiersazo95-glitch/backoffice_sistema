@@ -17,18 +17,13 @@ export function hasBackofficePermission(
   if (!user) return false;
   if (user.role === Role.SUPER_ADMIN) return true;
 
-  if (Array.isArray(user.permissions)) {
-    return user.permissions.some((permission) => (
-      permission.area === area && (!slot || permission.slot === slot)
-    ));
-  }
-
-  if (user.role === Role.ADMIN) return true;
-  if (user.role === Role.OPERATOR) {
-    return area === 'SOPORTE' && (!slot || slot === 'OPERADOR');
-  }
-
-  return false;
+  // Sin lista de permisos no hay permiso (fail closed). Antes, cuando el campo no llegaba, se
+  // caia a un fallback que devolvia true para CUALQUIER area si el rol era ADMIN, y esa era la
+  // rama por defecto porque /auth/me no incluia permissions. El backend ya lo envia siempre
+  // (array vacio si no tiene ninguno), asi que cerrar el fallback no deja a nadie sin areas.
+  return (user.permissions ?? []).some((permission) => (
+    permission.area === area && (!slot || permission.slot === slot)
+  ));
 }
 
 export function usePermissions() {
