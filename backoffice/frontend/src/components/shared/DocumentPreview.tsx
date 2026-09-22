@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import UiIcon from './UiIcon';
-import { resolveDocumentUrl, previewDocument, getAuthHeadersFor } from '@/utils/documentUrls';
+import { resolveDocumentUrl, previewDocument, fetchOptionsFor } from '@/utils/documentUrls';
 
 interface DocumentPreviewProps {
   documentName: string;
@@ -128,7 +128,7 @@ export default function DocumentPreview({
     setLoading(true);
     setHasError(false);
 
-    fetch(resolvedDocumentUrl, { headers: getAuthHeadersFor(resolvedDocumentUrl) })
+    fetch(resolvedDocumentUrl, fetchOptionsFor(resolvedDocumentUrl))
       .then((res) => {
         if (!res.ok) throw new Error('Error al cargar documento');
         return res.blob();

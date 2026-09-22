@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { resolveProfileImageUrl } from '@/api/client';
-import { getAuthHeadersFor, getAuthToken, isBackendUrl } from '@/utils/documentUrls';
+import { fetchOptionsFor, isBackendUrl } from '@/utils/documentUrls';
 
 /**
- * Las fotos privadas del backend (proxy /api/v1/uploads/r2/**) solo se sirven a peticiones
- * con el token del backoffice, y una etiqueta <img> no puede enviar el header Authorization:
- * sale anonima y el backend responde 401. Este hook descarga la imagen con fetch + token y
+ * Las fotos privadas del backend (proxy /api/v1/uploads/r2/**) solo se sirven a peticiones con
+ * la sesion del backoffice, y una etiqueta <img> no envia credenciales entre origenes: sale
+ * anonima y el backend responde 401. Este hook descarga la imagen con fetch + cookie de sesion y
  * entrega un blob: URL, el mismo patron que ya usa utils/documentUrls para los documentos.
  *
  * Si la descarga autenticada falla se cae a la URL directa: las carpetas publicas por diseno
@@ -33,12 +33,12 @@ function rememberObjectUrl(url: string, objectUrl: string) {
   }
 }
 
-function requiresBackofficeToken(url: string) {
+function requiereSesionDelBackoffice(url: string) {
   if (failedUrls.has(url)) return false;
-  // Sin token no hay nada que agregar a la peticion: se deja el <img> directo.
-  if (!getAuthToken()) return false;
   // La comprobacion de origen vive en utils/documentUrls (isBackendUrl) para que este hook y
   // los sinks de documentos apliquen exactamente la misma regla. Tambien descarta data: y blob:.
+  // Ya no se comprueba antes si hay token: la cookie de sesion es HttpOnly y no se puede leer
+  // desde aqui, asi que se intenta la descarga y el cache de fallos evita reintentos inutiles.
   return isBackendUrl(url);
 }
 
@@ -47,7 +47,7 @@ async function downloadAsObjectUrl(url: string): Promise<string> {
   if (pending) return pending;
 
   const request = (async () => {
-    const response = await fetch(url, { headers: getAuthHeadersFor(url) });
+    const response = await fetch(url, fetchOptionsFor(url));
     if (!response.ok) throw new Error(`Error ${response.status} al cargar la imagen.`);
 
     const blob = await response.blob();
@@ -67,7 +67,7 @@ export function useAuthedImage(rawUrl?: string | null): string | null {
 
   const [src, setSrc] = useState<string | null>(() => {
     if (!resolvedUrl) return null;
-    if (!requiresBackofficeToken(resolvedUrl)) return resolvedUrl;
+    if (!requiereSesionDelBackoffice(resolvedUrl)) return resolvedUrl;
     return objectUrlCache.get(resolvedUrl) ?? null;
   });
 
@@ -77,7 +77,7 @@ export function useAuthedImage(rawUrl?: string | null): string | null {
       return;
     }
 
-    if (!requiresBackofficeToken(resolvedUrl)) {
+    if (!requiereSesionDelBackoffice(resolvedUrl)) {
       setSrc(resolvedUrl);
       return;
     }

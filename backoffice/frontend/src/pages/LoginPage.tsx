@@ -237,7 +237,6 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [keepSession, setKeepSession] = useState(false);
   const { login, loginWithGoogle, logout } = useAuth();
   const navigate = useNavigate();
 
@@ -253,7 +252,7 @@ export default function LoginPage() {
     try {
       // Evita reutilizar un token de captador cuando se cambia al acceso de personal.
       await logout();
-      const loggedUser = await login(username, password, keepSession, accessType === 'staff' ? 'BACKOFFICE' : 'CAPTADOR');
+      const loggedUser = await login(username, password, accessType === 'staff' ? 'BACKOFFICE' : 'CAPTADOR');
       if (accessType === 'capturer' && loggedUser.role !== Role.CAPTADOR) {
         await logout();
         throw new Error('Esta cuenta pertenece al personal. Selecciona “Personal de la empresa”.');
@@ -286,7 +285,7 @@ export default function LoginPage() {
     try {
       // Google también debe comenzar desde una sesión limpia al cambiar de tipo de acceso.
       await logout();
-      const loggedUser = await loginWithGoogle(credential, keepSession, accessType === 'staff' ? 'BACKOFFICE' : 'CAPTADOR');
+      const loggedUser = await loginWithGoogle(credential, accessType === 'staff' ? 'BACKOFFICE' : 'CAPTADOR');
       if (accessType === 'capturer' && loggedUser.role !== Role.CAPTADOR) {
         await logout();
         throw new Error('Esta cuenta pertenece al personal. Selecciona “Personal de la empresa”.');
@@ -606,24 +605,13 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Mantener sesión */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 'clamp(12px, 1.8vh, 18px)' }}>
-              <input
-                type="checkbox"
-                id="keepSession"
-                checked={keepSession}
-                onChange={(e) => setKeepSession(e.target.checked)}
-                style={{
-                  width: 16,
-                  height: 16,
-                  accentColor: '#0b5ee8',
-                  cursor: 'pointer',
-                }}
-              />
-              <label htmlFor="keepSession" style={{ fontSize: 13, color: '#475569', cursor: 'pointer', userSelect: 'none' }}>
-                Mantener sesión iniciada
-              </label>
-            </div>
+            {/* La duracion de la sesion la fija el servidor: la cookie rt_session dura 8 horas y
+                no se puede extender desde aqui. Antes habia una casilla "Mantener sesion iniciada"
+                que guardaba el token en localStorage, de donde cualquier script podia leerlo
+                (SEC-BACKOFFICE-006). Se retiro junto con ese almacenamiento. */}
+            <p style={{ fontSize: 12, color: '#64748b', marginBottom: 'clamp(12px, 1.8vh, 18px)' }}>
+              Tu sesión permanece activa 8 horas.
+            </p>
 
             {/* Botón de envío */}
             <button

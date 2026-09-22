@@ -21,7 +21,7 @@ export async function refresh(data: RefreshTokenRequest): Promise<AuthResponse> 
 /**
  * Cierra la sesion en el servidor, que revoca el token.
  *
- * Va sin cuerpo: el backend identifica la sesion por el Bearer de la cabecera. Antes esta
+ * Va sin cuerpo: el backend identifica la sesion por la cookie rt_session. Antes esta
  * funcion declaraba un parametro refreshToken que no existia --el login de backoffice devuelve
  * {token, usuario}, sin refresh token-- y que el servidor tampoco usa.
  */

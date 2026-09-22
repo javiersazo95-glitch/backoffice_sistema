@@ -209,7 +209,7 @@ export default function CapturerRegisterPage() {
         // captador ya validó/definió su contraseña, por lo que abrimos su estado
         // de inmediato en vez de expulsarlo al login otra vez.
         try {
-          await login(email, form.password, false, 'CAPTADOR');
+          await login(email, form.password, 'CAPTADOR');
           navigate('/captador/estado', { replace: true });
         } catch (loginError: unknown) {
           setError(`La postulación fue registrada, pero no pudimos abrir tu estado automáticamente. ${registrationErrorMessage(loginError, 'Ingresa al portal de captadores con la contraseña de tu postulación.')}`);
@@ -257,7 +257,7 @@ export default function CapturerRegisterPage() {
       });
       // Inicia sesión automáticamente para mostrar la vista de estado de la postulación.
       try {
-        await login(pendingEmail, form.password, false, 'CAPTADOR');
+        await login(pendingEmail, form.password, 'CAPTADOR');
         navigate('/captador/estado', { replace: true });
       } catch {
         navigate('/login?type=capturer&verified=1', { replace: true });

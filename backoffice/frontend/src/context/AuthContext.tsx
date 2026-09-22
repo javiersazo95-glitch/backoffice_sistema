@@ -32,15 +32,28 @@ interface AuthState {
 }
 
 interface AuthContextValue extends AuthState {
-  login: (username: string, password: string, keepSession?: boolean, loginContext?: 'BACKOFFICE' | 'CAPTADOR') => Promise<UserSummaryResponse>;
-  loginWithGoogle: (idToken: string, keepSession?: boolean, loginContext?: 'BACKOFFICE' | 'CAPTADOR') => Promise<UserSummaryResponse>;
+  login: (username: string, password: string, loginContext?: 'BACKOFFICE' | 'CAPTADOR') => Promise<UserSummaryResponse>;
+  loginWithGoogle: (idToken: string, loginContext?: 'BACKOFFICE' | 'CAPTADOR') => Promise<UserSummaryResponse>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
-const ACCESS_TOKEN_STORAGE_KEY = 'repuestop.backoffice.access-token';
 
+/**
+ * La sesion vive en la cookie rt_session que emite el backend (HttpOnly, Secure, SameSite=Lax).
+ *
+ * Antes el token se guardaba en sessionStorage o, con "mantener sesion", en localStorage, donde
+ * cualquier script del origen podia leerlo de una sola linea. En una consola administrativa eso
+ * convertia cualquier ejecucion de script en robo de una sesion privilegiada. Ahora el navegador
+ * envia la cookie sola --apiClient ya va con withCredentials-- y JavaScript no puede leerla.
+ *
+ * Consecuencias de las que depende el resto del archivo:
+ * - No hay nada que guardar ni que limpiar en el cliente: cerrar sesion es cosa del servidor.
+ * - Al arrancar no se puede saber si hay sesion mirando el almacenamiento; se pregunta a
+ *   /auth/me, que respondera 200 si la cookie es valida y 401 si no.
+ * - La cookie dura 8 horas fijas, asi que ya no existe un "mantener sesion" mas largo.
+ */
 function mapRole(role: string) {
   const normalizedRole = role.toUpperCase();
   if (normalizedRole === Role.SUPER_ADMIN) return Role.SUPER_ADMIN;
@@ -89,30 +102,6 @@ function mapCurrentUser(response: UserSummaryResponse | BackofficeUserResponse):
   };
 }
 
-function setAuthHeader(token: string) {
-  apiClient.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-}
-
-function clearAuthHeader() {
-  delete apiClient.defaults.headers.common['Authorization'];
-}
-
-function getStoredToken() {
-  return sessionStorage.getItem(ACCESS_TOKEN_STORAGE_KEY) ?? localStorage.getItem(ACCESS_TOKEN_STORAGE_KEY);
-}
-
-function storeToken(token: string, keepSession = false) {
-  const primaryStorage = keepSession ? localStorage : sessionStorage;
-  const secondaryStorage = keepSession ? sessionStorage : localStorage;
-  secondaryStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
-  primaryStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, token);
-}
-
-function clearStoredToken() {
-  localStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
-  sessionStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
-}
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   const [state, setState] = useState<AuthState>({
@@ -143,8 +132,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!estaAutenticadoRef.current) return;
       estaAutenticadoRef.current = false;
 
-      clearStoredToken();
-      clearAuthHeader();
+      // No hay nada que limpiar en el cliente: la cookie la invalida el servidor. Solo se vacia
+      // la cache, para que los datos ya descargados no sigan pintandose bajo la pantalla de
+      // acceso ni reaparezcan al entrar con otra cuenta.
       queryClient.clear();
       setState({ user: null, isAuthenticated: false, isLoading: false });
       showToast('Tu sesión expiró. Vuelve a iniciar sesión.');
@@ -153,17 +143,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => registrarManejadorDeSesionCaducada(null);
   }, [queryClient]);
 
+  /**
+   * Recupera la sesion al arrancar preguntando al servidor.
+   *
+   * Con la cookie HttpOnly el cliente no puede inspeccionar si hay sesion: la unica forma de
+   * saberlo es intentar. Un 401 aqui es la respuesta normal de quien no ha entrado todavia, no
+   * un error: por eso se resuelve en silencio y no pasa por el aviso de sesion caducada.
+   */
   useEffect(() => {
     async function restoreSession() {
-      const token = getStoredToken();
-
-      if (!token) {
-        setState((current) => ({ ...current, isLoading: false }));
-        return;
-      }
-
-      setAuthHeader(token);
-
       try {
         const response = await apiClient.get<UserSummaryResponse | BackofficeUserResponse>('/auth/me');
         setState({
@@ -171,9 +159,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           isAuthenticated: true,
           isLoading: false,
         });
-      } catch (error) {
-        clearStoredToken();
-        clearAuthHeader();
+      } catch {
         setState({
           user: null,
           isAuthenticated: false,
@@ -184,7 +170,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     void restoreSession();
   }, []);
 
-  const login = useCallback(async (username: string, password: string, keepSession = false, loginContext: 'BACKOFFICE' | 'CAPTADOR' = 'BACKOFFICE') => {
+  const login = useCallback(async (username: string, password: string, loginContext: 'BACKOFFICE' | 'CAPTADOR' = 'BACKOFFICE') => {
     const response = await apiClient.post<BackofficeLoginResponse>(loginContext === 'BACKOFFICE' ? '/auth/backoffice/login' : '/auth/login', {
       email: username.trim(),
       password,
@@ -192,15 +178,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       loginContext,
     });
 
-    const token = response.data.token ?? response.data.accessToken;
-    const user = mapUser(response.data);
-
-    if (!token || !user) {
+    // La respuesta trae la cookie de sesion; del cuerpo solo se comprueba que identifique a
+    // alguien. El token que el backend aun devuelve por compatibilidad se ignora a proposito:
+    // guardarlo reabriria SEC-BACKOFFICE-006.
+    if (!mapUser(response.data)) {
       throw new Error('Respuesta de autenticación inválida');
     }
 
-    storeToken(token, keepSession);
-    setAuthHeader(token);
     const currentUser = await apiClient.get<UserSummaryResponse | BackofficeUserResponse>('/auth/me');
     const mapped = mapCurrentUser(currentUser.data);
     setState({
@@ -211,18 +195,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return mapped;
   }, []);
 
-  const loginWithGoogle = useCallback(async (idToken: string, keepSession = false, loginContext: 'BACKOFFICE' | 'CAPTADOR' = 'BACKOFFICE') => {
+  const loginWithGoogle = useCallback(async (idToken: string, loginContext: 'BACKOFFICE' | 'CAPTADOR' = 'BACKOFFICE') => {
     const response = await apiClient.post<BackofficeLoginResponse>(loginContext === 'BACKOFFICE' ? '/auth/backoffice/google' : '/auth/google', { idToken, loginContext });
 
-    const token = response.data.token ?? response.data.accessToken;
-    const user = mapUser(response.data);
-
-    if (!token || !user) {
+    // La respuesta trae la cookie de sesion; del cuerpo solo se comprueba que identifique a
+    // alguien. El token que el backend aun devuelve por compatibilidad se ignora a proposito:
+    // guardarlo reabriria SEC-BACKOFFICE-006.
+    if (!mapUser(response.data)) {
       throw new Error('Respuesta de autenticación inválida');
     }
 
-    storeToken(token, keepSession);
-    setAuthHeader(token);
     const currentUser = await apiClient.get<UserSummaryResponse | BackofficeUserResponse>('/auth/me');
     const mapped = mapCurrentUser(currentUser.data);
     setState({
@@ -234,37 +216,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   /**
-   * Cierra la sesion. Avisa primero al backend para que revoque el token y despues limpia el
-   * estado local.
+   * Cierra la sesion en el servidor, que revoca el token y caduca la cookie.
    *
-   * El aviso al servidor importa: sin el, el token seguia siendo valido hasta expirar, asi que
-   * cualquier copia extraida antes sobrevivia al "cerrar sesion". La llamada va primero porque
-   * necesita la cabecera Authorization todavia puesta.
-   *
-   * Es best-effort a proposito: si la red falla o el backend responde error, la sesion local se
-   * cierra igual. Dejar al usuario dentro porque el servidor no contesto seria peor que no
-   * revocar. Se omite la llamada cuando no hay token guardado, porque LoginPage invoca logout()
-   * antes de cada intento de acceso para partir de una sesion limpia.
+   * Es best-effort: si la red falla o el backend responde error, el estado local se limpia
+   * igual. Dejar al usuario dentro porque el servidor no contesto seria peor que no revocar.
+   * Ya no se puede comprobar antes si "habia sesion": la cookie es HttpOnly y no se lee desde
+   * JavaScript, asi que la llamada sale siempre. Es barata y el servidor la ignora si no hay
+   * nada que revocar.
    */
   const logout = useCallback(async () => {
-    const hadToken = Boolean(getStoredToken());
-
-    if (hadToken) {
-      try {
-        await apiClient.post('/auth/logout');
-      } catch {
-        // Revocacion no confirmada; se continua con el cierre local de todos modos.
-      }
+    try {
+      await apiClient.post('/auth/logout');
+    } catch {
+      // Revocacion no confirmada; se continua con el cierre local de todos modos.
     }
 
-    clearStoredToken();
-    clearAuthHeader();
+    queryClient.clear();
     setState({
       user: null,
       isAuthenticated: false,
       isLoading: false,
     });
-  }, []);
+  }, [queryClient]);
 
   const refresh = useCallback(async () => {}, []);
 

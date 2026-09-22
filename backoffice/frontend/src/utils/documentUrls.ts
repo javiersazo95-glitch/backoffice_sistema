@@ -1,4 +1,4 @@
-import apiClient, { API_BASE_URL, API_ORIGIN } from '@/api/client';
+import { API_BASE_URL, API_ORIGIN } from '@/api/client';
 
 const MIME_EXTENSION_MAP: Record<string, string> = {
   'application/pdf': 'pdf',
@@ -10,38 +10,19 @@ const MIME_EXTENSION_MAP: Record<string, string> = {
   'text/html': 'html',
 };
 
-export function getAuthToken(): string | null {
-  if (typeof window === 'undefined') return null;
-  const token = localStorage.getItem('repuestop.backoffice.access-token') ?? sessionStorage.getItem('repuestop.backoffice.access-token');
-  if (token) return token;
-
-  const header = apiClient.defaults.headers.common['Authorization'];
-  if (typeof header === 'string' && header.startsWith('Bearer ')) {
-    return header.substring(7);
-  }
-  return null;
-}
-
-// Privada a proposito: construye la cabecera sin mirar el destino. El unico acceso publico es
-// getAuthHeadersFor(url), que si comprueba el origen. Exportarla de nuevo reabre la fuga.
-function getAuthHeaders(): Record<string, string> {
-  const token = getAuthToken();
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
-
 /**
  * ¿Esta URL la sirve nuestro propio backend?
  *
- * Importa porque el token del backoffice solo debe viajar al backend. Las URLs de documentos
- * y fotos llegan dentro de registros que originan terceros (adjuntos de tickets, documentos de
- * vendedores, evidencias de mediacion), asi que una URL absoluta a un host ajeno es una
- * posibilidad real, no teorica: adjuntarle la cabecera Authorization entregaria la sesion
+ * Importa porque las credenciales de la sesion solo deben viajar al backend. Las URLs de
+ * documentos y fotos llegan dentro de registros que originan terceros (adjuntos de tickets,
+ * documentos de vendedores, evidencias de mediacion), asi que una URL absoluta a un host ajeno
+ * es una posibilidad real, no teorica: mandarle la cookie de sesion entregaria la sesion
  * administrativa a ese host.
  *
  * Reglas: una ruta relativa siempre es nuestra; una absoluta solo si su origen coincide con el
  * backend configurado. Cuando no hay VITE_API_URL (desarrollo, donde el proxy de Vite sirve
  * /api/v1 en el mismo origen) se compara contra el origen de la propia pagina. data: y blob:
- * no salen a la red, asi que no necesitan token.
+ * no salen a la red, asi que no necesitan credenciales.
  */
 export function isBackendUrl(url: string): boolean {
   if (!url || /^(data|blob):/i.test(url)) return false;
@@ -58,13 +39,20 @@ export function isBackendUrl(url: string): boolean {
 }
 
 /**
- * Cabeceras de autenticacion para una URL concreta: con token si la sirve nuestro backend,
- * vacias en cualquier otro caso. Es el unico punto por el que deben pasar los fetch de
- * documentos e imagenes; usar getAuthHeaders() directamente sobre una URL de origen
- * desconocido reintroduce la fuga.
+ * Opciones de fetch para descargar un fichero del backend.
+ *
+ * La sesion viaja en la cookie HttpOnly rt_session, asi que aqui no se construye ninguna
+ * cabecera: basta con pedirle al navegador que incluya credenciales. Y solo se le pide para
+ * URLs de nuestro backend, porque las de documentos y fotos llegan dentro de registros que
+ * originan terceros (adjuntos de tickets, documentos de vendedores, evidencias de mediacion) y
+ * una URL absoluta a un host ajeno es una posibilidad real: mandarle las credenciales seria
+ * entregarle la sesion administrativa.
+ *
+ * Antes esto adjuntaba un Bearer leido de localStorage. Ese almacenamiento desaparecio con
+ * SEC-BACKOFFICE-006; la regla de origen es la misma y sigue viviendo en isBackendUrl.
  */
-export function getAuthHeadersFor(url: string): Record<string, string> {
-  return isBackendUrl(url) ? getAuthHeaders() : {};
+export function fetchOptionsFor(url: string): RequestInit {
+  return { credentials: isBackendUrl(url) ? 'include' : 'omit' };
 }
 
 /**
@@ -75,7 +63,7 @@ export function getAuthHeadersFor(url: string): Record<string, string> {
  * una de un host ajeno. Navegar ahi desde la consola administrativa es una redireccion abierta:
  * la pestana se abre con la confianza del backoffice detras. Quien vaya a NAVEGAR usa esta
  * funcion; quien solo vaya a descargar con fetch puede seguir usando resolveDocumentUrl, porque
- * getAuthHeadersFor ya impide que el token salga del backend.
+ * fetchOptionsFor ya impide que las credenciales salgan del backend.
  */
 export function resolveNavigableDocumentUrl(documentUrl?: string): string | undefined {
   const resolved = resolveDocumentUrl(documentUrl);
@@ -161,9 +149,7 @@ export async function downloadDocument(documentUrl?: string, fileName = 'documen
   if (!resolvedUrl) return false;
 
   try {
-    const response = await fetch(resolvedUrl, {
-      headers: getAuthHeadersFor(resolvedUrl),
-    });
+    const response = await fetch(resolvedUrl, fetchOptionsFor(resolvedUrl));
     if (!response.ok) throw new Error('No se pudo descargar el documento.');
 
     const blob = await response.blob();
@@ -200,9 +186,7 @@ export async function previewDocument(documentUrl?: string) {
   const win = window.open('about:blank', '_blank');
 
   try {
-    const response = await fetch(resolvedUrl, {
-      headers: getAuthHeadersFor(resolvedUrl),
-    });
+    const response = await fetch(resolvedUrl, fetchOptionsFor(resolvedUrl));
 
     if (!response.ok) {
       if (win) win.close();
