@@ -191,7 +191,19 @@ export async function createWithdrawalPayment(retiroIds: number[], retiroSocioId
   return response.data;
 }
 
+/**
+ * De que tabla viene un retiroId.
+ *
+ * RT_retiro (vendedores) y BO_retiro_socio (socios) numeran sus ids de forma independiente y
+ * pueden coincidir, asi que el id por si solo es ambiguo: el mismo 7 puede ser un retiro de
+ * vendedor o uno de socio. Sin este campo el backend rechaza la peticion cuando el id existe en
+ * las dos tablas, en vez de elegir una. Es obligatorio aqui a proposito, para que TypeScript no
+ * deje anadir un punto de llamada nuevo sin decidir a que tipo pertenece.
+ */
+export type TipoRetiro = 'PROVEEDOR' | 'SOCIO';
+
 export interface LiquidationDocumentPayload {
+  tipoRetiro: TipoRetiro;
   retiroId: number;
   tipoDocumento: string;
   rut: string;
@@ -211,8 +223,16 @@ export async function saveLiquidationDocument(payload: LiquidationDocumentPayloa
   });
 }
 
-export async function getLiquidationDocumentFile(retiroId: number): Promise<string> {
+/**
+ * Descarga el PDF del documento de liquidacion ya registrado.
+ *
+ * Lleva tipoRetiro por el mismo motivo que el POST: el id solo no distingue entre un retiro de
+ * vendedor y uno de socio. Esta ruta tenia la misma ambiguedad y se me habia pasado en el
+ * reporte; la detecto el agente del backend.
+ */
+export async function getLiquidationDocumentFile(tipoRetiro: TipoRetiro, retiroId: number): Promise<string> {
   const response = await apiClient.get<Blob>(`/administration/withdrawals/${retiroId}/liquidation-document`, {
+    params: { tipoRetiro },
     responseType: 'blob',
   });
   return URL.createObjectURL(response.data);

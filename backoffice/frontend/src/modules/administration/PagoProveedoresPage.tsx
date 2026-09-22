@@ -955,6 +955,8 @@ export default function PagoProveedoresPage() {
               setSavingPartnerDoc(true);
               try {
                 await adminApi.saveLiquidationDocument({
+                  // Este modal es exclusivamente de socios.
+                  tipoRetiro: 'SOCIO',
                   retiroId: partnerDocModal.retiroId,
                   tipoDocumento: partnerDocModal.type.trim(),
                   rut: partnerDocModal.rut.trim(),

@@ -23,16 +23,52 @@ const ERROR_GOOGLE = 'No se pudo iniciar sesión con Google. Verifica que tu cue
 const PLACEHOLDER_CORREO_PERSONAL = 'correo@empresa.cl';
 
 /**
- * Lee el mensaje del servidor SOLO para decidir el flujo (no para mostrarlo).
+ * ¿El acceso fallo porque el captador todavia no verifico su correo?
  *
- * El unico uso legitimo es detectar que el captador todavia no verifico su correo y desviarlo al
- * alta. Lo que se pinta en pantalla siempre es una de las constantes de arriba.
+ * Es la unica razon por la que esta pantalla mira el cuerpo del error: para desviar a esa
+ * persona al alta en vez de dejarla con un mensaje generico. Lo que se pinta en pantalla siempre
+ * es una de las constantes de arriba.
+ *
+ * Acepta las dos formas a proposito. La preferida es el campo estructurado
+ * pendingEmailVerification, que es lo que el backend puede empezar a devolver cuando quiera; el
+ * respaldo es buscar la frase en el mensaje, que es lo que hay hoy y es fragil porque depende de
+ * como este redactado. Aceptando ambas, el backend puede anadir el campo sin coordinar nada y
+ * esto sigue funcionando antes y despues.
  */
-function serverMessageForRouting(error: unknown): string {
-  if (isAxiosError(error) && typeof error.response?.data?.message === 'string') {
-    return error.response.data.message;
+function faltaVerificarCorreo(error: unknown): boolean {
+  if (!isAxiosError(error)) return false;
+
+  const cuerpo = error.response?.data as { pendingEmailVerification?: unknown; message?: unknown } | undefined;
+  if (cuerpo?.pendingEmailVerification === true) return true;
+
+  return typeof cuerpo?.message === 'string' && /verificar.*correo|correo.*verific/i.test(cuerpo.message);
+}
+
+/**
+ * A donde ir tras un acceso correcto, o que decirle a quien uso la puerta equivocada.
+ *
+ * En el acceso de PERSONAL no se comprueba el rol. Quien autoriza esa puerta es el servidor, y
+ * lo hace por PERMISOS de backoffice, no por rol: si devolvio sesion, la persona puede entrar
+ * aunque su rol sea CAPTADOR, porque alguien puede ser captador y ademas tener un area asignada.
+ * Antes se rechazaba aqui por rol, y eso dejaba fuera justo a esa persona: era un fallo del
+ * cliente, no del servidor (SEC-BACKOFFICE-009). Una identidad sin permisos de backoffice ni
+ * siquiera llega hasta aqui: el servidor no emite sesion.
+ *
+ * En el acceso de CAPTADORES si se comprueba, porque esa puerta no otorga permisos de backoffice
+ * y el portal exige rol CAPTADOR: sin el, la persona entraria a una pantalla que no puede usar.
+ */
+function destinoTrasAcceso(
+  accessType: 'staff' | 'capturer',
+  usuario: { role: Role },
+): { destino: string } | { error: string } {
+  if (accessType === 'capturer') {
+    if (usuario.role !== Role.CAPTADOR) {
+      return { error: 'Esta cuenta pertenece al personal. Selecciona “Personal de la empresa”.' };
+    }
+    return { destino: '/captador' };
   }
-  return '';
+
+  return { destino: '/' };
 }
 
 const loginStyles = `
@@ -254,17 +290,14 @@ export default function LoginPage() {
       // Evita reutilizar un token de captador cuando se cambia al acceso de personal.
       await logout();
       const loggedUser = await login(username, password, keepSession, accessType === 'staff' ? 'BACKOFFICE' : 'CAPTADOR');
-      if (accessType === 'capturer' && loggedUser.role !== Role.CAPTADOR) {
+      const resultado = destinoTrasAcceso(accessType, loggedUser);
+      if ('error' in resultado) {
         await logout();
-        throw new Error('Esta cuenta pertenece al personal. Selecciona “Personal de la empresa”.');
+        throw new Error(resultado.error);
       }
-      if (accessType === 'staff' && loggedUser.role === Role.CAPTADOR) {
-        await logout();
-        throw new Error('Esta cuenta es de captador. Selecciona “Captadores”.');
-      }
-      navigate(loggedUser.role === Role.CAPTADOR ? '/captador' : '/', { replace: true });
+      navigate(resultado.destino, { replace: true });
     } catch (err) {
-      if (accessType === 'capturer' && /verificar.*correo|correo.*verific/i.test(serverMessageForRouting(err))) {
+      if (accessType === 'capturer' && faltaVerificarCorreo(err)) {
         navigate(`/registro-captador?email=${encodeURIComponent(username.trim().toLowerCase())}`, { replace: true });
         return;
       }
@@ -287,15 +320,12 @@ export default function LoginPage() {
       // Google también debe comenzar desde una sesión limpia al cambiar de tipo de acceso.
       await logout();
       const loggedUser = await loginWithGoogle(credential, keepSession, accessType === 'staff' ? 'BACKOFFICE' : 'CAPTADOR');
-      if (accessType === 'capturer' && loggedUser.role !== Role.CAPTADOR) {
+      const resultado = destinoTrasAcceso(accessType, loggedUser);
+      if ('error' in resultado) {
         await logout();
-        throw new Error('Esta cuenta pertenece al personal. Selecciona “Personal de la empresa”.');
+        throw new Error(resultado.error);
       }
-      if (accessType === 'staff' && loggedUser.role === Role.CAPTADOR) {
-        await logout();
-        throw new Error('Esta cuenta es de captador. Selecciona “Captadores”.');
-      }
-      navigate(loggedUser.role === Role.CAPTADOR ? '/captador' : '/', { replace: true });
+      navigate(resultado.destino, { replace: true });
     } catch (err) {
       // Mismo criterio que en el acceso con contrasena: lo nuestro se muestra, lo del servidor no.
       setError(!isAxiosError(err) && err instanceof Error ? err.message : ERROR_GOOGLE);

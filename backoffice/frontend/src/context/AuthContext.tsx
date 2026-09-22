@@ -185,11 +185,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = useCallback(async (username: string, password: string, keepSession = false, loginContext: 'BACKOFFICE' | 'CAPTADOR' = 'BACKOFFICE') => {
+    // El contexto de acceso lo decide el ENDPOINT, no el cuerpo: el servidor deriva el suyo y
+    // descarta el que mande el cliente, asi que enviarlo solo daria la falsa impresion de que
+    // aqui se elige algo (SEC-BACKOFFICE-009).
     const response = await apiClient.post<BackofficeLoginResponse>(loginContext === 'BACKOFFICE' ? '/auth/backoffice/login' : '/auth/login', {
       email: username.trim(),
       password,
       authProvider: 'EMAIL_PASSWORD',
-      loginContext,
     });
 
     const token = response.data.token ?? response.data.accessToken;
@@ -212,7 +214,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const loginWithGoogle = useCallback(async (idToken: string, keepSession = false, loginContext: 'BACKOFFICE' | 'CAPTADOR' = 'BACKOFFICE') => {
-    const response = await apiClient.post<BackofficeLoginResponse>(loginContext === 'BACKOFFICE' ? '/auth/backoffice/google' : '/auth/google', { idToken, loginContext });
+    const response = await apiClient.post<BackofficeLoginResponse>(loginContext === 'BACKOFFICE' ? '/auth/backoffice/google' : '/auth/google', { idToken });
 
     const token = response.data.token ?? response.data.accessToken;
     const user = mapUser(response.data);

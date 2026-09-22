@@ -9,6 +9,7 @@ import FounderSellerName from '@/components/shared/FounderSellerName';
 import FounderSellerList from '@/components/shared/FounderSellerList';
 import SellerListTooltip from '@/components/shared/SellerListTooltip';
 import * as administrationApi from '@/api/administration';
+import type { TipoRetiro } from '@/api/administration';
 import {
   BANCOS_BCI,
   EXPENSE_CATEGORIES,
@@ -209,6 +210,8 @@ interface DocumentDraft {
    * El mismo modal atiende los dos casos, asi que la distincion tiene que viajar en el borrador.
    */
   ivaLoCalculaElServidor: boolean;
+  /** De que tabla es retiroId. Ver TipoRetiro en api/administration. */
+  tipoRetiro: TipoRetiro;
   pdfName?: string;
   pdfUrl?: string;
   pdfFile?: File;
@@ -1435,6 +1438,7 @@ export default function AdminFinancePage() {
       detail: existing?.detail ?? `Comisión de servicio RepuesTop del pedido ${order.id}`,
       ivaLiquidado: existing?.ivaLiquidado ?? String(order.ivaComisionServicio ?? 0),
       ivaLoCalculaElServidor: true,
+      tipoRetiro: 'PROVEEDOR',
       pdfName: existing?.pdfName ?? '',
       pdfUrl: existing?.pdfUrl,
       originalPdfName: existing?.pdfName,
@@ -1480,7 +1484,7 @@ export default function AdminFinancePage() {
       let document = existing;
       if (!document.pdfUrl && group.retiroId !== null) {
         try {
-          document = { ...document, pdfUrl: await administrationApi.getLiquidationDocumentFile(group.retiroId) };
+          document = { ...document, pdfUrl: await administrationApi.getLiquidationDocumentFile('PROVEEDOR', group.retiroId) };
         } catch (error) {
           window.alert(error instanceof Error ? error.message : 'No se pudo cargar el PDF registrado.');
         }
@@ -1500,6 +1504,7 @@ export default function AdminFinancePage() {
       detail: existing?.detail ?? `Comisión de servicio RepuesTop de ${group.settlements.length} liquidación${group.settlements.length === 1 ? '' : 'es'}`,
       ivaLiquidado: existing?.ivaLiquidado ?? String(Math.round(group.iva)),
       ivaLoCalculaElServidor: true,
+      tipoRetiro: 'PROVEEDOR',
       pdfName: existing?.pdfName ?? '',
       pdfUrl: existing?.pdfUrl,
       originalPdfName: existing?.pdfName,
@@ -1523,7 +1528,7 @@ export default function AdminFinancePage() {
       let document = existingDoc;
       if (!document.pdfUrl && withdrawal.id) {
         try {
-          document = { ...document, pdfUrl: await administrationApi.getLiquidationDocumentFile(Number(withdrawal.id)) };
+          document = { ...document, pdfUrl: await administrationApi.getLiquidationDocumentFile('SOCIO', Number(withdrawal.id)) };
         } catch (error) {
           window.alert(error instanceof Error ? error.message : 'No se pudo cargar el PDF registrado.');
         }
@@ -1544,6 +1549,7 @@ export default function AdminFinancePage() {
       detail: existingDoc?.detail ?? `Retiro de libre disposición socio - ${withdrawal.beneficiary}`,
       ivaLiquidado: existingDoc?.ivaLiquidado ?? '0',
       ivaLoCalculaElServidor: false,
+      tipoRetiro: 'SOCIO',
       pdfName: existingDoc?.pdfName ?? '',
       pdfUrl: undefined,
       originalPdfName: existingDoc?.pdfName,
@@ -1569,6 +1575,7 @@ export default function AdminFinancePage() {
     }
     try {
       await administrationApi.saveLiquidationDocument({
+        tipoRetiro: documentDraft.tipoRetiro,
         retiroId: documentDraft.retiroId,
         tipoDocumento: documentDraft.type.trim(),
         rut: documentDraft.rut.trim(),
@@ -1623,10 +1630,12 @@ export default function AdminFinancePage() {
     setDocumentDraft(null);
   }
 
+  // Solo se usa desde el detalle de un pago, que lista unicamente retiros de vendedor: los de
+  // socio viajan aparte en retirosSocios y no se pintan en esa tabla.
   async function previewPaidDocument(retiroId: number, fileName?: string): Promise<void> {
     if (!fileName) return;
     try {
-      const fileUrl = await administrationApi.getLiquidationDocumentFile(retiroId);
+      const fileUrl = await administrationApi.getLiquidationDocumentFile('PROVEEDOR', retiroId);
       setPaidDocumentPreview({ fileName, fileUrl });
     } catch (error) {
       window.alert(error instanceof Error ? error.message : 'No se pudo cargar el PDF registrado.');
