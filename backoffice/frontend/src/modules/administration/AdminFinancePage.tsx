@@ -200,6 +200,15 @@ interface DocumentDraft {
   email: string;
   detail: string;
   ivaLiquidado: string;
+  /**
+   * Si el backend recalcula el IVA de este documento y descarta lo que mande el cliente.
+   *
+   * Es true para retiros de vendedor: el servidor lo deriva de la comision de servicio. Es
+   * false para retiros de SOCIO, que quedan fuera del recalculo a proposito --un socio no tiene
+   * comision de servicio y su base no esta definida-- y ahi el valor sigue viniendo de aqui.
+   * El mismo modal atiende los dos casos, asi que la distincion tiene que viajar en el borrador.
+   */
+  ivaLoCalculaElServidor: boolean;
   pdfName?: string;
   pdfUrl?: string;
   pdfFile?: File;
@@ -1425,6 +1434,7 @@ export default function AdminFinancePage() {
       email: existing?.email ?? order.sellerEmail ?? '',
       detail: existing?.detail ?? `Comisión de servicio RepuesTop del pedido ${order.id}`,
       ivaLiquidado: existing?.ivaLiquidado ?? String(order.ivaComisionServicio ?? 0),
+      ivaLoCalculaElServidor: true,
       pdfName: existing?.pdfName ?? '',
       pdfUrl: existing?.pdfUrl,
       originalPdfName: existing?.pdfName,
@@ -1489,6 +1499,7 @@ export default function AdminFinancePage() {
       email: existing?.email ?? (group.email === 'Sin correo' ? '' : group.email),
       detail: existing?.detail ?? `Comisión de servicio RepuesTop de ${group.settlements.length} liquidación${group.settlements.length === 1 ? '' : 'es'}`,
       ivaLiquidado: existing?.ivaLiquidado ?? String(Math.round(group.iva)),
+      ivaLoCalculaElServidor: true,
       pdfName: existing?.pdfName ?? '',
       pdfUrl: existing?.pdfUrl,
       originalPdfName: existing?.pdfName,
@@ -1532,6 +1543,7 @@ export default function AdminFinancePage() {
       email: existingDoc?.email ?? (socio?.email ?? withdrawal.email ?? ''),
       detail: existingDoc?.detail ?? `Retiro de libre disposición socio - ${withdrawal.beneficiary}`,
       ivaLiquidado: existingDoc?.ivaLiquidado ?? '0',
+      ivaLoCalculaElServidor: false,
       pdfName: existingDoc?.pdfName ?? '',
       pdfUrl: undefined,
       originalPdfName: existingDoc?.pdfName,
@@ -1545,7 +1557,7 @@ export default function AdminFinancePage() {
       && documentDraft.name.trim()
       && documentDraft.email.trim()
       && documentDraft.detail.trim()
-      && documentDraft.ivaLiquidado.trim()
+      && (documentDraft.ivaLoCalculaElServidor || documentDraft.ivaLiquidado.trim())
       && documentDraft.pdfName?.trim();
     if (!documentDraft.orderId || (!documentDraft.isEditing && !hasRequiredData)) {
       window.alert('Completa los datos y adjunta el nombre del archivo de la boleta o factura.');
@@ -3575,7 +3587,29 @@ export default function AdminFinancePage() {
             <FieldLabel label="Razón social / Nombre"><input className="input" type="text" value={documentDraft.name} onChange={(event) => setDocumentDraft({ ...documentDraft, name: event.target.value })} required={!documentDraft.isEditing} /></FieldLabel>
             <FieldLabel label="Correo de envío"><input className="input" type="email" value={documentDraft.email} onChange={(event) => setDocumentDraft({ ...documentDraft, email: event.target.value })} required={!documentDraft.isEditing} /></FieldLabel>
             <FieldLabel label="Detalle"><input className="input" type="text" value={documentDraft.detail} onChange={(event) => setDocumentDraft({ ...documentDraft, detail: event.target.value })} required={!documentDraft.isEditing} /></FieldLabel>
-            <FieldLabel label="IVA liquidado"><input className="input" type="number" min="0" step="1" value={documentDraft.ivaLiquidado} onChange={(event) => setDocumentDraft({ ...documentDraft, ivaLiquidado: event.target.value })} required={!documentDraft.isEditing} /></FieldLabel>
+            {/* Vendedores: el servidor recalcula el IVA desde la comision de servicio y descarta lo
+                que llegue del cliente, asi que el campo es de solo lectura. Socios: quedan fuera del
+                recalculo y el valor sigue siendo el que se escriba aqui. */}
+            <FieldLabel label={documentDraft.ivaLoCalculaElServidor ? 'IVA de la comisión de servicio (calculado)' : 'IVA liquidado del socio'}>
+              <input
+                className="input"
+                type="number"
+                min="0"
+                step="1"
+                value={documentDraft.ivaLiquidado}
+                onChange={(event) => setDocumentDraft({ ...documentDraft, ivaLiquidado: event.target.value })}
+                readOnly={documentDraft.ivaLoCalculaElServidor}
+                required={!documentDraft.isEditing && !documentDraft.ivaLoCalculaElServidor}
+                title={documentDraft.ivaLoCalculaElServidor
+                  ? 'Lo calcula el sistema a partir de la comisión de servicio del pedido. No se puede editar.'
+                  : 'Un retiro de socio no tiene comisión de servicio: este valor se registra tal como se escriba.'}
+              />
+              <small style={{ color: '#64748b', fontSize: 12 }}>
+                {documentDraft.ivaLoCalculaElServidor
+                  ? 'Calculado por el sistema desde la comisión de servicio del pedido.'
+                  : 'Retiro de socio: sin comisión de servicio, se registra el valor que ingreses.'}
+              </small>
+            </FieldLabel>
             <FieldLabel label="Cargar Boleta / Factura (PDF)">
               <input
                 className="input"

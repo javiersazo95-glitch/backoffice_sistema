@@ -13,8 +13,7 @@ import type {
   TicketAttachment,
 } from '@/api/support';
 import * as supportApi from '@/api/support';
-import * as permissionsApi from '@/api/permissions';
-import type { PermissionUser } from '@/api/permissions';
+import type { SupportAssignee } from '@/api/support';
 import { downloadDocument, getDocumentFileName, previewDocument, resolveDocumentUrl } from '@/utils/documentUrls';
 import { resolveProfileImageUrl } from '@/api/client';
 import { useAuth } from '@/context/AuthContext';
@@ -138,7 +137,7 @@ function normalizeCommentText(value?: string | null): string {
   return (value ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
 }
 
-function loadStoredAssignees(): Record<string, PermissionUser> {
+function loadStoredAssignees(): Record<string, SupportAssignee> {
   try {
     const raw = localStorage.getItem(ASSIGNEE_STORAGE_KEY);
     return raw ? JSON.parse(raw) : {};
@@ -147,11 +146,11 @@ function loadStoredAssignees(): Record<string, PermissionUser> {
   }
 }
 
-function getStoredAssignee(ticketId: number): PermissionUser | null {
+function getStoredAssignee(ticketId: number): SupportAssignee | null {
   return loadStoredAssignees()[String(ticketId)] ?? null;
 }
 
-function storeAssignee(ticketId: number, user: PermissionUser | null) {
+function storeAssignee(ticketId: number, user: SupportAssignee | null) {
   const assignees = loadStoredAssignees();
   if (user) {
     assignees[String(ticketId)] = user;
@@ -265,13 +264,13 @@ export default function SupportTicketDetailModal({
   const [sending, setSending] = useState(false);
   const [statusMenuOpen, setStatusMenuOpen] = useState(false);
   const [assigneeMenuOpen, setAssigneeMenuOpen] = useState(false);
-  const [supportOperators, setSupportOperators] = useState<PermissionUser[]>([]);
+  const [supportOperators, setSupportOperators] = useState<SupportAssignee[]>([]);
   const [operatorsLoading, setOperatorsLoading] = useState(false);
   // Se distingue "no hay operadores" de "no puedo consultarlos": el backend exige SUPER_ADMIN
   // en /backoffice/permissions/**, asi que un operador de SOPORTE recibe 403 al abrir esta
   // lista. Mostrarle "No hay operadores de soporte" seria decirle algo falso.
   const [operatorsForbidden, setOperatorsForbidden] = useState(false);
-  const [selectedAssignee, setSelectedAssignee] = useState<PermissionUser | null>(() => getStoredAssignee(ticket.id));
+  const [selectedAssignee, setSelectedAssignee] = useState<SupportAssignee | null>(() => getStoredAssignee(ticket.id));
   const [reviewPopupOpen, setReviewPopupOpen] = useState(false);
   const [attachments, setAttachments] = useState<TicketAttachment[]>([]);
   const [attachmentsLoading, setAttachmentsLoading] = useState(true);
@@ -338,14 +337,12 @@ export default function SupportTicketDetailModal({
   useEffect(() => {
     if (!assigneeMenuOpen || supportOperators.length > 0 || operatorsLoading) return;
     setOperatorsLoading(true);
-    permissionsApi.listPermissionUsers({
-      area: 'SOPORTE',
-      slot: 'OPERADOR',
-      page: 0,
-      size: 100,
-    })
-      .then((response) => {
-        setSupportOperators(response.content ?? []);
+    // Endpoint de minimo privilegio: devuelve solo los operadores de soporte activos, sin
+    // permisos ni roles. Antes esta pantalla usaba /backoffice/permissions/users, que el backend
+    // restringio a SUPER_ADMIN y que ademas traia bastante mas de lo que aqui hace falta.
+    supportApi.listSupportAssignees()
+      .then((operadores) => {
+        setSupportOperators(operadores);
         setOperatorsForbidden(false);
       })
       .catch((error: unknown) => {
