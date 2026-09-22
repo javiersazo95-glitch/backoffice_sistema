@@ -1,0 +1,331 @@
+{
+  "auditReportVersion": 2,
+  "vulnerabilities": {
+    "@remix-run/router": {
+      "name": "@remix-run/router",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1112052,
+          "name": "@remix-run/router",
+          "dependency": "@remix-run/router",
+          "title": "React Router vulnerable to XSS via Open Redirects",
+          "url": "https://github.com/advisories/GHSA-2w69-qvjg-hvjx",
+          "severity": "high",
+          "cwe": [
+            "CWE-79"
+          ],
+          "cvss": {
+            "score": 8,
+            "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:R/S:C/C:H/I:H/A:N"
+          },
+          "range": "<=1.23.1"
+        },
+        {
+          "source": 1136293,
+          "name": "@remix-run/router",
+          "dependency": "@remix-run/router",
+          "title": "React Router's same-origin redirect with path starting // causes open redirect via protocol-relative URL reinterpretation",
+          "url": "https://github.com/advisories/GHSA-2j2x-hqr9-3h42",
+          "severity": "moderate",
+          "cwe": [
+            "CWE-601"
+          ],
+          "cvss": {
+            "score": 0,
+            "vectorString": null
+          },
+          "range": ">=1.3.0 <1.23.3"
+        }
+      ],
+      "effects": [
+        "react-router",
+        "react-router-dom"
+      ],
+      "range": "<=1.23.2",
+      "nodes": [
+        "node_modules/@remix-run/router"
+      ],
+      "fixAvailable": true
+    },
+    "brace-expansion": {
+      "name": "brace-expansion",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1130588,
+          "name": "brace-expansion",
+          "dependency": "brace-expansion",
+          "title": "brace-expansion: DoS via unbounded expansion length causing an out-of-memory process crash",
+          "url": "https://github.com/advisories/GHSA-mh99-v99m-4gvg",
+          "severity": "high",
+          "cwe": [
+            "CWE-400",
+            "CWE-770"
+          ],
+          "cvss": {
+            "score": 7.5,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+          },
+          "range": "<1.1.17"
+        },
+        {
+          "source": 1130589,
+          "name": "brace-expansion",
+          "dependency": "brace-expansion",
+          "title": "brace-expansion: DoS via unbounded expansion length causing an out-of-memory process crash",
+          "url": "https://github.com/advisories/GHSA-mh99-v99m-4gvg",
+          "severity": "high",
+          "cwe": [
+            "CWE-400",
+            "CWE-770"
+          ],
+          "cvss": {
+            "score": 7.5,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+          },
+          "range": ">=2.0.0 <2.1.3"
+        },
+        {
+          "source": 1130736,
+          "name": "brace-expansion",
+          "dependency": "brace-expansion",
+          "title": "brace-expansion: DoS via unbounded intermediate arrays, bypassing the CVE-2026-14257 mitigation",
+          "url": "https://github.com/advisories/GHSA-rgw5-rvv9-x895",
+          "severity": "high",
+          "cwe": [
+            "CWE-400",
+            "CWE-770"
+          ],
+          "cvss": {
+            "score": 7.5,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+          },
+          "range": ">=2.0.0 <2.1.4"
+        },
+        {
+          "source": 1130737,
+          "name": "brace-expansion",
+          "dependency": "brace-expansion",
+          "title": "brace-expansion: DoS via unbounded intermediate arrays, bypassing the CVE-2026-14257 mitigation",
+          "url": "https://github.com/advisories/GHSA-rgw5-rvv9-x895",
+          "severity": "high",
+          "cwe": [
+            "CWE-400",
+            "CWE-770"
+          ],
+          "cvss": {
+            "score": 7.5,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+          },
+          "range": "<1.1.18"
+        }
+      ],
+      "effects": [],
+      "range": "<=1.1.17 || 2.0.0 - 2.1.3",
+      "nodes": [
+        "node_modules/brace-expansion",
+        "node_modules/readdir-glob/node_modules/brace-expansion"
+      ],
+      "fixAvailable": true
+    },
+    "exceljs": {
+      "name": "exceljs",
+      "severity": "moderate",
+      "isDirect": true,
+      "via": [
+        "uuid"
+      ],
+      "effects": [],
+      "range": ">=3.5.0",
+      "nodes": [
+        "node_modules/exceljs"
+      ],
+      "fixAvailable": {
+        "name": "exceljs",
+        "version": "3.4.0",
+        "isSemVerMajor": true
+      }
+    },
+    "nanoid": {
+      "name": "nanoid",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1139427,
+          "name": "nanoid",
+          "dependency": "nanoid",
+          "title": "nanoid: custom generators can loop indefinitely when size is zero",
+          "url": "https://github.com/advisories/GHSA-2v37-7h3g-55p8",
+          "severity": "high",
+          "cwe": [
+            "CWE-835"
+          ],
+          "cvss": {
+            "score": 5.9,
+            "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:N/A:H"
+          },
+          "range": "<3.3.18"
+        }
+      ],
+      "effects": [],
+      "range": "<3.3.18",
+      "nodes": [
+        "node_modules/nanoid"
+      ],
+      "fixAvailable": true
+    },
+    "react-router": {
+      "name": "react-router",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        "@remix-run/router",
+        {
+          "source": 1112057,
+          "name": "react-router",
+          "dependency": "react-router",
+          "title": "React Router has unexpected external redirect via untrusted paths",
+          "url": "https://github.com/advisories/GHSA-9jcx-v3wj-wh4m",
+          "severity": "moderate",
+          "cwe": [
+            "CWE-601"
+          ],
+          "cvss": {
+            "score": 6.5,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:N/I:H/A:N"
+          },
+          "range": ">=6.0.0 <6.30.2"
+        },
+        {
+          "source": 1124268,
+          "name": "react-router",
+          "dependency": "react-router",
+          "title": "React Router: Open redirect via backslash in <Link> and useNavigate (CVE-2025-68470 bypass)",
+          "url": "https://github.com/advisories/GHSA-wrjc-x8rr-h8h6",
+          "severity": "moderate",
+          "cwe": [
+            "CWE-601"
+          ],
+          "cvss": {
+            "score": 0,
+            "vectorString": null
+          },
+          "range": ">=6.0.0 <7.18.0"
+        },
+        {
+          "source": 1124272,
+          "name": "react-router",
+          "dependency": "react-router",
+          "title": "React Router: Arbitrary Constructor Injection via deserializeErrors() in React Router SSR Hydration",
+          "url": "https://github.com/advisories/GHSA-337j-9hxr-rhxg",
+          "severity": "moderate",
+          "cwe": [
+            "CWE-470"
+          ],
+          "cvss": {
+            "score": 6.1,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N"
+          },
+          "range": ">=6.4.0 <7.18.0"
+        },
+        {
+          "source": 1136303,
+          "name": "react-router",
+          "dependency": "react-router",
+          "title": "React Router's same-origin redirect with path starting // causes open redirect via protocol-relative URL reinterpretation",
+          "url": "https://github.com/advisories/GHSA-2j2x-hqr9-3h42",
+          "severity": "moderate",
+          "cwe": [
+            "CWE-601"
+          ],
+          "cvss": {
+            "score": 0,
+            "vectorString": null
+          },
+          "range": ">=6.7.0 <6.30.4"
+        }
+      ],
+      "effects": [
+        "react-router-dom"
+      ],
+      "range": "6.0.0 - 7.17.0",
+      "nodes": [
+        "node_modules/react-router"
+      ],
+      "fixAvailable": true
+    },
+    "react-router-dom": {
+      "name": "react-router-dom",
+      "severity": "high",
+      "isDirect": true,
+      "via": [
+        "@remix-run/router",
+        "react-router"
+      ],
+      "effects": [],
+      "range": "6.0.0-alpha.0 - 6.30.2",
+      "nodes": [
+        "node_modules/react-router-dom"
+      ],
+      "fixAvailable": true
+    },
+    "uuid": {
+      "name": "uuid",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1119441,
+          "name": "uuid",
+          "dependency": "uuid",
+          "title": "uuid: Missing buffer bounds check in v3/v5/v6 when buf is provided",
+          "url": "https://github.com/advisories/GHSA-w5hq-g745-h8pq",
+          "severity": "moderate",
+          "cwe": [
+            "CWE-787",
+            "CWE-1285"
+          ],
+          "cvss": {
+            "score": 7.5,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N"
+          },
+          "range": "<11.1.1"
+        }
+      ],
+      "effects": [
+        "exceljs"
+      ],
+      "range": "<11.1.1",
+      "nodes": [
+        "node_modules/uuid"
+      ],
+      "fixAvailable": {
+        "name": "exceljs",
+        "version": "3.4.0",
+        "isSemVerMajor": true
+      }
+    }
+  },
+  "metadata": {
+    "vulnerabilities": {
+      "info": 0,
+      "low": 0,
+      "moderate": 2,
+      "high": 5,
+      "critical": 0,
+      "total": 7
+    },
+    "dependencies": {
+      "prod": 138,
+      "dev": 54,
+      "optional": 35,
+      "peer": 2,
+      "peerOptional": 0,
+      "total": 191
+    }
+  }
+}

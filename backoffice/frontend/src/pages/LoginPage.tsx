@@ -5,11 +5,70 @@ import { isAxiosError } from 'axios';
 import { useAuth } from '@/context/AuthContext';
 import { Role } from '@/types/auth';
 
-function extractErrorMessage(error: unknown, fallback: string): string {
-  if (isAxiosError(error) && typeof error.response?.data?.message === 'string') {
-    return error.response.data.message;
+/**
+ * Mensajes fijos de esta pantalla.
+ *
+ * Son constantes a proposito: el detalle que devuelve el servidor no se muestra nunca en una
+ * pantalla sin sesion. Distinguir "esa cuenta no existe" de "contrasena incorrecta" permite
+ * enumerar cuentas validas del backoffice, que es el trabajo previo de cualquier ataque de
+ * fuerza bruta contra los flujos de activacion y recuperacion.
+ */
+const ERROR_CREDENCIALES = 'Credenciales inválidas. Intente nuevamente.';
+const ERROR_GOOGLE = 'No se pudo iniciar sesión con Google. Verifica que tu cuenta esté habilitada.';
+
+/**
+ * Marcador neutro para el campo de correo del personal. Antes decia "admin@repuestop.com", lo que
+ * regalaba el patron de las cuentas administrativas a cualquier visitante sin sesion.
+ */
+const PLACEHOLDER_CORREO_PERSONAL = 'correo@empresa.cl';
+
+/**
+ * ¿El acceso fallo porque el captador todavia no verifico su correo?
+ *
+ * Es la unica razon por la que esta pantalla mira el cuerpo del error: para desviar a esa
+ * persona al alta en vez de dejarla con un mensaje generico. Lo que se pinta en pantalla siempre
+ * es una de las constantes de arriba.
+ *
+ * Acepta las dos formas a proposito. La preferida es el campo estructurado
+ * pendingEmailVerification, que es lo que el backend puede empezar a devolver cuando quiera; el
+ * respaldo es buscar la frase en el mensaje, que es lo que hay hoy y es fragil porque depende de
+ * como este redactado. Aceptando ambas, el backend puede anadir el campo sin coordinar nada y
+ * esto sigue funcionando antes y despues.
+ */
+function faltaVerificarCorreo(error: unknown): boolean {
+  if (!isAxiosError(error)) return false;
+
+  const cuerpo = error.response?.data as { pendingEmailVerification?: unknown; message?: unknown } | undefined;
+  if (cuerpo?.pendingEmailVerification === true) return true;
+
+  return typeof cuerpo?.message === 'string' && /verificar.*correo|correo.*verific/i.test(cuerpo.message);
+}
+
+/**
+ * A donde ir tras un acceso correcto, o que decirle a quien uso la puerta equivocada.
+ *
+ * En el acceso de PERSONAL no se comprueba el rol. Quien autoriza esa puerta es el servidor, y
+ * lo hace por PERMISOS de backoffice, no por rol: si devolvio sesion, la persona puede entrar
+ * aunque su rol sea CAPTADOR, porque alguien puede ser captador y ademas tener un area asignada.
+ * Antes se rechazaba aqui por rol, y eso dejaba fuera justo a esa persona: era un fallo del
+ * cliente, no del servidor (SEC-BACKOFFICE-009). Una identidad sin permisos de backoffice ni
+ * siquiera llega hasta aqui: el servidor no emite sesion.
+ *
+ * En el acceso de CAPTADORES si se comprueba, porque esa puerta no otorga permisos de backoffice
+ * y el portal exige rol CAPTADOR: sin el, la persona entraria a una pantalla que no puede usar.
+ */
+function destinoTrasAcceso(
+  accessType: 'staff' | 'capturer',
+  usuario: { role: Role },
+): { destino: string } | { error: string } {
+  if (accessType === 'capturer') {
+    if (usuario.role !== Role.CAPTADOR) {
+      return { error: 'Esta cuenta pertenece al personal. Selecciona “Personal de la empresa”.' };
+    }
+    return { destino: '/captador' };
   }
-  return fallback;
+
+  return { destino: '/' };
 }
 
 const loginStyles = `
@@ -235,24 +294,20 @@ export default function LoginPage() {
       // Evita reutilizar un token de captador cuando se cambia al acceso de personal.
       await logout();
       const loggedUser = await login(username, password, keepSession, accessType === 'staff' ? 'BACKOFFICE' : 'CAPTADOR');
-      if (accessType === 'capturer' && loggedUser.role !== Role.CAPTADOR) {
+      const resultado = destinoTrasAcceso(accessType, loggedUser);
+      if ('error' in resultado) {
         await logout();
-        throw new Error('Esta cuenta pertenece al personal. Selecciona “Personal de la empresa”.');
+        throw new Error(resultado.error);
       }
-      if (accessType === 'staff' && loggedUser.role === Role.CAPTADOR) {
-        await logout();
-        throw new Error('Esta cuenta es de captador. Selecciona “Captadores”.');
-      }
-      navigate(loggedUser.role === Role.CAPTADOR ? '/captador' : '/', { replace: true });
+      navigate(resultado.destino, { replace: true });
     } catch (err) {
-      const message = isAxiosError(err)
-        ? extractErrorMessage(err, 'Credenciales inválidas. Intente nuevamente.')
-        : err instanceof Error ? err.message : 'Credenciales inválidas. Intente nuevamente.';
-      if (accessType === 'capturer' && /verificar.*correo|correo.*verific/i.test(message)) {
+      if (accessType === 'capturer' && faltaVerificarCorreo(err)) {
         navigate(`/registro-captador?email=${encodeURIComponent(username.trim().toLowerCase())}`, { replace: true });
         return;
       }
-      setError(message);
+      // Los errores lanzados por esta misma pantalla (tipo de acceso equivocado) son nuestros y
+      // si se muestran; los del servidor se reemplazan por el mensaje generico.
+      setError(!isAxiosError(err) && err instanceof Error ? err.message : ERROR_CREDENCIALES);
     } finally {
       setLoading(false);
     }
@@ -269,17 +324,15 @@ export default function LoginPage() {
       // Google también debe comenzar desde una sesión limpia al cambiar de tipo de acceso.
       await logout();
       const loggedUser = await loginWithGoogle(credential, keepSession, accessType === 'staff' ? 'BACKOFFICE' : 'CAPTADOR');
-      if (accessType === 'capturer' && loggedUser.role !== Role.CAPTADOR) {
+      const resultado = destinoTrasAcceso(accessType, loggedUser);
+      if ('error' in resultado) {
         await logout();
-        throw new Error('Esta cuenta pertenece al personal. Selecciona “Personal de la empresa”.');
+        throw new Error(resultado.error);
       }
-      if (accessType === 'staff' && loggedUser.role === Role.CAPTADOR) {
-        await logout();
-        throw new Error('Esta cuenta es de captador. Selecciona “Captadores”.');
-      }
-      navigate(loggedUser.role === Role.CAPTADOR ? '/captador' : '/', { replace: true });
+      navigate(resultado.destino, { replace: true });
     } catch (err) {
-      setError(extractErrorMessage(err, 'No se pudo iniciar sesión con Google. Verifica que tu cuenta esté habilitada.'));
+      // Mismo criterio que en el acceso con contrasena: lo nuestro se muestra, lo del servidor no.
+      setError(!isAxiosError(err) && err instanceof Error ? err.message : ERROR_GOOGLE);
     } finally {
       setLoading(false);
     }
@@ -519,7 +572,7 @@ export default function LoginPage() {
                 </span>
                 <input
                   type="email"
-                  placeholder={accessType === 'capturer' ? 'tu-correo@ejemplo.com' : 'admin@repuestop.com'}
+                  placeholder={accessType === 'capturer' ? 'tu-correo@ejemplo.com' : PLACEHOLDER_CORREO_PERSONAL}
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   required

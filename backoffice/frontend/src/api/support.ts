@@ -170,3 +170,24 @@ export async function uploadDocument(file: File, folder: string = 'qa-docs'): Pr
   });
   return response.data;
 }
+
+/** Operador de soporte al que se puede asignar un ticket. */
+export interface SupportAssignee {
+  id: number;
+  fullName: string;
+  email: string;
+  initials: string;
+}
+
+/**
+ * Operadores con area SOPORTE activa, para el selector de asignado de un ticket.
+ *
+ * Endpoint de minimo privilegio: hereda la autorizacion de /support/**, asi que un operador de
+ * soporte puede consultarlo. Sustituye a /backoffice/permissions/users, que el backend restringio
+ * a SUPER_ADMIN y devolvia ademas permisos, rol y estado de invitacion, datos que esta pantalla
+ * no necesita.
+ */
+export async function listSupportAssignees(): Promise<SupportAssignee[]> {
+  const response = await apiClient.get<SupportAssignee[]>('/support/assignees');
+  return response.data;
+}

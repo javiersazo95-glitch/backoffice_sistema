@@ -5,7 +5,7 @@ import Badge from '@/components/shared/Badge';
 import UiIcon from '@/components/shared/UiIcon';
 import FounderSellerName from '@/components/shared/FounderSellerName';
 import { formatCurrency, formatDateTime } from '@/utils/formatters';
-import { resolveDocumentUrl } from '@/utils/documentUrls';
+import { resolveNavigableDocumentUrl } from '@/utils/documentUrls';
 import { favorLabel, resolutionOptionLabel } from '@/utils/mediationResolution';
 
 interface ResolvedCaseSummaryModalProps {
@@ -25,6 +25,11 @@ function buildSummary(item: ResolvedCaseResponse): string {
 
 export default function ResolvedCaseSummaryModal({ isOpen, onClose, item }: ResolvedCaseSummaryModalProps) {
   if (!item) return null;
+
+  // Solo se enlaza lo que sirve nuestro backend: abrir una URL de otro host desde la consola
+  // administrativa seria una redireccion abierta. El nombre del documento se sigue mostrando
+  // mas arriba, asi que el operador sabe que existe aunque no pueda abrirlo desde aqui.
+  const documentHref = resolveNavigableDocumentUrl(item.documentUrl);
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Resumen del caso" wide>
@@ -83,10 +88,10 @@ export default function ResolvedCaseSummaryModal({ isOpen, onClose, item }: Reso
             <span>Traza registrada</span>
             <strong>{item.caseKind} · {item.sourceStatus || 'Resuelta'} · {item.externalId}</strong>
           </div>
-          {item.documentUrl ? (
+          {documentHref ? (
             <a
               className="secondary-button compact-link-button"
-              href={resolveDocumentUrl(item.documentUrl)}
+              href={documentHref}
               target="_blank"
               rel="noreferrer"
             >

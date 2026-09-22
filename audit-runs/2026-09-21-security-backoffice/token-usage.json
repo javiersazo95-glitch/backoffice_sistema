@@ -1,0 +1,20 @@
+{
+  "run": "2026-09-21-security-backoffice",
+  "domain": "security",
+  "platform": "backoffice",
+  "depth": "advanced",
+  "mode": "auditoria (sin modificar codigo)",
+  "measurement": "estimated",
+  "note": "El proveedor no expone el conteo exacto de tokens a la sesion. Cifras estimadas a partir del volumen de archivos leidos y de salida generada.",
+  "budget": null,
+  "estimated": {
+    "input_tokens": 240000,
+    "output_tokens": 62000,
+    "total_tokens": 302000
+  },
+  "artifacts": {
+    "findings": 274,
+    "units_enumerated": 250,
+    "hand_evaluated_findings": 24
+  }
+}

@@ -1,0 +1,24 @@
+# Imagen SOLO para desarrollo local (la usa ../docker-compose.yml).
+#
+# Levanta el servidor de desarrollo de Vite, no una build de produccion: trae HMR, sirve los
+# fuentes sin minificar y no aplica el endurecimiento del artefacto publicado. El despliegue real
+# es estatico en Vercel (ver ../../vercel.json), asi que esta imagen no debe publicarse en ningun
+# entorno accesible desde fuera de la maquina de quien desarrolla.
+FROM node:20-alpine
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm ci
+
+COPY . .
+
+# El proceso corre como el usuario sin privilegios que ya trae la imagen de node, no como root:
+# el servidor escucha en 0.0.0.0 y no hay ninguna razon para darle uid 0. El chown cubre tanto el
+# codigo copiado como node_modules, que docker-compose vuelve a montar como volumen anonimo.
+RUN chown -R node:node /app
+USER node
+
+EXPOSE 5173
+
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]

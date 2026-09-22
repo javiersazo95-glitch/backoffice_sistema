@@ -48,9 +48,11 @@ export default function ActivateEmployeePage() {
       });
 
       navigate(`/login?activated=1&email=${encodeURIComponent(cleanEmail)}`, { replace: true });
-    } catch (requestError: any) {
-      const serverMessage = requestError.response?.data?.message;
-      setError(serverMessage || 'No se pudo activar la cuenta. Verifica que el enlace no haya vencido e inténtalo nuevamente.');
+    } catch {
+      // Mensaje fijo, no el del servidor: esta pantalla se alcanza sin sesion y el detalle
+      // permitiria distinguir "ese correo no tiene invitacion" de "el codigo no es correcto",
+      // que es justo lo que necesita quien recorre el espacio de codigos (SEC-BACKOFFICE-018).
+      setError('No se pudo activar la cuenta. Verifica que el enlace no haya vencido e inténtalo nuevamente.');
     } finally {
       setSaving(false);
     }

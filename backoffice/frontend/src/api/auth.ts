@@ -18,8 +18,15 @@ export async function refresh(data: RefreshTokenRequest): Promise<AuthResponse> 
   return response.data;
 }
 
-export async function logout(refreshToken: string): Promise<void> {
-  await apiClient.post('/auth/logout', { refreshToken });
+/**
+ * Cierra la sesion en el servidor, que revoca el token.
+ *
+ * Va sin cuerpo: el backend identifica la sesion por el Bearer de la cabecera. Antes esta
+ * funcion declaraba un parametro refreshToken que no existia --el login de backoffice devuelve
+ * {token, usuario}, sin refresh token-- y que el servidor tampoco usa.
+ */
+export async function logout(): Promise<void> {
+  await apiClient.post('/auth/logout');
 }
 
 export async function getCurrentUser(): Promise<UserSummaryResponse> {

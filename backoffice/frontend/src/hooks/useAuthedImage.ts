@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { API_ORIGIN, resolveProfileImageUrl } from '@/api/client';
-import { getAuthHeaders, getAuthToken } from '@/utils/documentUrls';
+import { resolveProfileImageUrl } from '@/api/client';
+import { getAuthHeadersFor, getAuthToken, isBackendUrl } from '@/utils/documentUrls';
 
 /**
  * Las fotos privadas del backend (proxy /api/v1/uploads/r2/**) solo se sirven a peticiones
@@ -34,12 +34,12 @@ function rememberObjectUrl(url: string, objectUrl: string) {
 }
 
 function requiresBackofficeToken(url: string) {
-  if (url.startsWith('data:') || url.startsWith('blob:')) return false;
   if (failedUrls.has(url)) return false;
   // Sin token no hay nada que agregar a la peticion: se deja el <img> directo.
   if (!getAuthToken()) return false;
-  if (url.startsWith('/')) return true;
-  return API_ORIGIN.length > 0 && url.startsWith(`${API_ORIGIN}/`);
+  // La comprobacion de origen vive en utils/documentUrls (isBackendUrl) para que este hook y
+  // los sinks de documentos apliquen exactamente la misma regla. Tambien descarta data: y blob:.
+  return isBackendUrl(url);
 }
 
 async function downloadAsObjectUrl(url: string): Promise<string> {
@@ -47,7 +47,7 @@ async function downloadAsObjectUrl(url: string): Promise<string> {
   if (pending) return pending;
 
   const request = (async () => {
-    const response = await fetch(url, { headers: getAuthHeaders() });
+    const response = await fetch(url, { headers: getAuthHeadersFor(url) });
     if (!response.ok) throw new Error(`Error ${response.status} al cargar la imagen.`);
 
     const blob = await response.blob();

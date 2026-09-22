@@ -5,7 +5,7 @@ import Badge from '@/components/shared/Badge';
 import UiIcon from '@/components/shared/UiIcon';
 import FounderSellerName from '@/components/shared/FounderSellerName';
 import { formatDateTime } from '@/utils/formatters';
-import { resolveDocumentUrl } from '@/utils/documentUrls';
+import { resolveNavigableDocumentUrl } from '@/utils/documentUrls';
 
 interface ResolvedCaseTimelineModalProps {
   isOpen: boolean;
@@ -44,15 +44,30 @@ function TimelineStage({ label, variant, icon, date, children, isLast = false }:
 }
 
 function DocLink({ name, url }: { name: string; url: string }) {
+  // Solo se enlaza lo que sirve nuestro backend. Un documento con URL de otro host se sigue
+  // listando -- el operador necesita saber que existe-- pero sin enlace, para no convertir el
+  // modal en un trampolin hacia donde diga un tercero.
+  const href = resolveNavigableDocumentUrl(url);
+  const label = name || 'Documento adjunto';
+
+  if (!href) {
+    return (
+      <span className="resolved-timeline-doc-link" title="Documento de origen externo: no se puede abrir desde el backoffice">
+        <UiIcon name="document" />
+        <span>{label} (origen externo)</span>
+      </span>
+    );
+  }
+
   return (
     <a
       className="resolved-timeline-doc-link"
-      href={resolveDocumentUrl(url)}
+      href={href}
       target="_blank"
       rel="noreferrer"
     >
       <UiIcon name="document" />
-      <span>{name || 'Documento adjunto'}</span>
+      <span>{label}</span>
     </a>
   );
 }

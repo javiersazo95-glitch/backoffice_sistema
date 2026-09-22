@@ -97,6 +97,85 @@ export async function getDocumentoRecargaUrl(compraId: number): Promise<string> 
   return response.data.url;
 }
 
+/** Tipos de beneficiario para los que el backend emite nomina BCI, uno por endpoint. */
+export type TipoNominaBci = 'proveedores' | 'captadores' | 'socios';
+
+export interface NominaBciDescargada {
+  blob: Blob;
+  fileName: string;
+  /** Identificadores de la exportacion que el backend registra en bitacora. */
+  nominaId: string | null;
+  hash: string | null;
+  total: number | null;
+  retiros: number | null;
+}
+
+function leerCabeceraNumerica(valor: unknown): number | null {
+  const numero = Number(valor);
+  return Number.isFinite(numero) ? numero : null;
+}
+
+/** Extrae el nombre de archivo de un Content-Disposition, si el backend lo expone. */
+function nombreDesdeContentDisposition(valor: unknown): string | null {
+  if (typeof valor !== 'string') return null;
+  const match = valor.match(/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i);
+  return match?.[1] ? decodeURIComponent(match[1]) : null;
+}
+
+/**
+ * Pide al backend la nomina de pagos BCI de un tipo de beneficiario.
+ *
+ * No lleva cuerpo a proposito: el servidor elige los retiros pagables y toma la cuenta de cargo
+ * de su propia configuracion. El cliente ya no arma el archivo --antes escribia aqui mismo las
+ * cuentas de destino y los importes de transferencias reales, sin que el servidor supiera que
+ * fichero se genero-- y por tanto no puede influir en lo que se paga ni a quien.
+ *
+ * Las cabeceras X-Nomina-* identifican la exportacion en la bitacora del backend. Son opcionales
+ * en la respuesta: al ir la API en otro origen, el navegador solo las deja leer si el servidor
+ * las publica con Access-Control-Expose-Headers. Si no llegan, la descarga funciona igual y los
+ * campos quedan en null.
+ */
+export async function generarNominaBci(tipo: TipoNominaBci): Promise<NominaBciDescargada> {
+  const response = await apiClient.post(`/administration/nominas/${tipo}`, undefined, {
+    responseType: 'blob',
+  });
+
+  const headers = response.headers as Record<string, unknown>;
+  const fechaHoy = new Date().toISOString().slice(0, 10);
+
+  return {
+    blob: response.data as Blob,
+    fileName: nombreDesdeContentDisposition(headers['content-disposition'])
+      ?? `Nomina_Pago_en_Linea-${tipo}-${fechaHoy}.xlsx`,
+    nominaId: typeof headers['x-nomina-id'] === 'string' ? headers['x-nomina-id'] : null,
+    hash: typeof headers['x-nomina-hash'] === 'string' ? headers['x-nomina-hash'] : null,
+    total: leerCabeceraNumerica(headers['x-nomina-total']),
+    retiros: leerCabeceraNumerica(headers['x-nomina-retiros']),
+  };
+}
+
+/**
+ * Traduce el fallo de una descarga de nomina a un mensaje legible.
+ *
+ * Con responseType blob, el cuerpo de un error tambien llega como Blob, asi que el mensaje del
+ * backend hay que leerlo del blob en vez de tomarlo de data.message.
+ */
+export async function mensajeDeErrorDeNomina(error: unknown): Promise<string> {
+  const data = (error as { response?: { data?: unknown }, message?: string })?.response?.data;
+
+  if (data instanceof Blob) {
+    try {
+      const texto = await data.text();
+      const json = JSON.parse(texto) as { message?: string };
+      if (json.message) return json.message;
+    } catch {
+      // El cuerpo no era JSON: se cae al mensaje generico.
+    }
+  }
+
+  return error instanceof Error ? error.message : 'Error desconocido.';
+}
+
 export async function getWithdrawalPayments(): Promise<PagoProveedorResponse[]> {
   const response = await apiClient.get<PagoProveedorResponse[]>('/administration/withdrawal-payments');
   return response.data;
@@ -112,7 +191,19 @@ export async function createWithdrawalPayment(retiroIds: number[], retiroSocioId
   return response.data;
 }
 
+/**
+ * De que tabla viene un retiroId.
+ *
+ * RT_retiro (vendedores) y BO_retiro_socio (socios) numeran sus ids de forma independiente y
+ * pueden coincidir, asi que el id por si solo es ambiguo: el mismo 7 puede ser un retiro de
+ * vendedor o uno de socio. Sin este campo el backend rechaza la peticion cuando el id existe en
+ * las dos tablas, en vez de elegir una. Es obligatorio aqui a proposito, para que TypeScript no
+ * deje anadir un punto de llamada nuevo sin decidir a que tipo pertenece.
+ */
+export type TipoRetiro = 'PROVEEDOR' | 'SOCIO';
+
 export interface LiquidationDocumentPayload {
+  tipoRetiro: TipoRetiro;
   retiroId: number;
   tipoDocumento: string;
   rut: string;
@@ -132,8 +223,16 @@ export async function saveLiquidationDocument(payload: LiquidationDocumentPayloa
   });
 }
 
-export async function getLiquidationDocumentFile(retiroId: number): Promise<string> {
+/**
+ * Descarga el PDF del documento de liquidacion ya registrado.
+ *
+ * Lleva tipoRetiro por el mismo motivo que el POST: el id solo no distingue entre un retiro de
+ * vendedor y uno de socio. Esta ruta tenia la misma ambiguedad y se me habia pasado en el
+ * reporte; la detecto el agente del backend.
+ */
+export async function getLiquidationDocumentFile(tipoRetiro: TipoRetiro, retiroId: number): Promise<string> {
   const response = await apiClient.get<Blob>(`/administration/withdrawals/${retiroId}/liquidation-document`, {
+    params: { tipoRetiro },
     responseType: 'blob',
   });
   return URL.createObjectURL(response.data);

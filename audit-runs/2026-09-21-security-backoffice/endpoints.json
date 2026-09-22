@@ -1,0 +1,400 @@
+{
+ "GET /administration/workspace": [
+  "src/api/administration.ts:17"
+ ],
+ "GET /administration/bootstrap": [
+  "src/api/administration.ts:22"
+ ],
+ "GET /administration/advertising-orders": [
+  "src/api/administration.ts:28"
+ ],
+ "GET /administration/withdrawals": [
+  "src/api/administration.ts:33"
+ ],
+ "GET /administration/configuracion-pagos": [
+  "src/api/administration.ts:38"
+ ],
+ "PUT /administration/configuracion-pagos": [
+  "src/api/administration.ts:43"
+ ],
+ "GET /administration/withdrawals/{p}/details": [
+  "src/api/administration.ts:48"
+ ],
+ "PATCH /administration/withdrawals/{p}/pay": [
+  "src/api/administration.ts:53"
+ ],
+ "PATCH /administration/withdrawals/{p}/reject": [
+  "src/api/administration.ts:62"
+ ],
+ "GET /administration/advertising-orders/{p}/documento/sugerencia": [
+  "src/api/administration.ts:74"
+ ],
+ "POST /administration/advertising-orders/{p}/documento": [
+  "src/api/administration.ts:88"
+ ],
+ "GET /administration/advertising-orders/{p}/documento/url": [
+  "src/api/administration.ts:95"
+ ],
+ "GET /administration/withdrawal-payments": [
+  "src/api/administration.ts:101"
+ ],
+ "GET /administration/withdrawal-payments/{p}": [
+  "src/api/administration.ts:106"
+ ],
+ "POST /administration/withdrawal-payments": [
+  "src/api/administration.ts:111"
+ ],
+ "POST /administration/liquidation-documents": [
+  "src/api/administration.ts:130"
+ ],
+ "GET /administration/withdrawals/{p}/liquidation-document": [
+  "src/api/administration.ts:136"
+ ],
+ "GET /administration/expenses": [
+  "src/api/administration.ts:153"
+ ],
+ "POST /administration/expenses": [
+  "src/api/administration.ts:161"
+ ],
+ "PUT /administration/expenses/{p}": [
+  "src/api/administration.ts:171"
+ ],
+ "DELETE /administration/expenses/{p}": [
+  "src/api/administration.ts:178"
+ ],
+ "GET /administration/partner-withdrawals": [
+  "src/api/administration.ts:194"
+ ],
+ "POST /administration/partner-withdrawals": [
+  "src/api/administration.ts:199"
+ ],
+ "GET /administration/socios": [
+  "src/api/administration.ts:206"
+ ],
+ "PUT /administration/socios/{p}": [
+  "src/api/administration.ts:211"
+ ],
+ "PATCH /administration/partner-withdrawals/{p}/pay": [
+  "src/api/administration.ts:216"
+ ],
+ "PATCH /alerts/{p}/review": [
+  "src/api/alerts.ts:14"
+ ],
+ "POST /alerts/{p}/escalate": [
+  "src/api/alerts.ts:19"
+ ],
+ "GET /audits/{p}": [
+  "src/api/audits.ts:11"
+ ],
+ "POST /auth/login": [
+  "src/api/auth.ts:7"
+ ],
+ "POST /auth/google": [
+  "src/api/auth.ts:12"
+ ],
+ "POST /auth/refresh": [
+  "src/api/auth.ts:17"
+ ],
+ "POST /auth/logout": [
+  "src/api/auth.ts:22"
+ ],
+ "GET /auth/me": [
+  "src/api/auth.ts:26",
+  "src/context/AuthContext.tsx:123",
+  "src/context/AuthContext.tsx:159",
+  "src/context/AuthContext.tsx:181"
+ ],
+ "GET /captadores/me/status": [
+  "src/api/capturers.ts:3"
+ ],
+ "GET /captadores/me/dashboard": [
+  "src/api/capturers.ts:4"
+ ],
+ "GET /captadores/me/ranking": [
+  "src/api/capturers.ts:5"
+ ],
+ "GET /captadores/me/chats": [
+  "src/api/capturers.ts:6"
+ ],
+ "GET /captadores/me/chats/{p}/messages": [
+  "src/api/capturers.ts:7"
+ ],
+ "POST /captadores/me/chats/{p}/messages": [
+  "src/api/capturers.ts:8"
+ ],
+ "POST /users/perfil/foto": [
+  "src/api/capturers.ts:9"
+ ],
+ "PUT /captadores/me/bank": [
+  "src/api/capturers.ts:10"
+ ],
+ "POST /captadores/me/withdrawals": [
+  "src/api/capturers.ts:11"
+ ],
+ "GET /validations/capturers": [
+  "src/api/capturers.ts:12"
+ ],
+ "GET /validations/capturers/{p}/captured-businesses": [
+  "src/api/capturers.ts:13"
+ ],
+ "GET /validations/capturers/{p}/ranking": [
+  "src/api/capturers.ts:14"
+ ],
+ "GET /backoffice/capturers": [
+  "src/api/capturers.ts:52"
+ ],
+ "PATCH /backoffice/capturers/{p}/deactivate": [
+  "src/api/capturers.ts:53"
+ ],
+ "PATCH /backoffice/capturers/{p}/reactivate": [
+  "src/api/capturers.ts:54"
+ ],
+ "PATCH /validations/capturers/{p}/approve": [
+  "src/api/capturers.ts:55"
+ ],
+ "PATCH /validations/capturers/{p}/reject": [
+  "src/api/capturers.ts:56"
+ ],
+ "GET /validations/automotive-services": [
+  "src/api/capturers.ts:57"
+ ],
+ "PATCH /validations/automotive-services/{p}/{p}": [
+  "src/api/capturers.ts:58"
+ ],
+ "GET /administration/capturer-withdrawals": [
+  "src/api/capturers.ts:61"
+ ],
+ "PATCH /administration/capturer-withdrawals/{p}/pay": [
+  "src/api/capturers.ts:62"
+ ],
+ "POST /administration/capturer-withdrawals/process": [
+  "src/api/capturers.ts:63"
+ ],
+ "PATCH /administration/capturer-withdrawals/{p}/reject": [
+  "src/api/capturers.ts:64"
+ ],
+ "GET /validations/capturers/config": [
+  "src/api/capturers.ts:65"
+ ],
+ "GET /captadores/me/config": [
+  "src/api/capturers.ts:69"
+ ],
+ "PUT /validations/capturers/config": [
+  "src/api/capturers.ts:70"
+ ],
+ "GET /administration/capturer-withdrawals/{p}/receipt": [
+  "src/api/capturers.ts:71"
+ ],
+ "GET /dashboard/summary": [
+  "src/api/dashboard.ts:5"
+ ],
+ "GET /feedback": [
+  "src/api/feedback.ts:5"
+ ],
+ "GET /feedback/public": [
+  "src/api/feedback.ts:10"
+ ],
+ "PUT /feedback/{p}/approval": [
+  "src/api/feedback.ts:15"
+ ],
+ "GET /backoffice/founders/config": [
+  "src/api/founders.ts:16"
+ ],
+ "PUT /backoffice/founders/config": [
+  "src/api/founders.ts:21"
+ ],
+ "PATCH /backoffice/founders/{p}": [
+  "src/api/founders.ts:31"
+ ],
+ "GET /mediations/{p}": [
+  "src/api/mediations.ts:21"
+ ],
+ "POST /mediations": [
+  "src/api/mediations.ts:26"
+ ],
+ "PATCH /mediations/{p}/init": [
+  "src/api/mediations.ts:31"
+ ],
+ "PATCH /mediations/{p}/block-account": [
+  "src/api/mediations.ts:36"
+ ],
+ "POST /mediations/{p}/resolve": [
+  "src/api/mediations.ts:41"
+ ],
+ "POST /mediations/{p}/reactivate": [
+  "src/api/mediations.ts:49"
+ ],
+ "POST /mediations/{p}/messages": [
+  "src/api/mediations.ts:63"
+ ],
+ "PUT /mediations/{p}/messages/{p}": [
+  "src/api/mediations.ts:68"
+ ],
+ "DELETE /mediations/{p}/messages/{p}": [
+  "src/api/mediations.ts:73"
+ ],
+ "GET /usuarios/{p}/notificaciones": [
+  "src/api/notifications.ts:19"
+ ],
+ "GET /usuarios/{p}/notificaciones/unread-count": [
+  "src/api/notifications.ts:24"
+ ],
+ "PUT /usuarios/{p}/notificaciones/{p}/leida": [
+  "src/api/notifications.ts:29"
+ ],
+ "PUT /usuarios/{p}/notificaciones/leidas": [
+  "src/api/notifications.ts:33"
+ ],
+ "GET /backoffice/permissions/users/search": [
+  "src/api/permissions.ts:38"
+ ],
+ "GET /backoffice/permissions/users/{p}": [
+  "src/api/permissions.ts:45"
+ ],
+ "PUT /backoffice/permissions/users/{p}": [
+  "src/api/permissions.ts:50"
+ ],
+ "POST /backoffice/permissions/invitations": [
+  "src/api/permissions.ts:55"
+ ],
+ "POST /backoffice/permissions/users/{p}/resend-invitation": [
+  "src/api/permissions.ts:60"
+ ],
+ "DELETE /backoffice/permissions/users/{p}/permissions/{p}": [
+  "src/api/permissions.ts:77"
+ ],
+ "DELETE /auth/users/{p}": [
+  "src/api/permissions.ts:82",
+  "src/pages/CapturerAccountPage.tsx:60"
+ ],
+ "PATCH /receipts/{p}/resolve": [
+  "src/api/receipts.ts:13"
+ ],
+ "GET /reports/summary": [
+  "src/api/reports.ts:11"
+ ],
+ "GET /reports/seller/{p}": [
+  "src/api/reports.ts:16"
+ ],
+ "GET /administration/sale-receipts/{p}/url": [
+  "src/api/saleReceipts.ts:36"
+ ],
+ "GET /sellers/{p}": [
+  "src/api/sellers.ts:107"
+ ],
+ "POST /sellers": [
+  "src/api/sellers.ts:112"
+ ],
+ "PATCH /sellers/{p}": [
+  "src/api/sellers.ts:117"
+ ],
+ "PATCH /sellers/{p}/suspend": [
+  "src/api/sellers.ts:122"
+ ],
+ "GET /sellers/{p}/block-history": [
+  "src/api/sellers.ts:127"
+ ],
+ "GET /sellers/{p}/reports": [
+  "src/api/sellers.ts:132"
+ ],
+ "GET /sellers/{p}/tickets": [
+  "src/api/sellers.ts:137"
+ ],
+ "GET /sellers/{p}/retiros": [
+  "src/api/sellers.ts:142"
+ ],
+ "GET /sellers/{p}/documents": [
+  "src/api/sellers.ts:154"
+ ],
+ "GET /support/workspace": [
+  "src/api/support.ts:120"
+ ],
+ "GET /support/tickets/{p}": [
+  "src/api/support.ts:135"
+ ],
+ "POST /support/tickets": [
+  "src/api/support.ts:140",
+  "src/pages/CapturerSupportPage.tsx:6"
+ ],
+ "PATCH /support/tickets/{p}/status": [
+  "src/api/support.ts:145"
+ ],
+ "GET /support/tickets/{p}/messages": [
+  "src/api/support.ts:150"
+ ],
+ "GET /support/tickets/{p}/attachments": [
+  "src/api/support.ts:155"
+ ],
+ "POST /support/tickets/{p}/messages": [
+  "src/api/support.ts:160"
+ ],
+ "POST /uploads/upload": [
+  "src/api/support.ts:167"
+ ],
+ "GET /validations/{p}": [
+  "src/api/validations.ts:14"
+ ],
+ "POST /validations": [
+  "src/api/validations.ts:19"
+ ],
+ "PATCH /validations/{p}/approve": [
+  "src/api/validations.ts:24"
+ ],
+ "PATCH /validations/{p}/request-correction": [
+  "src/api/validations.ts:29"
+ ],
+ "PATCH /validations/{p}/reject": [
+  "src/api/validations.ts:34"
+ ],
+ "GET /validations/anuncios": [
+  "src/api/validations.ts:44"
+ ],
+ "GET /anuncios": [
+  "src/api/validations.ts:48"
+ ],
+ "PATCH /validations/anuncios/{p}/approve": [
+  "src/api/validations.ts:56"
+ ],
+ "POST /validations/anuncios/{p}/approve": [
+  "src/api/validations.ts:60"
+ ],
+ "PATCH /anuncios/{p}/approve": [
+  "src/api/validations.ts:63"
+ ],
+ "PATCH /validations/anuncios/{p}/reject": [
+  "src/api/validations.ts:73"
+ ],
+ "POST /validations/anuncios/{p}/reject": [
+  "src/api/validations.ts:77"
+ ],
+ "PATCH /anuncios/{p}/reject": [
+  "src/api/validations.ts:80"
+ ],
+ "POST /auth/backoffice/activate": [
+  "src/pages/ActivateEmployeePage.tsx:22"
+ ],
+ "PATCH /users/perfil": [
+  "src/pages/CapturerAccountPage.tsx:37"
+ ],
+ "GET /geografia/paises/{p}/regiones": [
+  "src/pages/CapturerRegisterPage.tsx:80"
+ ],
+ "POST /auth/register/capturer": [
+  "src/pages/CapturerRegisterPage.tsx:193"
+ ],
+ "POST /auth/register/resend-code": [
+  "src/pages/CapturerRegisterPage.tsx:236"
+ ],
+ "POST /auth/register/verify-email": [
+  "src/pages/CapturerRegisterPage.tsx:254"
+ ],
+ "POST /auth/recover-password/send-code": [
+  "src/pages/RecoverPasswordPage.tsx:24"
+ ],
+ "POST /auth/recover-password/verify-code": [
+  "src/pages/RecoverPasswordPage.tsx:30"
+ ],
+ "POST /auth/recover-password/reset": [
+  "src/pages/RecoverPasswordPage.tsx:37"
+ ]
+}

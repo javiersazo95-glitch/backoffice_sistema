@@ -7,8 +7,7 @@ import MetricCard from '@/components/shared/MetricCard';
 import { formatCurrency } from '@/utils/formatters';
 import type { CapturerWithdrawal } from '@/types/capturer';
 import { downloadFile } from './utils';
-import { BCI_NOMINA_MIME_TYPE, buildBciNominaWorkbook } from './bciNominaExport';
-import type { RetiroAdminResponse } from './types';
+import { BCI_NOMINA_MIME_TYPE } from './constants';
 
 type Tab = 'gestion' | 'historial';
 
@@ -34,29 +33,6 @@ function formatDateTime(value?: string | null) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-}
-
-function capturerWithdrawalToNominaRow(withdrawal: CapturerWithdrawal): RetiroAdminResponse {
-  const beneficiary = withdrawal.titular || withdrawal.captador || withdrawal.alias || 'Captador RepuesTop';
-  return {
-    retiroId: withdrawal.id,
-    nombreTienda: beneficiary,
-    rut: withdrawal.rut || '',
-    razonSocial: beneficiary,
-    banco: withdrawal.banco || '',
-    tipoCuenta: withdrawal.tipoCuenta || '',
-    numeroCuenta: withdrawal.numeroCuenta || '',
-    codigoRetiro: withdrawal.codigo,
-    bankCode: withdrawal.bankCode ?? null,
-    bankAccountHolderName: beneficiary,
-    bankAccountNotificationEmail: withdrawal.email || '',
-    mensajeDestinatario: withdrawal.email ? `Pago retiro captador ${withdrawal.codigo}` : '',
-    monto: withdrawal.monto,
-    email: withdrawal.email || '',
-    fecha: withdrawal.fecha,
-    estado: withdrawal.estado,
-    fechaEfectiva: withdrawal.fechaPago || '',
-  };
 }
 
 export default function PagoCaptadoresPage() {
@@ -120,21 +96,23 @@ export default function PagoCaptadoresPage() {
 
   const isSubmitting = processMutation.isPending || rejectMutation.isPending;
 
+  /**
+   * Descarga la nomina BCI de captadores que emite el backend.
+   *
+   * Igual que en pago a proveedores: el archivo ya no se arma en el navegador, porque eso
+   * permitia alterar cuentas de destino e importes de transferencias reales sin dejar rastro
+   * en el servidor. La peticion va sin cuerpo: el backend elige los retiros pagables y toma la
+   * cuenta de cargo de su configuracion.
+   */
   const handleExportExcel = async () => {
     if (pending.length === 0) return;
-    const cuentaCargoBci = paymentConfigQuery.data?.cuentaCargoBci?.trim();
-    if (!cuentaCargoBci) {
-      alert('Falta configurar la cuenta de cargo BCI. Puedes hacerlo desde Pago a proveedores.');
-      return;
-    }
 
     setExportingExcel(true);
     try {
-      const buffer = await buildBciNominaWorkbook(pending.map(capturerWithdrawalToNominaRow), cuentaCargoBci);
-      const date = new Date().toISOString().slice(0, 10);
-      downloadFile(`Nomina_Pago_en_Linea-captadores-${date}.xlsx`, buffer, BCI_NOMINA_MIME_TYPE);
+      const nomina = await administrationApi.generarNominaBci('captadores');
+      downloadFile(nomina.fileName, nomina.blob, nomina.blob.type || BCI_NOMINA_MIME_TYPE);
     } catch (error) {
-      alert(`No se pudo generar el Excel: ${error instanceof Error ? error.message : 'Error desconocido.'}`);
+      alert(`No se pudo generar el Excel: ${await administrationApi.mensajeDeErrorDeNomina(error)}`);
     } finally {
       setExportingExcel(false);
     }

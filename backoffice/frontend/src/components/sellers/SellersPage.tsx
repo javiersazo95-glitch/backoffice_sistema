@@ -24,8 +24,6 @@ import SellerDocumentsModal from './SellerDocumentsModal';
 import SellerProfileModal, { SellerBlockHistoryModal, SellerReportsModal } from './SellerProfileModal';
 import SellerActiveMediationsModal from './SellerActiveMediationsModal';
 import { showToast } from '@/components/layout/Toast';
-import { applyManualMediationStatus, useManualMediationStatusOverrides } from '@/utils/manualMediationStatus';
-import { useManualMediationAdminMode } from '@/utils/manualMediationAdminMode';
 
 const safeText = (value: unknown, fallback = '') => {
   return typeof value === 'string' && value.trim() ? value : fallback;
@@ -254,36 +252,25 @@ export default function SellersPage() {
   const listedSellers = data?.content ?? [];
   const activeMediationsSource = activeMediationsData?.content ?? [];
   const receivedSellerReports = (reportsData?.content ?? []).filter((report) => report.reportadoType === 'VENDEDOR');
-  const [manualStatusOverrides] = useManualMediationStatusOverrides();
-  const [adminMode] = useManualMediationAdminMode();
-  const effectiveManualStatusOverrides = adminMode ? manualStatusOverrides : {};
-
   const prioritizedActiveMediations = useMemo(() => {
-    const byOrder = new Map<string, { mediation: MediationResponse; changed: boolean }>();
+    // Una sola mediacion activa por pedido: si hay varias, gana la de actualizacion mas reciente.
+    const byOrder = new Map<string, MediationResponse>();
 
     activeMediationsSource
-      .map((med) => {
-        const mediation = applyManualMediationStatus(med, effectiveManualStatusOverrides);
-        return { mediation, changed: mediation.status !== med.status };
-      })
-      .filter(({ mediation }) => mediation.status === MediationStatus.EN_MEDIACION)
-      .forEach(({ mediation, changed }) => {
+      .filter((mediation) => mediation.status === MediationStatus.EN_MEDIACION)
+      .forEach((mediation) => {
         const key = safeText(mediation.orderId, String(mediation.id));
         const current = byOrder.get(key);
-        const currentUpdatedAt = current ? new Date(current.mediation.updatedAt).getTime() || 0 : -1;
+        const currentUpdatedAt = current ? new Date(current.updatedAt).getTime() || 0 : -1;
         const nextUpdatedAt = new Date(mediation.updatedAt).getTime() || 0;
 
-        if (
-          !current
-          || (changed && !current.changed)
-          || (changed === current.changed && nextUpdatedAt >= currentUpdatedAt)
-        ) {
-          byOrder.set(key, { mediation, changed });
+        if (!current || nextUpdatedAt >= currentUpdatedAt) {
+          byOrder.set(key, mediation);
         }
       });
 
-    return Array.from(byOrder.values()).map((item) => item.mediation);
-  }, [activeMediationsSource, effectiveManualStatusOverrides]);
+    return Array.from(byOrder.values());
+  }, [activeMediationsSource]);
 
   const findSellerById = (id: number) => {
     return (

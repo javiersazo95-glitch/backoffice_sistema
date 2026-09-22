@@ -1,3 +1,8 @@
+# Entorno de desarrollo local.
+#
+# Las contrasenas se exigen con la forma ${VAR:?mensaje}: si no estan definidas, docker compose
+# falla con ese mensaje en vez de arrancar con un valor por defecto conocido y versionado.
+# Copia .env.example a .env y rellenalo antes del primer uso.
 services:
   postgres:
     image: postgres:16-alpine
@@ -5,7 +10,7 @@ services:
     environment:
       POSTGRES_DB: ${DB_NAME:-backoffice_dev}
       POSTGRES_USER: ${DB_USERNAME:-backoffice_dev}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-backoffice_dev}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?define DB_PASSWORD en backoffice/.env (ver .env.example)}
     ports:
       - "${DB_PORT:-5432}:5432"
     volumes:
@@ -21,7 +26,7 @@ services:
     container_name: backoffice_pgadmin
     environment:
       PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@repuestop.cl}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:?define PGADMIN_PASSWORD en backoffice/.env (ver .env.example)}
     ports:
       - "5050:80"
     depends_on:
@@ -31,7 +36,7 @@ services:
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     container_name: backoffice_frontend
     environment:
       VITE_API_PROXY_TARGET: http://host.docker.internal:8080

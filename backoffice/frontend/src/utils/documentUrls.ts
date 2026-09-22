@@ -1,4 +1,4 @@
-import apiClient, { API_BASE_URL } from '@/api/client';
+import apiClient, { API_BASE_URL, API_ORIGIN } from '@/api/client';
 
 const MIME_EXTENSION_MAP: Record<string, string> = {
   'application/pdf': 'pdf',
@@ -22,9 +22,65 @@ export function getAuthToken(): string | null {
   return null;
 }
 
-export function getAuthHeaders(): Record<string, string> {
+// Privada a proposito: construye la cabecera sin mirar el destino. El unico acceso publico es
+// getAuthHeadersFor(url), que si comprueba el origen. Exportarla de nuevo reabre la fuga.
+function getAuthHeaders(): Record<string, string> {
   const token = getAuthToken();
   return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+/**
+ * ¿Esta URL la sirve nuestro propio backend?
+ *
+ * Importa porque el token del backoffice solo debe viajar al backend. Las URLs de documentos
+ * y fotos llegan dentro de registros que originan terceros (adjuntos de tickets, documentos de
+ * vendedores, evidencias de mediacion), asi que una URL absoluta a un host ajeno es una
+ * posibilidad real, no teorica: adjuntarle la cabecera Authorization entregaria la sesion
+ * administrativa a ese host.
+ *
+ * Reglas: una ruta relativa siempre es nuestra; una absoluta solo si su origen coincide con el
+ * backend configurado. Cuando no hay VITE_API_URL (desarrollo, donde el proxy de Vite sirve
+ * /api/v1 en el mismo origen) se compara contra el origen de la propia pagina. data: y blob:
+ * no salen a la red, asi que no necesitan token.
+ */
+export function isBackendUrl(url: string): boolean {
+  if (!url || /^(data|blob):/i.test(url)) return false;
+  if (url.startsWith('/') && !url.startsWith('//')) return true;
+
+  const backendOrigin = API_ORIGIN || (typeof window !== 'undefined' ? window.location.origin : '');
+  if (!backendOrigin) return false;
+
+  try {
+    return new URL(url, backendOrigin).origin === backendOrigin;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Cabeceras de autenticacion para una URL concreta: con token si la sirve nuestro backend,
+ * vacias en cualquier otro caso. Es el unico punto por el que deben pasar los fetch de
+ * documentos e imagenes; usar getAuthHeaders() directamente sobre una URL de origen
+ * desconocido reintroduce la fuga.
+ */
+export function getAuthHeadersFor(url: string): Record<string, string> {
+  return isBackendUrl(url) ? getAuthHeaders() : {};
+}
+
+/**
+ * URL de un documento apta para poner en un href o para abrir en una pestana nueva, o undefined
+ * si el documento no lo sirve nuestro backend.
+ *
+ * resolveDocumentUrl() se limita a normalizar y devuelve intacta cualquier URL absoluta, incluida
+ * una de un host ajeno. Navegar ahi desde la consola administrativa es una redireccion abierta:
+ * la pestana se abre con la confianza del backoffice detras. Quien vaya a NAVEGAR usa esta
+ * funcion; quien solo vaya a descargar con fetch puede seguir usando resolveDocumentUrl, porque
+ * getAuthHeadersFor ya impide que el token salga del backend.
+ */
+export function resolveNavigableDocumentUrl(documentUrl?: string): string | undefined {
+  const resolved = resolveDocumentUrl(documentUrl);
+  if (!resolved || !isBackendUrl(resolved)) return undefined;
+  return resolved;
 }
 
 function getAbsoluteApiBaseUrl() {
@@ -106,7 +162,7 @@ export async function downloadDocument(documentUrl?: string, fileName = 'documen
 
   try {
     const response = await fetch(resolvedUrl, {
-      headers: getAuthHeaders(),
+      headers: getAuthHeadersFor(resolvedUrl),
     });
     if (!response.ok) throw new Error('No se pudo descargar el documento.');
 
@@ -121,6 +177,10 @@ export async function downloadDocument(documentUrl?: string, fileName = 'documen
     window.setTimeout(() => URL.revokeObjectURL(objectUrl), 0);
     return true;
   } catch {
+    // Plan B: dejar que el navegador descargue por su cuenta. Solo si el documento lo sirve
+    // nuestro backend; con una URL de otro host esto seria navegar a donde diga un tercero.
+    if (!isBackendUrl(resolvedUrl)) return false;
+
     const link = window.document.createElement('a');
     link.href = resolvedUrl;
     link.download = fileName;
@@ -141,7 +201,7 @@ export async function previewDocument(documentUrl?: string) {
 
   try {
     const response = await fetch(resolvedUrl, {
-      headers: getAuthHeaders(),
+      headers: getAuthHeadersFor(resolvedUrl),
     });
 
     if (!response.ok) {
@@ -163,7 +223,11 @@ export async function previewDocument(documentUrl?: string) {
       win.close();
     }
     console.error('Error al previsualizar documento:', err);
-    window.open(resolvedUrl, '_blank');
+    // Plan B: abrir el documento directo. Solo si lo sirve nuestro backend; abrir una URL de
+    // otro host desde la consola administrativa es una redireccion abierta.
+    if (isBackendUrl(resolvedUrl)) {
+      window.open(resolvedUrl, '_blank', 'noopener,noreferrer');
+    }
     return false;
   }
 }

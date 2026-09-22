@@ -2,12 +2,13 @@ import { useState, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
 import * as adminApi from '@/api/administration';
+import type { TipoNominaBci } from '@/api/administration';
+import { BCI_NOMINA_MIME_TYPE } from './constants';
 import UiIcon from '@/components/shared/UiIcon';
 import MetricCard from '@/components/shared/MetricCard';
 import FounderSellerName from '@/components/shared/FounderSellerName';
 import SellerListTooltip from '@/components/shared/SellerListTooltip';
 import { downloadFile } from './utils';
-import { buildBciNominaWorkbook, socioToNominaRow, BCI_NOMINA_MIME_TYPE } from './bciNominaExport';
 import type { RetiroAdminResponse, RetiroDetalleResponse, PagoProveedorResponse, ConfiguracionPagos, Withdrawal } from './types';
 
 // Helper to calculate Thursday-to-Wednesday cycle range
@@ -253,32 +254,49 @@ export default function PagoProveedoresPage() {
   );
   const paidTotalAmount = useMemo(() => paidPayments.reduce((sum, payment) => sum + payment.montoTotal, 0), [paidPayments]);
 
-  // Export a la nomina "Pago en Linea" de BCI (mismas columnas, colores y hojas que la
-  // plantilla original), rellena con los datos bancarios registrados por cada vendedor.
+  /**
+   * Descarga la nomina "Pago en Linea" de BCI que emite el backend.
+   *
+   * El archivo ya no se arma aqui. Antes este cliente escribia celda por celda las cuentas de
+   * destino y los importes de transferencias reales, y el servidor no tenia constancia de que
+   * fichero se habia generado: cualquier codigo que corriera en esta pagina podia desviar un
+   * pago sin dejar rastro. Ahora el backend elige los retiros pagables, toma la cuenta de cargo
+   * de su configuracion, concilia el total y registra cada exportacion.
+   *
+   * ATENCION AL PROCESO: el backend emite los retiros de vendedores y los de socios en nominas
+   * SEPARADAS, mientras que esta pantalla antes los fusionaba en un unico archivo
+   * (BO-SOCIOS-001). Por eso se descargan dos ficheros cuando hay de ambos tipos, y el operador
+   * debe subirlos los dos a la banca en linea. Si BCI exige una sola nomina por ciclo, hay que
+   * pedir al backend un endpoint combinado.
+   */
   const handleExportExcel = async () => {
-    // BO-SOCIOS-001: los retiros de socios van en la misma nomina, adaptados a la forma
-    // de un retiro de vendedor (ver socioToNominaRow). Se identifican por su propio
-    // codigoRetiro ("J-1", "E-1") para no chocar con el "RET-000001" de un vendedor.
-    const nominaRows = [...pendingWithdrawals, ...pendingPartnerWithdrawals.map(socioToNominaRow)];
-    if (nominaRows.length === 0) {
+    const hayProveedores = pendingWithdrawals.length > 0;
+    const haySocios = pendingPartnerWithdrawals.length > 0;
+
+    if (!hayProveedores && !haySocios) {
       alert('No hay solicitudes pendientes en el ciclo actual para exportar.');
       return;
     }
-    const cuentaCargoBci = configuracionPagos?.cuentaCargoBci?.trim();
-    if (!cuentaCargoBci) {
-      alert('Falta configurar la "Cuenta de Cargo" antes de exportar. Usa el botón "Cuenta de cargo".');
-      setIsConfigModalOpen(true);
-      return;
-    }
+
+    const tipos: TipoNominaBci[] = [
+      ...(hayProveedores ? ['proveedores' as const] : []),
+      ...(haySocios ? ['socios' as const] : []),
+    ];
 
     setExportingExcel(true);
     try {
-      const buffer = await buildBciNominaWorkbook(nominaRows, cuentaCargoBci);
-      const startStr = cycleStart.toISOString().slice(0, 10);
-      const endStr = cycleEnd.toISOString().slice(0, 10);
-      downloadFile(`Nomina_Pago_en_Linea-ciclo-${startStr}-a-${endStr}.xlsx`, buffer, BCI_NOMINA_MIME_TYPE);
+      const descargadas: string[] = [];
+      for (const tipo of tipos) {
+        const nomina = await adminApi.generarNominaBci(tipo);
+        downloadFile(nomina.fileName, nomina.blob, nomina.blob.type || BCI_NOMINA_MIME_TYPE);
+        descargadas.push(nomina.retiros !== null ? `${tipo} (${nomina.retiros} retiros)` : tipo);
+      }
+
+      if (descargadas.length > 1) {
+        alert(`Se descargaron ${descargadas.length} nóminas: ${descargadas.join(' y ')}. Debes subir ambas a la banca en línea.`);
+      }
     } catch (err) {
-      alert('No se pudo generar el Excel: ' + (err instanceof Error ? err.message : 'Error desconocido.'));
+      alert('No se pudo generar el Excel: ' + (await adminApi.mensajeDeErrorDeNomina(err)));
     } finally {
       setExportingExcel(false);
     }
@@ -937,6 +955,8 @@ export default function PagoProveedoresPage() {
               setSavingPartnerDoc(true);
               try {
                 await adminApi.saveLiquidationDocument({
+                  // Este modal es exclusivamente de socios.
+                  tipoRetiro: 'SOCIO',
                   retiroId: partnerDocModal.retiroId,
                   tipoDocumento: partnerDocModal.type.trim(),
                   rut: partnerDocModal.rut.trim(),
