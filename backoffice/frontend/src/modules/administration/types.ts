@@ -310,7 +310,12 @@ export interface AdvertisingOrder {
   cantidadFichas: number;
   montoPagado: number;
   comisionPasarela: number;
+  /** O16: venta sin IVA menos Flow sin IVA (el backend ya descuenta el IVA). */
   montoNeto: number;
+  /** O16: IVA débito de la venta de fichas. */
+  ivaVenta?: number;
+  /** O16: IVA de la comisión de Flow, crédito fiscal. */
+  ivaPasarela?: number;
   metodoPago: string | null;
   referenciaPago: string | null;
   estado: string;

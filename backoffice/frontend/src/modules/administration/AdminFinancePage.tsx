@@ -815,7 +815,8 @@ export default function AdminFinancePage() {
   /**
    * Convergencia total de ingresos (pedidos y publicidad):
    * - Pedidos: ganancia neta (5% tarifa fundador o 10%/7%/5% normal menos pasarela/IVA) -> 70% a caja.
-   * - Publicidad: total de la venta menos comisión pasarela Flow -> 70% a caja.
+   * - Publicidad: venta sin IVA menos comisión Flow sin IVA (O16: el IVA débito no es ganancia y el
+   *   IVA de Flow se recupera como crédito fiscal) -> 70% a caja. Lo calcula el backend (montoNeto).
    */
   const cajaEntriesAll = useMemo<CashIncomeEntry[]>(() => {
     const ordersMap = new Map<string, Order>(orders.map((o) => [o.id, o]));
@@ -1131,9 +1132,12 @@ export default function AdminFinancePage() {
         concept: ad.pack ? `Fichas Mural: ${ad.pack} (${ad.cantidadFichas.toLocaleString('es-CL')} fichas)` : `Compra Fichas (${ad.cantidadFichas.toLocaleString('es-CL')})`,
         sellerOrPack: ad.pack || 'Fichas Mural',
         sellerFounder: false,
-        commissionLabel: `Comisión Flow (-${formatMoney(ad.comisionPasarela)})`,
+        commissionLabel: ad.ivaPasarela
+          ? `Comisión Flow (-${formatMoney(ad.comisionPasarela)}; IVA recuperable ${formatMoney(ad.ivaPasarela)})`
+          : `Comisión Flow (-${formatMoney(ad.comisionPasarela)})`,
         gatewayFee: ad.comisionPasarela,
-        iva: 0,
+        // O16: IVA débito de la venta (antes 0: se contaba como ganancia).
+        iva: ad.ivaVenta ?? 0,
         netProfit,
         partnerShare,
         originalAdvertising: ad,
