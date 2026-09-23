@@ -1,4 +1,5 @@
-export const TODAY = new Date().toISOString().slice(0, 10);
+// Fecha LOCAL: toISOString() es UTC y desde las 21:00 en Chile ya devolvia el dia siguiente.
+export const TODAY = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })();
 
 export const COMMISSION_RATE = 0.05;
 export const MIN_COMMISSION = 690;

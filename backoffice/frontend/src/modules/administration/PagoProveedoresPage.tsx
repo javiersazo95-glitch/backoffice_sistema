@@ -28,8 +28,20 @@ function getCurrentCycleRange() {
   return { start, end };
 }
 
+/**
+ * Una fecha sin hora ("2026-09-23", como llega la de un retiro de socio) se lee como dia LOCAL.
+ * `new Date("2026-09-23")` la toma como medianoche UTC y en Chile se mostraba "22-09-2026, 09:00
+ * p. m.", un dia antes (pruebas de lanzamiento, O17); ademas corria el corte del ciclo semanal.
+ */
+function parseFecha(value: string | Date): Date {
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return new Date(Number(value.slice(0, 4)), Number(value.slice(5, 7)) - 1, Number(value.slice(8, 10)));
+  }
+  return new Date(value);
+}
+
 function formatDate(dateString: string | Date) {
-  const d = new Date(dateString);
+  const d = parseFecha(dateString);
   if (isNaN(d.getTime())) return '';
   return d.toLocaleDateString('es-CL', {
     day: '2-digit',
@@ -41,7 +53,7 @@ function formatDate(dateString: string | Date) {
 }
 
 function formatDateShort(dateString: string | Date) {
-  const d = new Date(dateString);
+  const d = parseFecha(dateString);
   if (isNaN(d.getTime())) return '';
   return d.toLocaleDateString('es-CL', {
     day: '2-digit',
@@ -156,7 +168,7 @@ export default function PagoProveedoresPage() {
   const pendingWithdrawals = useMemo(() => {
     return withdrawals.filter((w) => {
       const isPending = w.estado === 'SOLICITADO';
-      const createdDate = new Date(w.fecha);
+      const createdDate = parseFecha(w.fecha);
       const isWithinCycle = createdDate <= cycleEnd;
       return isPending && isWithinCycle;
     });
@@ -182,7 +194,7 @@ export default function PagoProveedoresPage() {
 
     const refreshedSupplier = await refetch();
     const latestPendingWithdrawals = (refreshedSupplier.data ?? withdrawals).filter((withdrawal) => {
-      const createdDate = new Date(withdrawal.fecha);
+      const createdDate = parseFecha(withdrawal.fecha);
       return withdrawal.estado === 'SOLICITADO' && createdDate <= cycleEnd;
     });
 

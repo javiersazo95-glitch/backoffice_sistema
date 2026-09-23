@@ -306,7 +306,22 @@ interface WithdrawalDraft {
   beneficiary: string;
   reason: string;
   amount: string;
+  naturaleza: NaturalezaRetiroSocio;
 }
+
+/**
+ * SEC-BACKEND-121: naturaleza tributaria del retiro de un socio. El backend la exige desde que se
+ * agrego, pero este formulario nunca la mando: registrar el retiro de un socio daba 400 y ningun
+ * socio podia retirar (pruebas de lanzamiento, H17). Las opciones son las del enum del backend.
+ */
+type NaturalezaRetiroSocio = 'RETIRO_DE_UTILIDADES' | 'DEVOLUCION_DE_CAPITAL' | 'PRESTAMO' | 'REMUNERACION' | 'GASTO_RECHAZADO';
+const NATURALEZA_RETIRO_OPTIONS: Array<{ value: NaturalezaRetiroSocio; label: string }> = [
+  { value: 'RETIRO_DE_UTILIDADES', label: 'Retiro de utilidades' },
+  { value: 'DEVOLUCION_DE_CAPITAL', label: 'Devolución de capital' },
+  { value: 'PRESTAMO', label: 'Préstamo al socio' },
+  { value: 'REMUNERACION', label: 'Remuneración' },
+  { value: 'GASTO_RECHAZADO', label: 'Gasto rechazado' },
+];
 
 /** BO-SOCIOS-001: formulario de datos bancarios de un socio. */
 interface SocioBancoDraft {
@@ -1713,11 +1728,15 @@ export default function AdminFinancePage() {
     const partner = PARTNERS[0] ?? '';
     const reason = WITHDRAWAL_REASON_MONTHLY;
     setWithdrawalError('');
+    // La fecha es la del retiro: hoy, nunca el fin del rango filtrado (que puede ser futuro: el
+    // formulario proponia el 30 del mes estando a 23).
+    const finRango = filters.retiros.end;
     setWithdrawalDraft({
-      date: filters.retiros.end || TODAY,
+      date: finRango && finRango < TODAY ? finRango : TODAY,
       beneficiary: partner,
       reason,
       amount: montoSugeridoPorMotivo(partner, reason),
+      naturaleza: 'RETIRO_DE_UTILIDADES',
     });
   }
 
@@ -1825,6 +1844,7 @@ export default function AdminFinancePage() {
       date: withdrawalDraft.date,
       beneficiary: withdrawalDraft.beneficiary,
       reason: withdrawalDraft.reason,
+      naturaleza: withdrawalDraft.naturaleza,
       amount,
       balanceBefore: disponible,
       balanceAfter: disponible - amount,
@@ -3437,6 +3457,11 @@ export default function AdminFinancePage() {
                   {WITHDRAWAL_REASON_OPTIONS.map((reason) => <option key={reason}>{reason}</option>)}
                 </select>
               </FieldLabel>
+              <FieldLabel label="Naturaleza tributaria">
+                <select className="select" value={withdrawalDraft.naturaleza} onChange={(event) => updateWithdrawalDraft({ naturaleza: event.target.value as NaturalezaRetiroSocio })} required>
+                  {NATURALEZA_RETIRO_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                </select>
+              </FieldLabel>
               <FieldLabel label={`Monto (disponible: ${formatMoney(disponible)})`}>
                 <input
                   className="input"
@@ -3597,9 +3622,14 @@ export default function AdminFinancePage() {
         <Modal title={documentDraft.isEditing ? 'Editar documento registrado' : 'Emitir documento'} subtitle={documentDraft.orderId} onClose={() => setDocumentDraft(null)}>
           <form className="form-grid" onSubmit={saveDocument}>
             <FieldLabel label="Tipo de documento">
+              {/* O18: el documento de un socio tambien se carga desde Pago a proveedores, que ofrece
+                  Boleta de Honorarios y Documento Tributario. Con solo Boleta/Factura aca, uno de esos
+                  se mostraba como "Boleta" y no se podia volver a elegir. */}
               <select className="select" value={documentDraft.type} onChange={(event) => setDocumentDraft({ ...documentDraft, type: event.target.value })}>
-                <option>Boleta</option>
-                <option>Factura</option>
+                {(documentDraft.tipoRetiro === 'SOCIO'
+                  ? ['Boleta de Honorarios', 'Boleta', 'Factura', 'Documento Tributario']
+                  : ['Boleta', 'Factura']
+                ).map((tipo) => <option key={tipo} value={tipo}>{tipo}</option>)}
               </select>
             </FieldLabel>
             <FieldLabel label="RUT receptor"><input className="input" type="text" value={documentDraft.rut} onChange={(event) => setDocumentDraft({ ...documentDraft, rut: event.target.value })} required={!documentDraft.isEditing} /></FieldLabel>

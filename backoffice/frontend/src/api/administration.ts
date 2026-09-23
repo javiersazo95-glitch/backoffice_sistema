@@ -284,6 +284,8 @@ export interface PartnerWithdrawalRequestPayload {
   date: string;
   beneficiary: string;
   reason: string;
+  /** SEC-BACKEND-121: obligatoria en el backend (H17). */
+  naturaleza: 'RETIRO_DE_UTILIDADES' | 'DEVOLUCION_DE_CAPITAL' | 'PRESTAMO' | 'REMUNERACION' | 'GASTO_RECHAZADO';
   amount: number;
   balanceBefore: number;
   balanceAfter: number;
