@@ -630,9 +630,9 @@ export default function PermissionsConfigPage() {
               <div>
                 <span className="founder-badge"><UiIcon name="crown" />Fundador</span>
                 <h3>Ranura general</h3>
-                <p>Mientras esté activa, cada tienda que se apruebe recibe la condición Fundador (5% + IVA) durante sus primeros {founderConfig?.durationMonths ?? 3} meses, hasta completar las primeras {founderConfig?.storeQuota ?? 100} tiendas aprobadas.</p>
-                {founderConfig?.approvedStores != null && (
-                  <p className="muted">Cupo: {Math.min(founderConfig.approvedStores, founderConfig.storeQuota ?? 100)} de {founderConfig.storeQuota ?? 100} tiendas aprobadas.</p>
+                <p>Mientras esté activa, cada tienda que se apruebe recibe la condición Fundador (5% + IVA) durante sus primeros {founderConfig?.durationMonths ?? 3} meses, hasta completar las primeras {founderConfig?.storeQuota ?? 100} tiendas. El beneficio se da una sola vez por tienda.</p>
+                {founderConfig?.grantedStores != null && (
+                  <p className="muted">Cupo: {Math.min(founderConfig.grantedStores, founderConfig.storeQuota ?? 100)} de {founderConfig.storeQuota ?? 100} tiendas ya recibieron el beneficio.</p>
                 )}
               </div>
               <label className="role-toggle-label">

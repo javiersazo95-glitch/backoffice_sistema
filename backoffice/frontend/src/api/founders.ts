@@ -19,7 +19,8 @@ export interface FounderConfig {
   founderForNewSellers: boolean;
   durationMonths?: number | null;
   storeQuota?: number | null;
-  approvedStores?: number | null;
+  /** SEC-BACKEND-154: tiendas que ya recibieron el beneficio (consumen el cupo). */
+  grantedStores?: number | null;
 }
 
 export async function getFounderConfig() {
