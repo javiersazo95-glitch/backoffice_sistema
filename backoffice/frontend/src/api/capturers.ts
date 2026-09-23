@@ -68,4 +68,6 @@ export const getCapturerConfig=async()=> (await apiClient.get<CapturerConfig>('/
 // siempre la configuración vigente de puntaje y comisiones.
 export const getCapturerProgramConfig=async()=> (await apiClient.get<CapturerConfig>('/captadores/me/config')).data;
 export const saveCapturerConfig=async(data:CapturerConfig)=> (await apiClient.put<CapturerConfig>('/validations/capturers/config',data)).data;
+/** O21: "Ver boleta" descargaba el PDF en vez de abrirlo. Misma vista previa por blob que los documentos del captador. */
+export async function viewCapturerReceipt(id:number){return previewDocument(`/administration/capturer-withdrawals/${id}/receipt`);}
 export async function downloadCapturerReceipt(id:number,nombre:string){const response=await apiClient.get(`/administration/capturer-withdrawals/${id}/receipt`,{responseType:'blob'});const url=URL.createObjectURL(response.data);const anchor=document.createElement('a');anchor.href=url;anchor.download=nombre||'boleta-captador.pdf';anchor.click();URL.revokeObjectURL(url);}

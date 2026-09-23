@@ -219,7 +219,7 @@ export default function PagoCaptadoresPage() {
                           <small>{withdrawal.tipoCuenta || 'Cuenta'} · {withdrawal.numeroCuenta || 'Sin número'}</small>
                         </td>
                         <td>
-                          <button className="secondary-button compact-action" type="button" onClick={() => void capturerApi.downloadCapturerReceipt(withdrawal.id, withdrawal.boletaNombre)}>
+                          <button className="secondary-button compact-action" type="button" onClick={() => void capturerApi.viewCapturerReceipt(withdrawal.id)}>
                             <UiIcon name="document" /> Ver boleta
                           </button>
                         </td>
