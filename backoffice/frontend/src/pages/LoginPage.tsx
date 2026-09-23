@@ -604,7 +604,7 @@ export default function LoginPage() {
                 <a
                   href="#"
                   style={{ fontSize: 12, color: '#0b5ee8', textDecoration: 'none', fontWeight: 500 }}
-                  onClick={(e) => { e.preventDefault(); navigate(`/recuperar-contrasena?type=${accessType}&email=${encodeURIComponent(username.trim())}`); }}
+                  onClick={(e) => { e.preventDefault(); navigate(`/recuperar-contrasena?type=${accessType}`, { state: { email: username.trim() } }); }}
                 >
                   ¿Olvidaste tu contraseña?
                 </a>
