@@ -630,7 +630,10 @@ export default function PermissionsConfigPage() {
               <div>
                 <span className="founder-badge"><UiIcon name="crown" />Fundador</span>
                 <h3>Ranura general</h3>
-                <p>Los vendedores que se registren mientras esté activa recibirán la condición Fundador.</p>
+                <p>Mientras esté activa, cada tienda que se apruebe recibe la condición Fundador (5% + IVA) durante sus primeros {founderConfig?.durationMonths ?? 3} meses, hasta completar las primeras {founderConfig?.storeQuota ?? 100} tiendas aprobadas.</p>
+                {founderConfig?.approvedStores != null && (
+                  <p className="muted">Cupo: {Math.min(founderConfig.approvedStores, founderConfig.storeQuota ?? 100)} de {founderConfig.storeQuota ?? 100} tiendas aprobadas.</p>
+                )}
               </div>
               <label className="role-toggle-label">
                 <input type="checkbox" checked={founderConfig?.founderForNewSellers ?? false}
@@ -652,14 +655,15 @@ export default function PermissionsConfigPage() {
             </div>
 
             <div className="panel"><div className="table-wrap"><table><thead><tr>
-              <th>Vendedor</th><th>Correo</th><th>Registro</th><th>Antigüedad</th><th>Fundador</th>
+              <th>Vendedor</th><th>Correo</th><th>Registro</th><th>Antigüedad</th><th>Beneficio hasta</th><th>Fundador</th>
             </tr></thead><tbody>
-              {founderLoading ? <tr><td colSpan={5}>Cargando vendedores...</td></tr>
-                : !founderSellers.length ? <tr><td colSpan={5}>No hay vendedores para los filtros seleccionados.</td></tr>
+              {founderLoading ? <tr><td colSpan={6}>Cargando vendedores...</td></tr>
+                : !founderSellers.length ? <tr><td colSpan={6}>No hay vendedores para los filtros seleccionados.</td></tr>
                 : founderSellers.map((seller) => <tr key={seller.sellerId}>
                   <td><strong>{seller.storeName}</strong><br /><span className="muted">{seller.userName}</span></td>
                   <td>{seller.email}</td><td>{new Date(seller.registeredAt).toLocaleDateString('es-CL')}</td>
                   <td>{seller.founder ? `${seller.founderDays} días` : '—'}</td>
+                  <td>{seller.founder && seller.founderUntil ? new Date(seller.founderUntil).toLocaleDateString('es-CL') : '—'}</td>
                   <td><label className="role-toggle-label"><input type="checkbox" checked={seller.founder}
                     disabled={founderMutation.isPending}
                     onChange={(event) => founderMutation.mutate({ sellerId: seller.sellerId, founder: event.target.checked })} />

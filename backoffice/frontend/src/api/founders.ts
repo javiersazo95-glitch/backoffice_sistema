@@ -8,17 +8,27 @@ export interface FounderSeller {
   email: string;
   founder: boolean;
   founderSince?: string | null;
+  /** O1: fin del beneficio (3 meses desde la aprobación). */
+  founderUntil?: string | null;
   founderDays: number;
   registeredAt: string;
 }
 
+/** O1: el beneficio dura `durationMonths` desde la aprobación y solo para las primeras `storeQuota` tiendas. */
+export interface FounderConfig {
+  founderForNewSellers: boolean;
+  durationMonths?: number | null;
+  storeQuota?: number | null;
+  approvedStores?: number | null;
+}
+
 export async function getFounderConfig() {
-  const { data } = await apiClient.get<{ founderForNewSellers: boolean }>('/backoffice/founders/config');
+  const { data } = await apiClient.get<FounderConfig>('/backoffice/founders/config');
   return data;
 }
 
 export async function updateFounderConfig(founderForNewSellers: boolean) {
-  const { data } = await apiClient.put<{ founderForNewSellers: boolean }>('/backoffice/founders/config', { founderForNewSellers });
+  const { data } = await apiClient.put<FounderConfig>('/backoffice/founders/config', { founderForNewSellers });
   return data;
 }
 
