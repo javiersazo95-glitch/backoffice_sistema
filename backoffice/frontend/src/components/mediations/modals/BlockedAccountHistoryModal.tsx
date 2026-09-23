@@ -5,7 +5,7 @@ import Badge from '@/components/shared/Badge';
 import UiIcon from '@/components/shared/UiIcon';
 import FounderSellerName from '@/components/shared/FounderSellerName';
 import { formatDateTime, getBlockedTargetInfo } from '@/utils/formatters';
-import { resolveNavigableDocumentUrl } from '@/utils/documentUrls';
+import { previewDocument, resolveNavigableDocumentUrl } from '@/utils/documentUrls';
 
 interface BlockedAccountHistoryModalProps {
   isOpen: boolean;
@@ -59,16 +59,13 @@ function DocLink({ name, url }: { name: string; url: string }) {
     );
   }
 
+  // Se abre con fetch + blob y no con un <a href>: /api/v1/uploads/r2/** exige el token y una
+  // navegacion no lo lleva, asi que el enlace directo daba 401 (pruebas de lanzamiento, O12).
   return (
-    <a
-      className="resolved-timeline-doc-link"
-      href={href}
-      target="_blank"
-      rel="noreferrer"
-    >
+    <button type="button" className="resolved-timeline-doc-link" onClick={() => void previewDocument(href)}>
       <UiIcon name="document" />
       <span>{label}</span>
-    </a>
+    </button>
   );
 }
 

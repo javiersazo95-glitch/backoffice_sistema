@@ -26,7 +26,7 @@ import {
   type MediationFavor,
 } from '@/utils/mediationResolution';
 import { getReports } from '@/api/reports';
-import { resolveNavigableDocumentUrl } from '@/utils/documentUrls';
+import { downloadDocument, previewDocument, resolveNavigableDocumentUrl } from '@/utils/documentUrls';
 import { resolveProfileImageUrl } from '@/api/client';
 import mediatorProfileImage from '@/assets/mediator-profile.jpg';
 
@@ -345,12 +345,13 @@ function EvidenceSection({
                 <div className="mediation-evidence-actions">
                   {href ? (
                     <>
-                      <a href={href} target="_blank" rel="noreferrer" aria-label={`Abrir ${name}`} title="Abrir evidencia">
+                      {/* fetch + blob: /api/v1/uploads/r2/** exige el token y un <a href> no lo lleva (O12). */}
+                      <button type="button" onClick={() => void previewDocument(href)} aria-label={`Abrir ${name}`} title="Abrir evidencia">
                         <UiIcon name="eye" />
-                      </a>
-                      <a href={href} download={name} aria-label={`Descargar ${name}`} title="Descargar evidencia">
+                      </button>
+                      <button type="button" onClick={() => void downloadDocument(href, name)} aria-label={`Descargar ${name}`} title="Descargar evidencia">
                         <UiIcon name="download" />
-                      </a>
+                      </button>
                     </>
                   ) : (
                     <span title="Evidencia de origen externo: no se puede abrir desde el backoffice">

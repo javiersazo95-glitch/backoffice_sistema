@@ -5,7 +5,7 @@ import Badge from '@/components/shared/Badge';
 import UiIcon from '@/components/shared/UiIcon';
 import FounderSellerName from '@/components/shared/FounderSellerName';
 import { formatCurrency, formatDateTime } from '@/utils/formatters';
-import { resolveNavigableDocumentUrl } from '@/utils/documentUrls';
+import { previewDocument, resolveNavigableDocumentUrl } from '@/utils/documentUrls';
 import { favorLabel, resolutionOptionLabel } from '@/utils/mediationResolution';
 
 interface ResolvedCaseSummaryModalProps {
@@ -89,14 +89,14 @@ export default function ResolvedCaseSummaryModal({ isOpen, onClose, item }: Reso
             <strong>{item.caseKind} · {item.sourceStatus || 'Resuelta'} · {item.externalId}</strong>
           </div>
           {documentHref ? (
-            <a
+            // fetch + blob: /api/v1/uploads/r2/** exige el token y un <a href> no lo lleva (O12).
+            <button
+              type="button"
               className="secondary-button compact-link-button"
-              href={documentHref}
-              target="_blank"
-              rel="noreferrer"
+              onClick={() => void previewDocument(documentHref)}
             >
               <UiIcon name="document" /> Abrir documento
-            </a>
+            </button>
           ) : null}
         </div>
       </div>

@@ -11700,7 +11700,8 @@ tr.is-active {
   gap: 5px;
 }
 
-.mediation-evidence-actions a {
+.mediation-evidence-actions a,
+.mediation-evidence-actions button {
   display: grid;
   place-items: center;
   width: 32px;
@@ -11709,9 +11710,11 @@ tr.is-active {
   border-radius: 8px;
   color: #475569;
   background: #fff;
+  cursor: pointer;
 }
 
-.mediation-evidence-actions a:hover {
+.mediation-evidence-actions a:hover,
+.mediation-evidence-actions button:hover {
   color: #2563eb;
   border-color: #93c5fd;
 }
@@ -17709,6 +17712,8 @@ button:disabled {
   border: 1px solid #ede9fe;
   background: #f5f3ff;
   transition: background 0.15s;
+  cursor: pointer;
+  font-family: inherit;
 }
 .resolved-timeline-doc-link:hover {
   background: #ede9fe;

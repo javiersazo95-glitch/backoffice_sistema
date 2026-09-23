@@ -11,8 +11,9 @@ export interface NotificacionItem {
   createdAt: string;
 }
 
+/** El backend responde `{ count }` (UnreadCountResponseDTO), igual que lo lee el Market. */
 export interface UnreadCountResponse {
-  unreadCount: number;
+  count: number;
 }
 
 export async function getNotifications(usuarioId: number): Promise<NotificacionItem[]> {
@@ -22,7 +23,9 @@ export async function getNotifications(usuarioId: number): Promise<NotificacionI
 
 export async function getUnreadCount(usuarioId: number): Promise<number> {
   const res = await apiClient.get<UnreadCountResponse>(`/usuarios/${usuarioId}/notificaciones/unread-count`);
-  return res.data.unreadCount;
+  // Antes leía `unreadCount`, que no existe: la query devolvía undefined, la campana quedaba
+  // siempre en 0 y React Query registraba un error de consola cada 30 s.
+  return Number(res.data?.count ?? 0);
 }
 
 export async function markAsRead(usuarioId: number, notificacionId: number): Promise<void> {
