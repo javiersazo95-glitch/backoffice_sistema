@@ -77,6 +77,7 @@ export default function PagoProveedoresPage() {
   const [incompleteDocumentSellers, setIncompleteDocumentSellers] = useState<string[]>([]);
   const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
   const [cuentaCargoDraft, setCuentaCargoDraft] = useState('');
+  const [cuentaCargoError, setCuentaCargoError] = useState('');
   const [savingConfig, setSavingConfig] = useState(false);
   const [exportingExcel, setExportingExcel] = useState(false);
 
@@ -304,17 +305,26 @@ export default function PagoProveedoresPage() {
 
   const openConfigModal = () => {
     setCuentaCargoDraft(configuracionPagos?.cuentaCargoBci ?? '');
+    setCuentaCargoError('');
     setIsConfigModalOpen(true);
   };
 
   const handleSaveConfig = async () => {
+    // H16: es el NUMERO de la cuenta de RepuesTop, no un RUT. El ejemplo decia "78.474.031-5" y la
+    // nomina salio con un RUT como cuenta de cargo. El backend valida lo mismo; esto avisa antes.
+    const cuenta = cuentaCargoDraft.replace(/[\s-]/g, '');
+    if (!/^\d{6,20}$/.test(cuenta)) {
+      setCuentaCargoError('Ingresa solo el número de la cuenta bancaria (6 a 20 dígitos, sin puntos). No es un RUT.');
+      return;
+    }
+    setCuentaCargoError('');
     setSavingConfig(true);
     try {
-      await adminApi.updateConfiguracionPagos(cuentaCargoDraft.trim());
+      await adminApi.updateConfiguracionPagos(cuenta);
       queryClient.invalidateQueries({ queryKey: ['admin-configuracion-pagos'] });
       setIsConfigModalOpen(false);
     } catch (err) {
-      alert('No se pudo guardar la cuenta de cargo: ' + (err instanceof Error ? err.message : 'Error desconocido.'));
+      setCuentaCargoError(err instanceof Error ? err.message : 'No se pudo guardar la cuenta de cargo.');
     } finally {
       setSavingConfig(false);
     }
@@ -1077,10 +1087,13 @@ export default function PagoProveedoresPage() {
               type="text"
               className="form-input"
               value={cuentaCargoDraft}
-              onChange={(event) => setCuentaCargoDraft(event.target.value)}
-              placeholder="Ej. 78.474.031-5"
+              onChange={(event) => { setCuentaCargoDraft(event.target.value); setCuentaCargoError(''); }}
+              placeholder="Ej. 12345678"
+              inputMode="numeric"
+              aria-invalid={cuentaCargoError ? true : undefined}
               style={{ width: '100%', padding: '10px 12px', border: '1px solid #cbd5e0', borderRadius: 8, fontSize: 14 }}
             />
+            {cuentaCargoError && <p role="alert" style={{ margin: '8px 0 0', color: '#c53030', fontSize: 12.5 }}>{cuentaCargoError}</p>}
             <footer style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 20 }}>
               <button className="secondary-button" type="button" onClick={() => setIsConfigModalOpen(false)} disabled={savingConfig}>Cancelar</button>
               <button className="primary-button" type="button" onClick={handleSaveConfig} disabled={savingConfig || !cuentaCargoDraft.trim()}>

@@ -1,4 +1,5 @@
 import { useEffect,useMemo,useRef,useState } from 'react';
+import { formatRut, validateRut } from '@/utils/rut';
 import type { ReactNode } from 'react';
 import { Navigate,useLocation,useNavigate } from 'react-router-dom';
 import { useQuery,useQueryClient } from '@tanstack/react-query';
@@ -63,6 +64,10 @@ export default function CapturerPortalPage(){
 
  async function saveBank(e:React.FormEvent){
   e.preventDefault(); setMessage('');
+  // H16: misma regla que el backend (CuentaBancariaValidator): RUT con digito verificador valido y
+  // cuenta solo con digitos. Se avisa antes de enviar; el servidor lo vuelve a exigir.
+  if(!validateRut(bank.rut)){setMessage('El RUT del titular no es válido. Revisa el número y el dígito verificador.');return;}
+  if(!/^\d{6,20}$/.test(bank.numeroCuenta.trim())){setMessage('El número de cuenta debe tener solo dígitos (6 a 20).');return;}
   try{await api.saveBank({...bank,rut:bank.rut.trim(),titular:bank.titular.trim(),numeroCuenta:bank.numeroCuenta.trim(),email:bank.email.trim()});setMessage('Datos bancarios guardados.');await qc.invalidateQueries({queryKey:['capturer-dashboard']});}
   catch(err:any){setMessage(err.response?.data?.message||'No se pudieron guardar los datos.');}
  }
@@ -438,7 +443,7 @@ function Finanzas({d,bank,onBank,amount,onAmount,receipt,onReceipt,onSaveBank,on
     <p className="cap-muted cap-sub">Usamos estos datos para transferirte por la nómina bancaria. Deben coincidir con tu boleta de honorarios.</p>
     <div className="cap-form-grid">
      <label className="cap-field">RUT del titular
-      <input className="cap-control" placeholder="12.345.678-9" value={bank.rut} onChange={e=>set({rut:e.target.value})} required/>
+      <input className="cap-control" placeholder="12.345.678-9" value={bank.rut} onChange={e=>set({rut:formatRut(e.target.value)})} aria-invalid={bank.rut.length>=8&&!validateRut(bank.rut)?true:undefined} required/>
      </label>
      <label className="cap-field">Nombre del titular
       <input className="cap-control" placeholder="Nombre completo" value={bank.titular} onChange={e=>set({titular:e.target.value})} required/>

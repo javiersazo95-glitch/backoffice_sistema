@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react';
+import { formatRut, validateRut } from '@/utils/rut';
 import { useQuery } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
@@ -1756,13 +1757,23 @@ export default function AdminFinancePage() {
       setSocioBancoError('RUT, banco y número de cuenta son obligatorios para poder pagar por la nómina BCI.');
       return;
     }
+    // H16: misma regla que el backend (CuentaBancariaValidator); se avisa antes de enviar.
+    if (!validateRut(socioBancoDraft.rut)) {
+      setSocioBancoError('El RUT del titular no es válido. Revisa el número y el dígito verificador.');
+      return;
+    }
+    const numeroCuentaSocio = socioBancoDraft.numeroCuenta.replace(/[\s.-]/g, '');
+    if (!/^\d{6,20}$/.test(numeroCuentaSocio)) {
+      setSocioBancoError('El número de cuenta debe tener solo dígitos (6 a 20), sin letras.');
+      return;
+    }
     try {
       await administrationApi.saveSocio(socioBancoDraft.nombre, {
-        rut: socioBancoDraft.rut.trim(),
+        rut: formatRut(socioBancoDraft.rut),
         banco: socioBancoDraft.banco.trim(),
         bankCode: socioBancoDraft.bankCode,
         tipoCuenta: socioBancoDraft.tipoCuenta,
-        numeroCuenta: socioBancoDraft.numeroCuenta.trim(),
+        numeroCuenta: numeroCuentaSocio,
         titular: socioBancoDraft.titular.trim() || socioBancoDraft.nombre,
         email: socioBancoDraft.email.trim(),
       });
@@ -3504,7 +3515,7 @@ export default function AdminFinancePage() {
         <Modal title={`Datos bancarios de ${socioBancoDraft.nombre}`} onClose={() => { setSocioBancoDraft(null); setSocioBancoError(''); }}>
           <form className="form-grid" onSubmit={saveSocioBanco}>
             <FieldLabel label="RUT">
-              <input className="input" type="text" value={socioBancoDraft.rut} onChange={(event) => setSocioBancoDraft({ ...socioBancoDraft, rut: event.target.value })} placeholder="12.345.678-9" required />
+              <input className="input" type="text" value={socioBancoDraft.rut} onChange={(event) => setSocioBancoDraft({ ...socioBancoDraft, rut: formatRut(event.target.value) })} placeholder="12.345.678-9" required />
             </FieldLabel>
             <FieldLabel label="Nombre del titular">
               <input className="input" type="text" value={socioBancoDraft.titular} onChange={(event) => setSocioBancoDraft({ ...socioBancoDraft, titular: event.target.value })} placeholder="Nombre completo" required />
