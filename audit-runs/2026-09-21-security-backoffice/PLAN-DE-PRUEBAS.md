@@ -1,320 +1,255 @@
 # Plan de pruebas — backoffice
 
-> Rama `dev`, commit `ca765ce`. Auditoría `2026-09-21-security-backoffice`.
-> Cubre **sólo lo que la auditoría cambió**: ahí está el riesgo de regresión.
+> Rama `dev`, commit `9f1d46b`. Auditoría `2026-09-21-security-backoffice`.
+> **Lanzamiento: viernes 25 de septiembre.** Quedan miércoles y jueves.
 
-Tres fases, en orden. Cada una filtra problemas antes de gastar la siguiente.
+Cubre **sólo lo que la auditoría cambió**: ahí está el riesgo de regresión.
 
-| Fase | Dónde | Tiempo | Para qué |
-|---|---|---|---|
-| **1 · Local** | `localhost:3000` | 15 min | Que no se despliegue algo roto |
-| **2 · Dev** | `api-dev.repuestop.cl` | 45–60 min | Los flujos reales con datos reales |
-| **3 · Producción** | dominio real | 20 min | Lo que sólo existe al publicar |
+| Fase | Cuándo | Dónde | Tiempo | Alcance |
+|---|---|---|---|---|
+| **1 · Local** | **Hoy, miércoles** | `localhost` + backend local | ~2 h | **Exhaustiva.** Todo lo funcional |
+| **2 · Dev** | Jueves | `api-dev.repuestop.cl` | ~30 min | Sólo lo que local **no puede** probar |
+| **3 · Producción** | Viernes, tras desplegar | dominio real | ~15 min | Sólo lo crítico |
+
+El peso está en local a propósito: es donde un fallo cuesta minutos en vez de un despliegue.
 
 Cada prueba indica qué hallazgo protege. El detalle está en `findings.jsonl`, buscando ese ID.
 
 ---
 
-# FASE 1 · LOCAL
+# FASE 1 · LOCAL — exhaustiva
 
-Barato y rápido. Si algo falla acá, no tiene sentido desplegar.
-
-## 1.1 Compila y no arrastra vulnerabilidades
+## Preparación
 
 ```bash
-cd backoffice/frontend
+# 1. Backend en localhost:8080 (el proxy de Vite ya apunta ahí por defecto)
+
+# 2. Frontend
+cd backoffice_sistema/backoffice/frontend
+git checkout dev && git pull
 npm ci
+npm run dev        # queda en http://localhost:3000
+```
+
+Abrir en **pestaña nueva** y dejar DevTools en **Network** + **Console** todo el recorrido.
+
+> Si durante el recorrido aparece `useAuth must be used within an AuthProvider`, es artefacto de
+> HMR por haber cambiado de rama: **reiniciar el servidor y abrir pestaña nueva** antes de
+> reportarlo como bug. Me pasó varias veces durante la auditoría.
+
+**Cuentas necesarias en la base local:**
+
+| | Perfil |
+|---|---|
+| **A** | `SUPER_ADMIN` |
+| **B** | Con **una sola** área (p. ej. `SOPORTE` / `OPERADOR`) |
+| **C** | `CAPTADOR` aprobado |
+| **D** | *(si es posible)* captador que **además** tenga un área de backoffice |
+
+**Datos necesarios:** al menos un retiro de vendedor pendiente, uno de socio pendiente, un retiro
+de captador pendiente, un ticket con adjunto, una mediación con evidencia y un vendedor con
+documentos.
+
+---
+
+## 1 · Estático (5 min)
+
+```bash
 npx tsc -b
 npm run build
 npm audit
-```
-
-| Debe pasar |
-|---|
-| `tsc` sin errores |
-| `build` correcto |
-| `npm audit`: **0 high**, 0 critical (quedan 2 moderate de react-router, verificados inalcanzables) |
-
-## 1.2 El código que armaba la nómina ya no existe
-
-```bash
 grep -rE "bciNominaExport|buildBciNomina|COD_BANCO|socioToNominaRow" dist/assets/*.js
 grep -c exceljs package.json
 ```
 
-Los dos deben dar **vacío / 0**. Si algo aparece, el cliente volvió a poder escribir cuentas de
-destino e importes de transferencias. Protege `SEC-013`.
+| # | Debe pasar | Protege |
+|---|---|---|
+| 1.1 | `tsc` sin errores y `build` correcto | — |
+| 1.2 | `npm audit`: **0 high**, 0 critical (2 moderate de react-router son esperados) | `DP-*` |
+| 1.3 | Los dos `grep`: **vacío / 0** | `SEC-013` |
 
-## 1.3 Arranca y no se rompe
+> 1.3 es el control de que el cliente ya no puede escribir cuentas de destino ni importes de
+> transferencias bancarias.
 
-```bash
-npm run dev
-```
+## 2 · Acceso y sesión (20 min)
 
-Abrir `http://localhost:3000` en una **pestaña nueva** (no reutilizar una con HMR previo).
+| # | Qué hacer | Debe pasar | Protege |
+|---|---|---|---|
+| 2.1 | Entrar con **A** | Entra a `/` | — |
+| 2.2 | Mirar `GET /auth/me` en Network | La respuesta trae **`permissions`**, aunque sea `[]` | `SEC-002` |
+| 2.3 | Entrar con **B** | Ve **su** área y **sólo** la suya; A ve todas | `SEC-002` |
+| 2.4 | Entrar con **C** por la pestaña "Captadores" | Va a `/captador` | `SEC-009` |
+| 2.5 | Entrar con **C** por "Personal de la empresa" | Decide el servidor: sin permisos de backoffice, mensaje genérico | `SEC-009` |
+| 2.6 | **D** por "Personal de la empresa" | **Entra al backoffice.** Antes lo rechazaba por rol | `SEC-009` |
+| 2.7 | Entrar con **A** por "Captadores" | *"Esta cuenta pertenece al personal"* | `SEC-009` |
+| 2.8 | Mirar el cuerpo del login | **No** lleva `loginContext` | `SEC-009` |
+| 2.9 | Cerrar sesión, y reusar el token anterior contra `/auth/me` | **401**: el servidor lo revocó | `SEC-007` |
+| 2.10 | Entrar a un área sin permiso (403) | **No** cierra la sesión | `SEC-008` |
+| 2.11 | Fallar un login en otra pestaña | **No** cierra la sesión de la primera | `SEC-008` |
+| 2.12 | Invalidar la sesión a mano y navegar | Lleva a `/login` con el aviso, **una sola vez** | `SEC-008` |
+| 2.13 | Navegar 10 min por varias áreas | **No** aparece *"Tu sesión expiró"* sin motivo | `SEC-008` |
 
-| Debe pasar |
-|---|
-| La pantalla de acceso renderiza completa |
-| El marcador del campo de correo dice `correo@empresa.cl` |
-| Entrar a `/confianza/sellers` sin sesión redirige a `/login` |
-| **Cero errores** en consola |
+> **2.2 es bloqueante.** Si `permissions` no viene, todos los ADMIN se quedan sin áreas: parar y
+> avisar.
 
-> Si aparece `useAuth must be used within an AuthProvider`, es artefacto de HMR por haber
-> cambiado de rama: reiniciar el servidor y abrir pestaña nueva antes de darlo por bug.
+## 3 · Nómina de pagos BCI (20 min) — el que mueve dinero
 
-## 1.4 Opcional: con el backend levantado en local
+| # | Qué hacer | Debe pasar | Protege |
+|---|---|---|---|
+| 3.1 | `/administracion/pago-proveedores` → Exportar | Sale `POST /administration/nominas/proveedores`, **sin cuerpo** | `SEC-013` |
+| 3.2 | Con socios pendientes | Sale **también** `.../socios` y bajan **dos** archivos, con aviso | `SEC-013` |
+| 3.3 | Abrir el `.xlsx` | 3 hojas, 13 columnas con colores, tabla de bancos | `SEC-013` |
+| 3.4 | Comparar contra los retiros pendientes | **Cuentas de destino y montos coinciden**, uno por uno | `SEC-013` |
+| 3.5 | Sumar la columna de montos | Cuadra con el total en pantalla | `SEC-013` |
+| 3.6 | `/administracion/pago-captadores` → Exportar | Igual, con `.../captadores` | `SEC-013` |
+| 3.7 | Mirar las cabeceras de respuesta | Llegan `X-Nomina-Id`, `-Hash`, `-Total`, `-Retiros` | `SEC-026` |
 
-Si corren el backend en `localhost:8080`, el proxy de Vite ya apunta ahí y **se puede adelantar
-toda la Fase 2 en local**. Recomendado para la recuperación de contraseña (2.6), que es lo más
-laborioso de coordinar en dev.
+> 3.4 es el control real. Si existe una nómina exportada **antes** del cambio, compararla celda a
+> celda contra una nueva con los mismos retiros.
 
----
+## 4 · Documentos y fotos (20 min) — el riesgo silencioso
 
-# FASE 2 · DEV
+El token dejó de viajar a orígenes que no sean el backend, y los documentos de origen externo ya
+no se enlazan. **Si el backend sirve archivos desde otro host, dejan de verse.**
 
-Necesitás tres cuentas: **A** SUPER_ADMIN · **B** con **una sola** área · **C** captador aprobado.
-DevTools abierto en **Network** y consola durante todo el recorrido.
+| # | Qué hacer | Debe pasar | Protege |
+|---|---|---|---|
+| 4.1 | Previsualizar y descargar un adjunto de ticket | Se abre y se descarga | `SEC-010` |
+| 4.2 | Ídem con un documento de vendedor | Igual | `SEC-010` |
+| 4.3 | Ídem con una evidencia de mediación | Igual | `SEC-011` |
+| 4.4 | Fotos de perfil en listados de vendedores y captadores | Cargan | `SEC-010` |
+| 4.5 | Previsualizar un PDF | Se ve en el visor (usa `blob:`) | `SEC-015` |
+| 4.6 | Buscar en la UI la marca **"(origen externo)"** | Si aparece → **reportar**: el backend lo sirve desde otro host | `SEC-011` |
 
-## Bloqueantes
-
-### 2.1 Los permisos no dejaron a nadie fuera
-
-Se cerró el fallback que daba **todas** las áreas a cualquier ADMIN: ahora sin lista no hay acceso.
-
-1. Entrar con **B**. 2. Mirar la respuesta de `GET /auth/me`.
-
-| Debe pasar |
-|---|
-| La respuesta trae `permissions`, aunque sea `[]` |
-| B ve su área, y **sólo** la suya |
-| A ve todas |
-
-> **Si `permissions` no viene, parar acá**: todos los ADMIN se quedan sin áreas. Es lo que más
-> probablemente falle si dev no tiene el backend actualizado. Protege `SEC-002`.
-
-### 2.2 La nómina de pagos sale correcta
-
-1. Con **A**, `/administracion/pago-proveedores` con retiros pendientes. 2. Exportar.
-
-| Debe pasar |
-|---|
-| Sale `POST /administration/nominas/proveedores`, **sin cuerpo** |
-| Con socios pendientes, sale **también** `.../socios` y bajan **dos** archivos |
-| El `.xlsx`: 3 hojas, 13 columnas con colores, tabla de bancos |
-| **Cuentas de destino y montos** coinciden con los retiros pendientes |
-| El total cuadra con el de pantalla |
-| Repetir en `/administracion/pago-captadores` |
-
-> Comparar contra una nómina exportada **antes** del cambio, si existe. Protege `SEC-013`.
-
-### 2.3 Acceso y salida
-
-| Caso | Debe pasar |
-|---|---|
-| **A** entra, cierra sesión, vuelve a entrar | Sin problemas |
-| **C** por la pestaña "Captadores" | Entra a `/captador` |
-| **C** por "Personal de la empresa" | Decide el servidor: **si tiene permisos de backoffice, entra** |
-| **A** por la pestaña "Captadores" | *"Esta cuenta pertenece al personal"* |
-
-> Protege `SEC-009`, `SEC-007`.
-
-## Lo que puede romperse sin avisar
-
-### 2.4 Documentos y fotos
-
-El riesgo silencioso: el token dejó de viajar a orígenes que no sean el backend, y los documentos
-de origen externo ya no se enlazan. **Si dev sirve archivos desde otro host, dejan de verse.**
-
-Con **A**, previsualizar y descargar: un adjunto de ticket · un documento de vendedor · una
-evidencia de mediación · las fotos de perfil en los listados de vendedores y captadores.
-
-| Debe pasar |
-|---|
-| Todo se abre y se descarga |
-| Ninguna violación de CSP en consola |
-| Si algo sale como **"(origen externo)"** sin enlace → **avisar**: el backend lo sirve desde otro host |
-
-> Protege `SEC-010`, `SEC-011`.
-
-### 2.5 La sesión no se cae sola
-
-| Debe pasar |
-|---|
-| Navegando varios minutos, **no** aparece *"Tu sesión expiró"* sin motivo |
-| Un 403 (área sin permiso) **no** cierra la sesión |
-| Un login fallido **no** cierra la sesión de otra pestaña |
-| Al caducar de verdad: lleva a `/login` con el aviso, **una sola vez** |
-
-> Protege `SEC-008`.
-
-### 2.6 Recuperación de contraseña — los dos roles
-
-Migrado a `solicitudId` esta semana. **Mirar el cuerpo de cada petición en Network, no las
-firmas.** Protege `SEC-030`, `SEC-005`, `SEC-031`, `SEC-018`.
-
-**Rol BACKOFFICE** (cuenta **A** o **B**):
-
-1. En `/login`, escribir el correo y pulsar *"¿Olvidaste tu contraseña?"*.
-
-   | Debe pasar |
-   |---|
-   | La URL es `/recuperar-contrasena?type=staff` — **sin el correo** |
-   | El campo llega pre-llenado |
-
-2. Enviar código.
-
-   | Debe pasar |
-   |---|
-   | `send-code` lleva `{ email, rol }` |
-   | La respuesta trae **`solicitudId`** |
-   | El correo llega |
-
-3. Ingresar el código.
-
-   | Debe pasar |
-   |---|
-   | `verify-code` lleva `{ code, rol, solicitudId }` |
-   | **NO lleva `email`** |
-   | El `solicitudId` enviado es **idéntico** al recibido, mayúsculas incluidas |
-
-4. Paso 3, el bug que se arregló:
-
-   | Caso | Debe pasar |
-   |---|---|
-   | La pantalla dice *"Usa al menos **12** caracteres"* antes de escribir | Sí |
-   | Escribir **11** caracteres | Rechazado **en el cliente**, con el motivo, **sin enviar petición** |
-   | Escribir **12** | `reset` lleva `{ code, newPassword, rol, solicitudId }`, **sin `email`** |
-   | Entrar con la contraseña nueva | Funciona |
-
-**Rol CAPTADOR** (cuenta **C**, desde `/login?type=capturer`): repetir 1–4.
-
-| Debe pasar |
-|---|
-| La pantalla dice *"Usa al menos **8** caracteres"* |
-| Todo lo demás, igual |
-
-**Casos borde** (los tres importan):
-
-| Caso | Debe pasar |
-|---|---|
-| Reutilizar el mismo código tras un `reset` correcto | Falla: es de un solo uso |
-| Pulsar *"Empezar de nuevo y pedir otro código"* en el paso 2 o 3 | Llega un código nuevo y el anterior queda muerto |
-| Paso 1 con un correo **inexistente** | **Mismo mensaje y mismo comportamiento** que con uno existente |
-
-> El último es el que protege contra enumeración: si se comporta distinto, avisar.
-
-**Si una cuenta de captador tiene además acceso al backoffice:** el cliente le pide 8 pero el
-servidor exige 12. Debe verse **el mensaje real del servidor** explicando el motivo, y quedarse
-en el paso 3 para corregir. Es el caso que el cliente no puede prever.
-
-### 2.7 Documento de liquidación
+## 5 · Documento de liquidación (15 min)
 
 **Vendedor:**
 
-| Debe pasar |
-|---|
-| El campo IVA está **bloqueado** y dice *"calculado"* |
-| La petición lleva `tipoRetiro: "PROVEEDOR"` |
-| El PDF se guarda y se vuelve a abrir |
+| # | Debe pasar | Protege |
+|---|---|---|
+| 5.1 | El campo IVA está **bloqueado** y dice *"calculado"* | `SEC-014` |
+| 5.2 | La petición lleva `tipoRetiro: "PROVEEDOR"` | `SEC-027` |
+| 5.3 | El PDF se guarda y se vuelve a abrir | — |
 
-**Socio** (desde `/retiros` o desde Pago a proveedores):
+**Socio** (desde `/retiros` y también desde Pago a proveedores — **son dos modales distintos**):
 
-| Debe pasar |
-|---|
-| El campo IVA está **editable** |
-| La petición lleva `tipoRetiro: "SOCIO"` |
-| El documento queda asociado **al socio, no a un vendedor** |
+| # | Debe pasar | Protege |
+|---|---|---|
+| 5.4 | El campo IVA está **editable** | `SEC-014` |
+| 5.5 | La petición lleva `tipoRetiro: "SOCIO"` | `SEC-027` |
+| 5.6 | **El documento queda asociado al socio, no a un vendedor** | `SEC-027` |
+| 5.7 | Si existe un id presente en las dos tablas, probarlo | El backend no confunde los registros | `SEC-027` |
 
-> El último es el que importa: era la colisión de ids. Protege `SEC-014`, `SEC-027`.
+> 5.6 y 5.7 son los que importan: era la colisión entre `RT_retiro` y `BO_retiro_socio`.
 
-### 2.8 Asignación de tickets
+## 6 · Recuperación de contraseña (25 min) — migrada esta semana
 
-Con **B** (SOPORTE), abrir un ticket y desplegar el selector de asignado.
+**Mirar el cuerpo de cada petición en Network, no las firmas.**
 
-| Debe pasar |
-|---|
-| Sale `GET /support/assignees` |
-| **NO** sale `/backoffice/permissions/users` |
-| La lista se puebla |
+**Rol BACKOFFICE** (cuenta **A** o **B**):
 
-> Si dice *"Tu cuenta no puede consultar la lista"*, el endpoint nuevo no está en dev.
-> Protege `SEC-001`.
+| # | Qué hacer | Debe pasar | Protege |
+|---|---|---|---|
+| 6.1 | Desde `/login`, escribir el correo y pulsar *"¿Olvidaste tu contraseña?"* | URL es `/recuperar-contrasena?type=staff` **sin el correo**, y el campo llega pre-llenado | `SEC-031` |
+| 6.2 | Enviar código | `send-code` lleva `{ email, rol }` y la respuesta trae **`solicitudId`** | `SEC-030` |
+| 6.3 | Comprobar el correo recibido | Llega con un código de 6 dígitos | — |
+| 6.4 | Ingresar el código | `verify-code` lleva `{ code, rol, solicitudId }` y **NO lleva `email`** | `SEC-030` |
+| 6.5 | Comparar el `solicitudId` enviado con el recibido | **Idénticos**, mayúsculas incluidas | `SEC-030` |
+| 6.6 | Leer la pantalla del paso 3 | Dice *"Usa al menos **12** caracteres"* **antes** de escribir | `SEC-005` |
+| 6.7 | Escribir **11** caracteres y enviar | Rechazado **en el cliente**, con el motivo, **sin enviar petición** | `SEC-005` |
+| 6.8 | Escribir **12** y enviar | `reset` lleva `{ code, newPassword, rol, solicitudId }`, **sin `email`** | `SEC-030` |
+| 6.9 | Entrar con la contraseña nueva | Funciona | — |
 
-## Rápidas (5 min)
+**Rol CAPTADOR** (cuenta **C**, desde `/login?type=capturer`): repetir 6.1–6.9.
 
-- [ ] Login con correo inexistente y con contraseña mala: **mismo mensaje** (`SEC-018`)
-- [ ] Activar empleado desde el enlace de correo, flujo completo — lo tocó el merge con `dev`
-- [ ] Navegar por cada área, dos o tres pantallas de cada una, sin errores de consola
-- [ ] En el listado de vendedores, los estados de mediación son los reales (`SEC-017`)
+| # | Debe pasar | Protege |
+|---|---|---|
+| 6.10 | La pantalla dice *"Usa al menos **8** caracteres"* | `SEC-005` |
+| 6.11 | El resto igual | `SEC-030` |
+
+**Cuenta D** (captador **con** acceso al backoffice), si existe:
+
+| # | Debe pasar | Protege |
+|---|---|---|
+| 6.12 | Con 8 caracteres: el cliente la acepta, el servidor la rechaza, y se ve **el mensaje real del servidor** explicando que necesita 12 | `SEC-005` |
+| 6.13 | Se queda en el paso 3 para corregir, no expulsa | `SEC-005` |
+
+**Casos borde** — los tres importan:
+
+| # | Qué hacer | Debe pasar | Protege |
+|---|---|---|---|
+| 6.14 | Reutilizar el mismo código tras un `reset` correcto | Falla: es de un solo uso | `SEC-030` |
+| 6.15 | Pulsar *"Empezar de nuevo y pedir otro código"* | Llega un código nuevo; el anterior queda muerto | `SEC-030` |
+| 6.16 | Paso 1 con un correo **inexistente** | **Mismo mensaje y mismo comportamiento** que con uno existente | `SEC-005` |
+| 6.17 | Provocar un error en pasos 1 o 2 | Se muestra el texto fijo, **nunca** el del servidor | `SEC-018` |
+
+> 6.16 es el que protege contra enumeración. Si se comporta distinto, reportar.
+
+## 7 · Resto de pantallas (20 min)
+
+| # | Qué hacer | Debe pasar | Protege |
+|---|---|---|---|
+| 7.1 | Con **B** (SOPORTE), abrir un ticket y desplegar el asignado | Sale `GET /support/assignees`, **no** `/backoffice/permissions/users`, y la lista se puebla | `SEC-001` |
+| 7.2 | Login con correo inexistente vs. contraseña incorrecta | **Mismo mensaje** en ambos | `SEC-018` |
+| 7.3 | Mirar el marcador del campo de correo | `correo@empresa.cl`, no una cuenta real | `SEC-020` |
+| 7.4 | Activar un empleado desde el enlace del correo | Flujo completo; el error es genérico | `SEC-018` |
+| 7.5 | Listado de vendedores | Los estados de mediación son los **reales** | `SEC-017` |
+| 7.6 | Recorrer cada área, 2–3 pantallas de cada una | **Cero errores** de consola | — |
+
+## Qué reportar al terminar la Fase 1
+
+- Número de prueba que falló y qué se vio exactamente (captura de Network si aplica).
+- Si todo pasa: decirlo explícitamente, para dar por buena la fase.
 
 ---
 
-# FASE 3 · PRODUCCIÓN
+# FASE 2 · DEV — sólo lo que local no puede probar
 
-Sólo lo que **no existe** hasta publicar. Antes, repasar `REQUISITOS-DE-LANZAMIENTO.md`.
+**Local no cubre cuatro cosas**, porque el proxy de Vite sirve todo desde el mismo origen y no
+hay infraestructura real:
 
-## 3.1 Las cabeceras llegan
+| # | Qué probar | Por qué local no sirve |
+|---|---|---|
+| 2.1 | **CORS**: que las llamadas a `api-dev.repuestop.cl` no sean bloqueadas | En local el proxy elimina el cruce de orígenes |
+| 2.2 | **Correo real**: que llegue el de recuperación y el de activación de empleado | Depende del proveedor de correo, no del código |
+| 2.3 | **Permisos con datos reales**: repetir 2.2 y 2.3 de la Fase 1 con las cuentas de dev | La base local puede no reflejar la realidad |
+| 2.4 | **Volumen**: exportar una nómina con los retiros reales del ciclo y cuadrar el total | En local hay pocos datos |
 
-```bash
-curl -I https://<dominio-real>/
-```
+Y un repaso corto:
 
-| Debe aparecer |
-|---|
-| `Content-Security-Policy` con `connect-src` incluyendo el origen real de la API |
-| `Strict-Transport-Security: max-age=31536000; includeSubDomains` |
-| `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff` |
-| `X-XSS-Protection: 0` (no `1; mode=block`) |
+- [ ] Login y logout en los dos roles
+- [ ] Previsualizar un documento y una foto de perfil (si el backend de dev los sirve desde otro
+      host, aquí se ve y en local no)
+- [ ] Cero errores de consola
 
-> Protege `SEC-015`.
+> Si la Fase 1 pasó entera, esto son 30 minutos. **No hace falta repetir todo.**
 
-## 3.2 El dominio es el correcto
+---
 
-| Debe pasar |
-|---|
-| La consola se sirve desde el subdominio de `repuestop.cl`, **no** desde `*.vercel.app` |
-| Las llamadas a la API **no** fallan por CORS |
+# FASE 3 · PRODUCCIÓN — sólo lo crítico
 
-> Si fallan por CORS, el dominio no está en la allowlist del backend. Protege `SEC-025`.
+Antes, repasar `REQUISITOS-DE-LANZAMIENTO.md`.
 
-## 3.3 Recorrido con la CSP puesta
+| # | Qué hacer | Debe pasar | Protege |
+|---|---|---|---|
+| 3.1 | `curl -I https://<dominio-real>/` | Llegan `Content-Security-Policy` y `Strict-Transport-Security`; `X-XSS-Protection: 0` | `SEC-015` |
+| 3.2 | Mirar el dominio que sirve la consola | Subdominio de `repuestop.cl`, **no** `*.vercel.app` | `SEC-025` |
+| 3.3 | Entrar y navegar | Las llamadas a la API **no** fallan por CORS | `SEC-025` |
+| 3.4 | Recorrer login, un documento y una foto, con consola abierta | **Cero violaciones de CSP**; el botón de Google carga **con estilos** | `SEC-015` |
+| 3.5 | Exportar una nómina | **El total cuadra** con los retiros pendientes | `SEC-013` |
+| 3.6 | Confirmar con quien desplegó | Ninguna variable reutiliza un valor del repositorio | `SEC-012` |
 
-Repetir **2.4** (documentos y fotos) y **2.6** (recuperación) contra producción, con la consola
-abierta.
-
-| Debe pasar |
-|---|
-| **Cero violaciones de CSP** |
-| El botón de Google carga **con sus estilos** |
-| Los PDF se previsualizan (usan `blob:`) |
-
-> Si aparece una violación de `connect-src`, hay un origen nuevo que no está en la política.
-
-## 3.4 Variables nuevas
-
-| Debe pasar |
-|---|
-| Ninguna variable de producción reutiliza un valor que pasó por el repositorio |
-| `REPUESTOP_BACKOFFICE_API_KEY` no coincide con la del historial |
-| Tampoco reutiliza el **patrón de nombre** (`<componente>-<entorno>-key-<año>`) |
-
-> Protege `SEC-012`.
-
-## 3.5 Humo del flujo que mueve dinero
-
-| Debe pasar |
-|---|
-| Exportar una nómina y **cuadrar el total** contra los retiros pendientes |
-| Cerrar sesión y volver a entrar |
+> Si 3.3 falla, el dominio no está en la allowlist de CORS del backend. Si 3.4 muestra una
+> violación de `connect-src`, hay un origen nuevo que no está en la política.
 
 ---
 
 # Fuera de este plan
 
 - **La cookie de sesión** (`SEC-006`) va en `audit-fix/security/backoffice-cookie-session`,
-  **sin fusionar** y con su propio `COMO-PROBAR-cookie-de-sesion.md`.
+  **sin fusionar**, con su propio `COMO-PROBAR-cookie-de-sesion.md`.
   **Rebasar contra `dev` antes de probarla**: se creó antes de los últimos merges.
+  No entra en el lanzamiento del viernes salvo que se pruebe y se decida incluirla.
 - **La imagen de Docker** (`SEC-016`), sólo si el equipo la usa.
 
 # Si algo falla
