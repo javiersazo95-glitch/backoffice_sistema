@@ -141,12 +141,13 @@ export async function generarNominaBci(tipo: TipoNominaBci): Promise<NominaBciDe
   });
 
   const headers = response.headers as Record<string, unknown>;
-  const fechaHoy = new Date().toISOString().slice(0, 10);
+  // O23: sin guiones bajos ni puntos extra (instructivo BCI); el backend ya manda el nombre real.
+  const fechaHoy = new Date().toISOString().slice(0, 10).replace(/-/g, '');
 
   return {
     blob: response.data as Blob,
     fileName: nombreDesdeContentDisposition(headers['content-disposition'])
-      ?? `Nomina_Pago_en_Linea-${tipo}-${fechaHoy}.xlsx`,
+      ?? `Nomina-${tipo}-${fechaHoy}.xlsx`,
     nominaId: typeof headers['x-nomina-id'] === 'string' ? headers['x-nomina-id'] : null,
     hash: typeof headers['x-nomina-hash'] === 'string' ? headers['x-nomina-hash'] : null,
     total: leerCabeceraNumerica(headers['x-nomina-total']),
