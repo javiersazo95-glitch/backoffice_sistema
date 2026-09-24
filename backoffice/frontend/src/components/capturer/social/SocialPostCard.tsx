@@ -105,7 +105,7 @@ export default function SocialPostCard({ c, now, downloading, onOpen, onDownload
       onMouseEnter={preview.play} onMouseLeave={preview.stop} onFocus={preview.play} onBlur={preview.stop}
       role="button" tabIndex={0} aria-label={`Ver ${c.titulo}`} onKeyDown={e => { if (e.key === 'Enter') onOpen(c); }}>
       {c.tipo === 'VIDEO'
-        ? <video ref={preview.videoRef} src={socialMediaUrl(c.url)} poster={poster} muted loop playsInline preload="metadata" disablePictureInPicture style={{ filter }} />
+        ? <video ref={preview.videoRef} src={socialMediaUrl(c.url)} poster={poster} muted loop playsInline preload="metadata" disablePictureInPicture onContextMenu={e => e.preventDefault()} style={{ filter }} />
         : <img src={socialMediaUrl(c.url)} alt={c.titulo} loading="lazy" style={{ filter }} />}
       {c.tipo === 'VIDEO' && !preview.reproduciendo && <span className="cap-soc-play-hint" aria-hidden="true">▶</span>}
       {c.tipo === 'VIDEO' && preview.reproduciendo && <>

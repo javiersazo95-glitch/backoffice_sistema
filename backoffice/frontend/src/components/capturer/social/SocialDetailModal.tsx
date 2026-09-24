@@ -46,7 +46,7 @@ export default function SocialDetailModal({ c, now, downloading, onClose, onDown
       <div className="cap-soc-modal-body cap-soc-split">
         <div className="cap-soc-preview">
           {c.tipo === 'VIDEO'
-            ? <video src={socialMediaUrl(c.url)} poster={c.posterUrl ? socialMediaUrl(c.posterUrl) : undefined} controls autoPlay muted playsInline style={{ filter: socialFiltroCss(c.filtroVisual) }} />
+            ? <video src={socialMediaUrl(c.url)} poster={c.posterUrl ? socialMediaUrl(c.posterUrl) : undefined} controls controlsList="nodownload" disablePictureInPicture onContextMenu={e => e.preventDefault()} autoPlay muted playsInline style={{ filter: socialFiltroCss(c.filtroVisual) }} />
             : <img src={socialMediaUrl(c.url)} alt={c.titulo} style={{ filter: socialFiltroCss(c.filtroVisual) }} />}
           <span className="cap-soc-author"><Avatar alias={c.autorAlias} foto={c.autorFoto} /><span>@{c.autorAlias}</span></span>
         </div>
