@@ -185,13 +185,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = useCallback(async (username: string, password: string, keepSession = false, loginContext: 'BACKOFFICE' | 'CAPTADOR' = 'BACKOFFICE') => {
-    // El contexto de acceso lo decide el ENDPOINT, no el cuerpo: el servidor deriva el suyo y
-    // descarta el que mande el cliente, asi que enviarlo solo daria la falsa impresion de que
-    // aqui se elige algo (SEC-BACKOFFICE-009).
+    // BACKOFFICE lo fija el servidor en /auth/backoffice/login y lo descarta si llega por la puerta
+    // publica (SEC-BACKOFFICE-009). CAPTADOR, en cambio, SI viaja en el cuerpo de /auth/login: es lo
+    // que permite entrar al portal con la contraseña de la postulación a una identidad creada con
+    // Google (tienda o comprador que además es captador). Sin él, esas cuentas reciben
+    // "Esta cuenta se registro con Google".
     const response = await apiClient.post<BackofficeLoginResponse>(loginContext === 'BACKOFFICE' ? '/auth/backoffice/login' : '/auth/login', {
       email: username.trim(),
       password,
       authProvider: 'EMAIL_PASSWORD',
+      ...(loginContext === 'CAPTADOR' ? { loginContext: 'CAPTADOR' } : {}),
     });
 
     const token = response.data.token ?? response.data.accessToken;

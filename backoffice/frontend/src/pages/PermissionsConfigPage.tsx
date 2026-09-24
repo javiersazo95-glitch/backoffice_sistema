@@ -87,6 +87,7 @@ export default function PermissionsConfigPage() {
   const [founderFilter, setFounderFilter] = useState<'ALL' | 'FOUNDER' | 'NON_FOUNDER'>('ALL');
   const [founderPage, setFounderPage] = useState(0);
   const [capturerSearch, setCapturerSearch] = useState('');
+  const [capturerStatus, setCapturerStatus] = useState<'TODOS' | 'ACTIVOS' | 'DESACTIVADOS'>('TODOS');
 
   const { data: founderConfig } = useQuery({
     queryKey: ['founder-config'],
@@ -167,7 +168,7 @@ export default function PermissionsConfigPage() {
 
   const deactivateCapturerMutation = useMutation({
     mutationFn: capturersApi.deactivateCapturer,
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['managed-capturers'] }); showToast('Cuenta de captador desactivada'); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['managed-capturers'] }); showToast('Cuenta de captador desactivada. Sigue en la lista para reactivarla o eliminarla.'); },
     onError: (error: any) => showToast(error.response?.data?.message || 'No se pudo desactivar la cuenta'),
   });
   const reactivateCapturerMutation = useMutation({
@@ -185,9 +186,14 @@ export default function PermissionsConfigPage() {
   const filteredCapturers = useMemo(() => {
     const term = capturerSearch.trim().toLocaleLowerCase('es-CL');
     return capturers.filter((capturer) => !isDeleted(capturer as unknown as Record<string, unknown>))
+      .filter((capturer) => capturerStatus === 'TODOS' || (capturerStatus === 'ACTIVOS') === capturer.activo)
       .filter((capturer) => !term || [capturer.nombre, capturer.alias, capturer.email, capturer.rut, capturer.region, capturer.comuna]
       .some((value) => value.toLocaleLowerCase('es-CL').includes(term)));
-  }, [capturers, capturerSearch]);
+  }, [capturers, capturerSearch, capturerStatus]);
+  const desactivadosCount = useMemo(
+    () => capturers.filter((c) => !c.activo && !isDeleted(c as unknown as Record<string, unknown>)).length,
+    [capturers],
+  );
 
   const inviteMutation = useMutation({
     mutationFn: () => permissionsApi.inviteEmployee({ fullName: inviteName, email: inviteEmail, permissions: invitePermissions }),
@@ -585,13 +591,21 @@ export default function PermissionsConfigPage() {
           <div className="permissions-workspace">
             <section className="permissions-config-header">
               <h2>Gestión de captadores</h2>
-              <p>Administra las cuentas de captadores. Desactivar bloquea el acceso; eliminar aplica la baja definitiva de la cuenta y preserva la auditoría contable.</p>
+              <p>Administra las cuentas de captadores. Desactivar bloquea el acceso pero el captador sigue en esta lista para reactivarlo o eliminarlo; eliminar aplica la baja definitiva de la cuenta y preserva la auditoría contable.</p>
             </section>
 
             <div className="validation-filters permissions-user-filters">
               <label className="validation-search-field">
                 <UiIcon name="search" />
                 <input type="search" value={capturerSearch} onChange={(event) => setCapturerSearch(event.target.value)} placeholder="Nombre, alias, correo, RUT o ubicación..." />
+              </label>
+              <label className="validation-filter-field">
+                <span>Estado</span>
+                <select value={capturerStatus} onChange={(event) => setCapturerStatus(event.target.value as typeof capturerStatus)}>
+                  <option value="TODOS">Todos</option>
+                  <option value="ACTIVOS">Activos</option>
+                  <option value="DESACTIVADOS">Desactivados{desactivadosCount ? ` (${desactivadosCount})` : ''}</option>
+                </select>
               </label>
             </div>
 
