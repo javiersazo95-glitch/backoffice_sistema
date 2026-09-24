@@ -46,22 +46,15 @@ export const saveSocialResena=async(id:number,d:{estrellas:number;resena?:string
 export const socialMediaUrl=(url:string|null|undefined)=>resolveProfileImageUrl(url)??'';
 
 /**
- * Guarda el archivo con el nombre "RepuesTop_@alias_<id>.ext". Se intenta bajar como blob
- * (respeta el nombre); si el bucket no permite CORS se abre el link, que el objeto ya trae
- * con Content-Disposition: attachment.
+ * Baja el archivo por la API autenticada (ya registrada la descarga) y lo guarda como
+ * "RepuesTop_@alias_<id>.ext". No se usa el link público: el proxy lo sirve inline y el
+ * navegador lo abría para reproducirlo en otra pestaña en vez de descargarlo.
  */
-export async function saveSocialFile(url:string,nombre:string){
-  const full=socialMediaUrl(url);
-  try{
-    const res=await fetch(full,{credentials:'omit'});
-    if(!res.ok)throw new Error(String(res.status));
-    const blob=await res.blob();
-    const href=URL.createObjectURL(blob);
-    const a=document.createElement('a'); a.href=href; a.download=nombre; document.body.appendChild(a); a.click(); a.remove();
-    window.setTimeout(()=>URL.revokeObjectURL(href),2_000);
-  }catch{
-    window.open(full,'_blank','noopener');
-  }
+export async function saveSocialFile(id:number,nombre:string){
+  const {data}=await apiClient.get<Blob>(`${BASE}/contenidos/${id}/archivo`,{responseType:'blob',timeout:5*60_000});
+  const href=URL.createObjectURL(data);
+  const a=document.createElement('a'); a.href=href; a.download=nombre; document.body.appendChild(a); a.click(); a.remove();
+  window.setTimeout(()=>URL.revokeObjectURL(href),2_000);
 }
 
 // ---- Backoffice (Mediación y confianza) ----

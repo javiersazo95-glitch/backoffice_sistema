@@ -75,7 +75,7 @@ export default function CapturerSocialPage() {
     setDescargando(c.id);
     try {
       const d = await registerSocialDescarga(c.id);
-      await saveSocialFile(d.url, d.nombreArchivo);
+      await saveSocialFile(c.id, d.nombreArchivo);
       qc.setQueryData(['capturer-social-estado'], d.estado);
       setToast({ text: c.propio ? 'Descarga lista.' : `¡Descargado! Esta pieza queda bloqueada ${d.estado.bloqueoDias} días. Te quedan ${d.estado.descargasRestantes ?? '∞'} descargas esta semana.` });
       if (detalle?.id === c.id) setDetalle({ ...c, ultimaDescarga: d.descargadoEn, bloqueadoHasta: d.bloqueadoHasta, motivoBloqueo: d.bloqueadoHasta ? 'BLOQUEO_14_DIAS' : c.motivoBloqueo, puedeDescargar: !d.bloqueadoHasta, descargasTotal: c.descargasTotal + 1 });
