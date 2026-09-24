@@ -6,7 +6,7 @@ export type SocialOrden = 'RECIENTES' | 'MEJOR_EVALUADOS' | 'MAS_DESCARGADOS' | 
 export type SocialCategoria = 'REPUESTOS' | 'TALLERES' | 'PROMOCIONES' | 'TIPS' | 'MARCA' | 'OTRO';
 export type SocialRed = 'INSTAGRAM' | 'TIKTOK' | 'FACEBOOK' | 'YOUTUBE' | 'WHATSAPP';
 export type SocialFiltro = 'ORIGINAL' | 'VIVIDO' | 'CALIDO' | 'FRIO' | 'BN' | 'VINTAGE' | 'CONTRASTE';
-export type SocialMotivoBloqueo = 'BLOQUEO_14_DIAS' | 'SIN_ACCESO' | 'CUPO_AGOTADO' | 'NO_DISPONIBLE' | null;
+export type SocialMotivoBloqueo = 'BLOQUEO_14_DIAS' | 'SIN_ACCESO' | 'CUPO_AGOTADO' | 'NO_DISPONIBLE' | 'SUSPENDIDO' | null;
 export type SocialNivelCodigo = 'BRONCE' | 'PLATA' | 'ORO' | 'PLATINO' | 'DIAMANTE';
 
 export interface SocialNivel { numero:number; codigo:SocialNivelCodigo; medalla:string; puntosMinimos:number; descargasSemana:number; }
@@ -20,6 +20,8 @@ export interface SocialEstado {
   bloqueoDias:number; niveles:SocialNivel[]; subidasHoy:number; subidasMaximasDia:number;
   /** Compradores registrados con el código (los que ya compraron son `compradoresConvertidos`). */
   compradoresReferidos:number;
+  /** Suspensión vigente del repositorio aplicada por Mediación y Confianza. */
+  suspendidoHasta?:string|null; motivoSuspension?:string|null;
 }
 
 export interface SocialContenido {
@@ -48,6 +50,30 @@ export interface SocialContenidoAdmin {
   calificacionPromedio:number; calificacionCount:number; tamanoBytes:number; creadoEn:string;
 }
 export interface SocialRanking { captadorId:number; alias:string; cantidad:number; }
+
+// ---- Repositorio de videos (backoffice) ----
+export type VideoEstado = 'PUBLICADO' | 'OCULTO';
+export type VideoOrden = 'RECIENTES' | 'ANTIGUOS' | 'MAS_DESCARGADOS' | 'MENOS_DESCARGADOS' | 'MEJOR_EVALUADOS' | 'PEOR_EVALUADOS' | 'MAS_PESADOS' | 'MODERADOS';
+export interface VideoAdmin {
+  id:number; url:string; posterUrl:string|null; contentType:string; tamanoBytes:number; duracionSeg:number|null;
+  titulo:string; descripcion:string|null; categoria:SocialCategoria; redes:SocialRed[]; filtroVisual:SocialFiltro;
+  estado:VideoEstado; motivoOcultamiento:string|null; moderadoPor:string|null; moderadoAt:string|null;
+  descargasTotal:number; calificacionPromedio:number; calificacionCount:number; creadoEn:string; actualizadoEn:string;
+  autorId:number; autorAlias:string; autorNombre:string|null; autorFoto:string|null; autorActivo:boolean; autorSuspendidoHasta:string|null;
+}
+export interface VideoFiltros { estado:''|VideoEstado; categoria:''|SocialCategoria; captadorId:number|null; q:string; desde:string; hasta:string; orden:VideoOrden; calificacionMax:number|null; }
+export interface VideoMetricas {
+  desde:string; hasta:string; videosTotal:number; videosPublicados:number; videosVetados:number;
+  subidosPeriodo:number; vetadosPeriodo:number; descargasPeriodo:number; descargasTotal:number;
+  calificacionPromedio:number; resenasTotal:number; captadoresPublicando:number; captadoresSancionados:number;
+  almacenamientoBytes:number; duracionPromedioSeg:number|null;
+  porCategoria:Array<{categoria:SocialCategoria;cantidad:number}>; topCaptadores:SocialRanking[];
+  masDescargados:VideoAdmin[]; peorEvaluados:VideoAdmin[];
+}
+export interface SocialSancion {
+  id:number; captadorId:number; captadorAlias:string; contenidoId:number|null; contenidoTitulo:string|null; dias:number; motivo:string;
+  desde:string; hasta:string; creadoPor:string|null; creadaEn:string; levantadaEn:string|null; levantadaPor:string|null; vigente:boolean;
+}
 export interface SocialMetricas {
   periodo:string; contenidosPublicados:number; videosPublicados:number; imagenesPublicadas:number; contenidosOcultos:number;
   subidasSemana:number; descargasSemana:number; subidasPeriodo:number; descargasPeriodo:number;

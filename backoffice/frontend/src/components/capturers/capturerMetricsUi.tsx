@@ -15,8 +15,8 @@ export const NIVEL_META: Record<SocialNivelCodigo, { label: string; color: strin
   DIAMANTE: { label: 'Diamante', color: '#5a6ff5' },
 };
 
-export function Kpi({ icon, label, value, foot, tone }: { icon: string; label: string; value: string; foot: string; tone: KpiTone }) {
-  return <article className="cpx-kpi">
+export function Kpi({ icon, label, value, foot, tone, title }: { icon: string; label: string; value: string; foot: string; tone: KpiTone; title?: string }) {
+  return <article className="cpx-kpi" title={title}>
     <span className={`cpx-ico cpx-${tone}`}><UiIcon name={icon} /></span>
     <div><span className="cpx-kpi-label">{label}</span><strong className="cpx-kpi-value">{value}</strong><small>{foot}</small></div>
   </article>;
@@ -130,5 +130,7 @@ export const cpxCss = medalCss + `
 .cpx-rank-row small{display:block;margin-top:2px;font-size:11.5px;color:#7286a8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cpx-rank-row b{flex:0 0 auto;color:#0b2559;white-space:nowrap;font-size:12.5px}
 .cpx-note{padding:10px 12px;border-radius:12px;background:#eef4ff;color:#14459b;font-size:12.5px}
+/* KPIs cuyo valor es texto (un título, un @alias): más chico y con elipsis en vez de desbordar. */
+.cpx-kpis-text .cpx-kpi-value{font-size:15.5px;line-height:1.35;overflow:hidden;text-overflow:ellipsis}
 @media (max-width:900px){.cpx-grid2{grid-template-columns:1fr}}
 `;

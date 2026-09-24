@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { getSocialMetricas, listSocialAdmin, setSocialVisibilidad, socialMediaUrl } from '@/api/capturerSocial';
+import { getSocialMetricas, getVideoMetricas, listSocialAdmin, setSocialVisibilidad, socialMediaUrl } from '@/api/capturerSocial';
 import type { SocialContenidoAdmin, SocialNivelCodigo } from '@/types/capturerSocial';
 import { socialCategoriaLabel, socialFiltroCss } from '@/types/capturerSocial';
 import { BarRow, Kpi, NIVEL_META, cpxCss, pct } from './capturerMetricsUi';
@@ -21,7 +21,16 @@ export default function CapturerSocialView() {
     queryKey: ['trust-capturers-social-contents', estado, tipo, q, pagina],
     queryFn: () => listSocialAdmin({ estado, tipo, q, pagina, tamano: 10 }),
   });
+  // Destacados del repositorio de videos (histórico): los mismos datos que usa la pestaña Repositorio videos.
+  const videos = useQuery({ queryKey: ['trust-videos-metrics', 'destacados'], queryFn: () => getVideoMetricas() });
   const m = metricas.data;
+  const v = videos.data;
+  const catTop = v?.porCategoria[0];
+  const totalCat = (v?.porCategoria ?? []).reduce((n, c) => n + c.cantidad, 0);
+  const capTop = v?.topCaptadores[0];
+  const masDesc = v?.masDescargados[0];
+  const peor = v?.peorEvaluados[0];
+  const sinDatos = videos.isLoading ? '…' : '—';
   const niveles = (Object.keys(NIVEL_META) as SocialNivelCodigo[]);
   const maxNivel = Math.max(1, ...niveles.map(n => m?.captadoresPorNivel?.[n] ?? 0));
   const maxAporte = Math.max(1, ...(m?.topAportadores ?? []).map(r => r.cantidad));
@@ -42,6 +51,8 @@ export default function CapturerSocialView() {
       await Promise.all([
         qc.invalidateQueries({ queryKey: ['trust-capturers-social-contents'] }),
         qc.invalidateQueries({ queryKey: ['trust-capturers-social-metrics'] }),
+        qc.invalidateQueries({ queryKey: ['trust-videos-metrics'] }),
+        qc.invalidateQueries({ queryKey: ['trust-videos'] }),
       ]);
     } catch (err) {
       setAviso((err as { response?: { data?: { message?: string } } }).response?.data?.message || 'No se pudo cambiar la visibilidad.');
@@ -61,6 +72,21 @@ export default function CapturerSocialView() {
       <Kpi icon="download" tone="green" label="Descargas de la semana" value={m ? String(m.descargasSemana) : '—'} foot={m ? `${m.descargasPeriodo} en ${m.periodo}` : '—'} />
       <Kpi icon="shieldCheck" tone="amber" label="Con acceso activo" value={m ? String(m.captadoresConAcceso) : '—'} foot={m ? `${pct(m.captadoresConAcceso, m.captadoresAprobados)} de los aprobados` : '—'} />
       <Kpi icon="shieldX" tone="red" label="Contenido oculto" value={m ? String(m.contenidosOcultos) : '—'} foot="Por moderación" />
+    </section>
+
+    <section className="cpx-kpis cpx-kpis-text" aria-label="Destacados de videos">
+      <Kpi icon="dashboard" tone="blue" label="Categoría con más videos" value={catTop ? socialCategoriaLabel(catTop.categoria) : sinDatos}
+        foot={catTop ? `${plural(catTop.cantidad, 'video', 'videos')} · ${pct(catTop.cantidad, totalCat)} del total` : 'Sin videos publicados'}
+        title={v?.porCategoria.map(c => `${socialCategoriaLabel(c.categoria)}: ${c.cantidad}`).join(' · ')} />
+      <Kpi icon="crown" tone="violet" label="Captador con más videos" value={capTop ? `@${capTop.alias}` : sinDatos}
+        foot={capTop ? `${plural(capTop.cantidad, 'video publicado', 'videos publicados')}` : 'Sin videos publicados'}
+        title={v?.topCaptadores.map((r, i) => `${i + 1}. @${r.alias} (${r.cantidad})`).join(' · ')} />
+      <Kpi icon="download" tone="green" label="Video más descargado" value={masDesc ? masDesc.titulo : sinDatos}
+        foot={masDesc ? `@${masDesc.autorAlias} · ${plural(masDesc.descargasTotal, 'descarga', 'descargas')}` : 'Sin descargas todavía'}
+        title={v?.masDescargados.map((x, i) => `${i + 1}. ${x.titulo} (${x.descargasTotal})`).join(' · ')} />
+      <Kpi icon="trendDown" tone="red" label="Video peor evaluado" value={peor ? peor.titulo : sinDatos}
+        foot={peor ? `★ ${Number(peor.calificacionPromedio).toFixed(1)} (${peor.calificacionCount}) · @${peor.autorAlias}` : 'Sin reseñas todavía'}
+        title={v?.peorEvaluados.map((x, i) => `${i + 1}. ${x.titulo} (★ ${Number(x.calificacionPromedio).toFixed(1)})`).join(' · ')} />
     </section>
 
     <div className="cpx-grid2">

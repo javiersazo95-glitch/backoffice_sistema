@@ -1,6 +1,6 @@
 import apiClient, { resolveProfileImageUrl } from './client';
 import type {
-  CapturedBuyersPage, CapturedBuyersQuery, SocialContenido, SocialContenidoAdmin, SocialDescarga, SocialEstado, SocialFiltros,
+  CapturedBuyersPage, CapturedBuyersQuery, SocialContenido, SocialSancion, VideoAdmin, VideoFiltros, VideoMetricas, SocialContenidoAdmin, SocialDescarga, SocialEstado, SocialFiltros,
   SocialMetricas, SocialNuevoContenido, SocialPagina, SocialResena, SocialRed,
 } from '@/types/capturerSocial';
 
@@ -63,6 +63,19 @@ export const listSocialAdmin=async(params:{estado?:string;tipo?:string;q?:string
   (await apiClient.get<SocialPagina<SocialContenidoAdmin>>('/validations/capturers/social/contents',{params:{...params,estado:params.estado||undefined,tipo:params.tipo||undefined,q:params.q?.trim()||undefined}})).data;
 export const setSocialVisibilidad=async(id:number,accion:'OCULTAR'|'RESTAURAR',motivo?:string)=>
   (await apiClient.patch<SocialContenidoAdmin>(`/validations/capturers/social/contents/${id}/visibility`,{accion,motivo})).data;
+// ---- Repositorio de videos ----
+export const listVideosAdmin=async(f:VideoFiltros,pagina:number,tamano:number)=>
+  (await apiClient.get<SocialPagina<VideoAdmin>>('/validations/capturers/social/videos',{params:{
+    estado:f.estado||undefined,categoria:f.categoria||undefined,captadorId:f.captadorId??undefined,q:f.q.trim()||undefined,
+    desde:f.desde||undefined,hasta:f.hasta||undefined,orden:f.orden,calificacionMax:f.calificacionMax??undefined,pagina,tamano,
+  }})).data;
+export const getVideoMetricas=async(desde?:string,hasta?:string)=>
+  (await apiClient.get<VideoMetricas>('/validations/capturers/social/videos/metrics',{params:{desde:desde||undefined,hasta:hasta||undefined}})).data;
+export const listSocialSanciones=async(captadorId:number)=> (await apiClient.get<SocialSancion[]>(`/validations/capturers/${captadorId}/social/sanctions`)).data;
+/** Suspende al captador del repositorio por `dias`; con `vetarVideo` también veta la pieza `contenidoId`. */
+export const sancionarCaptadorSocial=async(captadorId:number,d:{dias:number;motivo:string;contenidoId?:number;vetarVideo?:boolean})=>
+  (await apiClient.post<SocialSancion>(`/validations/capturers/${captadorId}/social/sanctions`,d)).data;
+export const levantarSancionSocial=async(id:number)=> (await apiClient.patch<SocialSancion>(`/validations/capturers/social/sanctions/${id}/lift`)).data;
 /** Compradores referidos de un captador, paginados y filtrados en el servidor. */
 export const getCapturedBuyers=async(id:number,p:CapturedBuyersQuery)=>
   (await apiClient.get<CapturedBuyersPage>(`/validations/capturers/${id}/captured-buyers`,{params:{...p,q:p.q?.trim()||undefined,compra:p.compra||undefined,canal:p.canal||undefined}})).data;

@@ -7,6 +7,7 @@ import { formatCurrency } from "@/utils/formatters";
 import type { CapturedBusiness, CapturerProfile } from "@/types/capturer";
 import CapturerBuyersView from "./CapturerBuyersView";
 import CapturerSocialView from "./CapturerSocialView";
+import CapturerVideoRepositoryView from "./CapturerVideoRepositoryView";
 import { NivelBadge, estadoNegocio, medalCss } from "./capturerMetricsUi";
 import CapturerDetailModal from "./CapturerDetailModal";
 
@@ -22,7 +23,8 @@ export default function CapturersPage() {
   const [perPage, setPerPage] = useState(10);
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<CapturerProfile | null>(null);
-  const [view, setView] = useState<"CAPTADORES" | "CAPTACIONES" | "COMPRADORES" | "REDES">("CAPTADORES");
+  const [view, setView] = useState<"CAPTADORES" | "CAPTACIONES" | "COMPRADORES" | "REDES" | "VIDEOS">("CAPTADORES");
+  const [aviso, setAviso] = useState("");
 
   const q = useQuery({
     queryKey: ["trust-capturers"],
@@ -233,12 +235,30 @@ export default function CapturersPage() {
           <UiIcon name="megaphone" />
           Redes sociales
         </button>
+        <button
+          type="button"
+          className={view === "VIDEOS" ? "cps-viewtab cps-viewtab-on" : "cps-viewtab"}
+          onClick={() => setView("VIDEOS")}
+        >
+          <UiIcon name="video" />
+          Repositorio videos
+        </button>
       </nav>
+      {aviso && <div className="cps-aviso" role="status">{aviso}</div>}
 
       {view === "COMPRADORES" ? (
         <CapturerBuyersView all={all} />
       ) : view === "REDES" ? (
         <CapturerSocialView />
+      ) : view === "VIDEOS" ? (
+        <CapturerVideoRepositoryView
+          all={all}
+          onVerCaptador={(id) => {
+            const captador = all.find((c) => c.id === id);
+            setAviso(captador ? "" : "El perfil de este captador ya no está disponible (fue eliminado o no está aprobado).");
+            if (captador) setSelected(captador);
+          }}
+        />
       ) : view === "CAPTACIONES" ? (
         <CaptacionesView all={all} />
       ) : (
@@ -1334,6 +1354,7 @@ const css = `
 .cps-viewtab-on{background:#1657d9;color:#fff;box-shadow:0 6px 14px rgba(22,87,217,.25)}
 @media (max-width:1180px){.cps-viewtab{padding:9px 11px;gap:6px;font-size:13px}}
 .cps-viewtab svg{width:17px;height:17px}
+.cps-aviso{margin:-4px 0 12px;padding:10px 12px;border-radius:12px;background:#fde8e8;color:#b42318;font-size:12.5px}
 
 .cps-strip{display:grid;grid-template-columns:max-content repeat(4,minmax(0,1fr));align-items:center;gap:10px;margin-bottom:14px;padding:11px 14px;border:1px solid #cfe0fb;border-radius:16px;background:linear-gradient(120deg,#eaf2ff,#f8fbff);box-shadow:0 6px 18px rgba(15,44,92,.04)}
 .cps-strip-title{max-width:104px;font-size:12.5px;font-weight:800;line-height:1.25;color:#123c8f}

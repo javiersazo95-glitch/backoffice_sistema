@@ -83,9 +83,28 @@ Un código inválido responde **400 antes de crear la cuenta**. Para prevalidar,
 | GET | `/validations/capturers/social/contents` | Moderación (paginado) |
 | PATCH | `/validations/capturers/social/contents/{id}/visibility` | `{accion: OCULTAR\|RESTAURAR, motivo}` (auditado) |
 | GET | `/validations/capturers/{id}/captured-buyers` | Compradores de un captador, con email enmascarado |
+| GET | `/validations/capturers/social/videos` | Repositorio de videos (paginado). Parámetros: `estado=PUBLICADO\|OCULTO`, `categoria`, `captadorId`, `q`, `desde`, `hasta` (YYYY-MM-DD, fecha de subida), `calificacionMax`, `orden`, `pagina`, `tamano` (máx. 100) |
+| GET | `/validations/capturers/social/videos/metrics?desde=&hasta=` | KPIs de videos, por categoría, top captadores, más descargados y peor evaluados. Por defecto, el mes en curso |
+| GET | `/validations/capturers/{id}/social/sanctions` | Historial de sanciones del captador |
+| POST | `/validations/capturers/{id}/social/sanctions` | `{dias (1–365), motivo (5–300), contenidoId?, vetarVideo?}`: suspende al captador del repositorio y, si se pide, veta el video (auditado) |
+| PATCH | `/validations/capturers/social/sanctions/{id}/lift` | Levanta una sanción vigente (auditado) |
 
 `GET /validations/capturers` ahora incluye `compradoresCaptados`, `compradoresConvertidos`,
 `puntosSociales` y `nivelSocial`, calculados en una sola consulta agregada.
+
+## Repositorio de videos (Mediación y Confianza → Captadores)
+
+Pestaña "Repositorio videos": todos los videos (publicados y vetados) con filtros en el servidor, vista en grilla
+o tabla, métricas del rango de fechas y detalle con reproductor, datos, sanciones y acceso al perfil del captador.
+
+- **Vetar** = `OCULTAR` con motivo. El video sale del feed y deja de contar para el requisito de 3 videos. Se
+  registra quién vetó y cuándo (`moderado_por`, `moderado_at`). **Quitar veto** = `RESTAURAR`.
+- **Sancionar** = suspender al captador del repositorio por N días. Mientras dure no sube videos ni descarga
+  contenido ajeno: responde 400 con el motivo y la fecha, y el feed marca las piezas con `motivoBloqueo=SUSPENDIDO`.
+  Su propio contenido sigue descargable. No toca la cuenta, las comisiones ni las captaciones: desactivar la
+  cuenta sigue siendo exclusivo de SUPER_ADMIN en Permisos. Si hay varias sanciones vigentes, rige la que termina
+  más tarde.
+- `GET /captadores/me/social/estado` informa `suspendidoHasta` y `motivoSuspension`, y el portal muestra un aviso.
 
 ## Migraciones (mono-repo)
 
@@ -99,3 +118,5 @@ Un código inválido responde **400 antes de crear la cuenta**. Para prevalidar,
   - `RT_captador_resena_social`.
 - `V2026092403__captador_comprador_captado_al_pagar.sql`: completa `primera_compra_at` de los compradores
   que ya tienen una compra pagada vigente: cada comprador nuevo suma sus puntos con su primera compra.
+- `V2026092420__captador_repositorio_videos_moderacion.sql`: columnas `moderado_por` y `moderado_at` en el
+  contenido social y la tabla `RT_captador_sancion_social` (suspensiones del repositorio).

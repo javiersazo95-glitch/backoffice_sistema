@@ -69,6 +69,7 @@ export default function UiIcon({ name, className = '', style }: UiIconProps) {
     trendDown: '<path d="m22 17-8.5-8.5-5 5L2 7" /><path d="M16 17h6v-6" />',
     trendUp: '<path d="m22 7-8.5 8.5-5-5L2 17" /><path d="M16 7h6v6" />',
     trash: '<path d="M3 6h18" /><path d="M8 6V4h8v2" /><path d="M19 6l-1 14H6L5 6" /><path d="M10 11v5" /><path d="M14 11v5" />',
+    video: '<rect x="2" y="6" width="14" height="12" rx="2" /><path d="m22 8-6 4 6 4V8z" />',
     upload: '<path d="M12 16V4" /><path d="m7 9 5-5 5 5" /><path d="M4 20h16" />',
     users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />',
     wallet: '<path d="M4 7h16v12H4z" /><path d="M4 9l12-4h2v2" /><path d="M16 13h4" />',

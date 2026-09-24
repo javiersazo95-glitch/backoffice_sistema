@@ -107,11 +107,12 @@ export default function CapturerSocialPage() {
           <h2>Redes sociales</h2>
           <p>Repositorio compartido de videos e imágenes que suben los captadores. Descárgalos, publícalos en tus redes con tu código y cuéntanos qué resultados te dieron.</p>
         </div>
-        <button type="button" className="cap-soc-btn" onClick={() => setUploadOpen(true)} disabled={!!e && e.subidasHoy >= e.subidasMaximasDia}>＋ Subir contenido</button>
+        <button type="button" className="cap-soc-btn" onClick={() => setUploadOpen(true)} disabled={!!e && (e.subidasHoy >= e.subidasMaximasDia || !!e.suspendidoHasta)}>＋ Subir contenido</button>
       </section>
 
       {e ? <SocialLevelPanel e={e} now={now} /> : <div className="cap-soc-skeleton" style={{ aspectRatio: 'auto', height: 150 }} />}
-      {e && !e.accesoActivo && vista === 'PUBLICO' && <div className="cap-soc-banner">🔒 Para descargar del repositorio sube {e.videosRequeridos - e.videosUltimos7Dias} video(s) más. El acceso dura 7 días desde tus últimos {e.videosRequeridos} videos.</div>}
+      {e?.suspendidoHasta && <div className="cap-soc-banner" role="alert">⛔ Tu acceso al repositorio está suspendido hasta el {new Date(e.suspendidoHasta).toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' })}. Motivo: {e.motivoSuspension}. Mientras tanto no puedes subir ni descargar contenido de otros captadores.</div>}
+      {e && !e.suspendidoHasta && !e.accesoActivo && vista === 'PUBLICO' && <div className="cap-soc-banner">🔒 Para descargar del repositorio sube {e.videosRequeridos - e.videosUltimos7Dias} video(s) más. El acceso dura 7 días desde tus últimos {e.videosRequeridos} videos.</div>}
 
       <section className="cap-soc-card" style={{ display: 'grid', gap: 14 }}>
         <div className="cap-soc-head">

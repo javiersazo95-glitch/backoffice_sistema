@@ -38,6 +38,7 @@ export function downloadState(c: SocialContenido, now: number) {
     case 'SIN_ACCESO': return { label: 'Sin acceso', hint: 'Sube 3 videos esta semana', blocked: true };
     case 'CUPO_AGOTADO': return { label: 'Cupo agotado', hint: 'Se reinicia el lunes', blocked: true };
     case 'NO_DISPONIBLE': return { label: 'No disponible', hint: 'Oculto por moderación', blocked: true };
+    case 'SUSPENDIDO': return { label: 'Suspendido', hint: 'Acceso suspendido por moderación', blocked: true };
     default: return { label: 'Descargar', hint: 'Usa 1 descarga de tu cupo', blocked: false };
   }
 }
