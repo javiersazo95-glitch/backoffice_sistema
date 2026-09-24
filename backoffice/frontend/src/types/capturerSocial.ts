@@ -1,0 +1,81 @@
+// Contratos del repositorio "Redes sociales" de captadores (backend: CaptadorSocialDTOs).
+
+export type SocialTipo = 'VIDEO' | 'IMAGEN';
+export type SocialVista = 'PUBLICO' | 'MIOS' | 'DESCARGADOS';
+export type SocialOrden = 'RECIENTES' | 'MEJOR_EVALUADOS' | 'MAS_DESCARGADOS' | 'ANTIGUOS';
+export type SocialCategoria = 'REPUESTOS' | 'TALLERES' | 'PROMOCIONES' | 'TIPS' | 'MARCA' | 'OTRO';
+export type SocialRed = 'INSTAGRAM' | 'TIKTOK' | 'FACEBOOK' | 'YOUTUBE' | 'WHATSAPP';
+export type SocialFiltro = 'ORIGINAL' | 'VIVIDO' | 'CALIDO' | 'FRIO' | 'BN' | 'VINTAGE' | 'CONTRASTE';
+export type SocialMotivoBloqueo = 'BLOQUEO_14_DIAS' | 'SIN_ACCESO' | 'CUPO_AGOTADO' | 'NO_DISPONIBLE' | null;
+export type SocialNivelCodigo = 'BRONCE' | 'PLATA' | 'ORO' | 'PLATINO' | 'DIAMANTE';
+
+export interface SocialNivel { numero:number; codigo:SocialNivelCodigo; medalla:string; puntosMinimos:number; descargasSemana:number; }
+
+export interface SocialEstado {
+  nivel:SocialNivelCodigo; nivelNumero:number; medalla:string; puntos:number; compradoresConvertidos:number; puntosPorComprador:number;
+  siguienteNivel:SocialNivelCodigo|null; siguienteMedalla:string|null; puntosSiguienteNivel:number|null; progresoPct:number;
+  /** -1 = ilimitado */
+  cupoSemanal:number; descargasSemana:number; descargasRestantes:number|null; reinicioCupo:string; semanaInicio:string;
+  videosRequeridos:number; videosUltimos7Dias:number; accesoActivo:boolean; accesoHasta:string|null;
+  bloqueoDias:number; niveles:SocialNivel[]; subidasHoy:number; subidasMaximasDia:number;
+  /** Compradores registrados con el código (los que ya compraron son `compradoresConvertidos`). */
+  compradoresReferidos:number;
+}
+
+export interface SocialContenido {
+  id:number; tipo:SocialTipo; url:string; posterUrl:string|null; contentType:string; tamanoBytes:number; duracionSeg:number|null;
+  titulo:string; descripcion:string|null; categoria:SocialCategoria; redes:SocialRed[]; filtroVisual:SocialFiltro; estado:'PUBLICADO'|'OCULTO'|'ELIMINADO';
+  autorId:number; autorAlias:string; autorFoto:string|null; propio:boolean; creadoEn:string;
+  descargasTotal:number; calificacionPromedio:number; calificacionCount:number;
+  ultimaDescarga:string|null; bloqueadoHasta:string|null; miCalificacion:number|null;
+  puedeDescargar:boolean; motivoBloqueo:SocialMotivoBloqueo; nombreDescarga:string;
+}
+
+export interface SocialPagina<T> { contenido:T[]; pagina:number; tamano:number; total:number; totalPaginas:number; }
+
+export interface SocialDescarga { contenidoId:number; url:string; nombreArchivo:string; descargadoEn:string; bloqueadoHasta:string|null; estado:SocialEstado; }
+
+export interface SocialResena { id:number; autorAlias:string; autorFoto:string|null; estrellas:number; resena:string|null; redSocial:string|null; fecha:string; propia:boolean; }
+
+export interface SocialNuevoContenido { titulo:string; descripcion?:string; categoria:SocialCategoria; redes:SocialRed[]; filtroVisual:SocialFiltro; duracionSeg?:number|null; }
+
+export interface SocialFiltros { vista:SocialVista; tipo?:SocialTipo|''; categoria?:SocialCategoria|''; red?:SocialRed|''; q?:string; orden:SocialOrden; soloNoDescargados?:boolean; }
+
+// ---- Backoffice ----
+export interface SocialContenidoAdmin {
+  id:number; tipo:SocialTipo; url:string; posterUrl:string|null; titulo:string; categoria:SocialCategoria; filtroVisual:SocialFiltro;
+  autorId:number; autorAlias:string; estado:'PUBLICADO'|'OCULTO'|'ELIMINADO'; motivoOcultamiento:string|null; descargasTotal:number;
+  calificacionPromedio:number; calificacionCount:number; tamanoBytes:number; creadoEn:string;
+}
+export interface SocialRanking { captadorId:number; alias:string; cantidad:number; }
+export interface SocialMetricas {
+  periodo:string; contenidosPublicados:number; videosPublicados:number; imagenesPublicadas:number; contenidosOcultos:number;
+  subidasSemana:number; descargasSemana:number; subidasPeriodo:number; descargasPeriodo:number;
+  captadoresAprobados:number; captadoresConAcceso:number; captadoresPorNivel:Record<SocialNivelCodigo,number>;
+  compradoresReferidos:number; compradoresConvertidos:number; comisionCompradoresPeriodo:number;
+  masDescargados:SocialContenidoAdmin[]; mejorEvaluados:SocialContenidoAdmin[]; topAportadores:SocialRanking[]; topDescargadores:SocialRanking[];
+}
+export interface CapturedBuyer { atribucionId:number; nombre:string; emailEnmascarado:string; canal:string; registradoEn:string; primeraCompraEn:string|null; pedidos:number; montoBase:number; ingresoCaptador:number; }
+
+// ---- Catálogos de UI ----
+export const SOCIAL_CATEGORIAS:Array<{value:SocialCategoria;label:string}>=[
+  {value:'REPUESTOS',label:'Repuestos'},{value:'TALLERES',label:'Talleres'},{value:'PROMOCIONES',label:'Promociones'},
+  {value:'TIPS',label:'Tips y consejos'},{value:'MARCA',label:'Marca RepuesTop'},{value:'OTRO',label:'Otro'},
+];
+export const SOCIAL_REDES:Array<{value:SocialRed;label:string}>=[
+  {value:'INSTAGRAM',label:'Instagram'},{value:'TIKTOK',label:'TikTok'},{value:'FACEBOOK',label:'Facebook'},
+  {value:'YOUTUBE',label:'YouTube Shorts'},{value:'WHATSAPP',label:'WhatsApp'},
+];
+/** Filtros visuales: el mismo valor CSS se usa en el feed y (en imágenes) al "hornearlo" con canvas antes de subir. */
+export const SOCIAL_FILTROS:Array<{value:SocialFiltro;label:string;css:string}>=[
+  {value:'ORIGINAL',label:'Original',css:'none'},
+  {value:'VIVIDO',label:'Vívido',css:'saturate(1.45) contrast(1.08)'},
+  {value:'CALIDO',label:'Cálido',css:'sepia(.25) saturate(1.3) hue-rotate(-10deg)'},
+  {value:'FRIO',label:'Frío',css:'saturate(1.1) hue-rotate(15deg) brightness(1.03)'},
+  {value:'BN',label:'B/N',css:'grayscale(1) contrast(1.1)'},
+  {value:'VINTAGE',label:'Vintage',css:'sepia(.45) contrast(.95) brightness(1.05) saturate(.85)'},
+  {value:'CONTRASTE',label:'Contraste',css:'contrast(1.35) saturate(1.1)'},
+];
+export const socialFiltroCss=(f:SocialFiltro|null|undefined)=>SOCIAL_FILTROS.find(x=>x.value===f)?.css??'none';
+export const socialCategoriaLabel=(c:string)=>SOCIAL_CATEGORIAS.find(x=>x.value===c)?.label??c;
+export const socialRedLabel=(r:string)=>SOCIAL_REDES.find(x=>x.value===r)?.label??(r==='OTRA'?'Otra':r);

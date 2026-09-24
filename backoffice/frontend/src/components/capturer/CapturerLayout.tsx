@@ -11,6 +11,7 @@ const navItems:Array<{to:string;label:string;icon:ReactNode}>=[
  {to:'/captador',label:'Resumen',icon:<HomeIcon/>},
  {to:'/captador/comisiones',label:'Comisiones',icon:<MoneyIcon/>},
  {to:'/captador/ranking',label:'Ranking',icon:<TrophyIcon/>},
+ {to:'/captador/redes-sociales',label:'Redes sociales',icon:<SocialIcon/>},
  {to:'/captador/retiros',label:'Retiros y banco',icon:<BankIcon/>},
  {to:'/captador/cuenta',label:'Mi cuenta',icon:<UserIcon/>},
 ];
@@ -83,6 +84,7 @@ export default function CapturerLayout({alias,region,comuna,fotoPerfil,alerts=[]
 
 function HomeIcon(){return <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>;}
 function MoneyIcon(){return <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M14.5 9.2A2.7 2.7 0 0 0 12 8c-1.4 0-2.5.8-2.5 2s1.1 2 2.5 2 2.5.8 2.5 2-1.1 2-2.5 2a2.7 2.7 0 0 1-2.5-1.2"/><path d="M12 6.4V8M12 16v1.6"/></svg>;}
+function SocialIcon(){return <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="14" height="14" rx="3"/><path d="m17 10 4-2.5v9L17 14"/><path d="m8.5 9.5 4 2.5-4 2.5Z"/></svg>;}
 function TrophyIcon(){return <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 4h10v5a5 5 0 0 1-10 0Z"/><path d="M7 6H4.5a2.5 2.5 0 0 0 2.5 4M17 6h2.5a2.5 2.5 0 0 1-2.5 4"/><path d="M12 14v3M9 20h6"/></svg>;}
 function BankIcon(){return <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9.5 12 4l9 5.5"/><path d="M5 10v8M10 10v8M14 10v8M19 10v8M3 21h18"/></svg>;}
 function BellIcon(){return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9a6 6 0 0 1 12 0c0 4 1.5 5.5 1.5 5.5h-15S6 13 6 9Z"/><path d="M10.5 18a1.8 1.8 0 0 0 3 0"/></svg>;}

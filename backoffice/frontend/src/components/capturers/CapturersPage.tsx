@@ -5,6 +5,10 @@ import { resolveProfileImageUrl } from "@/api/client";
 import UiIcon from "@/components/shared/UiIcon";
 import { formatCurrency } from "@/utils/formatters";
 import type { CapturedBusiness, CapturerProfile } from "@/types/capturer";
+import CapturerBuyersView from "./CapturerBuyersView";
+import CapturerSocialView from "./CapturerSocialView";
+import { NivelBadge, cpxCss } from "./capturerMetricsUi";
+import { getCapturedBuyers } from "@/api/capturerSocial";
 
 type Counts = { casas: number; servicios: number };
 
@@ -18,7 +22,7 @@ export default function CapturersPage() {
   const [perPage, setPerPage] = useState(10);
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<CapturerProfile | null>(null);
-  const [view, setView] = useState<"CAPTADORES" | "CAPTACIONES">("CAPTADORES");
+  const [view, setView] = useState<"CAPTADORES" | "CAPTACIONES" | "COMPRADORES" | "REDES">("CAPTADORES");
 
   const q = useQuery({
     queryKey: ["trust-capturers"],
@@ -213,9 +217,29 @@ export default function CapturersPage() {
           <UiIcon name="store" />
           Captaciones por comuna
         </button>
+        <button
+          type="button"
+          className={view === "COMPRADORES" ? "cps-viewtab cps-viewtab-on" : "cps-viewtab"}
+          onClick={() => setView("COMPRADORES")}
+        >
+          <UiIcon name="cart" />
+          Compradores captados
+        </button>
+        <button
+          type="button"
+          className={view === "REDES" ? "cps-viewtab cps-viewtab-on" : "cps-viewtab"}
+          onClick={() => setView("REDES")}
+        >
+          <UiIcon name="megaphone" />
+          Redes sociales
+        </button>
       </nav>
 
-      {view === "CAPTACIONES" ? (
+      {view === "COMPRADORES" ? (
+        <CapturerBuyersView all={all} />
+      ) : view === "REDES" ? (
+        <CapturerSocialView />
+      ) : view === "CAPTACIONES" ? (
         <CaptacionesView all={all} />
       ) : (
         <>
@@ -382,6 +406,8 @@ export default function CapturersPage() {
                     <th>Ubicación</th>
                     <th>Estado</th>
                     <th>Captaciones</th>
+                    <th>Compradores</th>
+                    <th>Medalla redes</th>
                     <th>Ganancia del mes</th>
                     <th>Ranking</th>
                     <th>Fecha registro</th>
@@ -391,7 +417,7 @@ export default function CapturersPage() {
                 <tbody>
                   {q.isLoading ? (
                     <tr>
-                      <td colSpan={10} className="cps-empty">
+                      <td colSpan={12} className="cps-empty">
                         Cargando captadores…
                       </td>
                     </tr>
@@ -462,6 +488,19 @@ export default function CapturersPage() {
                             </div>
                           </td>
                           <td>
+                            <div className="cps-counts">
+                              <span>
+                                Referidos:<b>{c.compradoresCaptados ?? 0}</b>
+                              </span>
+                              <span>
+                                Con compra:<b>{c.compradoresConvertidos ?? 0}</b>
+                              </span>
+                            </div>
+                          </td>
+                          <td>
+                            <NivelBadge nivel={c.nivelSocial} />
+                          </td>
+                          <td>
                             <strong className="cps-money">
                               {c.gananciaMes !== undefined &&
                               c.gananciaMes !== null
@@ -508,7 +547,7 @@ export default function CapturersPage() {
                     })
                   ) : (
                     <tr>
-                      <td colSpan={10} className="cps-empty">
+                      <td colSpan={12} className="cps-empty">
                         No hay captadores que coincidan con los filtros.
                       </td>
                     </tr>
@@ -1219,6 +1258,7 @@ function Modal({ c, close }: { c: CapturerProfile; close: () => void }) {
           {[
             ["general", "General"],
             ["captados", "Casas y servicios captados"],
+            ["compradores", "Compradores captados"],
           ].map(([v, l]) => (
             <button
               type="button"
@@ -1241,6 +1281,8 @@ function Modal({ c, close }: { c: CapturerProfile; close: () => void }) {
             search={businessSearch}
             setSearch={setBusinessSearch}
           />
+        ) : tab === "compradores" ? (
+          <ModalBuyers id={c.id} />
         ) : (
           <div className="cps-details cps-details-2">
             <List
@@ -1256,6 +1298,32 @@ function Modal({ c, close }: { c: CapturerProfile; close: () => void }) {
           </div>
         )}
       </section>
+    </div>
+  );
+}
+
+function ModalBuyers({ id }: { id: number }) {
+  const q = useQuery({ queryKey: ["trust-capturer-buyers", id], queryFn: () => getCapturedBuyers(id) });
+  return (
+    <div className="cpx" style={{ marginTop: 12 }}>
+      <style>{cpxCss}</style>
+      <div className="cpx-table-wrap">
+        <table className="cpx-table">
+          <thead><tr><th>Comprador</th><th>Registro</th><th>Primera compra</th><th>Pedidos</th><th>Ingreso captador</th></tr></thead>
+          <tbody>
+            {q.isLoading ? <tr><td colSpan={5} className="cpx-empty">Cargando…</td></tr>
+              : q.data?.length ? q.data.map((b) => (
+                <tr key={b.atribucionId}>
+                  <td><strong>{b.nombre}</strong><div className="cpx-muted">{b.emailEnmascarado}</div></td>
+                  <td>{new Date(b.registradoEn).toLocaleDateString("es-CL")}</td>
+                  <td>{b.primeraCompraEn ? new Date(b.primeraCompraEn).toLocaleDateString("es-CL") : "Aún no compra"}</td>
+                  <td>{b.pedidos}</td>
+                  <td><strong>{formatCurrency(b.ingresoCaptador)}</strong></td>
+                </tr>
+              )) : <tr><td colSpan={5} className="cpx-empty">Este captador aún no tiene compradores referidos.</td></tr>}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

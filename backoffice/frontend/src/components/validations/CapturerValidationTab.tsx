@@ -272,6 +272,8 @@ export default function CapturerValidationTab() {
                   ['pesosPorPunto', 'Pesos por punto', 1],
                   ['comisionCasa', 'Comisión casa', 0.01],
                   ['comisionPublicidad', 'Comisión publicidad', 0.01],
+                  ['comisionComprador', 'Comisión compradores', 0.001],
+                  ['puntosCompradorConvertido', 'Puntos por comprador', 1],
                 ] as const).map(([key, label, step]) => (
                   <label key={key} style={{ display: 'grid', gap: 5, fontSize: 12.5, fontWeight: 650, color: '#334155' }}>
                     {label}
@@ -281,7 +283,7 @@ export default function CapturerValidationTab() {
                       min="0"
                       max={key.startsWith('comision') ? 1 : undefined}
                       step={step}
-                      value={config[key]}
+                      value={config[key] ?? 0}
                       onChange={(e) => setConfig((v) => (v ? { ...v, [key]: Number(e.target.value) } : v))}
                     />
                   </label>
@@ -542,6 +544,8 @@ export default function CapturerValidationTab() {
             <div style={{ textAlign: 'left', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10, padding: '12px 14px', display: 'grid', gap: 6, fontSize: 12.5, color: '#334155', marginBottom: 20 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Comisión por casa</span><strong>{(savedConfig.comisionCasa * 100).toLocaleString('es-CL')}%</strong></div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Comisión por publicidad</span><strong>{(savedConfig.comisionPublicidad * 100).toLocaleString('es-CL')}%</strong></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Comisión por compras de compradores</span><strong>{((savedConfig.comisionComprador ?? 0.01) * 100).toLocaleString('es-CL')}%</strong></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Puntos por comprador captado</span><strong>{(savedConfig.puntosCompradorConvertido ?? 2).toLocaleString('es-CL')}</strong></div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Puntos por casa aprobada</span><strong>{savedConfig.puntosCasaAprobada.toLocaleString('es-CL')}</strong></div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Puntos por primer pago de servicio</span><strong>{savedConfig.puntosServicioPrimeraCompra.toLocaleString('es-CL')}</strong></div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Pesos por punto</span><strong>${savedConfig.pesosPorPunto.toLocaleString('es-CL')}</strong></div>

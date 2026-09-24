@@ -18,6 +18,9 @@ const emptyBank:BankForm={rut:'',titular:'',banco:'',bankCode:null,tipoCuenta:''
 type Level={name:string;min:number;next:number};
 const levels:Level[]=[{name:'Bronce',min:0,next:2500},{name:'Plata',min:2500,next:10000},{name:'Oro',min:10000,next:0}];
 const baseLevel:Level=levels[0]!;
+/** Web de compradores: el link `?ref=CODIGO` precarga el código del captador en el registro. */
+const MARKET_URL=(import.meta.env.VITE_MARKET_URL as string|undefined)?.replace(/\/+$/,'')||'https://repuestop.cl';
+export const buyerReferralLink=(codigo?:string|null)=>codigo?`${MARKET_URL}/?ref=${encodeURIComponent(codigo)}`:'';
 
 export default function CapturerPortalPage(){
  const qc=useQueryClient(); const navigate=useNavigate(); const {pathname}=useLocation();
@@ -27,7 +30,7 @@ export default function CapturerPortalPage(){
  const [estadoFiltro,setEstadoFiltro]=useState('TODOS');
  const [bank,setBank]=useState<BankForm>(emptyBank); const bankHydrated=useRef(false);
  const [amount,setAmount]=useState(''); const [receipt,setReceipt]=useState<File|null>(null);
- const [message,setMessage]=useState(''); const [copied,setCopied]=useState(false);
+ const [message,setMessage]=useState(''); const [copied,setCopied]=useState(false); const [linkCopied,setLinkCopied]=useState(false);
 
  const status=useQuery({queryKey:['capturer-status'],queryFn:api.getStatus});
  const approved=status.data?.estado==='APROBADO';
@@ -80,9 +83,13 @@ export default function CapturerPortalPage(){
   navigator.clipboard.writeText(d?.perfil.codigoReferido||'');
   setCopied(true); window.setTimeout(()=>setCopied(false),2200);
  }
+ function copyBuyerLink(){
+  navigator.clipboard.writeText(buyerReferralLink(d?.perfil.codigoReferido));
+  setLinkCopied(true); window.setTimeout(()=>setLinkCopied(false),2200);
+ }
 
  const body=!d?<article className="cap-card cap-loading">Preparando tus métricas…</article>:
-  section==='RESUMEN'?<Resumen d={d} cfg={cfg} ranking={ranking.data} copied={copied} onCopy={copyCode} onGo={to=>navigate(to)}/>:
+  section==='RESUMEN'?<Resumen d={d} cfg={cfg} ranking={ranking.data} copied={copied} onCopy={copyCode} linkCopied={linkCopied} onCopyLink={copyBuyerLink} onGo={to=>navigate(to)}/>:
   section==='COMISIONES'?<Comisiones d={d} estado={estadoFiltro} onEstado={setEstadoFiltro}/>:
   section==='RANKING'?<Ranking d={d} data={ranking.data} loading={ranking.isLoading} mode={mode} onMode={setMode} period={period} onPeriod={setPeriod}/>:
   <Finanzas d={d} bank={bank} onBank={setBank} amount={amount} onAmount={setAmount} receipt={receipt} onReceipt={setReceipt} onSaveBank={saveBank} onWithdraw={withdraw}/>;
@@ -96,8 +103,9 @@ export default function CapturerPortalPage(){
 
 /* ---------------- Resumen ---------------- */
 function fmtPct(v:number){return `${(Math.round(v*1000)/10).toLocaleString('es-CL')}%`;}
-function Resumen({d,cfg,ranking,copied,onCopy,onGo}:{d:CapturerDashboard;cfg:CapturerConfig;ranking?:{posicionPropia:number;posiciones:Array<{alias:string;puntos:number;propio:boolean}>};copied:boolean;onCopy:()=>void;onGo:(to:string)=>void}){
+function Resumen({d,cfg,ranking,copied,onCopy,linkCopied,onCopyLink,onGo}:{d:CapturerDashboard;cfg:CapturerConfig;ranking?:{posicionPropia:number;posiciones:Array<{alias:string;puntos:number;propio:boolean}>};copied:boolean;onCopy:()=>void;linkCopied:boolean;onCopyLink:()=>void;onGo:(to:string)=>void}){
  const casaPct=fmtPct(cfg.comisionCasa);
+ const compPct=fmtPct(cfg.comisionComprador??0.01);
  const pubPct=fmtPct(cfg.comisionPublicidad);
  const puntos=ranking?.posiciones.find(r=>r.propio)?.puntos??0;
  const level:Level=levels.find(l=>l.next===0||puntos<l.next)||baseLevel;
@@ -115,14 +123,18 @@ function Resumen({d,cfg,ranking,copied,onCopy,onGo}:{d:CapturerDashboard;cfg:Cap
     <article className="cap-card cap-referral">
      <span className="cap-eyebrow">Tu código de referido</span>
      <strong className="cap-code">{d.perfil.codigoReferido||'—'}</strong>
-     <p className="cap-muted">Compártelo para que lo copien en el campo “Código de referido” al crear la cuenta.</p>
-     <div className="cap-link"><LinkIcon/><span>{d.perfil.codigoReferido||'Sin código asignado'}</span></div>
+     <p className="cap-muted">Compártelo con casas, talleres y compradores: lo ingresan en “Código de captador” al crear su cuenta.</p>
      <button type="button" className="cap-primary cap-copy" onClick={onCopy}><CopyIcon/>{copied?'¡Código copiado!':'Copiar código'}</button>
+     <span className="cap-eyebrow" style={{marginTop:4}}>Link para compradores</span>
+     <div className="cap-link"><LinkIcon/><span>{buyerReferralLink(d.perfil.codigoReferido)||'Sin código asignado'}</span></div>
+     <button type="button" className="cap-ghost" onClick={onCopyLink} disabled={!d.perfil.codigoReferido}>{linkCopied?'¡Link copiado!':'Copiar link para compradores'}</button>
     </article>
     <div className="cap-metrics">
      <Metric tone="green" icon={<MoneyIcon/>} label="Ganancia total" value={formatCurrency(d.total)} foot="Comisiones acumuladas"/>
      <Metric tone="blue" icon={<StoreIcon/>} label="Ganancia por casas" value={formatCurrency(d.casas)} foot={`${casaPct} por cada casa`}/>
      <Metric tone="violet" icon={<WrenchIcon/>} label="Ganancia por servicios" value={formatCurrency(d.publicidad)} foot={`${pubPct} por publicidad vendida`}/>
+     <Metric tone="green" icon={<UsersIcon/>} label="Ganancia por compradores" value={formatCurrency(d.compradores??0)} foot={`${compPct} de cada compra`}/>
+     <Metric tone="blue" icon={<UsersIcon/>} label="Compradores captados" value={String(d.compradoresCaptados??0)} foot={`${d.compradoresConvertidos??0} ya compraron`}/>
      <Metric tone="amber" icon={<ClockIcon/>} label="Pendiente por pagar" value={formatCurrency(d.pendiente)} foot="En revisión y pendientes"/>
      <Metric tone="green" icon={<CheckIcon/>} label="Disponible para retiro" value={formatCurrency(d.disponible)} foot="Listo para solicitar"/>
      <Metric tone="blue" icon={<CheckIcon/>} label="Pagado" value={formatCurrency(d.pagado)} foot="Comisiones ya pagadas"/>
@@ -165,6 +177,10 @@ function Resumen({d,cfg,ranking,copied,onCopy,onGo}:{d:CapturerDashboard;cfg:Cap
     <div className="cap-howto-item">
      <span className="cap-howto-icon"><WrenchIcon/></span>
      <div><strong>{pubPct} por publicidad<br/>vendida a talleres y servicios</strong><p>Por cada compra de fichas RepuesTop que hagan los talleres o servicios automotrices.</p></div>
+    </div>
+    <div className="cap-howto-item">
+     <span className="cap-howto-icon"><UsersIcon/></span>
+     <div><strong>{compPct} de cada compra<br/>de tus compradores</strong><p>Cuando un comprador se registra con tu código, ganas el {compPct} de cada compra que haga (sin envío) y sumas {cfg.puntosCompradorConvertido ?? 2} pts con su primera compra.</p></div>
     </div>
     <div className="cap-howto-item">
      <span className="cap-howto-icon"><StarIcon/></span>
@@ -562,7 +578,7 @@ function MovementsTable({rows}:{rows:CapturerMovement[]}){
         </div>
        </div>
       </td>
-      <td><span className={`cap-chip cap-chip-${m.tipo==='CASA'||m.tipo==='VENTA_REPUESTOS'?'blue':'violet'}`}>{tipoLabel(m.tipo)}</span></td>
+      <td><span className={`cap-chip cap-chip-${m.tipo==='CASA'||m.tipo==='VENTA_REPUESTOS'||m.tipo==='COMPRA_COMPRADOR'?'blue':'violet'}`}>{tipoLabel(m.tipo)}</span></td>
       <td className="cap-right"><strong>{formatCurrency(m.montoComision)}</strong></td>
       <td><Badge estado={m.estado}/></td>
      </tr>
@@ -581,7 +597,7 @@ function State({title,detail}:{title:string;detail?:string}){
   <h1>{title}</h1>{detail&&<p className="cap-muted">{detail}</p>}
  </section></main>;
 }
-function tipoLabel(tipo:string){return tipo==='CASA'||tipo==='VENTA_REPUESTOS'?'Venta repuestos':tipo==='PUBLICIDAD'||tipo==='COMPRA_FICHAS'?'Compra fichas':tipo?tipo.charAt(0)+tipo.slice(1).toLowerCase().replace(/_/g,' '):'—';}
+function tipoLabel(tipo:string){return tipo==='CASA'||tipo==='VENTA_REPUESTOS'?'Venta repuestos':tipo==='PUBLICIDAD'||tipo==='COMPRA_FICHAS'?'Compra fichas':tipo==='COMPRA_COMPRADOR'?'Compra comprador':tipo?tipo.charAt(0)+tipo.slice(1).toLowerCase().replace(/_/g,' '):'—';}
 function estadoLabel(estado:string){return estado?estado.charAt(0)+estado.slice(1).toLowerCase().replace(/_/g,' '):'—';}
 
 const LinkIcon=()=> <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M10 13a5 5 0 0 0 7 0l2-2a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-2 2a5 5 0 0 0 7 7l1-1"/></svg>;

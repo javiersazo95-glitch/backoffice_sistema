@@ -25,6 +25,7 @@ import CapturerRegisterPage from '@/pages/CapturerRegisterPage';
 import CapturerPortalPage from '@/pages/CapturerPortalPage';
 import CapturerStatusPage from '@/pages/CapturerStatusPage';
 import CapturerAccountPage from '@/pages/CapturerAccountPage';
+import CapturerSocialPage from '@/pages/CapturerSocialPage';
 import CapturerChatsPage from '@/pages/CapturerChatsPage';
 import CapturerHelpPage from '@/pages/CapturerHelpPage';
 import CapturerSupportPage from '@/pages/CapturerSupportPage';
@@ -115,6 +116,7 @@ export default function App() {
       <Route path="/captador/estado" element={<RequireCapturer><CapturerStatusPage /></RequireCapturer>} />
       <Route path="/captador" element={<RequireApprovedCapturer><CapturerPortalPage /></RequireApprovedCapturer>} />
       <Route path="/captador/comisiones" element={<RequireApprovedCapturer><CapturerPortalPage /></RequireApprovedCapturer>} />
+      <Route path="/captador/redes-sociales" element={<RequireApprovedCapturer><CapturerSocialPage /></RequireApprovedCapturer>} />
       <Route path="/captador/ranking" element={<RequireApprovedCapturer><CapturerPortalPage /></RequireApprovedCapturer>} />
       <Route path="/captador/retiros" element={<RequireApprovedCapturer><CapturerPortalPage /></RequireApprovedCapturer>} />
       <Route path="/captador/cuenta" element={<RequireApprovedCapturer><CapturerAccountPage /></RequireApprovedCapturer>} />
