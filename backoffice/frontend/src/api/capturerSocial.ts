@@ -1,6 +1,6 @@
 import apiClient, { resolveProfileImageUrl } from './client';
 import type {
-  CapturedBuyer, SocialContenido, SocialContenidoAdmin, SocialDescarga, SocialEstado, SocialFiltros,
+  CapturedBuyersPage, CapturedBuyersQuery, SocialContenido, SocialContenidoAdmin, SocialDescarga, SocialEstado, SocialFiltros,
   SocialMetricas, SocialNuevoContenido, SocialPagina, SocialResena, SocialRed,
 } from '@/types/capturerSocial';
 
@@ -70,4 +70,6 @@ export const listSocialAdmin=async(params:{estado?:string;tipo?:string;q?:string
   (await apiClient.get<SocialPagina<SocialContenidoAdmin>>('/validations/capturers/social/contents',{params:{...params,estado:params.estado||undefined,tipo:params.tipo||undefined,q:params.q?.trim()||undefined}})).data;
 export const setSocialVisibilidad=async(id:number,accion:'OCULTAR'|'RESTAURAR',motivo?:string)=>
   (await apiClient.patch<SocialContenidoAdmin>(`/validations/capturers/social/contents/${id}/visibility`,{accion,motivo})).data;
-export const getCapturedBuyers=async(id:number)=> (await apiClient.get<CapturedBuyer[]>(`/validations/capturers/${id}/captured-buyers`)).data;
+/** Compradores referidos de un captador, paginados y filtrados en el servidor. */
+export const getCapturedBuyers=async(id:number,p:CapturedBuyersQuery)=>
+  (await apiClient.get<CapturedBuyersPage>(`/validations/capturers/${id}/captured-buyers`,{params:{...p,q:p.q?.trim()||undefined,compra:p.compra||undefined,canal:p.canal||undefined}})).data;

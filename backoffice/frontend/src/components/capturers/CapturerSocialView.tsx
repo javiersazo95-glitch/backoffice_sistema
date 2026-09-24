@@ -96,8 +96,9 @@ export default function CapturerSocialView() {
       </div>
       {aviso && <div className="cpx-note" role="status" style={{ marginBottom: 10 }}>{aviso}</div>}
       <div className="cpx-table-wrap">
-        <table className="cpx-table cpx-table-wide">
-          <thead><tr><th>Pieza</th><th>Título</th><th>Captador</th><th>Categoría</th><th>Descargas</th><th>Evaluación</th><th>Subido</th><th>Estado</th><th /></tr></thead>
+        <table className="cpx-table cpx-table-wide cpx-fixed">
+          <colgroup><col style={{ width: '7%' }} /><col style={{ width: '20.5%' }} /><col style={{ width: '12%' }} /><col style={{ width: '11.5%' }} /><col style={{ width: '10%' }} /><col style={{ width: '11%' }} /><col style={{ width: '10%' }} /><col style={{ width: '9.25%' }} /><col style={{ width: '8.75%' }} /></colgroup>
+          <thead><tr><th>Pieza</th><th>Título</th><th>Captador</th><th>Categoría</th><th className="cpx-num">Descargas</th><th>Evaluación</th><th>Subido</th><th>Estado</th><th /></tr></thead>
           <tbody>
             {contenidos.isLoading ? <tr><td colSpan={9} className="cpx-empty">Cargando…</td></tr>
               : contenidos.data?.contenido.length ? contenidos.data.contenido.map(c => <tr key={c.id}>
@@ -105,9 +106,9 @@ export default function CapturerSocialView() {
                   ? (c.posterUrl ? <img className="cpx-thumb" src={socialMediaUrl(c.posterUrl)} alt="" style={{ filter: socialFiltroCss(c.filtroVisual) }} /> : <span className="cpx-thumb" style={{ display: 'grid', placeItems: 'center', color: '#fff' }}>▶</span>)
                   : <img className="cpx-thumb" src={socialMediaUrl(c.url)} alt="" style={{ filter: socialFiltroCss(c.filtroVisual) }} />}</a></td>
                 <td className="cpx-wrap"><strong className="cpx-clamp" title={c.titulo}>{c.titulo}</strong><div className="cpx-muted cpx-clamp">{c.tipo === 'VIDEO' ? 'Video' : 'Imagen'}{c.motivoOcultamiento ? ` · ${c.motivoOcultamiento}` : ''}</div></td>
-                <td>@{c.autorAlias}</td>
+                <td title={`@${c.autorAlias}`}>@{c.autorAlias}</td>
                 <td>{socialCategoriaLabel(c.categoria)}</td>
-                <td>{c.descargasTotal}</td>
+                <td className="cpx-num">{c.descargasTotal}</td>
                 <td>{c.calificacionCount ? `★ ${Number(c.calificacionPromedio).toFixed(1)} (${c.calificacionCount})` : '—'}</td>
                 <td>{new Date(c.creadoEn).toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' })}</td>
                 <td><span className={`cpx-state cpx-state-${c.estado}`}>{c.estado === 'PUBLICADO' ? 'Publicado' : 'Oculto'}</span></td>

@@ -1,9 +1,10 @@
 import { Fragment, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { getCapturedBuyers, getSocialMetricas } from '@/api/capturerSocial';
+import { getSocialMetricas } from '@/api/capturerSocial';
 import { formatCurrency } from '@/utils/formatters';
 import type { CapturerProfile } from '@/types/capturer';
 import { BarRow, Kpi, NivelBadge, cpxCss, pct } from './capturerMetricsUi';
+import CapturedBuyersTable from './CapturedBuyersTable';
 
 /**
  * Compradores captados: compradores que se registraron con el código de un captador. El
@@ -53,45 +54,28 @@ export default function CapturerBuyersView({ all }: { all: CapturerProfile[] }) 
 
     <section className="cpx-card">
       <h3>Detalle por captador</h3>
-      <p>Haz clic en un captador para ver sus compradores (el correo se muestra enmascarado).</p>
+      <p>Abre un captador para buscar, filtrar y recorrer sus compradores por páginas (el correo se muestra enmascarado).</p>
       <div className="cpx-table-wrap">
-        <table className="cpx-table cpx-table-wide">
-          <thead><tr><th>Captador</th><th>Código</th><th>Referidos</th><th>Con compra</th><th>Conversión</th><th>Puntos</th><th>Medalla</th><th /></tr></thead>
+        <table className="cpx-table cpx-table-wide cpx-fixed">
+          <colgroup><col style={{ width: '20.5%' }} /><col style={{ width: '16%' }} /><col style={{ width: '9%' }} /><col style={{ width: '11%' }} /><col style={{ width: '11%' }} /><col style={{ width: '8%' }} /><col style={{ width: '10%' }} /><col style={{ width: '14.5%' }} /></colgroup>
+          <thead><tr><th>Captador</th><th>Código</th><th className="cpx-num">Referidos</th><th className="cpx-num">Con compra</th><th className="cpx-num">Conversión</th><th className="cpx-num">Puntos</th><th>Medalla</th><th /></tr></thead>
           <tbody>
             {ranking.length ? ranking.map(({ c, captados, convertidos }) => <Fragment key={c.id}>
               <tr>
-                <td><strong>{c.nombre}</strong><div className="cpx-muted">@{c.alias}</div></td>
-                <td>{c.codigoReferido || '—'}</td>
-                <td>{captados}</td>
-                <td>{convertidos}</td>
-                <td>{pct(convertidos, captados)}</td>
-                <td>{(c.puntosSociales ?? 0).toLocaleString('es-CL')}</td>
+                <td><div className="cpx-two"><strong title={c.nombre}>{c.nombre}</strong><small>@{c.alias}</small></div></td>
+                <td><span className="cpx-code" title={c.codigoReferido || ''}>{c.codigoReferido || '—'}</span></td>
+                <td className="cpx-num">{captados.toLocaleString('es-CL')}</td>
+                <td className="cpx-num">{convertidos.toLocaleString('es-CL')}</td>
+                <td className="cpx-num">{pct(convertidos, captados)}</td>
+                <td className="cpx-num">{(c.puntosSociales ?? 0).toLocaleString('es-CL')}</td>
                 <td><NivelBadge nivel={c.nivelSocial} /></td>
-                <td><button type="button" className="cpx-btn" disabled={!captados} onClick={() => setAbierto(abierto === c.id ? null : c.id)}>{abierto === c.id ? 'Ocultar' : 'Ver compradores'}</button></td>
+                <td className="cpx-num"><button type="button" className="cpx-btn" disabled={!captados} onClick={() => setAbierto(abierto === c.id ? null : c.id)}>{abierto === c.id ? 'Ocultar' : 'Ver compradores'}</button></td>
               </tr>
-              {abierto === c.id && <tr><td colSpan={8} style={{ background: '#f8fbff' }}><BuyersDetail id={c.id} /></td></tr>}
+              {abierto === c.id && <tr><td colSpan={8} className="cpx-nested"><CapturedBuyersTable captadorId={c.id} /></td></tr>}
             </Fragment>) : <tr><td colSpan={8} className="cpx-empty">No hay captadores aprobados.</td></tr>}
           </tbody>
         </table>
       </div>
     </section>
   </div>;
-}
-
-function BuyersDetail({ id }: { id: number }) {
-  const q = useQuery({ queryKey: ['trust-capturer-buyers', id], queryFn: () => getCapturedBuyers(id) });
-  if (q.isLoading) return <div className="cpx-empty">Cargando compradores…</div>;
-  if (!q.data?.length) return <div className="cpx-empty">Sin compradores referidos.</div>;
-  return <table className="cpx-table">
-    <thead><tr><th>Comprador</th><th>Canal</th><th>Registro</th><th>Primera compra</th><th>Pedidos</th><th>Monto base</th><th>Ingreso captador</th></tr></thead>
-    <tbody>{q.data.map(b => <tr key={b.atribucionId}>
-      <td><strong>{b.nombre}</strong><div className="cpx-muted">{b.emailEnmascarado}</div></td>
-      <td>{b.canal === 'WEB' ? 'Web' : 'App'}</td>
-      <td>{new Date(b.registradoEn).toLocaleDateString('es-CL')}</td>
-      <td>{b.primeraCompraEn ? new Date(b.primeraCompraEn).toLocaleDateString('es-CL') : <span className="cpx-muted">Aún no compra</span>}</td>
-      <td>{b.pedidos}</td>
-      <td>{formatCurrency(b.montoBase)}</td>
-      <td><strong>{formatCurrency(b.ingresoCaptador)}</strong></td>
-    </tr>)}</tbody>
-  </table>;
 }

@@ -38,9 +38,30 @@ export function NivelBadge({ nivel }: { nivel?: string | null }) {
   return <span className="cpx-medal" style={{ borderColor: meta.color, color: meta.color }}><i style={{ background: meta.color }} />{meta.label}</span>;
 }
 
+/** Estilos del badge de medalla; cada vista que usa NivelBadge los incluye en su <style>. */
+export const medalCss = `
+.cpx-medal{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border:1px solid;border-radius:99px;font-size:11.5px;font-weight:800;white-space:nowrap;background:#fff}
+.cpx-medal i{width:8px;height:8px;border-radius:50%}
+`;
+
 export const pct = (a: number, b: number) => (b > 0 ? `${Math.round((a / b) * 1000) / 10}%` : '0%');
 
-export const cpxCss = `
+/**
+ * Estado de un negocio captado en español y con su tono. Las casas usan el status del
+ * proveedor (approved, pending_verification, rejected, ...) y los servicios el de su
+ * acreditación (APROBADO, PENDIENTE, POR_CORREGIR, RECHAZADO, SIN_SOLICITUD).
+ */
+export function estadoNegocio(estado?: string | null): { label: string; tone: 'on' | 'wait' | 'off' | 'neutral' } {
+  const e = (estado || '').trim().toLowerCase();
+  if (['approved', 'verified', 'active', 'aprobado', 'activo'].includes(e)) return { label: 'Aprobado', tone: 'on' };
+  if (['pending', 'pending_verification', 'pendiente', 'en_revision', 'por_corregir', 'sin_solicitud'].includes(e))
+    return { label: e === 'por_corregir' ? 'Por corregir' : e === 'sin_solicitud' ? 'Sin solicitud' : 'En revisión', tone: 'wait' };
+  if (['rejected', 'rechazado', 'blocked', 'bloqueado', 'deleted', 'inactive', 'inactivo', 'suspendido'].includes(e))
+    return { label: e === 'rejected' || e === 'rechazado' ? 'Rechazado' : 'Inactivo', tone: 'off' };
+  return { label: e ? e.charAt(0).toUpperCase() + e.slice(1).replace(/_/g, ' ') : '—', tone: 'neutral' };
+}
+
+export const cpxCss = medalCss + `
 .cpx{display:grid;gap:14px;overflow-wrap:normal;word-break:normal}
 .cpx-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:11px}
 .cpx-kpi{display:flex;gap:10px;align-items:flex-start;padding:15px;background:#fff;border:1px solid var(--line,#e6edf7);border-radius:16px;box-shadow:0 6px 18px rgba(15,44,92,.04);min-width:0}
@@ -67,11 +88,25 @@ export const cpxCss = `
 .cpx-bar{height:9px;border-radius:99px;background:#eef3fa;overflow:hidden}
 .cpx-bar>div{height:100%;border-radius:99px;transition:width .5s}
 .cpx-bar-row b{font-size:12.5px;color:#0b2559;min-width:36px;text-align:right;white-space:nowrap}
-.cpx-medal{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border:1px solid;border-radius:99px;font-size:11.5px;font-weight:800;white-space:nowrap;background:#fff}
-.cpx-medal i{width:8px;height:8px;border-radius:50%}
 .cpx-muted{color:#7286a8}
 .cpx-table{width:100%;border-collapse:collapse;font-size:13px}
 .cpx-table-wide{min-width:860px}
+.cpx-fixed{table-layout:fixed}
+.cpx-table.cpx-fixed td,.cpx-table.cpx-fixed th{overflow:hidden;text-overflow:ellipsis;padding-left:8px;padding-right:8px}
+.cpx-table.cpx-fixed th{font-size:10.5px;letter-spacing:.03em}
+.cpx-table.cpx-fixed td:first-child,.cpx-table.cpx-fixed th:first-child{padding-left:12px}
+.cpx-table.cpx-fixed td:last-child,.cpx-table.cpx-fixed th:last-child{padding-right:12px}
+.cpx-table.cpx-fixed .cpx-code{padding:0;background:none}
+.cpx-table.cpx-fixed .cpx-state{padding:4px 8px;font-size:11px}
+.cpx-table.cpx-fixed .cpx-btn{padding:6px 10px;font-size:12px}
+.cpx-table.cpx-fixed td.cpx-nested{padding:12px 14px;background:#f8fbff;white-space:normal}
+.cpx-num{text-align:right}
+.cpx-two{display:grid;min-width:0}
+.cpx-two>*{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cpx-two strong{color:#0b2559}
+.cpx-two small{margin-top:2px;font-size:11.5px;color:#7286a8}
+.cpx-code{display:inline-block;max-width:100%;padding:4px 8px;border-radius:8px;background:#f1f5fb;font-size:12px;font-weight:800;color:#315287;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;vertical-align:middle}
+.cpx-green{color:#087b42}
 .cpx-table th{padding:11px 10px;text-align:left;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#7286a8;border-bottom:1px solid #e6edf7;white-space:nowrap}
 .cpx-table td{padding:10px;border-bottom:1px solid #f1f5fb;color:#31456e;vertical-align:middle;white-space:nowrap}
 .cpx-table td.cpx-wrap{white-space:normal;min-width:200px;max-width:320px}

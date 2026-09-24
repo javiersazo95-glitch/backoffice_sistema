@@ -7,8 +7,8 @@ import { formatCurrency } from "@/utils/formatters";
 import type { CapturedBusiness, CapturerProfile } from "@/types/capturer";
 import CapturerBuyersView from "./CapturerBuyersView";
 import CapturerSocialView from "./CapturerSocialView";
-import { NivelBadge, cpxCss } from "./capturerMetricsUi";
-import { getCapturedBuyers } from "@/api/capturerSocial";
+import { NivelBadge, estadoNegocio, medalCss } from "./capturerMetricsUi";
+import CapturerDetailModal from "./CapturerDetailModal";
 
 type Counts = { casas: number; servicios: number };
 
@@ -185,7 +185,7 @@ export default function CapturersPage() {
 
   return (
     <main className="cps">
-      <style>{css}</style>
+      <style>{css + medalCss}</style>
       <header className="cps-head">
         <h1>Captadores</h1>
         <p>
@@ -397,7 +397,17 @@ export default function CapturersPage() {
 
           <section className="cps-table-card">
             <div className="cps-table-wrap">
-              <table className="cps-table">
+              <table className="cps-table cps-table-fixed" style={{ minWidth: 980 }}>
+                <colgroup>
+                  <col style={{ width: "15.5%" }} />
+                  <col style={{ width: "15%" }} />
+                  <col style={{ width: "18%" }} />
+                  <col style={{ width: "13%" }} />
+                  <col style={{ width: "10%" }} />
+                  <col style={{ width: "10.5%" }} />
+                  <col style={{ width: "9%" }} />
+                  <col style={{ width: "9%" }} />
+                </colgroup>
                 <thead>
                   <tr>
                     <th>Captador</th>
@@ -406,18 +416,14 @@ export default function CapturersPage() {
                     <th>Ubicación</th>
                     <th>Estado</th>
                     <th>Captaciones</th>
-                    <th>Compradores</th>
-                    <th>Medalla redes</th>
-                    <th>Ganancia del mes</th>
                     <th>Ranking</th>
-                    <th>Fecha registro</th>
-                    <th>Acciones</th>
+                    <th className="cps-num" title="Ganancia del mes">Ganancia</th>
                   </tr>
                 </thead>
                 <tbody>
                   {q.isLoading ? (
                     <tr>
-                      <td colSpan={12} className="cps-empty">
+                      <td colSpan={8} className="cps-empty">
                         Cargando captadores…
                       </td>
                     </tr>
@@ -425,129 +431,84 @@ export default function CapturersPage() {
                     rows.map((c, i) => {
                       const n = counts.get(c.id);
                       const pos = rankByAlias.get(c.alias)?.posicion;
+                      const foto = resolveProfileImageUrl(c.fotoPerfil);
                       return (
-                        <tr key={c.id}>
+                        <tr key={c.id} className="cps-row-click" onClick={() => setSelected(c)}
+                          tabIndex={0} onKeyDown={(e) => { if (e.key === "Enter") setSelected(c); }}
+                          aria-label={`Ver detalle de ${c.nombre}`}>
                           <td>
                             <div className="cps-person">
-                              <span
-                                className="cps-avatar"
-                                style={{
-                                  background:
-                                    colors[(c.id + i) % colors.length],
-                                }}
-                              >
-                                {resolveProfileImageUrl(c.fotoPerfil) ? (
-                                  <img
-                                    src={resolveProfileImageUrl(c.fotoPerfil) ?? undefined}
-                                    alt=""
-                                    onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
-                                  />
+                              <span className="cps-avatar" style={{ background: colors[(c.id + i) % colors.length] }}>
+                                {foto ? (
+                                  <img src={foto} alt="" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
                                 ) : (
                                   initials(c.nombre)
                                 )}
                               </span>
-                              <div>
-                                <strong>{c.nombre}</strong>
-                                <small>@{c.alias}</small>
-                                <span className="cps-tag">Captador</span>
+                              <div className="cps-two">
+                                <strong title={c.nombre}>{c.nombre}</strong>
+                                <small title={`@${c.alias}`}>@{c.alias}</small>
                               </div>
                             </div>
                           </td>
                           <td>
-                            <span className="cps-code">
-                              {c.codigoReferido || "—"}
-                            </span>
+                            <span className="cps-code" title={c.codigoReferido || ""}>{c.codigoReferido || "—"}</span>
                           </td>
                           <td>
-                            <span className="cps-line">{c.email}</span>
-                            <small>{c.telefono || "—"}</small>
-                          </td>
-                          <td>
-                            <span className="cps-line">{c.comuna}</span>
-                            <small>{c.region}</small>
-                          </td>
-                          <td>
-                            <span
-                              className={
-                                c.activo
-                                  ? "cps-pill cps-pill-on"
-                                  : "cps-pill cps-pill-off"
-                              }
-                            >
-                              {c.activo ? "Activo" : "Suspendido"}
-                            </span>
-                          </td>
-                          <td>
-                            <div className="cps-counts">
-                              <span>
-                                Casas:<b>{n ? n.casas : "—"}</b>
-                              </span>
-                              <span>
-                                Servicios:<b>{n ? n.servicios : "—"}</b>
-                              </span>
+                            <div className="cps-two">
+                              <span title={c.email}>{c.email}</span>
+                              <small>{c.telefono || "Sin teléfono"}</small>
                             </div>
                           </td>
                           <td>
-                            <div className="cps-counts">
-                              <span>
-                                Referidos:<b>{c.compradoresCaptados ?? 0}</b>
-                              </span>
-                              <span>
-                                Con compra:<b>{c.compradoresConvertidos ?? 0}</b>
-                              </span>
+                            <div className="cps-two">
+                              <span title={c.comuna}>{c.comuna}</span>
+                              <small title={c.region}>{c.region}</small>
                             </div>
                           </td>
                           <td>
-                            <NivelBadge nivel={c.nivelSocial} />
+                            <div className="cps-two">
+                              <span>
+                                <span className={c.activo ? "cps-pill cps-pill-on" : "cps-pill cps-pill-off"}>
+                                  {c.activo ? "Activo" : "Suspendido"}
+                                </span>
+                              </span>
+                              <small>{new Date(c.createdAt).toLocaleDateString("es-CL", { day: "2-digit", month: "2-digit", year: "numeric" })}</small>
+                            </div>
                           </td>
                           <td>
-                            <strong className="cps-money">
-                              {c.gananciaMes !== undefined &&
-                              c.gananciaMes !== null
-                                ? formatCurrency(c.gananciaMes)
-                                : "—"}
-                            </strong>
+                            <div className="cps-kinds" aria-label="Casas, servicios y compradores con compra">
+                              <span title="Casas de repuestos"><UiIcon name="store" />{n ? n.casas : "–"}</span>
+                              <span title="Servicios automotrices"><UiIcon name="settings" />{n ? n.servicios : "–"}</span>
+                              <span title="Compradores que ya compraron"><UiIcon name="cart" />{c.compradoresConvertidos ?? 0}</span>
+                            </div>
                           </td>
                           <td>
-                            {pos ? (
-                              <span
-                                className={`cps-rank${pos <= 3 ? " cps-rank-top" : ""}`}
-                              >
-                                {pos <= 3 && (
-                                  <span
-                                    className="cps-medal"
-                                    aria-hidden="true"
-                                  >
-                                    {["🥇", "🥈", "🥉"][pos - 1]}
+                            <div className="cps-two">
+                              <span>
+                                {pos ? (
+                                  <span className={`cps-rank${pos <= 3 ? " cps-rank-top" : ""}`}>
+                                    {pos <= 3 && <span className="cps-medal" aria-hidden="true">{["🥇", "🥈", "🥉"][pos - 1]}</span>}
+                                    #{pos}
                                   </span>
+                                ) : (
+                                  <span className="cps-rank cps-rank-none">—</span>
                                 )}
-                                #{pos}
                               </span>
-                            ) : (
-                              <span className="cps-rank cps-rank-none">—</span>
-                            )}
-                          </td>
-                          <td className="cps-date">
-                            {new Date(c.createdAt).toLocaleDateString("es-CL")}
-                          </td>
-                          <td>
-                            <div className="cps-actions">
-                              <button
-                                type="button"
-                                title="Ver detalle"
-                                aria-label={`Ver detalle de ${c.nombre}`}
-                                onClick={() => setSelected(c)}
-                              >
-                                <UiIcon name="eye" />
-                              </button>
+                              <small><NivelBadge nivel={c.nivelSocial} /></small>
                             </div>
+                          </td>
+                          <td className="cps-num">
+                            <strong className="cps-money">
+                              {c.gananciaMes !== undefined && c.gananciaMes !== null ? formatCurrency(c.gananciaMes) : "—"}
+                            </strong>
                           </td>
                         </tr>
                       );
                     })
                   ) : (
                     <tr>
-                      <td colSpan={12} className="cps-empty">
+                      <td colSpan={8} className="cps-empty">
                         No hay captadores que coincidan con los filtros.
                       </td>
                     </tr>
@@ -614,7 +575,9 @@ export default function CapturersPage() {
         </>
       )}
 
-      {selected && <Modal c={selected} close={() => setSelected(null)} />}
+      {selected && (
+        <CapturerDetailModal c={selected} ranking={rankByAlias.get(selected.alias)} close={() => setSelected(null)} />
+      )}
     </main>
   );
 }
@@ -985,88 +948,80 @@ function CaptacionesView({ all }: { all: CapturerProfile[] }) {
           </p>
         </div>
         <div className="cps-table-wrap">
-          <table className="cps-table">
+          <table className="cps-table cps-table-fixed" style={{ minWidth: 960 }}>
+            <colgroup>
+              <col style={{ width: "22%" }} />
+              <col style={{ width: "15.5%" }} />
+              <col style={{ width: "15%" }} />
+              <col style={{ width: "15%" }} />
+              <col style={{ width: "10%" }} />
+              <col style={{ width: "10%" }} />
+              <col style={{ width: "12.5%" }} />
+            </colgroup>
             <thead>
               <tr>
                 <th>Negocio</th>
                 <th>Tipo</th>
-                <th>Región</th>
-                <th>Comuna</th>
+                <th>Ubicación</th>
                 <th>Captado por</th>
-                <th>Monto base generado</th>
-                <th>Ingreso captador</th>
+                <th className="cps-num">Monto base</th>
+                <th className="cps-num">Ingreso</th>
                 <th>Estado</th>
-                <th>Fecha registro</th>
               </tr>
             </thead>
             <tbody>
               {cargando && !captaciones.length ? (
                 <tr>
-                  <td colSpan={9} className="cps-empty">
+                  <td colSpan={7} className="cps-empty">
                     Cargando captaciones… ({listos}/{all.length})
                   </td>
                 </tr>
               ) : rows.length ? (
-                rows.map((x, i) => (
-                  <tr key={x.key}>
-                    <td>
-                      <div className="cps-person">
-                        <span
-                          className="cps-avatar"
-                          style={{ background: colors[i % colors.length] }}
-                        >
-                          {initials(x.nombre)}
-                        </span>
-                        <div>
-                          <strong>{x.nombre}</strong>
-                          <small>{x.comuna}</small>
+                rows.map((x, i) => {
+                  const est = estadoNegocio(x.estado);
+                  return (
+                    <tr key={x.key}>
+                      <td>
+                        <div className="cps-person">
+                          <span className="cps-avatar" style={{ background: colors[i % colors.length] }}>
+                            {initials(x.nombre)}
+                          </span>
+                          <div className="cps-two">
+                            <strong title={x.nombre}>{x.nombre}</strong>
+                            <small>Desde {x.fecha ? new Date(x.fecha).toLocaleDateString("es-CL", { day: "2-digit", month: "2-digit", year: "numeric" }) : "—"}</small>
+                          </div>
                         </div>
-                      </div>
-                    </td>
-                    <td>
-                      <span
-                        className={`cps-chip cps-chip-${x.tipo === "CASA" ? "blue" : "violet"}`}
-                      >
-                        {x.tipo === "CASA"
-                          ? "Casa de repuestos"
-                          : "Servicio automotriz"}
-                      </span>
-                    </td>
-                    <td>{x.region}</td>
-                    <td>
-                      <span className="cps-cell-strong">{x.comuna}</span>
-                    </td>
-                    <td>
-                      <span className="cps-line">{x.captador}</span>
-                      <small>@{x.alias}</small>
-                    </td>
-                    <td>{formatCurrency(x.ventas)}</td>
-                    <td>
-                      <strong className="cps-money">
-                        {formatCurrency(x.ingreso)}
-                      </strong>
-                    </td>
-                    <td>
-                      <span
-                        className={
-                          x.estado === "APROBADO"
-                            ? "cps-pill cps-pill-on"
-                            : "cps-pill cps-pill-off"
-                        }
-                      >
-                        {estadoTexto(x.estado)}
-                      </span>
-                    </td>
-                    <td className="cps-date">
-                      {x.fecha
-                        ? new Date(x.fecha).toLocaleDateString("es-CL")
-                        : "—"}
-                    </td>
-                  </tr>
-                ))
+                      </td>
+                      <td>
+                        <span className={`cps-chip cps-chip-${x.tipo === "CASA" ? "blue" : "violet"}`}>
+                          {x.tipo === "CASA" ? "Casa de repuestos" : "Servicio automotriz"}
+                        </span>
+                      </td>
+                      <td>
+                        <div className="cps-two">
+                          <span className="cps-cell-strong" title={x.comuna}>{x.comuna}</span>
+                          <small title={x.region}>{x.region}</small>
+                        </div>
+                      </td>
+                      <td>
+                        <div className="cps-two">
+                          <span title={x.captador}>{x.captador}</span>
+                          <small>@{x.alias}</small>
+                        </div>
+                      </td>
+                      <td className="cps-num">{formatCurrency(x.ventas)}</td>
+                      <td className="cps-num">
+                        <strong className="cps-money cps-money-green">{formatCurrency(x.ingreso)}</strong>
+                      </td>
+                      <td>
+                        <span className={`cps-pill cps-pill-${est.tone}`}>{est.label}</span>
+                      </td>
+                    </tr>
+                  );
+                })
               ) : (
                 <tr>
-                  <td colSpan={9} className="cps-empty">
+                  <td colSpan={7} className="cps-empty">
                     No hay captaciones que coincidan con los filtros.
                   </td>
                 </tr>
@@ -1213,305 +1168,6 @@ function Select({
   );
 }
 
-function Modal({ c, close }: { c: CapturerProfile; close: () => void }) {
-  const [tab, setTab] = useState("general");
-  const [period, setPeriod] = useState(new Date().toISOString().slice(0, 7));
-  const [businessType, setBusinessType] = useState("TODOS");
-  const [businessSearch, setBusinessSearch] = useState("");
-  const b = useQuery({
-    queryKey: ["capturer-businesses", c.id, period],
-    queryFn: () => api.getCapturedBusinesses(c.id, period),
-  });
-  return (
-    <div className="cps-overlay" onClick={close}>
-      <section className="cps-modal" onClick={(e) => e.stopPropagation()}>
-        <button
-          type="button"
-          className="cps-x"
-          onClick={close}
-          aria-label="Cerrar"
-        >
-          ×
-        </button>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <span className="cps-avatar" style={{ width: 46, height: 46, background: "#1657d9" }}>
-            {resolveProfileImageUrl(c.fotoPerfil) ? (
-              <img
-                src={resolveProfileImageUrl(c.fotoPerfil) ?? undefined}
-                alt=""
-                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
-              />
-            ) : (
-              initials(c.nombre)
-            )}
-          </span>
-          <div>
-            <h2 style={{ margin: 0 }}>
-              {c.nombre} <span>@{c.alias}</span>
-            </h2>
-            <p className="cps-modal-sub" style={{ margin: "2px 0 0" }}>
-              {c.email} · {c.comuna}, {c.region}
-            </p>
-          </div>
-        </div>
-        <div className="cps-tabs">
-          {[
-            ["general", "General"],
-            ["captados", "Casas y servicios captados"],
-            ["compradores", "Compradores captados"],
-          ].map(([v, l]) => (
-            <button
-              type="button"
-              key={v}
-              className={tab === v ? "cps-tab cps-tab-on" : "cps-tab"}
-              onClick={() => setTab(v ?? "general")}
-            >
-              {l}
-            </button>
-          ))}
-        </div>
-        {tab === "general" ? (
-          <CaptureSection
-            data={b.data}
-            loading={b.isLoading}
-            period={period}
-            setPeriod={setPeriod}
-            type={businessType}
-            setType={setBusinessType}
-            search={businessSearch}
-            setSearch={setBusinessSearch}
-          />
-        ) : tab === "compradores" ? (
-          <ModalBuyers id={c.id} />
-        ) : (
-          <div className="cps-details cps-details-2">
-            <List
-              title="Casas de repuestos captadas"
-              list={b.data?.casasRepuestos.map((x) => x.nombre) ?? []}
-              loading={b.isLoading}
-            />
-            <List
-              title="Servicios automotrices captados"
-              list={b.data?.serviciosAutomotrices.map((x) => x.nombre) ?? []}
-              loading={b.isLoading}
-            />
-          </div>
-        )}
-      </section>
-    </div>
-  );
-}
-
-function ModalBuyers({ id }: { id: number }) {
-  const q = useQuery({ queryKey: ["trust-capturer-buyers", id], queryFn: () => getCapturedBuyers(id) });
-  return (
-    <div className="cpx" style={{ marginTop: 12 }}>
-      <style>{cpxCss}</style>
-      <div className="cpx-table-wrap">
-        <table className="cpx-table">
-          <thead><tr><th>Comprador</th><th>Registro</th><th>Primera compra</th><th>Pedidos</th><th>Ingreso captador</th></tr></thead>
-          <tbody>
-            {q.isLoading ? <tr><td colSpan={5} className="cpx-empty">Cargando…</td></tr>
-              : q.data?.length ? q.data.map((b) => (
-                <tr key={b.atribucionId}>
-                  <td><strong>{b.nombre}</strong><div className="cpx-muted">{b.emailEnmascarado}</div></td>
-                  <td>{new Date(b.registradoEn).toLocaleDateString("es-CL")}</td>
-                  <td>{b.primeraCompraEn ? new Date(b.primeraCompraEn).toLocaleDateString("es-CL") : "Aún no compra"}</td>
-                  <td>{b.pedidos}</td>
-                  <td><strong>{formatCurrency(b.ingresoCaptador)}</strong></td>
-                </tr>
-              )) : <tr><td colSpan={5} className="cpx-empty">Este captador aún no tiene compradores referidos.</td></tr>}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
-function CaptureSection({
-  data,
-  loading,
-  period,
-  setPeriod,
-  type,
-  setType,
-  search,
-  setSearch,
-}: {
-  data?: {
-    casasRepuestos: CapturedBusiness[];
-    serviciosAutomotrices: CapturedBusiness[];
-  };
-  loading: boolean;
-  period: string;
-  setPeriod: (x: string) => void;
-  type: string;
-  setType: (x: string) => void;
-  search: string;
-  setSearch: (x: string) => void;
-}) {
-  const all = [
-    ...(data?.casasRepuestos ?? []),
-    ...(data?.serviciosAutomotrices ?? []),
-  ];
-  const rows = all.filter(
-    (x) =>
-      (type === "TODOS" || x.tipo === type) &&
-      [x.nombre, x.email, x.region, x.comuna]
-        .join(" ")
-        .toLowerCase()
-        .includes(search.toLowerCase()),
-  );
-  const sales = rows.reduce((n, x) => n + x.ventas, 0);
-  const income = rows.reduce((n, x) => n + x.ingresoCaptador, 0);
-  return (
-    <section className="cps-captures-section">
-      <div className="cps-capture-metrics">
-        {[
-          [
-            "Casas captadas",
-            all.filter((x) => x.tipo === "CASA_REPUESTOS").length,
-          ],
-          [
-            "Servicios captados",
-            all.filter((x) => x.tipo === "SERVICIO").length,
-          ],
-          ["Monto base del período", formatMoney(sales)],
-          ["Ingresos del captador", formatMoney(income)],
-        ].map(([l, v]) => (
-          <div className="cps-capture-metric" key={String(l)}>
-            <small>{l}</small>
-            <strong>{v}</strong>
-          </div>
-        ))}
-      </div>
-      <div className="cps-capture-title">
-        <div>
-          <span>Rendimiento comercial</span>
-          <h3>Detalle de captaciones</h3>
-        </div>
-        <strong>{rows.length} resultados</strong>
-      </div>
-      <div className="cps-filter-panel">
-        <label>
-          <small>Mes</small>
-          <input
-            type="month"
-            value={period}
-            onChange={(e) => setPeriod(e.target.value)}
-          />
-        </label>
-        <label>
-          <small>Tipo de captación</small>
-          <select value={type} onChange={(e) => setType(e.target.value)}>
-            <option value="TODOS">Todos</option>
-            <option value="CASA_REPUESTOS">Casas de repuestos</option>
-            <option value="SERVICIO">Servicios automotrices</option>
-          </select>
-        </label>
-        <label className="cps-capture-search">
-          <small>Datos generales</small>
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Negocio, correo, región o comuna"
-          />
-        </label>
-      </div>
-      <div className="cps-capture-table cps-table-wrap">
-        <table className="cps-table">
-          <thead>
-            <tr>
-              <th>Negocio</th>
-              <th>Tipo</th>
-              <th>Ubicación</th>
-              <th>Monto base</th>
-              <th>Ingreso captador</th>
-              <th>Estado</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={6} className="cps-empty">
-                  Cargando captaciones…
-                </td>
-              </tr>
-            ) : rows.length ? (
-              rows.map((x) => (
-                <tr key={`${x.tipo}-${x.id}`}>
-                  <td className="cps-business-name">
-                    <strong>{x.nombre}</strong>
-                    <small>{x.email}</small>
-                  </td>
-                  <td>
-                    <span
-                      className={
-                        x.tipo === "CASA_REPUESTOS"
-                          ? "cps-type-house"
-                          : "cps-type-service"
-                      }
-                    >
-                      {x.tipo === "CASA_REPUESTOS"
-                        ? "Casa de repuestos"
-                        : "Servicio automotriz"}
-                    </span>
-                  </td>
-                  <td>
-                    {x.comuna}
-                    <small>{x.region}</small>
-                  </td>
-                  <td className="cps-money">{formatMoney(x.ventas)}</td>
-                  <td className="cps-income">
-                    <strong>{formatMoney(x.ingresoCaptador)}</strong>
-                  </td>
-                  <td>
-                    <span className="cps-status">{x.estado}</span>
-                  </td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan={6} className="cps-empty">
-                  No hay captaciones para los filtros seleccionados.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-    </section>
-  );
-}
-const formatMoney = (value: number) =>
-  new Intl.NumberFormat("es-CL", {
-    style: "currency",
-    currency: "CLP",
-    maximumFractionDigits: 0,
-  }).format(value);
-function List({
-  title,
-  list,
-  loading,
-}: {
-  title: string;
-  list: string[];
-  loading: boolean;
-}) {
-  return (
-    <div className="cps-detail">
-      <strong>{title}</strong>
-      {loading ? (
-        <small>Cargando…</small>
-      ) : list.length ? (
-        list.map((x) => <small key={x}>{x}</small>)
-      ) : (
-        <small>Sin registros</small>
-      )}
-    </div>
-  );
-}
-
 type Tone = "blue" | "green" | "red" | "violet";
 const colors = [
   "#1462e8",
@@ -1521,8 +1177,6 @@ const colors = [
   "#0f766e",
   "#b45309",
 ];
-const estadoTexto = (e: string) =>
-  e ? e.charAt(0) + e.slice(1).toLowerCase().replace(/_/g, " ") : "—";
 const initials = (name: string) =>
   name
     .split(" ")
@@ -1557,14 +1211,15 @@ const css = `
 .cps-head h1{margin:0;font-size:32px;font-weight:850;letter-spacing:-.02em}
 .cps-head p{margin:6px 0 20px;color:var(--muted);font-size:14px}
 .cps-top{display:grid;grid-template-columns:minmax(0,1fr) 224px;gap:14px;align-items:start;margin-bottom:16px}
+@media (max-width:1680px){.cps-top{grid-template-columns:minmax(0,1fr)}.cps-insights{grid-template-columns:repeat(3,minmax(0,1fr))}.cps-insights-title{grid-column:1/-1}}
 .cps-top-main{display:grid;gap:14px;min-width:0}
 
 .cps-stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:11px}
-.cps-stat{display:flex;align-items:flex-start;gap:10px;min-height:116px;padding:15px;background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:0 6px 18px rgba(15,44,92,.04)}
+.cps-stat{display:flex;align-items:flex-start;gap:10px;min-height:108px;padding:14px;background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:0 6px 18px rgba(15,44,92,.04)}
 .cps-stat>div{min-width:0}
-.cps-stat-label{display:block;font-size:11.5px;font-weight:600;color:#42557d;line-height:1.3}
+.cps-stat-label{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:2.6em;font-size:11.5px;font-weight:600;color:#42557d;line-height:1.3}
 .cps-stat-value{display:block;margin-top:6px;font-size:25px;font-weight:850;letter-spacing:-.02em;white-space:nowrap}
-.cps-stat-foot{display:block;margin-top:4px;font-size:11px;color:var(--muted);line-height:1.35}
+.cps-stat-foot{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-top:4px;font-size:11px;color:var(--muted);line-height:1.35}
 .cps-ico{display:grid;place-items:center;width:40px;height:40px;flex:0 0 auto;border-radius:50%}
 .cps-ico svg{width:19px;height:19px}
 .cps-blue{background:#e6efff;color:#1657d9}
@@ -1573,7 +1228,7 @@ const css = `
 .cps-violet{background:#f0eafe;color:#6d3fd6}
 
 .cps-filters{display:flex;align-items:flex-end;gap:9px;flex-wrap:nowrap;padding:14px;background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:0 6px 18px rgba(15,44,92,.04)}
-.cps-search{display:flex;align-items:center;gap:8px;flex:2 1 110px;min-width:108px;height:42px;padding:0 12px;border:1px solid #dbe5f3;border-radius:11px;color:var(--muted)}
+.cps-search{display:flex;align-items:center;gap:8px;flex:3 1 200px;min-width:180px;height:42px;padding:0 12px;border:1px solid #dbe5f3;border-radius:11px;color:var(--muted)}
 .cps-search svg{width:17px;height:17px;flex:0 0 auto}
 .cps-search input{width:100%;border:0;outline:0;font:inherit;font-size:13px;color:var(--ink);background:transparent}
 .cps-field{display:grid;gap:5px;flex:1 1 96px;min-width:86px}
@@ -1603,12 +1258,46 @@ const css = `
 .cps-table tbody tr:last-child td{border-bottom:0}
 .cps-table tbody tr:hover{background:#f8fbff}
 .cps-table td small{display:block;margin-top:3px;font-size:12px;color:var(--muted);white-space:nowrap}
+/* Tablas de ancho fijo: columnas proporcionales, maximo 2 lineas por celda (dato + detalle) y
+   sin cortes de palabra; si el texto no cabe se abrevia con "…" y el dato completo va en el title. */
+.cps-table-fixed{table-layout:fixed;overflow-wrap:normal;word-break:normal}
+.cps-table-fixed td{padding:10px 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cps-table-fixed th{padding:12px 8px;overflow:hidden;text-overflow:ellipsis;letter-spacing:.04em}
+.cps-table-fixed td:first-child,.cps-table-fixed th:first-child{padding-left:12px}
+.cps-table-fixed .cps-person strong{font-size:13px}
+.cps-table-fixed td:last-child,.cps-table-fixed th:last-child{padding-right:14px}
+.cps-table-fixed .cps-avatar{width:30px;height:30px;font-size:12px}
+.cps-table-fixed .cps-person{gap:7px}
+.cps-table-fixed .cps-code{padding:0;background:none;font-size:12px}
+.cps-table-fixed .cps-pill{padding:4px 9px;font-size:11.5px}
+.cps-table-fixed .cps-rank{padding:3px 8px;font-size:12.5px}
+.cps-table-fixed .cpx-medal{padding:2px 7px;font-size:11px;gap:5px}
+.cps-table-fixed .cps-num{text-align:right}
+.cps-two{display:grid;min-width:0}
+.cps-two>*{display:block;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cps-two strong{font-size:13px;color:var(--ink)}
+.cps-two>span{font-size:13px;color:#31456e}
+.cps-two small{margin-top:3px!important;font-size:12px}
+.cps-table-fixed .cps-person{min-width:0}
+.cps-table-fixed .cps-person>div{min-width:0}
+.cps-row-click{cursor:pointer}
+.cps-row-click:focus-visible{outline:2px solid #1657d9;outline-offset:-2px}
+.cps-kinds{display:flex;gap:7px}
+.cps-kinds span{display:inline-flex;align-items:center;gap:3px;color:#0f2c5c;font-size:13px;font-weight:800}
+.cps-kinds svg{width:13px;height:13px;color:#7286a8}
+.cps-money.cps-money-green{color:#087b42}
+.cps-pill-wait{background:#fef2e0;color:#a86a08}
+.cps-pill-neutral{background:#eef2f9;color:#52678f}
+.cps-chip{display:inline-block;max-width:100%;padding:4px 9px;border-radius:99px;font-size:11.5px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;vertical-align:middle}
+.cps-chip-blue{background:#e9f1ff;color:#1d59bf}
+.cps-chip-violet{background:#f1eaff;color:#6d3fd6}
+.cps-cell-strong{font-weight:700}
 .cps-person{display:flex;align-items:center;gap:10px}
 .cps-person strong{display:block;font-size:13.5px;color:var(--ink);white-space:nowrap}
 .cps-avatar{display:grid;place-items:center;width:38px;height:38px;flex:0 0 auto;border-radius:50%;color:#fff;font-size:13px;font-weight:800;overflow:hidden}
 .cps-avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%}
 .cps-tag{display:inline-block;margin-top:4px;padding:2px 7px;border-radius:6px;background:#eaf1ff;color:#165ed4;font-size:11px;font-weight:700}
-.cps-code{font-weight:700;color:#315287;white-space:nowrap}
+.cps-code{display:inline-block;max-width:100%;padding:4px 8px;border-radius:8px;background:#f1f5fb;font-size:12px;font-weight:800;letter-spacing:.01em;color:#315287;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;vertical-align:middle}
 .cps-line{display:block;color:#31456e;white-space:nowrap}
 .cps-pill{display:inline-block;padding:5px 11px;border-radius:8px;font-size:12px;font-weight:700;white-space:nowrap}
 .cps-pill-on{background:#dcf7e8;color:#087b42}
@@ -1638,31 +1327,6 @@ const css = `
 .cps-page-on:hover{background:#1657d9}
 .cps-gap{padding:0 4px}
 
-.cps-overlay{position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:20px;background:rgba(3,22,58,.5)}
-.cps-modal{position:relative;width:min(940px,100%);max-height:88vh;overflow:auto;padding:24px;background:#fff;border-radius:18px}
-.cps-modal h2{margin:0;font-size:20px}
-.cps-modal h2 span{color:#1657d9}
-.cps-modal-sub{margin:6px 0 16px;color:var(--muted);font-size:13px}
-.cps-x{position:absolute;top:12px;right:16px;border:0;background:none;font-size:26px;line-height:1;color:#7286a8;cursor:pointer}
-.cps-tabs{display:flex;gap:6px;border-bottom:1px solid var(--line)}
-.cps-tabs-inline{border:0;margin:16px 0}
-.cps-tab{padding:10px 12px;border:0;border-radius:9px 9px 0 0;background:transparent;font:inherit;font-size:13px;font-weight:700;color:var(--muted);cursor:pointer}
-.cps-tab-on{background:#eaf2ff;color:#1462e8}
-.cps-details{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-top:18px}
-.cps-details-4{grid-template-columns:repeat(4,minmax(0,1fr))}
-.cps-details-2{grid-template-columns:repeat(2,minmax(0,1fr))}
-.cps-detail strong{overflow-wrap:anywhere}
-.cps-detail{display:grid;gap:5px;padding:13px;border:1px solid var(--line);border-radius:11px;font-size:13px}
-.cps-detail small{color:var(--muted)}
-.cps-row-own{background:#eef5ff}
-.cps-captures-section{margin-top:20px;padding:18px;border:1px solid #e3ebf7;border-radius:14px;background:linear-gradient(180deg,#fbfdff,#fff)}
-.cps-capture-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
-.cps-capture-metric{position:relative;display:grid;gap:6px;padding:15px;border:1px solid #e4ecf8;border-radius:12px;background:#fff;box-shadow:0 5px 14px rgba(21,54,105,.05)}
-.cps-capture-metric:nth-child(1){border-top:3px solid #2563eb}.cps-capture-metric:nth-child(2){border-top:3px solid #7c3aed}.cps-capture-metric:nth-child(3){border-top:3px solid #0f766e}.cps-capture-metric:nth-child(4){border-top:3px solid #16a34a}
-.cps-capture-metric small,.cps-capture-title span{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#7185a8}.cps-capture-metric strong{font-size:19px;color:#102653}
-.cps-capture-title{display:flex;align-items:center;justify-content:space-between;margin:22px 0 11px}.cps-capture-title h3{margin:3px 0 0;font-size:17px;color:#102653}.cps-capture-title>strong{padding:5px 9px;border-radius:999px;background:#eaf2ff;color:#1657d9;font-size:12px}
-.cps-filter-panel{display:flex;align-items:end;gap:10px;padding:12px;border:1px solid #e1eaf6;border-radius:11px;background:#f7faff}.cps-filter-panel label{display:grid;gap:5px;color:#526c9e;font-size:12px;font-weight:700}.cps-filter-panel input,.cps-filter-panel select{height:38px;min-width:130px;padding:0 10px;border:1px solid #d6e2f2;border-radius:8px;background:#fff;color:#193561;font:inherit}.cps-filter-panel .cps-capture-search{flex:1}.cps-filter-panel .cps-capture-search input{width:100%;box-sizing:border-box}
-.cps-capture-table{margin-top:13px;border:1px solid #e3ebf7;border-radius:11px}.cps-business-name strong{color:#142e5a}.cps-type-house,.cps-type-service,.cps-status{display:inline-block;padding:5px 8px;border-radius:999px;font-size:11px;font-weight:800}.cps-type-house{background:#e9f1ff;color:#1d59bf}.cps-type-service{background:#f1eaff;color:#7040d7}.cps-status{background:#edf3f9;color:#526c9e}.cps-money{font-weight:700;color:#193561}.cps-income strong{color:#087b42}
 
 .cps-viewtabs{display:flex;gap:6px;margin-bottom:14px;padding:5px;background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 6px 18px rgba(15,44,92,.04);width:fit-content;max-width:100%;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:thin}
 .cps-viewtab{flex:0 0 auto;white-space:nowrap;display:flex;align-items:center;gap:8px;padding:10px 16px;border:0;border-radius:10px;background:transparent;font:inherit;font-size:13.5px;font-weight:700;color:#52678f;cursor:pointer}
@@ -1695,9 +1359,6 @@ const css = `
 }
 
 @media (max-width:720px){
- .cps-details-4{grid-template-columns:repeat(2,minmax(0,1fr))}
- .cps-details-2{grid-template-columns:minmax(0,1fr)}
- .cps-capture-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.cps-filter-panel{flex-wrap:wrap}.cps-filter-panel .cps-capture-search{flex-basis:100%}
 }
 @media (max-width:860px){
  .cps-filters{flex-wrap:wrap}
