@@ -19,7 +19,7 @@
 | --- | --- |
 | Comisión por compras de compradores | `comisionComprador`, por defecto `0.01`. Editable por SUPER_ADMIN en Validaciones → Registros captadores |
 | Base de la comisión | Productos activos − descuento − reembolsos de mediación. **Sin envío** |
-| Ciclo de la comisión | Se crea `PENDIENTE` al pagarse el pedido. Pasa a `DISPONIBLE` cuando el pedido queda `FINALIZADO`. Se anula si el pedido se cancela |
+| Ciclo de la comisión | Se crea `PENDIENTE` al pagarse el pedido. Pasa a `DISPONIBLE` cuando el pedido está `FINALIZADO` **y** venció la retención por retracto (entrega + 11 días, `repuestop.retiro.retencion.retracto.dias`, la misma del retiro del vendedor). Mientras, la descripción muestra la fecha de liberación. Se anula si el pedido se cancela |
 | Comprador captado | Comprador referido con **al menos una compra pagada** (`primera_compra_at`). Si su única compra se cancela, deja de contar |
 | Puntos | `puntosCompradorConvertido` por comprador captado, por defecto 2 (50 compradores = 100 pts). También suman al ranking |
 | Requisito de acceso | ≥ 3 **videos** publicados en los últimos 7 días (ventana móvil). El contenido oculto o eliminado no cuenta |
