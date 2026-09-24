@@ -46,7 +46,12 @@ function formatPrice(ad: AdValidationItem): string {
 function formatDate(dateStr?: string | null): string {
   if (!dateStr) return 'Sin fecha';
   try {
-    const d = new Date(dateStr);
+    // O32 (pruebas de lanzamiento, 2026-09-24): `publicado_en` es DATE ("2026-09-24"). `new Date()`
+    // lo lee como medianoche UTC y en Chile se mostraba "23 sept". Una fecha sin hora se arma local.
+    const soloFecha = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateStr);
+    const d = soloFecha
+      ? new Date(Number(soloFecha[1]), Number(soloFecha[2]) - 1, Number(soloFecha[3]))
+      : new Date(dateStr);
     return isNaN(d.getTime()) ? dateStr : d.toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' });
   } catch {
     return dateStr;
