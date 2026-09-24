@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as capturerApi from '@/api/capturers';
 import * as administrationApi from '@/api/administration';
 import UiIcon from '@/components/shared/UiIcon';
+import CapturerAvatar from '@/components/capturers/CapturerAvatar';
 import MetricCard from '@/components/shared/MetricCard';
 import { formatCurrency } from '@/utils/formatters';
 import type { CapturerWithdrawal } from '@/types/capturer';
@@ -211,8 +212,13 @@ export default function PagoCaptadoresPage() {
                       <tr key={withdrawal.id}>
                         <td><strong>{withdrawal.codigo}</strong></td>
                         <td>
-                          <strong>{withdrawal.captador || 'Captador'}</strong>
-                          <small>@{withdrawal.alias || 'sin-alias'} · {withdrawal.rut || 'RUT no informado'}</small>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                            <CapturerAvatar nombre={withdrawal.captador || withdrawal.alias} fotoPerfil={withdrawal.fotoPerfil} size={34} />
+                            <div style={{ display: 'grid', minWidth: 0 }}>
+                              <strong>{withdrawal.captador || 'Captador'}</strong>
+                              <small>@{withdrawal.alias || 'sin-alias'} · {withdrawal.rut || 'RUT no informado'}</small>
+                            </div>
+                          </div>
                         </td>
                         <td>
                           <strong>{withdrawal.banco || 'Banco no informado'}</strong>

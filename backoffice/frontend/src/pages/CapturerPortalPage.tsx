@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 import { Navigate,useLocation,useNavigate } from 'react-router-dom';
 import { useQuery,useQueryClient } from '@tanstack/react-query';
 import * as api from '@/api/capturers';
-import { resolveProfileImageUrl } from '@/api/client';
+import CapturerAvatar from '@/components/capturers/CapturerAvatar';
 import { formatCurrency } from '@/utils/formatters';
 import type { CapturerConfig,CapturerDashboard,CapturerMovement } from '@/types/capturer';
 import { DEFAULT_CAPTURER_CONFIG } from '@/types/capturer';
@@ -301,8 +301,8 @@ function Ranking({d,data,loading,mode,onMode,period,onPeriod}:{d:CapturerDashboa
 
   <section className="cap-rk-insights">
    <span className="cap-rk-insights-title">Insights de tu competencia</span>
-   <RkInsight tone="blue" icon={<CrownIcon/>} title="Líder del ranking" value={lider?`@${lider.alias}${lider.propio?' (tú)':''}`:'—'} foot={lider?`${lider.puntos.toLocaleString('es-CL')} puntos`:'Sin datos'}/>
-   <RkInsight tone="green" icon={<TrendIcon/>} title={arriba?'Para subir un puesto':'Tu ventaja'} value={arriba?`+${Math.max(0,arriba.puntos-puntos+1).toLocaleString('es-CL')} pts`:'Estás 1°'} foot={arriba?`Superar a @${arriba.alias}`:'Nadie por delante'}/>
+   <RkInsight tone="blue" icon={<CrownIcon/>} avatar={lider?<CapturerAvatar className="cap-rk-insight-avatar" nombre={lider.alias} fotoPerfil={lider.fotoPerfil} background="#1657d9"/>:undefined} title="Líder del ranking" value={lider?`@${lider.alias}${lider.propio?' (tú)':''}`:'—'} foot={lider?`${lider.puntos.toLocaleString('es-CL')} puntos`:'Sin datos'}/>
+   <RkInsight tone="green" icon={<TrendIcon/>} avatar={arriba?<CapturerAvatar className="cap-rk-insight-avatar" nombre={arriba.alias} fotoPerfil={arriba.fotoPerfil} background="#0f8a4d"/>:undefined} title={arriba?'Para subir un puesto':'Tu ventaja'} value={arriba?`+${Math.max(0,arriba.puntos-puntos+1).toLocaleString('es-CL')} pts`:'Estás 1°'} foot={arriba?`Superar a @${arriba.alias}`:'Nadie por delante'}/>
    <RkInsight tone="violet" icon={<TargetIcon/>} title="Distancia al líder" value={lider&&!lider.propio&&alLider>0?`${alLider.toLocaleString('es-CL')} pts`:'Eres el líder'} foot={topPct?`Estás en el top ${topPct}%`:'Sin posición asignada'}/>
    <RkInsight tone="amber" icon={<PinAltIcon/>} title="Tu región" value={d.perfil.region} foot={`${misRegion} captador(es) compitiendo`}/>
   </section>
@@ -344,7 +344,7 @@ function Ranking({d,data,loading,mode,onMode,period,onPeriod}:{d:CapturerDashboa
          </td>
          <td>
           <div className="cap-rk-person">
-           <span className="cap-rk-avatar" style={{background:rankColors[r.posicion%rankColors.length]}}>{resolveProfileImageUrl(r.fotoPerfil)?<img src={resolveProfileImageUrl(r.fotoPerfil)??undefined} alt="" onError={e=>{(e.currentTarget as HTMLImageElement).style.display='none';}}/>:r.alias.charAt(0).toUpperCase()}</span>
+           <CapturerAvatar className="cap-rk-avatar" nombre={r.alias} fotoPerfil={r.fotoPerfil} background={rankColors[r.posicion%rankColors.length]}/>
            <div><strong>@{r.alias}</strong>{r.propio&&<span className="cap-rk-you">Tú</span>}</div>
           </div>
          </td>
@@ -381,9 +381,10 @@ function RkStat({icon,label,value,foot,tone}:{icon:ReactNode;label:string;value:
   <div><span className="cap-rk-stat-label">{label}</span><strong className="cap-rk-stat-value">{value}</strong><small className="cap-rk-stat-foot">{foot}</small></div>
  </article>;
 }
-function RkInsight({icon,title,value,foot,tone}:{icon:ReactNode;title:string;value:string;foot:string;tone:'blue'|'green'|'violet'|'amber'}){
+/** `avatar`: la foto del captador del que habla la tarjeta (lider, el de arriba) en lugar del icono. */
+function RkInsight({icon,title,value,foot,tone,avatar}:{icon:ReactNode;title:string;value:string;foot:string;tone:'blue'|'green'|'violet'|'amber';avatar?:ReactNode}){
  return <div className={`cap-rk-insight cap-rk-insight-${tone}`}>
-  <span className={`cap-metric-icon cap-tone-${tone}`}>{icon}</span>
+  {avatar??<span className={`cap-metric-icon cap-tone-${tone}`}>{icon}</span>}
   <div><small>{title}</small><strong>{value}</strong><small>{foot}</small></div>
  </div>;
 }
@@ -844,6 +845,7 @@ select.cap-control{appearance:none;background-image:url("data:image/svg+xml,%3Cs
 .cap-rk-person strong{font-size:13.5px;color:#0b2559}
 .cap-rk-avatar{display:grid;place-items:center;width:36px;height:36px;flex:0 0 auto;border-radius:50%;color:#fff;font-size:13px;font-weight:800;overflow:hidden}
 .cap-rk-avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+.cap-rk-insight-avatar{display:grid;place-items:center;width:34px;height:34px;flex:0 0 auto;border-radius:50%;overflow:hidden;color:#fff;font-size:12px;font-weight:800;box-shadow:0 0 0 2px #fff,0 2px 6px rgba(11,37,89,.15)}
 .cap-rk-you{display:inline-block;margin-left:6px;padding:2px 7px;border-radius:6px;background:#eaf1ff;color:#165ed4;font-size:11px;font-weight:700}
 .cap-dif{font-weight:700;color:#7b8aa3}
 .cap-dif-up{color:#e0294b}

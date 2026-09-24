@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { resolveProfileImageUrl } from '@/api/client';
+import CapturerAvatar from '@/components/capturers/CapturerAvatar';
 import { socialMediaUrl } from '@/api/capturerSocial';
 import type { SocialContenido } from '@/types/capturerSocial';
 import { socialCategoriaLabel, socialFiltroCss, socialRedLabel } from '@/types/capturerSocial';
@@ -26,8 +26,7 @@ export function Stars({ value, count }: { value: number; count: number }) {
 }
 
 export function Avatar({ alias, foto }: { alias: string; foto: string | null }) {
-  const url = resolveProfileImageUrl(foto);
-  return <span className="cap-soc-avatar">{url ? <img src={url} alt="" /> : alias.charAt(0).toUpperCase()}</span>;
+  return <CapturerAvatar className="cap-soc-avatar" nombre={alias} fotoPerfil={foto} />;
 }
 
 /** Texto del botón y del contador según por qué (no) se puede descargar. */

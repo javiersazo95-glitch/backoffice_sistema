@@ -4,12 +4,12 @@ import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-quer
 import {
   getVideoMetricas, levantarSancionSocial, listSocialSanciones, listVideosAdmin, sancionarCaptadorSocial, setSocialVisibilidad, socialMediaUrl,
 } from '@/api/capturerSocial';
-import { resolveProfileImageUrl } from '@/api/client';
 import UiIcon from '@/components/shared/UiIcon';
 import type { CapturerProfile } from '@/types/capturer';
 import type { SocialSancion, VideoAdmin, VideoFiltros, VideoOrden } from '@/types/capturerSocial';
 import { SOCIAL_CATEGORIAS, socialCategoriaLabel, socialFiltroCss, socialRedLabel } from '@/types/capturerSocial';
 import { Kpi, cpxCss, pct } from './capturerMetricsUi';
+import CapturerAvatar from './CapturerAvatar';
 
 type Props = { all: CapturerProfile[]; onVerCaptador: (id: number) => void };
 
@@ -293,8 +293,7 @@ function VideoTable({ items, ver, vetar, quitarVeto, sancionar, perfil }: { item
 
 
 function Avatar({ v, size }: { v: VideoAdmin; size: number }) {
-  const url = resolveProfileImageUrl(v.autorFoto);
-  return <span className="vr-avatar" style={{ width: size, height: size, fontSize: size * 0.45 }}>{url ? <img src={url} alt="" /> : v.autorAlias.charAt(0).toUpperCase()}</span>;
+  return <CapturerAvatar nombre={v.autorNombre || v.autorAlias} fotoPerfil={v.autorFoto} size={size} background="#1657d9" />;
 }
 
 function Overlay({ children, close, wide }: { children: ReactNode; close: () => void; wide?: boolean }) {

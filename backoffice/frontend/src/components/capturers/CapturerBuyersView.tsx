@@ -5,6 +5,7 @@ import { formatCurrency } from '@/utils/formatters';
 import type { CapturerProfile } from '@/types/capturer';
 import { BarRow, Kpi, NivelBadge, cpxCss, pct } from './capturerMetricsUi';
 import CapturedBuyersTable from './CapturedBuyersTable';
+import CapturerAvatar from './CapturerAvatar';
 
 /**
  * Compradores captados: compradores que se registraron con el código de un captador. El
@@ -40,7 +41,7 @@ export default function CapturerBuyersView({ all }: { all: CapturerProfile[] }) 
       <section className="cpx-card">
         <h3>Top captadores por compradores</h3>
         <p>Compradores referidos por captador (la barra) y cuántos ya compraron.</p>
-        {conCompradores.length ? conCompradores.slice(0, 8).map(r => <BarRow key={r.c.id} label={`@${r.c.alias}`} value={r.captados} max={maxCaptados} color="#1657d9" suffix={` · ${r.convertidos} ✓`} />)
+        {conCompradores.length ? conCompradores.slice(0, 8).map(r => <BarRow key={r.c.id} label={<span className="cpx-person-label"><CapturerAvatar nombre={r.c.nombre} fotoPerfil={r.c.fotoPerfil} size={22} /><span>@{r.c.alias}</span></span>} value={r.captados} max={maxCaptados} color="#1657d9" suffix={` · ${r.convertidos} ✓`} />)
           : <div className="cpx-empty">Aún no hay compradores referidos.</div>}
       </section>
       <section className="cpx-card">
@@ -62,7 +63,7 @@ export default function CapturerBuyersView({ all }: { all: CapturerProfile[] }) 
           <tbody>
             {ranking.length ? ranking.map(({ c, captados, convertidos }) => <Fragment key={c.id}>
               <tr>
-                <td><div className="cpx-two"><strong title={c.nombre}>{c.nombre}</strong><small>@{c.alias}</small></div></td>
+                <td><div className="cpx-person"><CapturerAvatar nombre={c.nombre} fotoPerfil={c.fotoPerfil} size={30} /><div className="cpx-two"><strong title={c.nombre}>{c.nombre}</strong><small>@{c.alias}</small></div></div></td>
                 <td><span className="cpx-code" title={c.codigoReferido || ''}>{c.codigoReferido || '—'}</span></td>
                 <td className="cpx-num">{captados.toLocaleString('es-CL')}</td>
                 <td className="cpx-num">{convertidos.toLocaleString('es-CL')}</td>

@@ -3,12 +3,20 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getSocialMetricas, getVideoMetricas, listSocialAdmin, setSocialVisibilidad, socialMediaUrl } from '@/api/capturerSocial';
 import type { SocialContenidoAdmin, SocialNivelCodigo } from '@/types/capturerSocial';
 import { socialCategoriaLabel, socialFiltroCss } from '@/types/capturerSocial';
+import type { CapturerProfile } from '@/types/capturer';
 import { BarRow, Kpi, NIVEL_META, cpxCss, pct } from './capturerMetricsUi';
+import CapturerAvatar from './CapturerAvatar';
 
 const plural = (n: number, uno: string, varios: string) => `${n.toLocaleString('es-CL')} ${n === 1 ? uno : varios}`;
 
+/** Captador con su foto: los rankings del repositorio solo traen id y alias, la foto sale de la lista. */
+function Persona({ alias, foto, size = 22 }: { alias: string; foto?: string | null; size?: number }) {
+  return <span className="cpx-person-label"><CapturerAvatar nombre={alias} fotoPerfil={foto} size={size} /><span>@{alias}</span></span>;
+}
+
 /** Métricas y moderación del repositorio "Redes sociales" de los captadores. */
-export default function CapturerSocialView() {
+export default function CapturerSocialView({ all = [] }: { all?: CapturerProfile[] }) {
+  const fotoPorId = new Map(all.map(c => [c.id, c.fotoPerfil]));
   const qc = useQueryClient();
   const [periodo, setPeriodo] = useState(new Date().toISOString().slice(0, 7));
   const [estado, setEstado] = useState('');
@@ -100,15 +108,15 @@ export default function CapturerSocialView() {
         <h3>Más activos del periodo</h3>
         <p>Quién alimenta el repositorio y quién más lo usa.</p>
         <strong style={{ fontSize: 12, color: '#42557d' }}>Aportes (subidas)</strong>
-        {m?.topAportadores.length ? m.topAportadores.map(r => <BarRow key={`a${r.captadorId}`} label={`@${r.alias}`} value={r.cantidad} max={maxAporte} color="#6d3fd6" />) : <div className="cpx-empty">Sin subidas.</div>}
+        {m?.topAportadores.length ? m.topAportadores.map(r => <BarRow key={`a${r.captadorId}`} label={<Persona alias={r.alias} foto={fotoPorId.get(r.captadorId)} />} value={r.cantidad} max={maxAporte} color="#6d3fd6" />) : <div className="cpx-empty">Sin subidas.</div>}
         <strong style={{ fontSize: 12, color: '#42557d', display: 'block', marginTop: 8 }}>Descargas</strong>
-        {m?.topDescargadores.length ? m.topDescargadores.map(r => <BarRow key={`d${r.captadorId}`} label={`@${r.alias}`} value={r.cantidad} max={maxDescarga} color="#0f8a4d" />) : <div className="cpx-empty">Sin descargas.</div>}
+        {m?.topDescargadores.length ? m.topDescargadores.map(r => <BarRow key={`d${r.captadorId}`} label={<Persona alias={r.alias} foto={fotoPorId.get(r.captadorId)} />} value={r.cantidad} max={maxDescarga} color="#0f8a4d" />) : <div className="cpx-empty">Sin descargas.</div>}
       </section>
     </div>
 
     <div className="cpx-grid2">
-      <TopList title="Más descargados" items={m?.masDescargados ?? []} metric={c => plural(c.descargasTotal, 'descarga', 'descargas')} />
-      <TopList title="Mejor evaluados" items={m?.mejorEvaluados ?? []} metric={c => `★ ${Number(c.calificacionPromedio).toFixed(1)} (${c.calificacionCount})`} />
+      <TopList fotoPorId={fotoPorId} title="Más descargados" items={m?.masDescargados ?? []} metric={c => plural(c.descargasTotal, 'descarga', 'descargas')} />
+      <TopList fotoPorId={fotoPorId} title="Mejor evaluados" items={m?.mejorEvaluados ?? []} metric={c => `★ ${Number(c.calificacionPromedio).toFixed(1)} (${c.calificacionCount})`} />
     </div>
 
     <section className="cpx-card">
@@ -132,7 +140,7 @@ export default function CapturerSocialView() {
                   ? (c.posterUrl ? <img className="cpx-thumb" src={socialMediaUrl(c.posterUrl)} alt="" style={{ filter: socialFiltroCss(c.filtroVisual) }} /> : <span className="cpx-thumb" style={{ display: 'grid', placeItems: 'center', color: '#fff' }}>▶</span>)
                   : <img className="cpx-thumb" src={socialMediaUrl(c.url)} alt="" style={{ filter: socialFiltroCss(c.filtroVisual) }} />}</a></td>
                 <td className="cpx-wrap"><strong className="cpx-clamp" title={c.titulo}>{c.titulo}</strong><div className="cpx-muted cpx-clamp">{c.tipo === 'VIDEO' ? 'Video' : 'Imagen'}{c.motivoOcultamiento ? ` · ${c.motivoOcultamiento}` : ''}</div></td>
-                <td title={`@${c.autorAlias}`}>@{c.autorAlias}</td>
+                <td title={`@${c.autorAlias}`}><Persona alias={c.autorAlias} foto={fotoPorId.get(c.autorId)} size={24} /></td>
                 <td>{socialCategoriaLabel(c.categoria)}</td>
                 <td className="cpx-num">{c.descargasTotal}</td>
                 <td>{c.calificacionCount ? `★ ${Number(c.calificacionPromedio).toFixed(1)} (${c.calificacionCount})` : '—'}</td>
@@ -154,13 +162,13 @@ export default function CapturerSocialView() {
   </div>;
 }
 
-function TopList({ title, items, metric }: { title: string; items: SocialContenidoAdmin[]; metric: (c: SocialContenidoAdmin) => string }) {
+function TopList({ title, items, metric, fotoPorId }: { title: string; items: SocialContenidoAdmin[]; metric: (c: SocialContenidoAdmin) => string; fotoPorId: Map<number, string | null | undefined> }) {
   return <section className="cpx-card">
     <h3>{title}</h3>
     <div className="cpx-rank" style={{ marginTop: 10 }}>
       {items.length ? items.map((c, i) => <div className="cpx-rank-row" key={c.id}>
         <em>{i + 1}</em>
-        <div><strong title={c.titulo}>{c.titulo}</strong><small>@{c.autorAlias}</small></div>
+        <div><strong title={c.titulo}>{c.titulo}</strong><small><Persona alias={c.autorAlias} foto={fotoPorId.get(c.autorId)} size={16} /></small></div>
         <b>{metric(c)}</b>
       </div>) : <div className="cpx-empty">Sin datos todavía.</div>}
     </div>

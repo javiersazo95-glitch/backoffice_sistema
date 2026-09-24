@@ -85,6 +85,11 @@ export const cpxCss = medalCss + `
 .cpx-filters{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
 .cpx-bar-row{display:grid;grid-template-columns:minmax(90px,160px) minmax(40px,1fr) auto;gap:10px;align-items:center;padding:5px 0;font-size:12.5px;color:#31456e}
 .cpx-bar-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* Etiqueta de captador con su foto (rankings de barras y tablas). */
+.cpx-person-label{display:inline-flex;align-items:center;gap:7px;min-width:0;max-width:100%;overflow:hidden;vertical-align:middle}
+.cpx-person-label>span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cpx-person{display:flex;align-items:center;gap:9px;min-width:0}
+.cpx-person>.cpx-two{min-width:0}
 .cpx-bar{height:9px;border-radius:99px;background:#eef3fa;overflow:hidden}
 .cpx-bar>div{height:100%;border-radius:99px;transition:width .5s}
 .cpx-bar-row b{font-size:12.5px;color:#0b2559;min-width:36px;text-align:right;white-space:nowrap}

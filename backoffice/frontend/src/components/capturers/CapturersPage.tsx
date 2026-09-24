@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import * as api from "@/api/capturers";
-import { resolveProfileImageUrl } from "@/api/client";
 import UiIcon from "@/components/shared/UiIcon";
 import { formatCurrency } from "@/utils/formatters";
 import type { CapturedBusiness, CapturerProfile } from "@/types/capturer";
@@ -10,6 +10,7 @@ import CapturerSocialView from "./CapturerSocialView";
 import CapturerVideoRepositoryView from "./CapturerVideoRepositoryView";
 import { NivelBadge, estadoNegocio, medalCss } from "./capturerMetricsUi";
 import CapturerDetailModal from "./CapturerDetailModal";
+import CapturerAvatar from "./CapturerAvatar";
 
 type Counts = { casas: number; servicios: number };
 
@@ -249,7 +250,7 @@ export default function CapturersPage() {
       {view === "COMPRADORES" ? (
         <CapturerBuyersView all={all} />
       ) : view === "REDES" ? (
-        <CapturerSocialView />
+        <CapturerSocialView all={all} />
       ) : view === "VIDEOS" ? (
         <CapturerVideoRepositoryView
           all={all}
@@ -391,6 +392,7 @@ export default function CapturersPage() {
                 tone="blue"
                 icon="crown"
                 title="Mejor captador global"
+                avatar={mejorPerfil ? <CapturerAvatar className="cps-ico" nombre={mejorPerfil.nombre} fotoPerfil={mejorPerfil.fotoPerfil} background="#1657d9" /> : undefined}
                 value={mejorPerfil?.nombre || mejor?.alias || "—"}
                 foot={
                   mejor
@@ -451,20 +453,13 @@ export default function CapturersPage() {
                     rows.map((c, i) => {
                       const n = counts.get(c.id);
                       const pos = rankByAlias.get(c.alias)?.posicion;
-                      const foto = resolveProfileImageUrl(c.fotoPerfil);
                       return (
                         <tr key={c.id} className="cps-row-click" onClick={() => setSelected(c)}
                           tabIndex={0} onKeyDown={(e) => { if (e.key === "Enter") setSelected(c); }}
                           aria-label={`Ver detalle de ${c.nombre}`}>
                           <td>
                             <div className="cps-person">
-                              <span className="cps-avatar" style={{ background: colors[(c.id + i) % colors.length] }}>
-                                {foto ? (
-                                  <img src={foto} alt="" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
-                                ) : (
-                                  initials(c.nombre)
-                                )}
-                              </span>
+                              <CapturerAvatar className="cps-avatar" nombre={c.nombre} fotoPerfil={c.fotoPerfil} background={colors[(c.id + i) % colors.length]} />
                               <div className="cps-two">
                                 <strong title={c.nombre}>{c.nombre}</strong>
                                 <small title={`@${c.alias}`}>@{c.alias}</small>
@@ -612,6 +607,7 @@ type Captacion = {
   comuna: string;
   captador: string;
   alias: string;
+  fotoCaptador?: string | null;
   ventas: number;
   ingreso: number;
 };
@@ -725,6 +721,7 @@ function CaptacionesView({ all }: { all: CapturerProfile[] }) {
           comuna: b.comuna || c.comuna,
           captador: c.nombre,
           alias: c.alias,
+          fotoCaptador: c.fotoPerfil,
           ventas: Number(b.ventas ?? 0),
           ingreso: Number(b.ingresoCaptador ?? 0),
         });
@@ -1024,9 +1021,12 @@ function CaptacionesView({ all }: { all: CapturerProfile[] }) {
                         </div>
                       </td>
                       <td>
-                        <div className="cps-two">
-                          <span title={x.captador}>{x.captador}</span>
-                          <small>@{x.alias}</small>
+                        <div className="cps-person">
+                          <CapturerAvatar nombre={x.captador} fotoPerfil={x.fotoCaptador} size={28} />
+                          <div className="cps-two">
+                            <span title={x.captador}>{x.captador}</span>
+                            <small>@{x.alias}</small>
+                          </div>
                         </div>
                       </td>
                       <td className="cps-num">{formatCurrency(x.ventas)}</td>
@@ -1142,18 +1142,23 @@ function Insight({
   value,
   foot,
   tone,
+  avatar,
 }: {
   icon: string;
   title: string;
   value: string;
   foot: string;
   tone: Tone;
+  /** Foto del captador en lugar del icono (p. ej. "Mejor captador global"). */
+  avatar?: ReactNode;
 }) {
   return (
     <div className={`cps-insight cps-insight-${tone}`}>
-      <span className={`cps-ico cps-${tone}`}>
-        <UiIcon name={icon} />
-      </span>
+      {avatar ?? (
+        <span className={`cps-ico cps-${tone}`}>
+          <UiIcon name={icon} />
+        </span>
+      )}
       <div>
         <small>{title}</small>
         <strong>{value}</strong>
@@ -1268,6 +1273,7 @@ const css = `
 .cps-insight-green{background:#eafaf1}
 .cps-insight-violet{background:#f4efff}
 .cps-insight .cps-ico{width:34px;height:34px;background:#fff}
+.cps-insight span.cps-ico{overflow:hidden;color:#fff;font-size:12px;font-weight:800}
 .cps-insight .cps-ico svg{width:17px;height:17px}
 
 .cps-table-card{background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:0 6px 18px rgba(15,44,92,.04);overflow:hidden}

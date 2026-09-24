@@ -2,7 +2,7 @@ import { useEffect,useRef,useState } from 'react';
 import type { ReactNode } from 'react';
 import { useLocation,useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import { resolveProfileImageUrl } from '@/api/client';
+import CapturerAvatar from '@/components/capturers/CapturerAvatar';
 
 type Alert={label:string;detail:string;to:string};
 type Props={alias?:string;region?:string;comuna?:string;fotoPerfil?:string|null;alerts?:Alert[];children:ReactNode};
@@ -23,8 +23,6 @@ export default function CapturerLayout({alias,region,comuna,fotoPerfil,alerts=[]
  useEffect(()=>{function onClick(e:MouseEvent){if(!root.current?.contains(e.target as Node)){setMenu(false);setBell(false);}}document.addEventListener('mousedown',onClick);return()=>document.removeEventListener('mousedown',onClick);},[]);
  const go=(to:string)=>{setMenu(false);setBell(false);setDrawer(false);navigate(to);};
  async function exit(){setMenu(false);await logout();navigate('/login?type=capturer',{replace:true});}
- const initial=(alias||'C').charAt(0).toUpperCase();
- const avatarUrl=resolveProfileImageUrl(fotoPerfil);
  return <div className="cap-root" ref={root}>
   <style>{css}</style>
   <aside className={drawer?'cap-side cap-side-open':'cap-side'}>
@@ -62,7 +60,7 @@ export default function CapturerLayout({alias,region,comuna,fotoPerfil,alerts=[]
      </div>
      <div className="cap-pop-wrap">
       <button type="button" aria-label="Abrir menú de usuario" aria-expanded={menu} className="cap-user" onClick={()=>{setMenu(v=>!v);setBell(false);}}>
-       <span className="cap-avatar" aria-hidden="true">{avatarUrl?<img src={avatarUrl} alt="" onError={e=>{(e.currentTarget as HTMLImageElement).style.display='none';}}/>:initial}</span>
+       <CapturerAvatar className="cap-avatar" nombre={alias} fotoPerfil={fotoPerfil}/>
        <span className="cap-user-text"><strong>{alias||'Captador'}</strong><small>Captador</small></span>
        <ChevronIcon/>
       </button>

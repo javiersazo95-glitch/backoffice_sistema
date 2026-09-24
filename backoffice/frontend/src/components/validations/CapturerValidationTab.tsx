@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as api from '@/api/capturers';
-import { resolveProfileImageUrl } from '@/api/client';
 import { useAuth } from '@/context/AuthContext';
 import { Role } from '@/types/auth';
 import UiIcon from '@/components/shared/UiIcon';
 import { showToast } from '@/components/layout/Toast';
 import type { CapturerConfig, CapturerProfile, CapturerStatus } from '@/types/capturer';
+import CapturerAvatar from '@/components/capturers/CapturerAvatar';
 
 type StatusFilter = 'TODOS' | CapturerStatus;
 
@@ -30,38 +30,6 @@ function formatDate(value?: string | null): string {
   return isNaN(d.getTime()) ? 'Sin fecha' : d.toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
-function CapturerAvatar({ nombre, fotoPerfil, size = 34 }: { nombre: string; fotoPerfil?: string | null; size?: number }) {
-  const url = resolveProfileImageUrl(fotoPerfil);
-  const initials = nombre.trim().slice(0, 2).toUpperCase();
-  return (
-    <span
-      style={{
-        width: size,
-        height: size,
-        borderRadius: '50%',
-        flexShrink: 0,
-        display: 'inline-grid',
-        placeItems: 'center',
-        overflow: 'hidden',
-        background: '#1e40af',
-        color: '#fff',
-        fontSize: size * 0.36,
-        fontWeight: 800,
-      }}
-    >
-      {url ? (
-        <img
-          src={url}
-          alt=""
-          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-          onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-        />
-      ) : (
-        initials
-      )}
-    </span>
-  );
-}
 
 const STATUS_META: Record<CapturerStatus, { label: string; pill: string; icon: string }> = {
   PENDIENTE: { label: 'Pendiente', pill: 'tone-amber', icon: 'clock' },

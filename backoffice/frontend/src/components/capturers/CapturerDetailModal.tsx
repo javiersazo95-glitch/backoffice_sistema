@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import * as api from '@/api/capturers';
-import { resolveProfileImageUrl } from '@/api/client';
 import { getCapturedBuyers, listSocialAdmin, socialMediaUrl } from '@/api/capturerSocial';
 import UiIcon from '@/components/shared/UiIcon';
 import { formatCurrency } from '@/utils/formatters';
@@ -11,6 +10,7 @@ import type { SocialNivelCodigo } from '@/types/capturerSocial';
 import { socialCategoriaLabel, socialFiltroCss } from '@/types/capturerSocial';
 import { NIVEL_META, NivelBadge, estadoNegocio, medalCss, pct } from './capturerMetricsUi';
 import CapturedBuyersTable from './CapturedBuyersTable';
+import CapturerAvatar from './CapturerAvatar';
 
 type Tab = 'resumen' | 'negocios' | 'compradores' | 'redes';
 type Props = { c: CapturerProfile; ranking?: { posicion: number; puntos: number }; close: () => void };
@@ -33,9 +33,10 @@ const NIVELES: Array<{ codigo: SocialNivelCodigo; puntos: number; cupo: number |
 ];
 const PUNTOS_POR_COMPRADOR = 2;
 const VIDEOS_REQUERIDOS = 3;
-const iniciales = (n: string) => n.split(' ').filter(Boolean).map(x => x[0]).join('').slice(0, 2).toUpperCase();
-
-/** Detalle del captador (Mediación y confianza → Captadores): perfil, negocios, compradores y redes. */
+/**
+ * Detalle del captador (Mediación y confianza → Captadores): perfil, negocios, compradores y
+ * redes. Ocupa la pantalla completa, con "Volver" arriba a la izquierda; Escape tambien vuelve.
+ */
 export default function CapturerDetailModal({ c, ranking, close }: Props) {
   const [tab, setTab] = useState<Tab>('resumen');
   const [periodo, setPeriodo] = useState(mesActual());
@@ -43,7 +44,13 @@ export default function CapturerDetailModal({ c, ranking, close }: Props) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    // A pantalla completa el listado de atras no debe seguir scrolleando bajo el detalle.
+    const overflowPrevio = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = overflowPrevio;
+    };
   }, [close]);
 
   // Totales históricos (sin periodo) y del mes elegido.
@@ -66,7 +73,6 @@ export default function CapturerDetailModal({ c, ranking, close }: Props) {
   const referidos = compradores.data?.referidos ?? c.compradoresCaptados ?? 0;
   const convertidos = compradores.data?.conCompra ?? c.compradoresConvertidos ?? 0;
   const piezas = redes.data ?? [];
-  const avatar = resolveProfileImageUrl(c.fotoPerfil);
 
   function copiarCodigo() {
     if (!c.codigoReferido) return;
@@ -82,12 +88,15 @@ export default function CapturerDetailModal({ c, ranking, close }: Props) {
     { id: 'redes', label: 'Redes sociales', icon: 'megaphone', count: piezas.length },
   ];
 
-  return <div className="cpd-overlay" onMouseDown={e => { if (e.target === e.currentTarget) close(); }}>
+  return <div className="cpd-overlay">
     <style>{cpdCss + medalCss}</style>
     <section className="cpd" role="dialog" aria-modal="true" aria-labelledby="cpd-title">
       <header className="cpd-hero">
-        <button type="button" className="cpd-x" onClick={close} aria-label="Cerrar"><UiIcon name="close" /></button>
-        <span className="cpd-avatar">{avatar ? <img src={avatar} alt="" onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} /> : iniciales(c.nombre)}</span>
+        <div className="cpd-topbar">
+          <button type="button" className="cpd-back" onClick={close}><UiIcon name="arrowLeft" />Volver a captadores</button>
+          <span className="cpd-crumb">Mediación y confianza · Captadores · <b>{c.nombre}</b></span>
+        </div>
+        <CapturerAvatar className="cpd-avatar" nombre={c.nombre} fotoPerfil={c.fotoPerfil} background="rgba(255,255,255,.18)" />
         <div className="cpd-id">
           <div className="cpd-name-row">
             <h2 id="cpd-title">{c.nombre}</h2>
@@ -310,14 +319,21 @@ function Barra({ label, valor, total, color }: { label: string; valor: number; t
 }
 
 const cpdCss = `
-.cpd-overlay{position:fixed;inset:0;z-index:60;display:grid;place-items:center;padding:20px;background:rgba(3,22,58,.55);backdrop-filter:blur(2px)}
-.cpd{display:flex;flex-direction:column;width:min(1080px,100%);max-height:min(92vh,960px);overflow:hidden;border-radius:20px;background:#f6f8fc;box-shadow:0 30px 80px rgba(3,22,58,.35);color:#0f2c5c;font-family:Inter,system-ui,sans-serif;overflow-wrap:normal;word-break:normal}
+/* Pantalla completa: la vista reemplaza al listado. El contenido se centra con un ancho maximo
+   (--cpd-pad) para que en monitores anchos no se estire de borde a borde. */
+.cpd-overlay{position:fixed;inset:0;z-index:60;display:flex;background:#f6f8fc;animation:cpdIn .18s ease-out}
+@keyframes cpdIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.cpd{--cpd-pad:max(26px,calc((100% - 1320px)/2));display:flex;flex-direction:column;width:100%;height:100%;overflow-y:auto;background:#f6f8fc;color:#0f2c5c;font-family:Inter,system-ui,sans-serif;overflow-wrap:normal;word-break:normal}
 .cpd *{box-sizing:border-box}
 .cpd svg{width:16px;height:16px;flex:0 0 auto}
-.cpd-hero{position:relative;display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:18px;align-items:center;padding:22px 26px;background:linear-gradient(120deg,#0b2559 0%,#1447b8 60%,#1f63e0 100%);color:#fff}
-.cpd-x{position:absolute;top:12px;right:12px;display:grid;place-items:center;width:34px;height:34px;border:0;border-radius:10px;background:rgba(255,255,255,.14);color:#fff;cursor:pointer}
-.cpd-x:hover{background:rgba(255,255,255,.26)}
-.cpd-avatar{display:grid;place-items:center;width:72px;height:72px;border-radius:50%;background:rgba(255,255,255,.18);box-shadow:0 0 0 3px rgba(255,255,255,.35);font-size:24px;font-weight:850;overflow:hidden}
+.cpd-hero{position:relative;flex:none;display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:18px;align-items:center;padding:16px var(--cpd-pad) 26px;background:linear-gradient(120deg,#0b2559 0%,#1447b8 60%,#1f63e0 100%);color:#fff}
+.cpd-topbar{grid-column:1/-1;display:flex;align-items:center;gap:14px;min-width:0;margin-bottom:4px}
+.cpd-back{display:inline-flex;align-items:center;gap:8px;padding:8px 14px 8px 11px;border:1px solid rgba(255,255,255,.28);border-radius:10px;background:rgba(255,255,255,.14);color:#fff;font:inherit;font-size:13px;font-weight:800;white-space:nowrap;cursor:pointer;transition:background .15s}
+.cpd-back:hover{background:rgba(255,255,255,.26)}
+.cpd-back:focus-visible{outline:3px solid rgba(255,255,255,.55);outline-offset:2px}
+.cpd-crumb{min-width:0;font-size:12.5px;color:#bcd3ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cpd-crumb b{color:#fff;font-weight:800}
+.cpd-avatar{display:grid;place-items:center;width:84px;height:84px;border-radius:50%;box-shadow:0 0 0 3px rgba(255,255,255,.35),0 8px 22px rgba(3,22,58,.3);font-size:28px;font-weight:850;overflow:hidden;color:#fff}
 .cpd-avatar img{width:100%;height:100%;object-fit:cover}
 .cpd-id{min-width:0}
 .cpd-name-row{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
@@ -326,24 +342,25 @@ const cpdCss = `
 .cpd-alias{margin:2px 0 10px;font-size:14px;font-weight:700;color:#bcd3ff}
 .cpd-meta{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12.5px;color:#dbe7ff}
 .cpd-meta span{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
-.cpd-code{display:grid;gap:4px;justify-items:start;padding:12px 14px;margin-right:30px;border-radius:14px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2)}
+.cpd-code{display:grid;gap:4px;justify-items:start;padding:12px 14px;border-radius:14px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2)}
 .cpd-code small{font-size:10.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#bcd3ff}
 .cpd-code strong{font-size:16px;font-weight:850;letter-spacing:.02em;white-space:nowrap}
 .cpd-code button{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border:0;border-radius:8px;background:#fff;color:#1447b8;font:inherit;font-size:12px;font-weight:800;cursor:pointer}
 .cpd-pill{display:inline-block;padding:4px 10px;border-radius:99px;font-size:11.5px;font-weight:800;white-space:nowrap}
 .cpd-pill.on{background:#dcf7e8;color:#087b42}.cpd-pill.off{background:#ffe1e6;color:#c81e3e}.cpd-pill.wait{background:#fef2e0;color:#a86a08}.cpd-pill.neutral{background:#eef2f9;color:#52678f}
-.cpd-kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;padding:16px 26px 4px}
+.cpd-kpis{flex:none;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;padding:16px var(--cpd-pad) 4px}
 .cpd-kpi{display:grid;gap:3px;padding:12px 13px;border-radius:14px;background:#fff;border:1px solid #e3ebf7;border-top:3px solid var(--k,#1657d9);min-width:0}
 .cpd-kpi.green{--k:#0f8a4d}.cpd-kpi.amber{--k:#d49a1a}.cpd-kpi.blue{--k:#1657d9}.cpd-kpi.violet{--k:#6d3fd6}
 .cpd-kpi small{font-size:11px;font-weight:700;color:#5b6f96;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cpd-kpi strong{font-size:20px;font-weight:850;letter-spacing:-.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cpd-kpi span{font-size:11px;color:#7a8bab;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.cpd-tabs{display:flex;gap:6px;padding:12px 26px 0;overflow-x:auto;border-bottom:1px solid #e3ebf7}
+/* Las pestanas quedan fijas arriba al bajar por el contenido. */
+.cpd-tabs{position:sticky;top:0;z-index:2;flex:none;display:flex;gap:6px;padding:12px var(--cpd-pad) 0;overflow-x:auto;border-bottom:1px solid #e3ebf7;background:#f6f8fc}
 .cpd-tabs button{display:inline-flex;align-items:center;gap:7px;padding:10px 14px;border:0;border-bottom:3px solid transparent;background:transparent;font:inherit;font-size:13.5px;font-weight:750;color:#5b6f96;white-space:nowrap;cursor:pointer}
 .cpd-tabs button:hover{color:#1447b8}
 .cpd-tabs button.on{color:#1447b8;border-bottom-color:#1657d9}
 .cpd-tabs em{font-style:normal;padding:1px 8px;border-radius:99px;background:#e6efff;color:#1447b8;font-size:11.5px;font-weight:800}
-.cpd-body{flex:1;min-height:0;overflow:auto;padding:18px 26px 26px}
+.cpd-body{flex:1 0 auto;padding:18px var(--cpd-pad) 40px}
 .cpd-grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:14px;align-items:start}
 .cpd-card{padding:16px 18px;border-radius:16px;background:#fff;border:1px solid #e3ebf7;box-shadow:0 6px 18px rgba(15,44,92,.04);min-width:0}
 .cpd-card-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
@@ -425,6 +442,6 @@ const cpdCss = `
 .cpd-ladder small{font-size:10.5px;color:#7a8bab;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cpd-piece-stats{display:flex;gap:12px;margin-top:3px;font-size:12px;font-weight:700;color:#31456e}
 @media (max-width:1100px){.cpd-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@media (max-width:980px){.cpd-level{grid-template-columns:minmax(0,1fr)}.cpd-ladder{grid-template-columns:repeat(3,minmax(0,1fr))}.cpd-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}.cpd-grid2{grid-template-columns:minmax(0,1fr)}.cpd-hero{grid-template-columns:auto minmax(0,1fr)}.cpd-code{grid-column:1/-1;margin-right:0;grid-template-columns:auto auto auto;align-items:center;justify-content:start;gap:10px}}
-@media (max-width:620px){.cpd-overlay{padding:0}.cpd{max-height:100vh;border-radius:0}.cpd-kpis{grid-template-columns:repeat(2,minmax(0,1fr));padding:12px 14px 0}.cpd-hero,.cpd-body{padding-left:14px;padding-right:14px}.cpd-tabs{padding:10px 14px 0}.cpd-mini{grid-template-columns:repeat(2,minmax(0,1fr))}.cpd-dl{grid-template-columns:minmax(0,1fr)}.cpd-level-facts,.cpd-ladder{grid-template-columns:repeat(2,minmax(0,1fr))}.cpd-avatar{width:56px;height:56px;font-size:19px}}
+@media (max-width:980px){.cpd-level{grid-template-columns:minmax(0,1fr)}.cpd-ladder{grid-template-columns:repeat(3,minmax(0,1fr))}.cpd-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}.cpd-grid2{grid-template-columns:minmax(0,1fr)}.cpd-hero{grid-template-columns:auto minmax(0,1fr)}.cpd-code{grid-column:1/-1;grid-template-columns:auto auto auto;align-items:center;justify-content:start;gap:10px}}
+@media (max-width:620px){.cpd{--cpd-pad:14px}.cpd-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.cpd-crumb{display:none}.cpd-code{grid-template-columns:minmax(0,1fr) auto}.cpd-code small{grid-column:1/-1}.cpd-code strong{font-size:14px;overflow:hidden;text-overflow:ellipsis}.cpd-mini{grid-template-columns:repeat(2,minmax(0,1fr))}.cpd-dl{grid-template-columns:minmax(0,1fr)}.cpd-level-facts,.cpd-ladder{grid-template-columns:repeat(2,minmax(0,1fr))}.cpd-avatar{width:56px;height:56px;font-size:19px}}
 `;
