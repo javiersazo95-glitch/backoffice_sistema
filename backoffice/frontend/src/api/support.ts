@@ -64,6 +64,15 @@ export interface TicketResponse {
   entorno?: string;
   createdAt: string;
   updatedAt: string;
+  /** Dueño del ticket; sin él ni correo de contacto es un ticket interno (falla automática). */
+  userId?: number;
+  /** O36: cuándo soporte lo marcó resuelto y cuándo se cierra solo si el cliente no responde. */
+  resolvedAt?: string;
+  autoCloseAt?: string;
+  /** O36: cierre registrado. closedBy: USUARIO, SOPORTE o SISTEMA. */
+  closedAt?: string;
+  closeReason?: string;
+  closedBy?: 'USUARIO' | 'SOPORTE' | 'SISTEMA' | string;
 }
 
 export interface TicketMessage {

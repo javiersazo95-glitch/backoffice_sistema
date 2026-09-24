@@ -656,6 +656,19 @@
 .jira-qa-review-btn:disabled { opacity: .5; cursor: not-allowed; }
 .jira-qa-review-btn .ui-icon { width: 15px; height: 15px; }
 
+/* O36: "Marcar resuelto" / "Cerrar ticket" de soporte. Mismo botón que Revisión QA pero en
+   verde: es un desenlace, no una alerta. */
+.jira-qa-review-btn.jira-finish-btn { border-color: #00875A; color: #00875A; }
+.jira-qa-review-btn.jira-finish-btn:hover:not(:disabled) { background: #00875A; color: #fff; }
+.jira-finish-hint { display: block; margin-top: 6px; color: #5E6C84; font-size: 12px; line-height: 1.45; }
+.jira-review-btn-cancel {
+  display: inline-flex; align-items: center; padding: 8px 16px;
+  border: 1px solid #C1C7D0; border-radius: 4px; background: #fff; color: #42526E;
+  font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.jira-review-btn-cancel:hover:not(:disabled) { background: #F4F5F7; }
+.jira-review-btn-cancel:disabled { opacity: .5; cursor: not-allowed; }
+
 /* ── Popup Revisión QA ─────────────────────────────────────────────── */
 .jira-review-popup-overlay {
   position: absolute;

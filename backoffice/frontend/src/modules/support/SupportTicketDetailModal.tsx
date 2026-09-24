@@ -90,6 +90,11 @@ const SUPPORT_STATUS_OPTIONS: TicketStatus[] = [
 const QA_SUPPORT_STATUS_OPTIONS: TicketStatus[] = ['ABIERTO', 'EN_PROCESO', 'PENDIENTE_VENDEDOR'];
 const QA_REVIEW_STATUS_OPTIONS: TicketStatus[] = ['PENDIENTE_COMPRADOR', 'RESUELTO'];
 const FINISHED_STATUS = new Set<TicketStatus>(['RESUELTO', 'CERRADO', 'CANCELADO']);
+const CLOSED_BY_LABELS: Record<string, string> = {
+  USUARIO: 'por el cliente',
+  SOPORTE: 'por soporte',
+  SISTEMA: 'automático',
+};
 
 const ASSIGNEE_STORAGE_KEY = 'repuestop.backoffice.support-assignees';
 
@@ -255,8 +260,16 @@ export default function SupportTicketDetailModal({
   const { user } = useAuth();
   const isQa = ticket.origin === 'QA';
   const isFinished = FINISHED_STATUS.has(ticket.status);
+  // O36: un ticket de soporte RESUELTO sigue admitiendo mensajes (el cliente puede reabrirlo);
+  // solo CERRADO y CANCELADO sellan el chat. QA mantiene su regla.
+  const isChatSealed = isQa ? isFinished : ticket.status === 'CERRADO' || ticket.status === 'CANCELADO';
   const resolvedStatusContext = statusContext ?? (isQa ? 'qa' : 'support');
   const canQaReview = isQa && resolvedStatusContext === 'qa' && ticket.status === 'PENDIENTE_VENDEDOR';
+  // O36: sin dueño ni correo es un ticket interno (falla automática): no hay cliente a quien
+  // avisar, así que se cierra directo. Uno de cliente se marca resuelto y se cierra solo si no responde.
+  const isInternal = !isQa && !ticket.userId && !ticket.correoContacto;
+  const canSupportFinish = !isQa && !FINISHED_STATUS.has(ticket.status);
+  const [finishPopupOpen, setFinishPopupOpen] = useState(false);
   const currentActorName = user?.fullName || (isQa ? 'QA RepuesTop' : 'Soporte RepuesTop');
   const [messages, setMessages] = useState<TicketMessage[]>([]);
   const [messagesLoading, setMessagesLoading] = useState(true);
@@ -290,7 +303,9 @@ export default function SupportTicketDetailModal({
       }
     }
     void loadMessages();
-  }, [ticket.id]);
+    // El estado va en las dependencias: al marcar resuelto, la respuesta final entra como
+    // mensaje del hilo y sin recargar no aparecía hasta cerrar y abrir el ticket.
+  }, [ticket.id, ticket.status]);
 
   useEffect(() => {
     async function loadAttachments() {
@@ -514,7 +529,7 @@ export default function SupportTicketDetailModal({
                 </button>
               </div>
 
-              {isFinished ? (
+              {isChatSealed ? (
                 <div className="jira-qa-review-result s-closed">
                   <UiIcon name="check" />
                   <div>
@@ -635,6 +650,18 @@ export default function SupportTicketDetailModal({
               </button>
             )}
 
+            {canSupportFinish && (
+              <button
+                type="button"
+                className="jira-qa-review-btn jira-finish-btn"
+                onClick={() => setFinishPopupOpen(true)}
+                disabled={isUpdating}
+              >
+                <UiIcon name="check" />
+                {isInternal ? 'Cerrar ticket' : 'Marcar resuelto'}
+              </button>
+            )}
+
             <div className="jira-sidebar-divider" />
 
             <h3 className="jira-sidebar-title">Detalles</h3>
@@ -744,6 +771,28 @@ export default function SupportTicketDetailModal({
               <SidebarField icon="refresh" label="Actualizado">
                 <span title={formatDateTime(ticket.updatedAt)}>{timeAgo(ticket.updatedAt)}</span>
               </SidebarField>
+              {ticket.resolvedAt && ticket.status === 'RESUELTO' && (
+                <SidebarField icon="check" label="Resuelto">
+                  <span title={formatDateTime(ticket.resolvedAt)}>{timeAgo(ticket.resolvedAt)}</span>
+                </SidebarField>
+              )}
+              {ticket.autoCloseAt && (
+                <SidebarField icon="clock" label="Cierre automático">
+                  {formatDateTime(ticket.autoCloseAt)}
+                </SidebarField>
+              )}
+              {ticket.closedAt && (
+                <SidebarField icon="calendar" label="Cerrado">
+                  <span title={ticket.closeReason || undefined}>
+                    {formatDateTime(ticket.closedAt)} · {CLOSED_BY_LABELS[ticket.closedBy || ''] || ticket.closedBy || '—'}
+                  </span>
+                </SidebarField>
+              )}
+              {ticket.closeReason && (
+                <SidebarField icon="message" label="Motivo de cierre">
+                  {ticket.closeReason}
+                </SidebarField>
+              )}
             </div>
 
           </aside>
@@ -806,6 +855,65 @@ export default function SupportTicketDetailModal({
                 >
                   <UiIcon name="check" />
                   Resuelto
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {finishPopupOpen && (
+          <div className="jira-review-popup-overlay" onClick={() => setFinishPopupOpen(false)}>
+            <div className="jira-review-popup" onClick={(e) => e.stopPropagation()}>
+              <div className="jira-review-popup-header">
+                <UiIcon name="check" />
+                <h3>{isInternal ? 'Cerrar ticket interno' : 'Marcar como resuelto'}</h3>
+                <button type="button" className="jira-icon-button" onClick={() => setFinishPopupOpen(false)} aria-label="Cerrar">
+                  <UiIcon name="close" />
+                </button>
+              </div>
+
+              <div className="jira-review-popup-body">
+                <label className="jira-review-popup-label">
+                  {isInternal ? 'Motivo del cierre' : 'Respuesta final para el cliente'}
+                </label>
+                <textarea
+                  value={notes}
+                  onChange={(e) => onNotesChange(e.target.value)}
+                  placeholder={isInternal
+                    ? 'Ej.: el cliente cortó la conexión; no es una falla del sistema.'
+                    : 'Explica cómo se resolvió la consulta…'}
+                  rows={5}
+                  maxLength={2000}
+                  disabled={isUpdating}
+                  autoFocus
+                />
+                <small className="jira-finish-hint">
+                  {isInternal
+                    ? 'Queda registrado con la fecha y tu nombre. Un ticket cerrado no admite más cambios.'
+                    : 'Le llega al cliente por correo. Si responde, el ticket se reabre; si no, se cierra solo a los 7 días.'}
+                </small>
+              </div>
+
+              <div className="jira-review-popup-actions">
+                <button
+                  type="button"
+                  className="jira-review-btn-cancel"
+                  onClick={() => setFinishPopupOpen(false)}
+                  disabled={isUpdating}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  className="jira-review-btn-resolved"
+                  disabled={!notes.trim() || isUpdating}
+                  onClick={() => {
+                    setFinishPopupOpen(false);
+                    onStatusChange(isInternal ? 'CERRADO' : 'RESUELTO');
+                  }}
+                >
+                  <UiIcon name="check" />
+                  {isInternal ? 'Cerrar ticket' : 'Marcar resuelto'}
                 </button>
               </div>
             </div>
