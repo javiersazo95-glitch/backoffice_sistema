@@ -15,9 +15,10 @@ export const NIVEL_META: Record<SocialNivelCodigo, { label: string; color: strin
   DIAMANTE: { label: 'Diamante', color: '#5a6ff5' },
 };
 
-export function Kpi({ icon, label, value, foot, tone, title }: { icon: string; label: string; value: string; foot: string; tone: KpiTone; title?: string }) {
+/** `avatar`: foto del captador del que habla el KPI (p. ej. "Captador con más videos") en lugar del icono. */
+export function Kpi({ icon, label, value, foot, tone, title, avatar }: { icon: string; label: string; value: string; foot: string; tone: KpiTone; title?: string; avatar?: ReactNode }) {
   return <article className="cpx-kpi" title={title}>
-    <span className={`cpx-ico cpx-${tone}`}><UiIcon name={icon} /></span>
+    {avatar ?? <span className={`cpx-ico cpx-${tone}`}><UiIcon name={icon} /></span>}
     <div><span className="cpx-kpi-label">{label}</span><strong className="cpx-kpi-value">{value}</strong><small>{foot}</small></div>
   </article>;
 }

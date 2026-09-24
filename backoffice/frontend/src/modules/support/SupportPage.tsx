@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import CapturerAvatar from '@/components/capturers/CapturerAvatar';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as supportApi from '@/api/support';
@@ -504,7 +505,12 @@ function SupportQaPage() {
                       <div style={{ display: 'grid', gap: '12px' }}>
                         {visibleSelectedBugMessages.map((message) => (
                           <article key={message.id} style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '12px', background: '#fff' }}>
-                            <strong style={{ display: 'block', color: '#0f172a', marginBottom: '4px' }}>
+                            <strong style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#0f172a', marginBottom: '4px' }}>
+                              <CapturerAvatar
+                                nombre={message.autorNombre || (message.autorTipo === 'SOPORTE' ? 'Soporte RepuesTop' : selectedBug.reporterName)}
+                                fotoPerfil={message.autorAvatarUrl ?? (message.autorTipo === 'SOPORTE' ? null : selectedBug.reporterPhoto)}
+                                size={24}
+                              />
                               <FounderSellerName
                                 name={message.autorNombre || (message.autorTipo === 'SOPORTE' ? (selectedBug.origin === 'QA' ? 'QA RepuesTop' : 'Soporte RepuesTop') : selectedBug.reporterName)}
                                 founder={message.autorTipo !== 'SOPORTE' && selectedBug.reporterType === 'VENDEDOR' && selectedBug.sellerFounder}
@@ -1287,7 +1293,7 @@ export default function SupportPage() {
                         <span style={{ fontSize: '13px', fontWeight: '500', color: 'var(--ink)' }}>{ticket.reason}</span>
                         
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', color: 'var(--muted)', marginTop: '4px' }}>
-                          <span>Por: <FounderSellerName name={ticket.reporterName} founder={ticket.reporterType === 'VENDEDOR' && ticket.sellerFounder} /></span>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, minWidth: 0 }}>Por: <CapturerAvatar nombre={ticket.reporterName} fotoPerfil={ticket.reporterPhoto} size={18} /><FounderSellerName name={ticket.reporterName} founder={ticket.reporterType === 'VENDEDOR' && ticket.sellerFounder} /></span>
                           <span>SLA: {ticket.sla}</span>
                         </div>
                         
@@ -1371,7 +1377,7 @@ export default function SupportPage() {
                     <tr key={ticket.id}>
                       <td><strong>{ticket.externalId}</strong></td>
                       <td>{formatDate(ticket.createdAt)}</td>
-                      <td><FounderSellerName name={ticket.reporterName} founder={ticket.reporterType === 'VENDEDOR' && ticket.sellerFounder} /></td>
+                      <td><span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, minWidth: 0 }}><CapturerAvatar nombre={ticket.reporterName} fotoPerfil={ticket.reporterPhoto} size={26} /><FounderSellerName name={ticket.reporterName} founder={ticket.reporterType === 'VENDEDOR' && ticket.sellerFounder} /></span></td>
                       <td>{ticket.platform ? <Badge text={PLATFORM_LABELS[ticket.platform]} variant={PLATFORM_TONES[ticket.platform]} /> : 'General'}</td>
                       <td><span className="support-qa-truncate" title={ticket.reason}>{ticket.reason}</span></td>
                       <td><Badge text={PRIORITY_LABELS[ticket.priority]} variant={PRIORITY_TONES[ticket.priority]} /></td>
@@ -1499,7 +1505,7 @@ export default function SupportPage() {
                       <tr key={ticket.id}>
                         <td><strong>{ticket.externalId}</strong></td>
                         <td>{formatDate(ticket.createdAt)}</td>
-                        <td><FounderSellerName name={ticket.reporterName} founder={ticket.reporterType === 'VENDEDOR' && ticket.sellerFounder} /></td>
+                        <td><span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, minWidth: 0 }}><CapturerAvatar nombre={ticket.reporterName} fotoPerfil={ticket.reporterPhoto} size={26} /><FounderSellerName name={ticket.reporterName} founder={ticket.reporterType === 'VENDEDOR' && ticket.sellerFounder} /></span></td>
                         <td>{ticket.platform === 'SITIO_WEB' ? 'Consulta web' : REPORTER_LABELS[ticket.reporterType]}</td>
                         <td>
                           {ticket.platform ? (
@@ -1598,7 +1604,7 @@ export default function SupportPage() {
               <div className="case-modal-grid" style={{ marginBottom: '24px' }}>
                 <div className="modal-field wide">
                   <span>Reportante</span>
-                  <strong><FounderSellerName name={selectedTicket.reporterName} founder={selectedTicket.reporterType === 'VENDEDOR' && selectedTicket.sellerFounder} /></strong>
+                  <strong style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><CapturerAvatar nombre={selectedTicket.reporterName} fotoPerfil={selectedTicket.reporterPhoto} size={30} /><FounderSellerName name={selectedTicket.reporterName} founder={selectedTicket.reporterType === 'VENDEDOR' && selectedTicket.sellerFounder} /></strong>
                 </div>
                 <div className="modal-field">
                   <span>Tipo de Usuario</span>

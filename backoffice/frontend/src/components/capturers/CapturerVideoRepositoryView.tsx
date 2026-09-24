@@ -274,7 +274,7 @@ function VideoTable({ items, ver, vetar, quitarVeto, sancionar, perfil }: { item
       <tbody>{items.map(v => <tr key={v.id}>
         <td><button type="button" className="vr-thumb-btn" onClick={() => ver(v)} aria-label={`Ver ${v.titulo}`}><Poster v={v} /></button></td>
         <td className="cpx-wrap"><strong className="cpx-clamp" title={v.titulo}>{v.titulo}</strong><div className="cpx-muted cpx-clamp" title={v.motivoOcultamiento ?? undefined}>{v.estado === 'OCULTO' && v.motivoOcultamiento ? v.motivoOcultamiento : `${duracion(v.duracionSeg)} · ${peso(v.tamanoBytes)}`}</div></td>
-        <td><button type="button" className="vr-link" onClick={() => perfil(v.autorId)} title="Ver perfil del captador">@{v.autorAlias}</button>{v.autorSuspendidoHasta && <div className="vr-tag vr-tag-red" style={{ marginTop: 3 }}>Sancionado</div>}</td>
+        <td><button type="button" className="vr-link" onClick={() => perfil(v.autorId)} title="Ver perfil del captador" style={{ display: 'inline-flex', alignItems: 'center', gap: 7, maxWidth: '100%' }}><Avatar v={v} size={24} /><span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>@{v.autorAlias}</span></button>{v.autorSuspendidoHasta && <div className="vr-tag vr-tag-red" style={{ marginTop: 3 }}>Sancionado</div>}</td>
         <td>{socialCategoriaLabel(v.categoria)}</td>
         <td className="cpx-num">{v.descargasTotal.toLocaleString('es-CL')}</td>
         <td>{v.calificacionCount ? `★ ${Number(v.calificacionPromedio).toFixed(1)} (${v.calificacionCount})` : '—'}</td>
@@ -419,7 +419,7 @@ function VetoModal({ v, close, onDone }: { v: VideoAdmin; close: () => void; onD
   return <Overlay close={close}>
     <header className="vr-modal-head"><div><h3>Vetar video</h3></div><button type="button" className="vr-x" onClick={close} aria-label="Cerrar"><UiIcon name="close" /></button></header>
     <div className="vr-form">
-      <div className="vr-mini"><Poster v={v} /><div><strong className="cpx-clamp">{v.titulo}</strong><small>@{v.autorAlias} · {fecha(v.creadoEn)}</small></div></div>
+      <div className="vr-mini"><Poster v={v} /><div><strong className="cpx-clamp">{v.titulo}</strong><small style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Avatar v={v} size={18} />@{v.autorAlias} · {fecha(v.creadoEn)}</small></div></div>
       <p className="vr-hint">El video sale del repositorio, deja de contar para el requisito de 3 videos semanales y el captador verá el motivo en "Mis contenidos". Puedes quitar el veto después.</p>
       <MotivoFields preset={preset} setPreset={setPreset} detalle={detalle} setDetalle={setDetalle} />
       {error && <div className="cpx-note vr-err">{error}</div>}
@@ -455,7 +455,7 @@ function SancionModal({ v, close, onDone }: { v: VideoAdmin; close: () => void; 
   }
 
   return <Overlay close={close}>
-    <header className="vr-modal-head"><div><h3>Sancionar a @{v.autorAlias}</h3></div><button type="button" className="vr-x" onClick={close} aria-label="Cerrar"><UiIcon name="close" /></button></header>
+    <header className="vr-modal-head"><div><h3 style={{ display: 'flex', alignItems: 'center', gap: 10 }}><Avatar v={v} size={32} />Sancionar a @{v.autorAlias}</h3></div><button type="button" className="vr-x" onClick={close} aria-label="Cerrar"><UiIcon name="close" /></button></header>
     <div className="vr-form">
       <div className="vr-mini"><Poster v={v} /><div><strong className="cpx-clamp">{v.titulo}</strong><small>Video que motiva la sanción</small></div></div>
       <p className="vr-hint">Suspende al captador del repositorio de Redes sociales: mientras dure no puede subir videos ni descargar contenido de otros. Su cuenta, comisiones y captaciones siguen igual.</p>

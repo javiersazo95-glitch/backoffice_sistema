@@ -211,7 +211,7 @@ function Resumen({d,cfg,ranking,copied,onCopy,linkCopied,onCopyLink,onGo}:{d:Cap
       const negocio=(m.negocioNombre||'').trim()||m.descripcion;
       return (
        <div className="cap-feed-item" key={m.id}>
-        <span className="cap-feed-avatar">{(negocio||'?').charAt(0).toUpperCase()}</span>
+        <CapturerAvatar className="cap-feed-avatar" nombre={negocio} fotoPerfil={m.negocioFoto}/>
         <div><strong>{negocio}</strong><small className="cap-muted">{tipoLabel(m.tipo)} {m.descripcion&&m.descripcion!==negocio?`· ${m.descripcion}`:''} · {new Date(m.fecha).toLocaleDateString('es-CL')}</small></div>
         <Badge estado={m.estado}/>
        </div>
@@ -570,7 +570,7 @@ function MovementsTable({rows}:{rows:CapturerMovement[]}){
       <td>{new Date(m.fecha).toLocaleDateString('es-CL')}</td>
       <td>
        <div className="cap-biz">
-        <span className="cap-feed-avatar">{(negocio||'?').charAt(0).toUpperCase()}</span>
+        <CapturerAvatar className="cap-feed-avatar" nombre={negocio} fotoPerfil={m.negocioFoto}/>
         <div>
          <span className="cap-cell-strong">{negocio}</span>
          {m.negocioNombre && m.descripcion && m.descripcion !== m.negocioNombre ? (
@@ -738,6 +738,8 @@ const css=`
 .cap-feed-item>div{min-width:0;flex:1}
 .cap-feed-item>div strong{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cap-feed-avatar{display:grid;place-items:center;width:32px;height:32px;flex:0 0 auto;border-radius:10px;background:#e7effe;color:#1657d9;font-size:13px;font-weight:800}
+.cap-feed-avatar{overflow:hidden}
+.cap-feed-avatar img{border-radius:inherit}
 
 .cap-two{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:18px;align-items:start}
 .cap-fin-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}

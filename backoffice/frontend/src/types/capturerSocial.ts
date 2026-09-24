@@ -81,7 +81,7 @@ export interface SocialMetricas {
   compradoresReferidos:number; compradoresConvertidos:number; comisionCompradoresPeriodo:number;
   masDescargados:SocialContenidoAdmin[]; mejorEvaluados:SocialContenidoAdmin[]; topAportadores:SocialRanking[]; topDescargadores:SocialRanking[];
 }
-export interface CapturedBuyer { atribucionId:number; nombre:string; emailEnmascarado:string; canal:string; registradoEn:string; primeraCompraEn:string|null; pedidos:number; montoBase:number; ingresoCaptador:number; }
+export interface CapturedBuyer { atribucionId:number; nombre:string; emailEnmascarado:string; canal:string; registradoEn:string; primeraCompraEn:string|null; pedidos:number; montoBase:number; ingresoCaptador:number; fotoPerfil?:string|null; }
 /** Página de compradores referidos; referidos/conCompra/montoBase/ingreso son totales del captador (sin filtros). */
 export interface CapturedBuyersPage extends SocialPagina<CapturedBuyer> { referidos:number; conCompra:number; montoBase:number; ingreso:number; }
 export type CapturedBuyersOrden = 'RECIENTES'|'ANTIGUOS'|'PRIMERA_COMPRA'|'INGRESO'|'NOMBRE';

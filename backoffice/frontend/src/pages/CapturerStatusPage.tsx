@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import * as api from '@/api/capturers';
 import { useAuth } from '@/context/AuthContext';
 import type { CapturerStatus } from '@/types/capturer';
+import CapturerAvatar from '@/components/capturers/CapturerAvatar';
 
 const PAGE_BG = 'linear-gradient(145deg, #07173e 0%, #0d286d 50%, #06143b 100%)';
 
@@ -125,7 +126,7 @@ function PendingState({
   onRefresh,
   onLogin,
 }: {
-  data: { nombre: string; alias: string; rut: string; email: string; comuna: string; region: string; createdAt: string };
+  data: { nombre: string; alias: string; rut: string; email: string; comuna: string; region: string; createdAt: string; fotoPerfil?: string | null };
   lastChecked: Date;
   refreshing: boolean;
   onRefresh: () => void;
@@ -219,6 +220,13 @@ function PendingState({
       >
         <div style={{ fontSize: 12, fontWeight: 800, color: '#334151', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
           Datos de tu postulación
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+          <CapturerAvatar nombre={data.nombre} fotoPerfil={data.fotoPerfil} size={44} background="#145be7" />
+          <div style={{ display: 'grid', minWidth: 0 }}>
+            <strong style={{ color: '#0b2559' }}>{data.nombre}</strong>
+            <small style={{ color: '#64748b' }}>@{data.alias}</small>
+          </div>
         </div>
         <SummaryRow label="Nombre" value={data.nombre} />
         <SummaryRow label="Alias" value={`@${data.alias}`} />

@@ -725,7 +725,7 @@ export default function SupportTicketDetailModal({
                 </div>
               </SidebarField>
               <SidebarField icon="users" label="Reportado por">
-                <span className="jira-assignee"><Avatar name={ticket.reporterName || 'Usuario'} size={20} /> <FounderSellerName name={ticket.reporterName || 'No informado'} founder={ticket.reporterType === 'VENDEDOR' && ticket.sellerFounder} /></span>
+                <span className="jira-assignee"><Avatar name={ticket.reporterName || 'Usuario'} size={20} imageUrl={ticket.reporterPhoto} /> <FounderSellerName name={ticket.reporterName || 'No informado'} founder={ticket.reporterType === 'VENDEDOR' && ticket.sellerFounder} /></span>
               </SidebarField>
               {ticket.correoContacto && (
                 <SidebarField icon="mail" label="Correo">

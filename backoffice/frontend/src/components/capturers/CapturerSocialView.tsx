@@ -87,6 +87,7 @@ export default function CapturerSocialView({ all = [] }: { all?: CapturerProfile
         foot={catTop ? `${plural(catTop.cantidad, 'video', 'videos')} · ${pct(catTop.cantidad, totalCat)} del total` : 'Sin videos publicados'}
         title={v?.porCategoria.map(c => `${socialCategoriaLabel(c.categoria)}: ${c.cantidad}`).join(' · ')} />
       <Kpi icon="crown" tone="violet" label="Captador con más videos" value={capTop ? `@${capTop.alias}` : sinDatos}
+        avatar={capTop ? <CapturerAvatar nombre={capTop.alias} fotoPerfil={fotoPorId.get(capTop.captadorId)} size={38} background="#6d3fd6" /> : undefined}
         foot={capTop ? `${plural(capTop.cantidad, 'video publicado', 'videos publicados')}` : 'Sin videos publicados'}
         title={v?.topCaptadores.map((r, i) => `${i + 1}. @${r.alias} (${r.cantidad})`).join(' · ')} />
       <Kpi icon="download" tone="green" label="Video más descargado" value={masDesc ? masDesc.titulo : sinDatos}

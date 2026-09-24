@@ -237,7 +237,7 @@ function Negocios({ periodo, setPeriodo, historico, delMes, cargando }: { id: nu
           : filas.length ? filas.map(x => {
             const est = estadoNegocio(x.estado);
             return <tr key={`${x.tipo}-${x.id}`}>
-              <td><Dos a={x.nombre} b={x.email} /></td>
+              <td><div className="cpd-biz"><CapturerAvatar className="cpd-biz-avatar" nombre={x.nombre} fotoPerfil={x.foto} background={x.tipo === 'CASA_REPUESTOS' ? '#1d59bf' : '#6d3fd6'} /><Dos a={x.nombre} b={x.email} /></div></td>
               <td><span className={`cpd-chip ${x.tipo === 'CASA_REPUESTOS' ? 'blue' : 'violet'}`}>{x.tipo === 'CASA_REPUESTOS' ? 'Casa de repuestos' : 'Servicio automotriz'}</span></td>
               <td><Dos a={x.comuna} b={x.region} /></td>
               <td><span className={`cpd-pill ${est.tone}`}>{est.label}</span></td>
@@ -402,6 +402,8 @@ const cpdCss = `
 .cpd-table tbody tr:hover{background:#f8fbff}
 .cpd-table .num{text-align:right}
 .cpd-two{display:grid;min-width:0}
+.cpd-biz{display:flex;align-items:center;gap:10px;min-width:0}
+.cpd-biz-avatar{display:grid;place-items:center;width:34px;height:34px;flex:0 0 auto;border-radius:10px;overflow:hidden;color:#fff;font-size:12px;font-weight:800;border:1px solid #e3ebf7}
 .cpd-two strong{font-size:13px;color:#0f2c5c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cpd-two small{margin-top:2px;font-size:11.5px;color:#7a8bab;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cpd-chip{display:inline-block;max-width:100%;padding:4px 9px;border-radius:99px;background:#eef2f9;color:#52678f;font-size:11.5px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;vertical-align:middle}

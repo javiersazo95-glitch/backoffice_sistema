@@ -608,6 +608,7 @@ type Captacion = {
   captador: string;
   alias: string;
   fotoCaptador?: string | null;
+  fotoNegocio?: string | null;
   ventas: number;
   ingreso: number;
 };
@@ -722,6 +723,7 @@ function CaptacionesView({ all }: { all: CapturerProfile[] }) {
           captador: c.nombre,
           alias: c.alias,
           fotoCaptador: c.fotoPerfil,
+          fotoNegocio: b.foto,
           ventas: Number(b.ventas ?? 0),
           ingreso: Number(b.ingresoCaptador ?? 0),
         });
@@ -1000,9 +1002,7 @@ function CaptacionesView({ all }: { all: CapturerProfile[] }) {
                     <tr key={x.key}>
                       <td>
                         <div className="cps-person">
-                          <span className="cps-avatar" style={{ background: colors[i % colors.length] }}>
-                            {initials(x.nombre)}
-                          </span>
+                          <CapturerAvatar className="cps-avatar cps-avatar-biz" nombre={x.nombre} fotoPerfil={x.fotoNegocio} background={colors[i % colors.length]} />
                           <div className="cps-two">
                             <strong title={x.nombre}>{x.nombre}</strong>
                             <small>Desde {x.fecha ? new Date(x.fecha).toLocaleDateString("es-CL", { day: "2-digit", month: "2-digit", year: "numeric" }) : "—"}</small>
@@ -1202,14 +1202,6 @@ const colors = [
   "#0f766e",
   "#b45309",
 ];
-const initials = (name: string) =>
-  name
-    .split(" ")
-    .filter(Boolean)
-    .map((x) => x[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
 const pct = (part: number, total: number) =>
   total ? `${((part / total) * 100).toFixed(1).replace(".", ",")}%` : "—";
 function pageList(current: number, pages: number): Array<number | "…"> {
@@ -1322,6 +1314,8 @@ const css = `
 .cps-person strong{display:block;font-size:13.5px;color:var(--ink);white-space:nowrap}
 .cps-avatar{display:grid;place-items:center;width:38px;height:38px;flex:0 0 auto;border-radius:50%;color:#fff;font-size:13px;font-weight:800;overflow:hidden}
 .cps-avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+/* Los negocios (tiendas y servicios) van en cuadro redondeado: su imagen suele ser un logo. */
+.cps-avatar.cps-avatar-biz,.cps-avatar.cps-avatar-biz img{border-radius:10px}
 .cps-tag{display:inline-block;margin-top:4px;padding:2px 7px;border-radius:6px;background:#eaf1ff;color:#165ed4;font-size:11px;font-weight:700}
 .cps-code{display:inline-block;max-width:100%;padding:4px 8px;border-radius:8px;background:#f1f5fb;font-size:12px;font-weight:800;letter-spacing:.01em;color:#315287;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;vertical-align:middle}
 .cps-line{display:block;color:#31456e;white-space:nowrap}

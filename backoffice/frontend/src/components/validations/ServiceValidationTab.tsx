@@ -4,6 +4,7 @@ import * as api from '@/api/capturers';
 import UiIcon from '@/components/shared/UiIcon';
 import { showToast } from '@/components/layout/Toast';
 import type { AutomotiveServiceReview } from '@/types/capturer';
+import CapturerAvatar from '@/components/capturers/CapturerAvatar';
 
 type ServiceStatus = 'PENDIENTE' | 'POR_CORREGIR' | 'APROBADO' | 'RECHAZADO';
 type StatusFilter = 'TODOS' | ServiceStatus;
@@ -235,14 +236,22 @@ export default function ServiceValidationTab() {
                 return (
                   <tr key={s.id}>
                     <td>
-                      <div className="ad-table-title-cell">
-                        <div className="ad-table-title-main">{s.nombreNegocio}</div>
-                        <div className="ad-table-title-sub">{s.rutNegocio || 'Sin RUT'} · {s.responsable || 'Sin responsable'}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                        <CapturerAvatar nombre={s.nombreNegocio} fotoPerfil={s.logoUrl} size={36} background="#6d3fd6" />
+                        <div className="ad-table-title-cell">
+                          <div className="ad-table-title-main">{s.nombreNegocio}</div>
+                          <div className="ad-table-title-sub">{s.rutNegocio || 'Sin RUT'} · {s.responsable || 'Sin responsable'}</div>
+                        </div>
                       </div>
                     </td>
                     <td>
-                      <div style={{ fontSize: 12.5, color: '#334155' }}>{s.usuarioNombre}</div>
-                      <div style={{ fontSize: 11.5, color: '#64748b' }}>{s.usuarioEmail}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                        <CapturerAvatar nombre={s.usuarioNombre} fotoPerfil={s.usuarioFoto} size={28} />
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontSize: 12.5, color: '#334155' }}>{s.usuarioNombre}</div>
+                          <div style={{ fontSize: 11.5, color: '#64748b' }}>{s.usuarioEmail}</div>
+                        </div>
+                      </div>
                     </td>
                     <td>
                       <div style={{ fontSize: 12.5, fontWeight: 600, color: '#1e293b' }}>{s.comuna || '—'}</div>
@@ -252,7 +261,8 @@ export default function ServiceValidationTab() {
                       <span className={`status-pill ${loadedDocs === DOCUMENTS.length ? 'tone-green' : 'tone-amber'}`}>{loadedDocs} / {DOCUMENTS.length}</span>
                     </td>
                     <td>
-                      <span style={{ fontSize: 12, color: s.captadorAlias ? '#0284c7' : '#94a3b8', fontWeight: 600 }}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: s.captadorAlias ? '#0284c7' : '#94a3b8', fontWeight: 600 }}>
+                        {s.captadorAlias && <CapturerAvatar nombre={s.captadorAlias} fotoPerfil={s.captadorFoto} size={24} background="#0284c7" />}
                         {s.captadorAlias ? `@${s.captadorAlias}` : 'Directo'}
                       </span>
                     </td>
@@ -309,9 +319,12 @@ export default function ServiceValidationTab() {
           <div className="modal-backdrop" onClick={() => setDetail(null)}>
             <div className="modal-panel" style={{ width: 'min(720px, 96%)', maxHeight: 'min(90vh, 900px)' }} onClick={(e) => e.stopPropagation()}>
               <div className="modal-header">
-                <div className="modal-title-block">
-                  <h2>Expediente de servicio automotriz</h2>
-                  <p>Expediente #{detail.id} &bull; {detail.nombreNegocio}</p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+                  <CapturerAvatar nombre={detail.nombreNegocio} fotoPerfil={detail.logoUrl} size={46} background="#6d3fd6" />
+                  <div className="modal-title-block">
+                    <h2>Expediente de servicio automotriz</h2>
+                    <p>Expediente #{detail.id} &bull; {detail.nombreNegocio}</p>
+                  </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span className={`status-pill ${STATUS_META[status].pill}`}>{STATUS_META[status].label}</span>
@@ -345,10 +358,10 @@ export default function ServiceValidationTab() {
                   <div className="ad-modal-detail-card">
                     <h4><UiIcon name="user" /> Solicitante</h4>
                     <dl className="ad-modal-detail-list">
-                      <div className="ad-modal-detail-row"><dt>Nombre:</dt><dd>{detail.usuarioNombre}</dd></div>
+                      <div className="ad-modal-detail-row"><dt>Nombre:</dt><dd style={{ display: 'flex', alignItems: 'center', gap: 8 }}><CapturerAvatar nombre={detail.usuarioNombre} fotoPerfil={detail.usuarioFoto} size={26} />{detail.usuarioNombre}</dd></div>
                       <div className="ad-modal-detail-row"><dt>Rol:</dt><dd>{detail.usuarioRol}</dd></div>
                       <div className="ad-modal-detail-row"><dt>Correo:</dt><dd>{detail.usuarioEmail}</dd></div>
-                      <div className="ad-modal-detail-row"><dt>Captador:</dt><dd>{detail.captadorAlias ? `@${detail.captadorAlias}` : 'Postulación directa'}</dd></div>
+                      <div className="ad-modal-detail-row"><dt>Captador:</dt><dd style={{ display: 'flex', alignItems: 'center', gap: 8 }}>{detail.captadorAlias && <CapturerAvatar nombre={detail.captadorAlias} fotoPerfil={detail.captadorFoto} size={26} background="#0284c7" />}{detail.captadorAlias ? `@${detail.captadorAlias}` : 'Postulación directa'}</dd></div>
                       <div className="ad-modal-detail-row"><dt>Enviado:</dt><dd>{formatDate(detail.submittedAt)}</dd></div>
                     </dl>
                   </div>

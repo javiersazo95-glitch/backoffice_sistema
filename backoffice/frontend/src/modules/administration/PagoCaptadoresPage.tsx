@@ -284,7 +284,18 @@ export default function PagoCaptadoresPage() {
                       <td><strong>Ronda {round.key}</strong></td>
                       <td>{formatDate(round.withdrawals[0]?.fechaPago)}</td>
                       <td>{round.withdrawals.length}</td>
-                      <td>{round.withdrawals.map((withdrawal) => withdrawal.alias || withdrawal.captador || 'Captador').join(', ')}</td>
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                          <span style={{ display: 'inline-flex', flexShrink: 0 }}>
+                            {round.withdrawals.slice(0, 4).map((withdrawal, i) => (
+                              <span key={withdrawal.id} style={{ marginLeft: i ? -8 : 0, borderRadius: '50%', boxShadow: '0 0 0 2px #fff', display: 'inline-flex' }}>
+                                <CapturerAvatar nombre={withdrawal.captador || withdrawal.alias} fotoPerfil={withdrawal.fotoPerfil} size={26} title={withdrawal.alias || withdrawal.captador} />
+                              </span>
+                            ))}
+                          </span>
+                          <span>{round.withdrawals.map((withdrawal) => withdrawal.alias || withdrawal.captador || 'Captador').join(', ')}</span>
+                        </div>
+                      </td>
                       <td>{round.withdrawals.map((withdrawal) => withdrawal.codigo).join(', ')}</td>
                       <td><strong>{formatCurrency(round.total)}</strong></td>
                       <td><span className="status-pill success">Pagado</span></td>

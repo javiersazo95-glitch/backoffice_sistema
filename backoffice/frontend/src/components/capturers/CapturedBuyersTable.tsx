@@ -5,6 +5,7 @@ import UiIcon from '@/components/shared/UiIcon';
 import { formatCurrency } from '@/utils/formatters';
 import type { CapturedBuyersOrden, CapturedBuyersQuery } from '@/types/capturerSocial';
 import { pct } from './capturerMetricsUi';
+import CapturerAvatar from './CapturerAvatar';
 
 const TAMANOS = [25, 50, 100];
 const fecha = (iso: string) => new Date(iso).toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -92,7 +93,7 @@ export default function CapturedBuyersTable({ captadorId, resumen = false }: { c
           {res.isLoading ? <tr><td colSpan={7} className="cbt-empty">Cargando compradores…</td></tr>
             : res.isError ? <tr><td colSpan={7} className="cbt-empty">No se pudieron cargar los compradores.</td></tr>
               : filas.length ? filas.map(b => <tr key={b.atribucionId}>
-                <td><div className="cbt-two"><strong title={b.nombre}>{b.nombre}</strong><small title={b.emailEnmascarado}>{b.emailEnmascarado}</small></div></td>
+                <td><div className="cbt-person"><CapturerAvatar nombre={b.nombre} fotoPerfil={b.fotoPerfil} size={32} background="#0f8a4d" /><div className="cbt-two"><strong title={b.nombre}>{b.nombre}</strong><small title={b.emailEnmascarado}>{b.emailEnmascarado}</small></div></div></td>
                 <td><span className="cbt-chip">{b.canal === 'WEB' ? 'Web' : 'App'}</span></td>
                 <td>{fecha(b.registradoEn)}</td>
                 <td>{b.primeraCompraEn ? fecha(b.primeraCompraEn) : <span className="cbt-muted">Aún no compra</span>}</td>
@@ -145,6 +146,8 @@ const cbtCss = `
 .cbt .cbt-scroll .cbt-table tbody tr:hover td{background:#f8fbff}
 .cbt .cbt-scroll .cbt-table .num{text-align:right}
 .cbt-two{display:grid;min-width:0}
+.cbt-person{display:flex;align-items:center;gap:9px;min-width:0}
+.cbt-person>.cbt-two{min-width:0}
 .cbt-two strong{font-size:13px;color:#0f2c5c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cbt-two small{margin-top:2px;font-size:11.5px;color:#7a8bab;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cbt-chip{display:inline-block;padding:3px 9px;border-radius:99px;background:#eef2f9;color:#52678f;font-size:11.5px;font-weight:800}

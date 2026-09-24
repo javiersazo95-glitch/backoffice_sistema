@@ -47,6 +47,8 @@ export interface TicketResponse {
   reporterType: ReporterType;
   platform?: TicketPlatform;
   reporterName: string;
+  /** Foto de perfil de quien reporta (comprador, tienda o captador). */
+  reporterPhoto?: string | null;
   correoContacto?: string;
   telefonoContacto?: string;
   regionContacto?: string;
@@ -111,6 +113,8 @@ export interface CreateTicketData {
   priority: TicketPriority;
   reporterType: ReporterType;
   reporterName: string;
+  /** Foto de perfil de quien reporta (comprador, tienda o captador). */
+  reporterPhoto?: string | null;
   sellerId?: number | null;
   platform?: TicketPlatform | null;
   contexto?: string;

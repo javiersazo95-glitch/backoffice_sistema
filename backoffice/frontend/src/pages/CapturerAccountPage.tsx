@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import apiClient, { resolveProfileImageUrl } from "@/api/client";
+import apiClient from "@/api/client";
 import * as api from "@/api/capturers";
 import { useAuth } from "@/context/AuthContext";
+import CapturerAvatar from '@/components/capturers/CapturerAvatar';
 import CapturerPageShell, {
   pageControl,
   pagePanel,
@@ -93,7 +94,7 @@ export default function CapturerAccountPage() {
         <>
           <form style={{ ...pagePanel, maxWidth: 720 }} onSubmit={save}>
             <section style={photoSection}>
-              {resolveProfileImageUrl(p?.fotoPerfil) ? <img src={resolveProfileImageUrl(p?.fotoPerfil) ?? undefined} alt="Foto de perfil" style={photo} /> : <span style={photoFallback}>{p?.nombre.slice(0, 2).toUpperCase()}</span>}
+              <span style={photoRing}><CapturerAvatar nombre={p?.nombre} fotoPerfil={p?.fotoPerfil} size={76} background="#145be7" /></span>
               <div><strong>Foto de perfil</strong><p style={{ margin: '4px 0 10px', color: '#64748b', fontSize: 13 }}>JPG, PNG o WebP de hasta 5 MB.</p><label style={photoButton}>{uploadingPhoto ? 'Subiendo…' : 'Cambiar imagen'}<input type="file" accept="image/jpeg,image/png,image/webp" hidden disabled={uploadingPhoto} onChange={e => void uploadPhoto(e.target.files?.[0])}/></label></div>
             </section>
             <div style={grid}>
@@ -247,6 +248,5 @@ const danger: React.CSSProperties = {
   cursor: "pointer",
 };
 const photoSection: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 16, paddingBottom: 18, marginBottom: 18, borderBottom: '1px solid #e2e8f0' };
-const photo: React.CSSProperties = { width: 76, height: 76, borderRadius: '50%', objectFit: 'cover', border: '3px solid #dbeafe' };
-const photoFallback: React.CSSProperties = { width: 76, height: 76, borderRadius: '50%', display: 'grid', placeItems: 'center', background: '#145be7', color: '#fff', fontWeight: 800, fontSize: 24 };
+const photoRing: React.CSSProperties = { display: 'inline-flex', flexShrink: 0, borderRadius: '50%', border: '3px solid #dbeafe' };
 const photoButton: React.CSSProperties = { display: 'inline-block', padding: '9px 12px', borderRadius: 8, background: '#edf4ff', color: '#145be7', fontWeight: 700, cursor: 'pointer', fontSize: 13 };
