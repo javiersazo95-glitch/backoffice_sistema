@@ -1,4 +1,5 @@
 import apiClient from './client';
+import { esTipoMostrable } from '@/utils/documentUrls';
 import type { CapturerDashboard,CapturerProfile,CapturerRanking,CapturerWithdrawal,AutomotiveServiceReview,CapturerConfig,CapturerChat,CapturerChatMessage,CapturedBusinesses } from '@/types/capturer';
 export const getStatus=async()=> (await apiClient.get<CapturerProfile>('/captadores/me/status')).data;
 export const getDashboard=async()=> (await apiClient.get<CapturerDashboard>('/captadores/me/dashboard')).data;
@@ -38,6 +39,8 @@ async function previewDocument(path:string){
   preview.document.body.textContent='Cargando documento…';
   try{
     const blob=await getValidationDocument(path);
+    // SEC-BACKEND-153: solo PDF e imagenes se abren como blob (con el origen del backoffice); lo demas se descarga.
+    if(!esTipoMostrable(blob.type)){preview.close();saveDocument(blob,'documento');return;}
     const url=URL.createObjectURL(blob);
     preview.location.replace(url);
     window.setTimeout(()=>URL.revokeObjectURL(url),60_000);

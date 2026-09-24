@@ -156,6 +156,29 @@ export function getDocumentFileName(documentUrl?: string, fallback = 'documento'
   }
 }
 
+/**
+ * SEC-BACKEND-153: tipos que el backoffice puede abrir como blob. Un blob se abre con el origen del
+ * backoffice (y su sesion), asi que cualquier otra cosa -un HTML subido como "evidencia"- se
+ * descarga en vez de abrirse. El backend ya entrega esos archivos como application/octet-stream;
+ * esto es la segunda barrera.
+ */
+const TIPOS_MOSTRABLES = ['application/pdf', 'image/png', 'image/jpeg', 'image/gif', 'image/webp'];
+
+export function esTipoMostrable(type?: string | null): boolean {
+  return TIPOS_MOSTRABLES.includes(((type ?? '').split(';')[0] ?? '').trim().toLowerCase());
+}
+
+function guardarBlob(blob: Blob, fileName: string) {
+  const objectUrl = URL.createObjectURL(blob);
+  const link = window.document.createElement('a');
+  link.href = objectUrl;
+  link.download = fileName;
+  window.document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 0);
+}
+
 export async function downloadDocument(documentUrl?: string, fileName = 'documento') {
   const resolvedUrl = resolveDocumentUrl(documentUrl);
   if (!resolvedUrl) return false;
@@ -210,6 +233,11 @@ export async function previewDocument(documentUrl?: string) {
     }
 
     const blob = await response.blob();
+    if (!esTipoMostrable(blob.type)) {
+      if (win) win.close();
+      guardarBlob(blob, getDocumentFileName(documentUrl));
+      return false;
+    }
     const blobUrl = URL.createObjectURL(blob);
 
     if (win) {

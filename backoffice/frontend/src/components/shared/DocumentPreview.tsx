@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import UiIcon from './UiIcon';
-import { resolveDocumentUrl, previewDocument, getAuthHeadersFor } from '@/utils/documentUrls';
+import { resolveDocumentUrl, previewDocument, getAuthHeadersFor, esTipoMostrable } from '@/utils/documentUrls';
 
 interface DocumentPreviewProps {
   documentName: string;
@@ -117,6 +117,8 @@ export default function DocumentPreview({
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [hasError, setHasError] = useState<boolean>(false);
+  // SEC-BACKEND-153: un archivo que no es PDF ni imagen no se muestra (el blob tendria el origen del backoffice).
+  const [noMostrable, setNoMostrable] = useState<boolean>(false);
 
   useEffect(() => {
     if (!resolvedDocumentUrl) {
@@ -127,6 +129,7 @@ export default function DocumentPreview({
     let isMounted = true;
     setLoading(true);
     setHasError(false);
+    setNoMostrable(false);
 
     fetch(resolvedDocumentUrl, { headers: getAuthHeadersFor(resolvedDocumentUrl) })
       .then((res) => {
@@ -134,6 +137,11 @@ export default function DocumentPreview({
         return res.blob();
       })
       .then((blob) => {
+        if (isMounted && !esTipoMostrable(blob.type)) {
+          setNoMostrable(true);
+          setLoading(false);
+          return;
+        }
         if (isMounted) {
           const url = URL.createObjectURL(blob);
           setBlobUrl(url);
@@ -173,6 +181,18 @@ export default function DocumentPreview({
           </span>
           <strong>Error al cargar el documento</strong>
           <p>No se pudo obtener el archivo del servidor. Es posible que el recurso requiera autenticación o no exista.</p>
+        </div>
+      );
+    }
+
+    if (noMostrable) {
+      return (
+        <div className="document-preview-empty">
+          <span className="status-icon blue">
+            <UiIcon name="document" />
+          </span>
+          <strong>No hay vista previa disponible</strong>
+          <p>El archivo no es una imagen ni un PDF. Descárgalo para revisarlo.</p>
         </div>
       );
     }
