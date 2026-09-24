@@ -55,7 +55,7 @@ export default function CapturerBuyersView({ all }: { all: CapturerProfile[] }) 
       <h3>Detalle por captador</h3>
       <p>Haz clic en un captador para ver sus compradores (el correo se muestra enmascarado).</p>
       <div className="cpx-table-wrap">
-        <table className="cpx-table">
+        <table className="cpx-table cpx-table-wide">
           <thead><tr><th>Captador</th><th>Código</th><th>Referidos</th><th>Con compra</th><th>Conversión</th><th>Puntos</th><th>Medalla</th><th /></tr></thead>
           <tbody>
             {ranking.length ? ranking.map(({ c, captados, convertidos }) => <Fragment key={c.id}>

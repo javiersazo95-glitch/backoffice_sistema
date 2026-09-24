@@ -5,6 +5,8 @@ import type { SocialContenidoAdmin, SocialNivelCodigo } from '@/types/capturerSo
 import { socialCategoriaLabel, socialFiltroCss } from '@/types/capturerSocial';
 import { BarRow, Kpi, NIVEL_META, cpxCss, pct } from './capturerMetricsUi';
 
+const plural = (n: number, uno: string, varios: string) => `${n.toLocaleString('es-CL')} ${n === 1 ? uno : varios}`;
+
 /** Métricas y moderación del repositorio "Redes sociales" de los captadores. */
 export default function CapturerSocialView() {
   const qc = useQueryClient();
@@ -54,10 +56,10 @@ export default function CapturerSocialView() {
     </div>
 
     <section className="cpx-kpis">
-      <Kpi icon="upload" tone="blue" label="Contenido publicado" value={m ? m.contenidosPublicados.toLocaleString('es-CL') : '—'} foot={m ? `${m.videosPublicados} videos · ${m.imagenesPublicadas} imágenes` : '—'} />
+      <Kpi icon="upload" tone="blue" label="Contenido publicado" value={m ? m.contenidosPublicados.toLocaleString('es-CL') : '—'} foot={m ? `${plural(m.videosPublicados, 'video', 'videos')} · ${plural(m.imagenesPublicadas, 'imagen', 'imágenes')}` : '—'} />
       <Kpi icon="calendar" tone="violet" label="Subidas esta semana" value={m ? String(m.subidasSemana) : '—'} foot={m ? `${m.subidasPeriodo} en ${m.periodo}` : '—'} />
-      <Kpi icon="download" tone="green" label="Descargas esta semana" value={m ? String(m.descargasSemana) : '—'} foot={m ? `${m.descargasPeriodo} en ${m.periodo}` : '—'} />
-      <Kpi icon="shieldCheck" tone="amber" label="Captadores con acceso" value={m ? String(m.captadoresConAcceso) : '—'} foot={m ? `${pct(m.captadoresConAcceso, m.captadoresAprobados)} cumple 3 videos/7 días` : '—'} />
+      <Kpi icon="download" tone="green" label="Descargas de la semana" value={m ? String(m.descargasSemana) : '—'} foot={m ? `${m.descargasPeriodo} en ${m.periodo}` : '—'} />
+      <Kpi icon="shieldCheck" tone="amber" label="Con acceso activo" value={m ? String(m.captadoresConAcceso) : '—'} foot={m ? `${pct(m.captadoresConAcceso, m.captadoresAprobados)} de los aprobados` : '—'} />
       <Kpi icon="shieldX" tone="red" label="Contenido oculto" value={m ? String(m.contenidosOcultos) : '—'} foot="Por moderación" />
     </section>
 
@@ -79,7 +81,7 @@ export default function CapturerSocialView() {
     </div>
 
     <div className="cpx-grid2">
-      <TopList title="Más descargados" items={m?.masDescargados ?? []} metric={c => `${c.descargasTotal} descargas`} />
+      <TopList title="Más descargados" items={m?.masDescargados ?? []} metric={c => plural(c.descargasTotal, 'descarga', 'descargas')} />
       <TopList title="Mejor evaluados" items={m?.mejorEvaluados ?? []} metric={c => `★ ${Number(c.calificacionPromedio).toFixed(1)} (${c.calificacionCount})`} />
     </div>
 
@@ -94,7 +96,7 @@ export default function CapturerSocialView() {
       </div>
       {aviso && <div className="cpx-note" role="status" style={{ marginBottom: 10 }}>{aviso}</div>}
       <div className="cpx-table-wrap">
-        <table className="cpx-table">
+        <table className="cpx-table cpx-table-wide">
           <thead><tr><th>Pieza</th><th>Título</th><th>Captador</th><th>Categoría</th><th>Descargas</th><th>Evaluación</th><th>Subido</th><th>Estado</th><th /></tr></thead>
           <tbody>
             {contenidos.isLoading ? <tr><td colSpan={9} className="cpx-empty">Cargando…</td></tr>
@@ -102,12 +104,12 @@ export default function CapturerSocialView() {
                 <td><a href={socialMediaUrl(c.url)} target="_blank" rel="noreferrer">{c.tipo === 'VIDEO'
                   ? (c.posterUrl ? <img className="cpx-thumb" src={socialMediaUrl(c.posterUrl)} alt="" style={{ filter: socialFiltroCss(c.filtroVisual) }} /> : <span className="cpx-thumb" style={{ display: 'grid', placeItems: 'center', color: '#fff' }}>▶</span>)
                   : <img className="cpx-thumb" src={socialMediaUrl(c.url)} alt="" style={{ filter: socialFiltroCss(c.filtroVisual) }} />}</a></td>
-                <td><strong>{c.titulo}</strong><div className="cpx-muted">{c.tipo === 'VIDEO' ? 'Video' : 'Imagen'}{c.motivoOcultamiento ? ` · ${c.motivoOcultamiento}` : ''}</div></td>
+                <td className="cpx-wrap"><strong className="cpx-clamp" title={c.titulo}>{c.titulo}</strong><div className="cpx-muted cpx-clamp">{c.tipo === 'VIDEO' ? 'Video' : 'Imagen'}{c.motivoOcultamiento ? ` · ${c.motivoOcultamiento}` : ''}</div></td>
                 <td>@{c.autorAlias}</td>
                 <td>{socialCategoriaLabel(c.categoria)}</td>
                 <td>{c.descargasTotal}</td>
                 <td>{c.calificacionCount ? `★ ${Number(c.calificacionPromedio).toFixed(1)} (${c.calificacionCount})` : '—'}</td>
-                <td>{new Date(c.creadoEn).toLocaleDateString('es-CL')}</td>
+                <td>{new Date(c.creadoEn).toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' })}</td>
                 <td><span className={`cpx-state cpx-state-${c.estado}`}>{c.estado === 'PUBLICADO' ? 'Publicado' : 'Oculto'}</span></td>
                 <td><button type="button" className={`cpx-btn${c.estado === 'PUBLICADO' ? ' cpx-btn-danger' : ''}`} onClick={() => void moderar(c)}>{c.estado === 'PUBLICADO' ? 'Ocultar' : 'Restaurar'}</button></td>
               </tr>) : <tr><td colSpan={9} className="cpx-empty">No hay contenido con estos filtros.</td></tr>}
@@ -130,7 +132,9 @@ function TopList({ title, items, metric }: { title: string; items: SocialConteni
     <h3>{title}</h3>
     <div className="cpx-rank" style={{ marginTop: 10 }}>
       {items.length ? items.map((c, i) => <div className="cpx-rank-row" key={c.id}>
-        <em>{i + 1}</em><span>{c.titulo} <small className="cpx-muted">· @{c.autorAlias}</small></span><b>{metric(c)}</b>
+        <em>{i + 1}</em>
+        <div><strong title={c.titulo}>{c.titulo}</strong><small>@{c.autorAlias}</small></div>
+        <b>{metric(c)}</b>
       </div>) : <div className="cpx-empty">Sin datos todavía.</div>}
     </div>
   </section>;

@@ -1664,10 +1664,11 @@ const css = `
 .cps-filter-panel{display:flex;align-items:end;gap:10px;padding:12px;border:1px solid #e1eaf6;border-radius:11px;background:#f7faff}.cps-filter-panel label{display:grid;gap:5px;color:#526c9e;font-size:12px;font-weight:700}.cps-filter-panel input,.cps-filter-panel select{height:38px;min-width:130px;padding:0 10px;border:1px solid #d6e2f2;border-radius:8px;background:#fff;color:#193561;font:inherit}.cps-filter-panel .cps-capture-search{flex:1}.cps-filter-panel .cps-capture-search input{width:100%;box-sizing:border-box}
 .cps-capture-table{margin-top:13px;border:1px solid #e3ebf7;border-radius:11px}.cps-business-name strong{color:#142e5a}.cps-type-house,.cps-type-service,.cps-status{display:inline-block;padding:5px 8px;border-radius:999px;font-size:11px;font-weight:800}.cps-type-house{background:#e9f1ff;color:#1d59bf}.cps-type-service{background:#f1eaff;color:#7040d7}.cps-status{background:#edf3f9;color:#526c9e}.cps-money{font-weight:700;color:#193561}.cps-income strong{color:#087b42}
 
-.cps-viewtabs{display:flex;gap:6px;margin-bottom:14px;padding:5px;background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 6px 18px rgba(15,44,92,.04);width:fit-content;max-width:100%;flex-wrap:wrap}
-.cps-viewtab{display:flex;align-items:center;gap:8px;padding:10px 16px;border:0;border-radius:10px;background:transparent;font:inherit;font-size:13.5px;font-weight:700;color:#52678f;cursor:pointer}
+.cps-viewtabs{display:flex;gap:6px;margin-bottom:14px;padding:5px;background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 6px 18px rgba(15,44,92,.04);width:fit-content;max-width:100%;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:thin}
+.cps-viewtab{flex:0 0 auto;white-space:nowrap;display:flex;align-items:center;gap:8px;padding:10px 16px;border:0;border-radius:10px;background:transparent;font:inherit;font-size:13.5px;font-weight:700;color:#52678f;cursor:pointer}
 .cps-viewtab:hover{background:#f2f7ff}
 .cps-viewtab-on{background:#1657d9;color:#fff;box-shadow:0 6px 14px rgba(22,87,217,.25)}
+@media (max-width:1180px){.cps-viewtab{padding:9px 11px;gap:6px;font-size:13px}}
 .cps-viewtab svg{width:17px;height:17px}
 
 .cps-strip{display:grid;grid-template-columns:max-content repeat(4,minmax(0,1fr));align-items:center;gap:10px;margin-bottom:14px;padding:11px 14px;border:1px solid #cfe0fb;border-radius:16px;background:linear-gradient(120deg,#eaf2ff,#f8fbff);box-shadow:0 6px 18px rgba(15,44,92,.04)}
