@@ -102,7 +102,7 @@ export default function PagoProveedoresPage() {
   const [selectedPagoId, setSelectedPagoId] = useState<number | null>(null);
   // Rechazo de un deposito que reboto en el banco. Vive en el detalle del pago porque es ahi
   // donde los retiros de una nomina se ven uno por uno: rebota UNO, no la nomina entera.
-  const [retiroARechazar, setRetiroARechazar] = useState<{ id: number; tienda: string } | null>(null);
+  const [retiroARechazar, setRetiroARechazar] = useState<{ id: number; tienda: string; codigo?: string | null } | null>(null);
   const [motivoRechazo, setMotivoRechazo] = useState('');
   const [rechazando, setRechazando] = useState(false);
   const [errorRechazo, setErrorRechazo] = useState('');
@@ -452,7 +452,7 @@ export default function PagoProveedoresPage() {
                     <>
                       {pendingWithdrawals.map((w) => (
                         <tr key={`prov-${w.retiroId}`}>
-                          <td><strong>RET-{String(w.retiroId).padStart(6, '0')}</strong></td>
+                          <td><strong>{w.codigoRetiro || '—'}</strong></td>
                           <td><span className="status-pill tone-blue">Proveedor</span></td>
                           <td><FounderSellerName name={w.nombreTienda} founder={w.sellerFounder} /></td>
                           <td>{w.rut}</td>
@@ -695,7 +695,7 @@ export default function PagoProveedoresPage() {
         <div className="modal-backdrop" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setSelectedPendingRetiroId(null)}>
           <div className="modal-content" style={{ background: '#fff', borderRadius: 12, width: '90%', maxWidth: 650, padding: 24 }} onClick={(event) => event.stopPropagation()}>
             <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #eee', paddingBottom: 12 }}>
-              <h3 style={{ margin: 0 }}>Solicitud de retiro RET-{String(selectedPendingRetiroId).padStart(6, '0')}</h3>
+              <h3 style={{ margin: 0 }}>Solicitud de retiro {pendingWithdrawals.find((w) => w.retiroId === selectedPendingRetiroId)?.codigoRetiro || ''}</h3>
               <button type="button" onClick={() => setSelectedPendingRetiroId(null)} style={{ background: 'transparent', border: 0, fontSize: 20 }}>&times;</button>
             </header>
             {pendingRetiroDetails && (
@@ -720,7 +720,7 @@ export default function PagoProveedoresPage() {
                       <tbody>
                         {pendingRetiroDetails.pedidos.map((pedido) => (
                           <tr key={pedido.pedidoId} style={{ borderTop: '1px solid #edf2f7' }}>
-                            <td style={{ padding: '8px 12px' }}><strong>PED-{String(pedido.pedidoId).padStart(7, '0')}</strong></td>
+                            <td style={{ padding: '8px 12px' }}><strong>{pedido.numeroPedido ?? '—'}</strong></td>
                             <td style={{ padding: '8px 12px' }}>{pedido.nombrePedido}</td>
                             <td style={{ padding: '8px 12px' }}>{formatDateShort(pedido.fecha)}</td>
                             <td style={{ textAlign: 'center', padding: '8px 12px' }}>{pedido.cantidadVendida}</td>
@@ -782,7 +782,7 @@ export default function PagoProveedoresPage() {
                       <tbody>
                         {paymentDetails.retiros.map((retiro) => (
                           <tr key={retiro.retiroId}>
-                            <td style={{ padding: '8px 12px' }}><strong>{retiro.codigoRetiro || `RET-${String(retiro.retiroId).padStart(6, '0')}`}</strong></td>
+                            <td style={{ padding: '8px 12px' }}><strong>{retiro.codigoRetiro || '—'}</strong></td>
                             <td style={{ padding: '8px 12px' }}><FounderSellerName name={retiro.nombreTienda} founder={retiro.sellerFounder} /></td>
                             <td style={{ padding: '8px 12px' }}><span className="status-pill tone-blue" style={{ fontSize: '11px' }}>Proveedor</span></td>
                             <td style={{ padding: '8px 12px' }}>{formatDate(retiro.fecha)}</td>
@@ -796,7 +796,7 @@ export default function PagoProveedoresPage() {
                                   className="action-button neutral"
                                   title="El depósito rebotó en el banco"
                                   onClick={() => {
-                                    setRetiroARechazar({ id: retiro.retiroId, tienda: retiro.nombreTienda });
+                                    setRetiroARechazar({ id: retiro.retiroId, tienda: retiro.nombreTienda, codigo: retiro.codigoRetiro });
                                     setMotivoRechazo('');
                                     setErrorRechazo('');
                                   }}
@@ -843,7 +843,7 @@ export default function PagoProveedoresPage() {
           <div className="modal-content" style={{ background: '#fff', borderRadius: 12, width: '90%', maxWidth: 480, padding: 24, display: 'flex', flexDirection: 'column', gap: 14 }} onClick={(e) => e.stopPropagation()}>
             <h3 style={{ margin: 0, fontSize: 17 }}>El depósito rebotó</h3>
             <p style={{ margin: 0, fontSize: 13, color: '#4a5568', lineHeight: 1.5 }}>
-              Retiro <strong>RET-{String(retiroARechazar.id).padStart(6, '0')}</strong> de{' '}
+              Retiro <strong>{retiroARechazar.codigo || 'solicitado'}</strong> de{' '}
               <strong>{retiroARechazar.tienda}</strong>. Los pedidos de este retiro vuelven a quedar
               cobrables y se le avisa al vendedor para que corrija sus datos bancarios y lo solicite
               de nuevo. Los demás pagos de la nómina no se tocan.

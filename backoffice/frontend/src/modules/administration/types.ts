@@ -270,7 +270,10 @@ export interface ConfiguracionPagos {
 
 export interface RetiroPedidoItem {
   pedidoId: number;
+  /** Codigo de venta interno de la tienda (RTP-1-PED-000017). O72: ya no se muestra. */
   codigoExterno?: string;
+  /** O72 (pruebas de lanzamiento, 25-sep): numero publico del pedido como lo ve esa tienda ("4827 1936 00"). */
+  numeroPedido?: string;
   nombrePedido: string;
   fecha: string;
   cantidadVendida: number;

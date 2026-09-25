@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react';
 import { formatRut, validateRut } from '@/utils/rut';
+import { formatOrderNumber, orderNumberSearchText } from '@/utils/orderNumber';
 import { useQuery } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
@@ -764,7 +765,8 @@ export default function AdminFinancePage() {
       // Los pedidos finalizados pasan a liquidaciones: no requieren gestión ni alerta en esta vista.
       if (order.status === 'Finalizado') return false;
       const matchesDate = isWithinRange(orderDate(order), filter.start, filter.end);
-      const matchesQuery = !query || [order.id, order.buyer, order.seller, order.product].some((value) => normalizeText(value).includes(query));
+      // O72: el numero publico se busca con o sin espacios.
+      const matchesQuery = !query || [orderNumberSearchText(order.id), order.buyer, order.seller, order.product].some((value) => normalizeText(value).includes(query));
       const matchesStatus = !selectedStatusFilter || order.status === selectedStatusFilter;
       return matchesDate && matchesQuery && matchesStatus;
     }).sort((first, second) => {
@@ -786,7 +788,7 @@ export default function AdminFinancePage() {
     const query = normalizeText(filter.query);
     return settlements.filter((settlement) => {
       const matchesDate = isWithinRange(settlement.date, filter.start, filter.end);
-      const matchesQuery = !query || [settlement.id, settlement.seller, settlement.orderId].some((value) => normalizeText(value).includes(query));
+      const matchesQuery = !query || [settlement.id, settlement.seller, orderNumberSearchText(settlement.orderId)].some((value) => normalizeText(value).includes(query));
       return matchesDate && matchesQuery && settlement.liquidationStatus === liquidationTab;
     });
   }, [filters.liquidaciones, liquidationTab, settlements]);
@@ -833,7 +835,7 @@ export default function AdminFinancePage() {
         id: settlement.orderId,
         type: 'pedido',
         date: settlement.date,
-        concept: order?.product ? `Repuesto: ${order.product}` : `Pedido ${settlement.orderId}`,
+        concept: order?.product ? `Repuesto: ${order.product}` : `Pedido ${formatOrderNumber(settlement.orderId)}`,
         buyer: order?.buyer || 'Cliente',
         sellerOrPack: settlement.seller,
         sellerFounder: settlement.sellerFounder,
@@ -1109,7 +1111,7 @@ export default function AdminFinancePage() {
         id: settlement.orderId,
         type: 'pedido',
         date: settlement.date,
-        concept: order?.product ? `Repuesto: ${order.product}` : `Pedido ${settlement.orderId}`,
+        concept: order?.product ? `Repuesto: ${order.product}` : `Pedido ${formatOrderNumber(settlement.orderId)}`,
         sellerOrPack: settlement.seller,
         sellerFounder: settlement.sellerFounder,
         commissionLabel,
@@ -2523,7 +2525,7 @@ export default function AdminFinancePage() {
                 {orderPage.rows.length ? orderPage.rows.map((order) => (
                   <tr key={order.id}>
                     <td className="selection-cell"><input type="checkbox" checked={selectedRows.pedidos.has(order.id)} onChange={() => toggleSelection('pedidos', order.id)} aria-label={`Seleccionar pedido ${order.id}`} /></td>
-                    <td>{order.id}</td>
+                    <td>{formatOrderNumber(order.id)}</td>
                     <td>{formatDateTime(order.date)}</td>
                     <td>{order.buyer}</td>
                     <td><FounderSellerName name={order.seller} founder={order.sellerFounder} /></td>
@@ -2691,7 +2693,7 @@ export default function AdminFinancePage() {
                     <td>{settlement.id}</td>
                     <td>{formatDate(settlement.date)}</td>
                     <td><FounderSellerName name={settlement.seller} founder={settlement.sellerFounder} /></td>
-                    <td>{settlement.orderId}</td>
+                    <td>{formatOrderNumber(settlement.orderId)}</td>
                     <td className="value-cell tooltip-container">
                       <span className="tooltip-trigger-value">
                         {formatMoney(settlement.saleTotal)}
@@ -3596,7 +3598,7 @@ export default function AdminFinancePage() {
       {selectedPaidPayment && (
         <Modal title={`Liquidaciones del pago PAG-${String(selectedPaidPayment.pagoId).padStart(6, '0')}`} subtitle={`${formatDate(selectedPaidPayment.periodoInicio ?? selectedPaidPayment.fechaPago)} - ${formatDate(selectedPaidPayment.periodoFin ?? selectedPaidPayment.fechaPago)}`} onClose={() => setSelectedPaidPayment(null)}>
           <div className="table-toolbar"><input className="input" type="search" placeholder="Buscar por liquidación o pedido..." value={paidDetailQuery} onChange={(event) => setPaidDetailQuery(event.target.value)} /><select className="input" value={paidDetailSeller} onChange={(event) => setPaidDetailSeller(event.target.value)}><option value="">Todos los vendedores</option>{[...new Set(selectedPaidPayment.retiros.map((retiro) => retiro.nombreTienda))].map((seller) => <option key={seller} value={seller}>{seller}</option>)}</select></div>
-          <div className="modal-table-scroll paid-liquidation-detail"><table className="wide-table"><thead><tr><th>Código de liquidación</th><th>Vendedor</th><th>Pedido</th><th>Fecha</th><th>Valor</th></tr></thead><tbody>{selectedPaidPayment.retiros.flatMap((retiro, index) => (paidPaymentDetails[index]?.pedidos ?? []).filter((pedido) => (!paidDetailSeller || retiro.nombreTienda === paidDetailSeller) && (!paidDetailQuery || normalizeText(`${pedido.codigoExterno ?? pedido.pedidoId} ${pedido.pedidoId}`).includes(normalizeText(paidDetailQuery)))).map((pedido) => <tr key={`${retiro.retiroId}-${pedido.pedidoId}`}><td>{pedido.codigoExterno?.replace('-PED-', '-LQ-') ?? `LQ-${String(pedido.pedidoId).padStart(7, '0')}`}</td><td><FounderSellerName name={retiro.nombreTienda} founder={retiro.sellerFounder} /></td><td>{pedido.codigoExterno ?? `PED-${String(pedido.pedidoId).padStart(7, '0')}`}</td><td>{formatDate(pedido.fecha)}</td><td>{formatMoney(pedido.valor)}</td></tr>))}</tbody></table></div>
+          <div className="modal-table-scroll paid-liquidation-detail"><table className="wide-table"><thead><tr><th>Código de liquidación</th><th>Vendedor</th><th>Pedido</th><th>Fecha</th><th>Valor</th></tr></thead><tbody>{selectedPaidPayment.retiros.flatMap((retiro, index) => (paidPaymentDetails[index]?.pedidos ?? []).filter((pedido) => (!paidDetailSeller || retiro.nombreTienda === paidDetailSeller) && (!paidDetailQuery || normalizeText(`${orderNumberSearchText(pedido.numeroPedido)} ${pedido.codigoExterno ?? ''}`).includes(normalizeText(paidDetailQuery)))).map((pedido) => <tr key={`${retiro.retiroId}-${pedido.pedidoId}`}><td>{pedido.numeroPedido ? `LQ-${pedido.numeroPedido.replace(/\s/g, '')}` : '—'}</td><td><FounderSellerName name={retiro.nombreTienda} founder={retiro.sellerFounder} /></td><td>{pedido.numeroPedido ?? '—'}</td><td>{formatDate(pedido.fecha)}</td><td>{formatMoney(pedido.valor)}</td></tr>))}</tbody></table></div>
         </Modal>
       )}
 
@@ -3617,7 +3619,7 @@ export default function AdminFinancePage() {
       {selectedLiquidationSeller && (
         <Modal title={<>Liquidaciones de <FounderSellerName name={selectedLiquidationSeller.seller} founder={selectedLiquidationSeller.sellerFounder} /></>} subtitle={`${selectedLiquidationSeller.settlements.length} liquidaciones · ${formatMoney(selectedLiquidationSeller.total)} · Período: ${selectedLiquidationPeriod}`} onClose={() => setSelectedLiquidationSeller(null)}>
           <div className="table-shell liquidation-preview-shell"><table className="wide-table liquidation-preview-table"><thead><tr><th>ID liquidación</th><th>Pedido</th><th>Fecha</th><th>Venta total</th><th>Descuentos al vendedor</th><th>Ganancia neta RepuesTop</th><th>Monto a pagar vendedor</th><th>IVA</th></tr></thead><tbody>
-            {selectedLiquidationSeller.settlements.map((settlement) => <tr key={settlement.id}><td>{settlement.id}</td><td>{settlement.orderId}</td><td>{formatDate(settlement.date)}</td><td className="value-cell tooltip-container"><span className="tooltip-trigger-value">{formatMoney(settlement.saleTotal)}<UiIcon name="info" /></span><div className="tooltip-content"><div className="tooltip-arrow"></div><div className="tooltip-body"><SettlementSaleBreakdown settlement={settlement} /></div></div></td><td className="value-cell tooltip-container"><span className="tooltip-trigger-value">{formatMoney(settlement.commission)}<UiIcon name="info" /></span><div className="tooltip-content"><div className="tooltip-arrow"></div><div className="tooltip-body"><SettlementFeeBreakdown settlement={settlement} /></div></div></td><td className="value-cell tooltip-container"><span className="tooltip-trigger-value">{formatMoney(settlement.netSettlement)}<UiIcon name="info" /></span><div className="tooltip-content net-settlement-tooltip"><div className="tooltip-arrow"></div><div className="tooltip-body"><SettlementNetBreakdown settlement={settlement} /></div></div></td><td>{formatMoney(settlement.sellerPayout)}</td><td>{formatMoney(settlement.serviceCommissionIva)}</td></tr>)}
+            {selectedLiquidationSeller.settlements.map((settlement) => <tr key={settlement.id}><td>{settlement.id}</td><td>{formatOrderNumber(settlement.orderId)}</td><td>{formatDate(settlement.date)}</td><td className="value-cell tooltip-container"><span className="tooltip-trigger-value">{formatMoney(settlement.saleTotal)}<UiIcon name="info" /></span><div className="tooltip-content"><div className="tooltip-arrow"></div><div className="tooltip-body"><SettlementSaleBreakdown settlement={settlement} /></div></div></td><td className="value-cell tooltip-container"><span className="tooltip-trigger-value">{formatMoney(settlement.commission)}<UiIcon name="info" /></span><div className="tooltip-content"><div className="tooltip-arrow"></div><div className="tooltip-body"><SettlementFeeBreakdown settlement={settlement} /></div></div></td><td className="value-cell tooltip-container"><span className="tooltip-trigger-value">{formatMoney(settlement.netSettlement)}<UiIcon name="info" /></span><div className="tooltip-content net-settlement-tooltip"><div className="tooltip-arrow"></div><div className="tooltip-body"><SettlementNetBreakdown settlement={settlement} /></div></div></td><td>{formatMoney(settlement.sellerPayout)}</td><td>{formatMoney(settlement.serviceCommissionIva)}</td></tr>)}
           </tbody><tfoot><tr><th colSpan={3}>Total acumulado</th><td>{formatMoney(selectedLiquidationSeller.settlements.reduce((total, settlement) => total + settlement.saleTotal, 0))}</td><td>{formatMoney(selectedLiquidationSeller.settlements.reduce((total, settlement) => total + settlement.commission, 0))}</td><td>{formatMoney(selectedLiquidationSeller.settlements.reduce((total, settlement) => total + settlement.netSettlement, 0))}</td><td>{formatMoney(selectedLiquidationSeller.settlements.reduce((total, settlement) => total + settlement.sellerPayout, 0))}</td><td>{formatMoney(selectedLiquidationSeller.settlements.reduce((total, settlement) => total + settlement.serviceCommissionIva, 0))}</td></tr></tfoot></table></div>
         </Modal>
       )}
@@ -3771,7 +3773,7 @@ export default function AdminFinancePage() {
       )}
 
       {selectedDetailSettlement && (
-        <Modal title="Detalle de liquidación" subtitle={`${selectedDetailSettlement.id} · Pedido ${selectedDetailSettlement.orderId}`} onClose={() => setSelectedDetailSettlement(null)}>
+        <Modal title="Detalle de liquidación" subtitle={`${selectedDetailSettlement.id} · Pedido ${formatOrderNumber(selectedDetailSettlement.orderId)}`} onClose={() => setSelectedDetailSettlement(null)}>
           <div className="settlement-detail-modal">
             <section className="settlement-hero">
               <span className="settlement-hero-icon"><UiIcon name="clipboard" /></span>
@@ -3802,7 +3804,7 @@ export default function AdminFinancePage() {
               <div><dt>Fecha</dt><dd>{formatDate(selectedDetailSettlement.date)}</dd></div>
               <div><dt>Vendedor</dt><dd><FounderSellerName name={selectedDetailSettlement.seller} founder={selectedDetailSettlement.sellerFounder} /></dd></div>
               <div><dt>ID liquidación</dt><dd>{selectedDetailSettlement.id}</dd></div>
-              <div><dt>Pedido asociado</dt><dd>{selectedDetailSettlement.orderId}</dd></div>
+              <div><dt>Pedido asociado</dt><dd>{formatOrderNumber(selectedDetailSettlement.orderId)}</dd></div>
               {Boolean(selectedDetailSettlement.descuento && selectedDetailSettlement.descuento > 0) && (
                 <div><dt>Descuento cotización</dt><dd style={{ color: '#dc2626', fontWeight: 600 }}>-{formatMoney(selectedDetailSettlement.descuento!)}</dd></div>
               )}
@@ -4050,7 +4052,7 @@ export default function AdminFinancePage() {
 
       {selectedDetailOrder && (
         <Modal
-          title={`Pedido ${selectedDetailOrder.id}`}
+          title={`Pedido ${formatOrderNumber(selectedDetailOrder.id)}`}
           badges={
             <>
               <span className={`status-pill ${slug(selectedDetailOrder.status)}`}>{selectedDetailOrder.status}</span>
@@ -4108,9 +4110,9 @@ export default function AdminFinancePage() {
                 </div>
 
                 <dl style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '12px 10px', margin: 0 }}>
-                  <dt style={{ color: '#64748b', fontSize: '13px', fontWeight: 600 }}>ID Pedido:</dt>
+                  <dt style={{ color: '#64748b', fontSize: '13px', fontWeight: 600 }}>N.º pedido:</dt>
                   <dd style={{ margin: 0, color: '#0f172a', fontSize: '13px', fontWeight: 700 }}>
-                    {selectedDetailOrder.id}
+                    {formatOrderNumber(selectedDetailOrder.id)}
                   </dd>
 
                   <dt style={{ color: '#64748b', fontSize: '13px', fontWeight: 600 }}>Fecha:</dt>
@@ -4243,7 +4245,7 @@ export default function AdminFinancePage() {
         return (
           <Modal
             title="Seguimiento operativo"
-            subtitle={`Pedido ${selectedOrderCriticality.id}`}
+            subtitle={`Pedido ${formatOrderNumber(selectedOrderCriticality.id)}`}
             onClose={() => setSelectedOrderCriticality(null)}
           >
             <div className="criticality-detail">
@@ -4275,7 +4277,7 @@ export default function AdminFinancePage() {
       {selectedHistoryOrderId && (
         <Modal
           title="Historial de Estados"
-          subtitle={`Pedido ${selectedHistoryOrderId}`}
+          subtitle={`Pedido ${formatOrderNumber(selectedHistoryOrderId)}`}
           onClose={() => setSelectedHistoryOrderId(null)}
         >
           <div className="form-grid" style={{ padding: '20px', gap: '20px' }}>

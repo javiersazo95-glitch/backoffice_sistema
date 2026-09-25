@@ -106,6 +106,9 @@ export interface SellerSaleResponse {
   totalSeller?: number;
   status: string;
   createdAt: string;
+  /** O72: el numero publico del pedido agrupado ("4827 1936 00-2" en la vista de la tienda). */
+  numeroPedidoFormato?: string;
+  numeroPedido?: string;
   codigoSoporte?: string;
   items: Array<{
     name: string;

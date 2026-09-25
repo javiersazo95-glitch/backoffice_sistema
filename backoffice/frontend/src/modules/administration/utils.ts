@@ -97,8 +97,13 @@ export function isWithinRange(dateValue: string, start: string, end: string): bo
   return true;
 }
 
+/**
+ * O72 (pruebas de lanzamiento, 25-sep): el id del pedido ya es su numero publico ("4827193600",
+ * o "4827193600-2" para la fila de la segunda tienda), asi que la liquidacion queda "LQ-4827193600-2".
+ * El `replace` conserva la forma de los ids antiguos ("PED-0000025" -> "LQ-0000025").
+ */
 export function getSettlementId(orderId: string): string {
-  return `LQ-${orderId.replace(/^PED-/, '')}`;
+  return `LQ-${orderId.replace(/^PED-/, '').replace(/\s/g, '')}`;
 }
 
 export function getSettlements(orders: Order[], statuses: Record<string, SettlementStatus>): Settlement[] {

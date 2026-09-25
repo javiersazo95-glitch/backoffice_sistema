@@ -47,7 +47,8 @@ export default function RefundSupportActions({ refund, onDone }: RefundSupportAc
   const [note, setNote] = useState('');
 
   const amountText = formatCurrency(refund.amount ?? 0);
-  const orderText = refund.orderCode ?? (refund.orderId ? `PED-${String(refund.orderId).padStart(7, '0')}` : 'el pedido');
+  // O72: el backend manda el numero publico del pedido ("4827 1936 00"); nunca se arma "PED-" con la PK.
+  const orderText = refund.orderCode ?? 'sin número';
 
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ['mediation'] });

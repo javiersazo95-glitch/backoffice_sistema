@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { formatOrderNumber } from '@/utils/orderNumber';
 import UiIcon from '@/components/shared/UiIcon';
 import FounderSellerName from '@/components/shared/FounderSellerName';
 import { formatDateTime } from '@/utils/formatters';
@@ -757,7 +758,7 @@ export default function SupportTicketDetailModal({
               </SidebarField>
               {isWarranty && ticket.orderId && (
                 <SidebarField icon="cart" label="Pedido">
-                  #{ticket.orderId}
+                  {formatOrderNumber(ticket.orderId)}
                 </SidebarField>
               )}
               {isWarranty && ticket.sellerName && (

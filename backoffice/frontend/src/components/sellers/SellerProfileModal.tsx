@@ -166,7 +166,8 @@ function SalesTable({ sales, isLoading }: { sales: SellerSaleResponse[]; isLoadi
         <tbody>
           {sales.map((sale) => {
             const products = sale.items.map((item) => item.name).filter(Boolean).join(', ') || 'Producto no informado';
-            const saleId = sale.items.find((item) => item.codigoVendedor)?.codigoVendedor || sale.codigoSoporte || `#${sale.id}`;
+            // O72: el numero publico del pedido (con el sufijo de la tienda si hay varias); ni el codigo de venta ni la PK.
+            const saleId = sale.numeroPedidoFormato || sale.codigoSoporte || '—';
             const amount = sale.totalSeller ?? sale.total ?? 0;
             return (
               <tr key={sale.id}>
