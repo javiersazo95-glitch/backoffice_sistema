@@ -106,7 +106,14 @@ export function refundStatusView(estado: string | undefined | null): RefundStatu
       return { label: 'Reembolso acreditado', tone: 'success' };
     case 'REEMBOLSO_SOLICITADO':
       return { label: 'Solicitado a la pasarela (Flow)', tone: 'info' };
+    // O57: el comprador acepto el correo de Flow; falta que Flow ejecute la devolucion.
+    case 'REEMBOLSO_ACEPTADO':
+      return { label: 'Aceptado por el comprador en Flow · en curso', tone: 'info' };
+    // O56 (pruebas de lanzamiento, 25-sep): RECHAZADO no es un fallo de la pasarela: el
+    // comprador rechazo o dejo vencer el correo de Flow para aceptar la devolucion. Al pasar
+    // a ese estado el backend crea una alerta de riesgo ALTA para soporte (O57).
     case 'REEMBOLSO_RECHAZADO':
+      return { label: 'Rechazado o vencido por el comprador en Flow · contactarlo', tone: 'warning' };
     case 'REEMBOLSO_ERROR':
       return { label: 'Rechazado por la pasarela · gestión manual', tone: 'warning' };
     case 'SIN_PAGO_APROBADO':
