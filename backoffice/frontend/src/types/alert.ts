@@ -1,3 +1,5 @@
+import type { RefundPayment } from '@/types/refund';
+
 export enum AlertSeverity {
   CRITICA = 'CRITICA',
   ALTA = 'ALTA',
@@ -17,4 +19,6 @@ export interface AlertResponse {
   reviewed: boolean;
   reviewedAt: string;
   createdAt: string;
+  /** Pruebas de lanzamiento, 25-sep: el reembolso fallido o rechazado al que se refiere la alerta. */
+  refundPayment?: RefundPayment | null;
 }

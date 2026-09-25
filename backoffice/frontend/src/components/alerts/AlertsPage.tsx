@@ -5,7 +5,9 @@ import * as receiptsApi from '@/api/receipts';
 import MetricCard from '@/components/shared/MetricCard';
 import Badge from '@/components/shared/Badge';
 import Pagination from '@/components/shared/Pagination';
-import { formatDateTime } from '@/utils/formatters';
+import { formatCurrency, formatDateTime } from '@/utils/formatters';
+import { refundStatusView } from '@/utils/mediationResolution';
+import RefundSupportActions from '@/components/shared/RefundSupportActions';
 import { PAGE_SIZES } from '@/utils/constants';
 import { AlertSeverity } from '@/types/alert';
 import { showToast } from '@/components/layout/Toast';
@@ -166,6 +168,28 @@ export default function AlertsPage() {
               <div className="detail-row"><span className="detail-label">Revisada</span><span className="detail-value">{selectedAlert.reviewed ? 'Sí' : 'No'}</span></div>
               <div className="detail-row"><span className="detail-label">Fecha</span><span className="detail-value">{formatDateTime(selectedAlert.createdAt)}</span></div>
             </div>
+
+            {/* Pruebas de lanzamiento, 25-sep: alerta de un reembolso fallido o rechazado en Flow.
+                Reintentar o marcar la devolucion manual cierra la alerta en el backend. */}
+            {selectedAlert.refundPayment ? (
+              <div className="side-section" style={{ display: 'grid', gap: 8 }}>
+                <div className="detail-row">
+                  <span className="detail-label">Reembolso</span>
+                  <span className="detail-value">
+                    {selectedAlert.refundPayment.orderCode ?? '—'} · {formatCurrency(selectedAlert.refundPayment.amount ?? 0)}
+                  </span>
+                </div>
+                <div className="detail-row">
+                  <span className="detail-label">Estado</span>
+                  <span className="detail-value">
+                    {selectedAlert.refundPayment.manual
+                      ? 'Devuelto manualmente por soporte'
+                      : refundStatusView(selectedAlert.refundPayment.status).label}
+                  </span>
+                </div>
+                <RefundSupportActions refund={selectedAlert.refundPayment} />
+              </div>
+            ) : null}
 
             <div style={{ display: 'grid', gap: 8 }}>
               {!selectedAlert.reviewed && (

@@ -15,6 +15,7 @@ import { showToast } from '@/components/layout/Toast';
 import Badge from '@/components/shared/Badge';
 import UiIcon from '@/components/shared/UiIcon';
 import FounderSellerName from '@/components/shared/FounderSellerName';
+import RefundSupportActions from '@/components/shared/RefundSupportActions';
 import { formatCurrency, formatDateTime, mediationStatusDisplay } from '@/utils/formatters';
 import {
   buildRefundSteps,
@@ -474,7 +475,12 @@ function ChatCard({
 }
 
 function RefundStepsPanel({ item }: { item: MediationModalItem }) {
-  const status = refundStatusView(item.estadoReembolso);
+  const refundPayment = item.refundPayment ?? null;
+  // Pruebas de lanzamiento, 25-sep: una devolucion registrada a mano por soporte se distingue del
+  // reembolso acreditado por Flow.
+  const status = refundPayment?.manual
+    ? { label: 'Devuelto manualmente por soporte', tone: 'success' as const }
+    : refundStatusView(item.estadoReembolso);
   const monto = item.montoReembolso ? formatCurrency(item.montoReembolso) : undefined;
   const steps = buildRefundSteps({
     percentage: item.porcentajeReembolso,
@@ -515,6 +521,9 @@ function RefundStepsPanel({ item }: { item: MediationModalItem }) {
           </li>
         ))}
       </ol>
+      {/* Pruebas de lanzamiento, 25-sep: con el reembolso en error o rechazado, soporte puede
+          reintentarlo en Flow o registrar que lo devolvio por fuera. */}
+      {refundPayment ? <RefundSupportActions refund={refundPayment} /> : null}
     </div>
   );
 }

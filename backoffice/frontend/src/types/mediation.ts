@@ -1,4 +1,5 @@
 import type { MediationNoteType } from '@/utils/mediationNotes';
+import type { RefundPayment } from '@/types/refund';
 
 export enum MediationStatus {
   EN_MEDIACION = 'EN_MEDIACION',
@@ -70,6 +71,8 @@ export interface MediationDetailResponse extends MediationResponse {
   profileImageUrl?: string | null;
   userProfileUrl?: string | null;
   avatarUrl?: string | null;
+  /** Pruebas de lanzamiento, 25-sep: el Pago del reembolso por esta mediación (reintentar / devolución manual). */
+  refundPayment?: RefundPayment | null;
 }
 
 export interface MediationEvidenceResponse {
