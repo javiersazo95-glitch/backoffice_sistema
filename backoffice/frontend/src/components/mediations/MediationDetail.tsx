@@ -624,9 +624,13 @@ export default function MediationDetail({
   const [suspensionDuration, setSuspensionDuration] = useState<SuspensionDuration | ''>('');
   const [suspensionReasonKey, setSuspensionReasonKey] = useState<string>('');
   const [suspensionReason, setSuspensionReason] = useState('');
+  // O64 (pruebas de lanzamiento, 25-sep): "Resolver caso" pide confirmacion antes de ejecutar.
+  // Un reembolso se solicita a Flow en el acto y no tiene vuelta atras.
+  const [confirmResolveOpen, setConfirmResolveOpen] = useState(false);
 
   useEffect(() => {
     if (!isViewOpen) return;
+    setConfirmResolveOpen(false);
     setDecision('resolve');
     setHistoryFilter('all');
     setFavor('');
@@ -755,8 +759,25 @@ export default function MediationDetail({
     setRefundPercentage('');
   };
 
+  // O64: a quien favorece el veredicto y, si hay reembolso, cuanto. El monto exacto lo calcula
+  // el backend sobre lo comprado en la tienda (lineas + envio, tope el total del pedido), asi que
+  // aca solo se puede dar el tope: el total del caso por el porcentaje.
+  const favorPartyName = favor === 'COMPRADOR' ? buyerName : favor === 'VENDEDOR' ? `la tienda ${sellerName}` : '';
+  const confirmRefundPercentage = selectedOption?.appliesRefund
+    ? (selectedOption.requiresPercentage ? (percentageValid ? parsedPercentage : 0) : 100)
+    : 0;
+  const confirmRefundCap = confirmRefundPercentage > 0 && Number(item.amount) > 0
+    ? Math.round((Number(item.amount) * confirmRefundPercentage) / 100)
+    : 0;
+
+  const requestResolve = () => {
+    if (decision !== 'resolve' || !resolveReady || !favor || !selectedOption || !item) return;
+    setConfirmResolveOpen(true);
+  };
+
   const handleResolve = () => {
     if (decision !== 'resolve' || !resolveReady || !favor || !selectedOption || !item) return;
+    setConfirmResolveOpen(false);
     handleInternalResolve(item.id, {
       favor,
       resolutionOption: selectedOption.key,
@@ -1304,8 +1325,13 @@ export default function MediationDetail({
               Guardar borrador
             </button>
             <div className="mediation-management-footer-actions">
-              <button className="primary-button" type="button" onClick={handleResolve} disabled={decision !== 'resolve' || !resolveReady}>
-                <UiIcon name="check" /> Resolver caso
+              <button
+                className="primary-button"
+                type="button"
+                onClick={requestResolve}
+                disabled={decision !== 'resolve' || !resolveReady || resolveMutation.isPending}
+              >
+                <UiIcon name="check" /> {resolveMutation.isPending ? 'Resolviendo…' : 'Resolver caso'}
               </button>
               <button
                 className="danger-button"
@@ -1318,6 +1344,68 @@ export default function MediationDetail({
             </div>
           </div>
         </div>
+
+        {/* O64 (pruebas de lanzamiento, 25-sep): confirmacion antes de resolver. Mismo molde que
+            el dialogo de "Rechazar expediente" en validaciones (modal-backdrop / modal-panel). */}
+        {confirmResolveOpen && selectedOption ? (
+          <div className="modal-backdrop" onClick={() => setConfirmResolveOpen(false)}>
+            <div
+              className="modal-panel"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="confirm-resolve-title"
+              style={{ width: 'min(520px, 95%)' }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="modal-header">
+                <div className="modal-title-block">
+                  <h2 id="confirm-resolve-title" style={{ color: confirmRefundPercentage > 0 ? '#b45309' : undefined }}>
+                    ¿Resolver a favor de {favorPartyName}?
+                  </h2>
+                  <p>Caso {item.externalId} &bull; {selectedOption.label}</p>
+                </div>
+                <button className="icon-button" type="button" onClick={() => setConfirmResolveOpen(false)} aria-label="Cerrar">
+                  <UiIcon name="close" />
+                </button>
+              </div>
+
+              <div style={{ padding: 20, display: 'grid', gap: 12 }}>
+                <div
+                  style={{
+                    padding: '12px 14px',
+                    background: confirmRefundPercentage > 0 ? '#fffbeb' : '#f8fafc',
+                    border: `1px solid ${confirmRefundPercentage > 0 ? '#fde68a' : '#e2e8f0'}`,
+                    borderRadius: 8,
+                    color: confirmRefundPercentage > 0 ? '#92400e' : '#334155',
+                    fontSize: 12.5,
+                    lineHeight: 1.45,
+                  }}
+                >
+                  {confirmRefundPercentage > 0
+                    ? confirmRefundCap > 0
+                      ? `Se solicitará a Flow un reembolso de hasta ${formatCurrency(confirmRefundCap)} al comprador (${confirmRefundPercentage}% de lo comprado en la tienda; el monto exacto lo calcula el sistema). Esta acción no se puede deshacer.`
+                      : `Se solicitará a Flow un reembolso del ${confirmRefundPercentage}% de lo comprado en la tienda al comprador. Esta acción no se puede deshacer.`
+                    : 'Se cerrará el caso y se notificará el veredicto a ambas partes. No se solicitará ningún reembolso. Esta acción no se puede deshacer.'}
+                </div>
+              </div>
+
+              <div style={{ padding: '14px 20px', background: '#f8fafc', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+                <button className="secondary-button" type="button" onClick={() => setConfirmResolveOpen(false)}>
+                  Cancelar
+                </button>
+                <button
+                  className="primary-button"
+                  type="button"
+                  style={confirmRefundPercentage > 0 ? { background: '#d97706', borderColor: '#b45309' } : undefined}
+                  onClick={handleResolve}
+                  disabled={resolveMutation.isPending}
+                >
+                  {confirmRefundPercentage > 0 ? 'Sí, resolver y reembolsar' : 'Sí, resolver caso'}
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
       </div>
     );
 }

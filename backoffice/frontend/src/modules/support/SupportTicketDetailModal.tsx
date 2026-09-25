@@ -408,7 +408,10 @@ export default function SupportTicketDetailModal({
   const statusOptions = getStatusOptions(ticket, resolvedStatusContext);
   const priorityMeta = PRIORITY_ICON[ticket.priority];
   const projectLabel = isQa ? 'Soporte QA' : 'Mesa de Soporte';
-  const issueTypeLabel = isQa ? CATEGORY_LABELS.FALLA_TECNICA : CATEGORY_LABELS[ticket.category];
+  // O63 (pruebas de lanzamiento, 25-sep): el comprador pidió ayuda a soporte por garantía legal
+  // desde el caso del pedido; soporte coordina con la tienda el cambio, reparación o devolución.
+  const isWarranty = ticket.origin === 'GARANTIA_LEGAL';
+  const issueTypeLabel = isQa ? CATEGORY_LABELS.FALLA_TECNICA : isWarranty ? 'Garantía legal' : CATEGORY_LABELS[ticket.category];
 
   const content = (
       <section className={`jira-modal ${embedded ? 'jira-modal-embedded' : ''}`} role="dialog" aria-modal={!embedded} aria-labelledby="jira-issue-title" onClick={(event) => event.stopPropagation()}>
@@ -752,6 +755,16 @@ export default function SupportTicketDetailModal({
                   <UiIcon name={priorityMeta.icon} /> {PRIORITY_LABELS[ticket.priority]}
                 </span>
               </SidebarField>
+              {isWarranty && ticket.orderId && (
+                <SidebarField icon="cart" label="Pedido">
+                  #{ticket.orderId}
+                </SidebarField>
+              )}
+              {isWarranty && ticket.sellerName && (
+                <SidebarField icon="store" label="Tienda">
+                  {ticket.sellerName}
+                </SidebarField>
+              )}
               <SidebarField icon="dashboard" label="Componente">
                 <span className="jira-label-chip">{ticket.platform ? PLATFORM_LABELS[ticket.platform] : 'General'}</span>
               </SidebarField>

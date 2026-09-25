@@ -1516,6 +1516,8 @@ export default function SupportPage() {
                         </td>
                         <td>
                           <Badge text={CATEGORY_LABELS[ticket.category]} variant={CATEGORY_TONES[ticket.category]} />
+                          {/* O63 (pruebas de lanzamiento, 25-sep): pedido de ayuda por garantía legal desde el caso. */}
+                          {ticket.origin === 'GARANTIA_LEGAL' && <> <Badge text="Garantía legal" variant="violet" /></>}
                         </td>
                         <td style={{ maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {ticket.reason}
