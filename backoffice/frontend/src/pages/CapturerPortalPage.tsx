@@ -18,9 +18,31 @@ const emptyBank:BankForm={rut:'',titular:'',banco:'',bankCode:null,tipoCuenta:''
 type Level={name:string;min:number;next:number};
 const levels:Level[]=[{name:'Bronce',min:0,next:2500},{name:'Plata',min:2500,next:10000},{name:'Oro',min:10000,next:0}];
 const baseLevel:Level=levels[0]!;
-/** Web de compradores: el link `?ref=CODIGO` precarga el código del captador en el registro. */
-const MARKET_URL=(import.meta.env.VITE_MARKET_URL as string|undefined)?.replace(/\/+$/,'')||'https://repuestop.cl';
-export const buyerReferralLink=(codigo?:string|null)=>codigo?`${MARKET_URL}/?ref=${encodeURIComponent(codigo)}`:'';
+/**
+ * Obtiene la URL base de Repuestop Market según el entorno actual:
+ * - dev-backoffice.repuestop.cl (o entorno dev) -> dev-repuestop.repuestop.cl
+ * - backoffice.repuestop.cl -> repuestop.cl
+ * - VITE_MARKET_URL si está definido en variables de entorno
+ */
+export function getMarketBaseUrl(): string {
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname.toLowerCase();
+    if (host.includes('dev-backoffice') || host.startsWith('dev.')) {
+      return 'https://dev-repuestop.repuestop.cl';
+    }
+    if (host.includes('backoffice.repuestop.cl')) {
+      return 'https://repuestop.cl';
+    }
+  }
+  const envUrl = (import.meta.env.VITE_MARKET_URL as string | undefined)?.replace(/\/+$/, '');
+  if (envUrl) return envUrl;
+  return 'https://repuestop.cl';
+}
+
+/** Web Market: el link de referido abre directamente la creación de cuenta con el código del captador precargado. */
+export const buyerReferralLink = (codigo?: string | null) =>
+  codigo ? `${getMarketBaseUrl()}/?ref=${encodeURIComponent(codigo)}&crear_cuenta=true` : '';
+
 
 export default function CapturerPortalPage(){
  const qc=useQueryClient(); const navigate=useNavigate(); const {pathname}=useLocation();
@@ -125,9 +147,9 @@ function Resumen({d,cfg,ranking,copied,onCopy,linkCopied,onCopyLink,onGo}:{d:Cap
      <strong className="cap-code">{d.perfil.codigoReferido||'—'}</strong>
      <p className="cap-muted">Compártelo con casas, talleres y compradores: lo ingresan en “Código de captador” al crear su cuenta.</p>
      <button type="button" className="cap-primary cap-copy" onClick={onCopy}><CopyIcon/>{copied?'¡Código copiado!':'Copiar código'}</button>
-     <span className="cap-eyebrow" style={{marginTop:4}}>Link para compradores</span>
+     <span className="cap-eyebrow" style={{marginTop:4}}>Link de referido (crear cuenta)</span>
      <div className="cap-link"><LinkIcon/><span>{buyerReferralLink(d.perfil.codigoReferido)||'Sin código asignado'}</span></div>
-     <button type="button" className="cap-ghost" onClick={onCopyLink} disabled={!d.perfil.codigoReferido}>{linkCopied?'¡Link copiado!':'Copiar link para compradores'}</button>
+     <button type="button" className="cap-ghost" onClick={onCopyLink} disabled={!d.perfil.codigoReferido}>{linkCopied?'¡Link copiado!':'Copiar link de referido'}</button>
     </article>
     <div className="cap-metrics">
      <Metric tone="green" icon={<MoneyIcon/>} label="Ganancia total" value={formatCurrency(d.total)} foot="Comisiones acumuladas"/>
