@@ -66,7 +66,8 @@ export default function RefundSupportActions({ refund, onDone }: RefundSupportAc
       setDialog(null);
       refresh();
       if (result.status === 'REEMBOLSO_ERROR') {
-        showToast(`Flow volvió a rechazar el reembolso: ${result.errorDetail || 'sin detalle'}`);
+        // O74 (pruebas de lanzamiento, 27-sep): REEMBOLSO_ERROR es un fallo al pedirlo, no un rechazo.
+        showToast(`La solicitud a Flow volvió a fallar: ${result.errorDetail || 'sin detalle'}`);
       } else {
         showToast('Reembolso solicitado nuevamente a Flow. El comprador recibirá el correo para aceptarlo.');
       }
@@ -139,7 +140,7 @@ export default function RefundSupportActions({ refund, onDone }: RefundSupportAc
               wordBreak: 'break-word',
             }}
           >
-            <strong>Último error de Flow:</strong> {refund.errorDetail}
+            <strong>{refund.status === 'REEMBOLSO_ERROR' ? 'Error al solicitar a Flow:' : 'Último error de Flow:'}</strong> {refund.errorDetail}
           </div>
         ) : null}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>

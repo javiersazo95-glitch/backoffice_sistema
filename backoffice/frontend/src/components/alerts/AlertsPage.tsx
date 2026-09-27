@@ -57,6 +57,10 @@ export default function AlertsPage() {
 
   const alerts = data?.content ?? [];
   const selectedAlert = alerts.find((a) => a.id === selectedId);
+  // O74 (pruebas de lanzamiento, 27-sep): una alerta ya revisada sigue en la lista (atenuada y con su
+  // distintivo) pero no cuenta como pendiente: antes "Alta 1" y "Señales de Riesgo 1" seguian en 1
+  // despues de marcarla. El backend no filtra por estado, asi que se separa aqui (sobre la pagina).
+  const pendingAlerts = alerts.filter((a) => !a.reviewed);
 
   return (
     <>
@@ -88,16 +92,16 @@ export default function AlertsPage() {
       </div>
 
       <div className="metric-grid compact">
-        <MetricCard label="Críticas" value={alerts.filter((a) => a.severity === AlertSeverity.CRITICA).length} tone="red" />
-        <MetricCard label="Alta" value={alerts.filter((a) => a.severity === AlertSeverity.ALTA).length} tone="amber" />
-        <MetricCard label="Media" value={alerts.filter((a) => a.severity === AlertSeverity.MEDIA).length} tone="blue" />
+        <MetricCard label="Críticas" value={pendingAlerts.filter((a) => a.severity === AlertSeverity.CRITICA).length} tone="red" />
+        <MetricCard label="Alta" value={pendingAlerts.filter((a) => a.severity === AlertSeverity.ALTA).length} tone="amber" />
+        <MetricCard label="Media" value={pendingAlerts.filter((a) => a.severity === AlertSeverity.MEDIA).length} tone="blue" />
       </div>
 
       <div className="alert-layout">
         <div className="panel">
           <div className="panel-header">
             <h2>Señales de Riesgo</h2>
-            <span className="panel-count">{data?.totalElements ?? 0}</span>
+            <span className="panel-count" title="Alertas pendientes de revisar">{pendingAlerts.length}</span>
           </div>
 
           {isLoading ? (
@@ -119,8 +123,13 @@ export default function AlertsPage() {
                   </thead>
                   <tbody>
                     {alerts.map((alert) => (
-                      <tr key={alert.id} className={selectedId === alert.id ? 'is-active' : ''} onClick={() => setSelectedId(alert.id)} style={{ cursor: 'pointer' }}>
-                        <td><Badge text={alert.severity} variant={alert.severity} /></td>
+                      <tr key={alert.id} className={selectedId === alert.id ? 'is-active' : ''} onClick={() => setSelectedId(alert.id)} style={{ cursor: 'pointer', opacity: alert.reviewed ? 0.55 : undefined }}>
+                        <td>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                            <Badge text={alert.severity} variant={alert.severity} />
+                            {alert.reviewed && <Badge text="Revisada" variant="green" />}
+                          </div>
+                        </td>
                         <td><FounderSellerName name={alert.sellerName} founder={alert.sellerFounder} /></td>
                         <td>{alert.signalType}</td>
                         <td>{alert.evidence}</td>

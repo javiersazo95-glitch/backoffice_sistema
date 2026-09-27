@@ -486,6 +486,7 @@ function RefundStepsPanel({ item }: { item: MediationModalItem }) {
     percentage: item.porcentajeReembolso,
     monto,
     orderId: item.orderId,
+    estado: refundPayment?.manual ? null : item.estadoReembolso,
   });
   const toneColor = status.tone === 'success' ? '#15803d' : status.tone === 'warning' ? '#b45309' : '#1d4ed8';
 
@@ -771,7 +772,14 @@ export default function MediationDetail({
   // O64: a quien favorece el veredicto y, si hay reembolso, cuanto. El monto exacto lo calcula
   // el backend sobre lo comprado en la tienda (lineas + envio, tope el total del pedido), asi que
   // aca solo se puede dar el tope: el total del caso por el porcentaje.
-  const favorPartyName = favor === 'COMPRADOR' ? buyerName : favor === 'VENDEDOR' ? `la tienda ${sellerName}` : '';
+  // O78 (pruebas de lanzamiento, 27-sep): el nombre de la tienda ya suele empezar por "Tienda" y
+  // quedaba "a favor de la tienda Tienda Vendedora Uno"; se usa el nombre tal cual. Sin nombre real
+  // (los respaldos 'Tienda'/'Comprador') se nombra a la parte en generico.
+  const favorPartyName = favor === 'COMPRADOR'
+    ? (buyerName === 'Comprador' ? 'el comprador' : buyerName)
+    : favor === 'VENDEDOR'
+      ? (item?.sellerName?.trim() || 'la tienda')
+      : '';
   const confirmRefundPercentage = selectedOption?.appliesRefund
     ? (selectedOption.requiresPercentage ? (percentageValid ? parsedPercentage : 0) : 100)
     : 0;
@@ -1368,7 +1376,16 @@ export default function MediationDetail({
             >
               <div className="modal-header">
                 <div className="modal-title-block">
-                  <h2 id="confirm-resolve-title" style={{ color: confirmRefundPercentage > 0 ? '#b45309' : undefined }}>
+                  {/* O78: .modal-header h2 es nowrap; un nombre largo desbordaba el dialogo con barra horizontal. */}
+                  <h2
+                    id="confirm-resolve-title"
+                    style={{
+                      color: confirmRefundPercentage > 0 ? '#b45309' : undefined,
+                      whiteSpace: 'normal',
+                      overflowWrap: 'anywhere',
+                      lineHeight: 1.3,
+                    }}
+                  >
                     ¿Resolver a favor de {favorPartyName}?
                   </h2>
                   <p>Caso {item.externalId} &bull; {selectedOption.label}</p>

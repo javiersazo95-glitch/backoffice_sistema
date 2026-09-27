@@ -3,6 +3,7 @@ import {
   MAX_RECEIPT_SIZE,
 } from './constants';
 import { PARTNERS } from './constants';
+import { toChileIso } from '@/utils/formatters';
 import type { Expense, Order, Settlement, SettlementStatus, Withdrawal } from './types';
 
 const moneyFormatter = new Intl.NumberFormat('es-CL', {
@@ -20,33 +21,35 @@ export function formatMoney(value: number): string {
   return moneyFormatter.format(Number(value) || 0);
 }
 
+/**
+ * O77 (pruebas de lanzamiento, 27-sep): formatDate y formatDateTime cortan el texto ISO; un valor con
+ * zona (la fecha de pago de un retiro, una compra de publicidad) se pasa antes a hora de Chile, o se
+ * veia la hora UTC y, de noche, el dia siguiente. Las fechas de los pedidos ya llegan en hora de Chile.
+ */
 export function formatDate(dateValue: string): string {
-  const [year = '', month = '', day = ''] = dateValue.slice(0, 10).split('-');
+  const [year = '', month = '', day = ''] = toChileIso(dateValue ?? '').slice(0, 10).split('-');
   if (!year || !month || !day) return dateValue;
   return `${day}/${month}/${year}`;
 }
 
 export function formatDateTime(dateValue: string): string {
-  const [date = '', time = '00:00'] = dateValue.split('T');
+  const [date = '', time = '00:00'] = toChileIso(dateValue ?? '').split('T');
   return `${formatDate(date)} ${time.slice(0, 5)}`;
 }
 
+/** Dia "YYYY-MM-DD" en hora de Chile, para filtrar por rango un valor que puede traer zona. */
+export function chileDay(dateValue: string | null | undefined): string {
+  return toChileIso(dateValue ?? '').slice(0, 10);
+}
+
 /**
- * Fecha y hora en el huso del navegador. A diferencia de formatDateTime, que
- * corta el texto ISO y muestra la hora tal cual venga, esta respeta el offset:
- * una marca en UTC se ve en la hora local en que realmente ocurrió.
+ * Fecha y hora en hora de Chile, sea cual sea el huso del navegador (O77, 27-sep). Una fecha sin
+ * hora se muestra sin hora: antes `new Date("2026-09-27")` salia "26-09-2026, 21:00" en Chile.
  */
 export function formatDateTimeLocal(dateValue: string): string {
-  const parsed = new Date(dateValue);
-  if (Number.isNaN(parsed.getTime())) return dateValue;
-  return parsed.toLocaleString('es-CL', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  });
+  if (!dateValue) return dateValue;
+  const iso = toChileIso(dateValue);
+  return iso.includes('T') ? formatDateTime(iso) : formatDate(iso);
 }
 
 const monthFormatter = new Intl.DateTimeFormat('es-CL', { month: 'long' });
@@ -87,7 +90,7 @@ export function slug(value: string): string {
 }
 
 export function orderDate(order: Order): string {
-  return order.date.slice(0, 10);
+  return chileDay(order.date);
 }
 
 export function isWithinRange(dateValue: string, start: string, end: string): boolean {

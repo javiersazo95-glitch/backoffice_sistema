@@ -1,20 +1,74 @@
+/**
+ * O77 (pruebas de lanzamiento, 27-sep): las fechas del backoffice se muestran en hora de Chile,
+ * igual que el Market. Un instante con zona ("2026-09-27T12:35:00Z", como serializa Jackson un
+ * OffsetDateTime) se convierte a America/Santiago sin depender del huso del navegador; uno sin zona
+ * ("2026-09-27T09:35") ya viene en hora de Chile y se deja tal cual.
+ */
+export const CHILE_TIME_ZONE = 'America/Santiago';
+
+const OFFSET_SUFFIX = /(?:Z|[+-]\d{2}:?\d{2})$/i;
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+
+const chileParts = new Intl.DateTimeFormat('en-CA', {
+  timeZone: CHILE_TIME_ZONE,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+});
+
+export function hasTimeZone(value: string): boolean {
+  return value.includes('T') && OFFSET_SUFFIX.test(value);
+}
+
+/**
+ * "YYYY-MM-DDTHH:mm" en hora de Chile. Sirve a las pantallas que cortan el texto ISO (fecha con
+ * `slice(0, 10)`, hora con `split('T')`): sobre un valor en UTC mostraban la hora UTC y, entre las
+ * 21:00 y las 24:00, el dia siguiente. Lo que no trae zona (o no se puede leer) vuelve igual.
+ */
+export function toChileIso(value: string): string {
+  if (!value || !hasTimeZone(value)) return value;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  const parts = Object.fromEntries(chileParts.formatToParts(parsed).map((part) => [part.type, part.value]));
+  const hour = parts.hour === '24' ? '00' : parts.hour;
+  return `${parts.year}-${parts.month}-${parts.day}T${hour}:${parts.minute}`;
+}
+
+function parseForDisplay(value: string): Date {
+  // Una fecha sin hora es un dia local: `new Date("2026-09-27")` es medianoche UTC y en Chile se
+  // veia el 26.
+  if (DATE_ONLY.test(value)) {
+    return new Date(Number(value.slice(0, 4)), Number(value.slice(5, 7)) - 1, Number(value.slice(8, 10)));
+  }
+  return new Date(value);
+}
+
 export function formatDate(date: string): string {
   if (!date) return '';
-  return new Date(date).toLocaleDateString('es-CL', {
+  const parsed = parseForDisplay(date);
+  if (Number.isNaN(parsed.getTime())) return date;
+  return parsed.toLocaleDateString('es-CL', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
+    ...(hasTimeZone(date) ? { timeZone: CHILE_TIME_ZONE } : {}),
   });
 }
 
 export function formatDateTime(date: string): string {
   if (!date) return '';
-  return new Date(date).toLocaleString('es-CL', {
+  const parsed = parseForDisplay(date);
+  if (Number.isNaN(parsed.getTime())) return date;
+  return parsed.toLocaleString('es-CL', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
+    ...(hasTimeZone(date) ? { timeZone: CHILE_TIME_ZONE } : {}),
   });
 }
 

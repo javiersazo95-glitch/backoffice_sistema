@@ -112,10 +112,12 @@ export function refundStatusView(estado: string | undefined | null): RefundStatu
     // O56 (pruebas de lanzamiento, 25-sep): RECHAZADO no es un fallo de la pasarela: el
     // comprador rechazo o dejo vencer el correo de Flow para aceptar la devolucion. Al pasar
     // a ese estado el backend crea una alerta de riesgo ALTA para soporte (O57).
+    // O74 (pruebas de lanzamiento, 27-sep): ERROR es el fallo tecnico al pedirlo a Flow (nunca
+    // llego al comprador) y se rotulaba "Rechazado por la pasarela", igual que un rechazo.
     case 'REEMBOLSO_RECHAZADO':
-      return { label: 'Rechazado o vencido por el comprador en Flow · contactarlo', tone: 'warning' };
+      return { label: 'Rechazado o no aceptado por el comprador en Flow · gestión manual', tone: 'warning' };
     case 'REEMBOLSO_ERROR':
-      return { label: 'Rechazado por la pasarela · gestión manual', tone: 'warning' };
+      return { label: 'Error al solicitar a Flow · gestión manual', tone: 'warning' };
     case 'SIN_PAGO_APROBADO':
     case 'SIN_PEDIDO':
     case 'SIN_ITEMS_DE_LA_TIENDA':
@@ -128,16 +130,28 @@ export function refundStatusView(estado: string | undefined | null): RefundStatu
 
 /**
  * Pasos que ve el comprador para seguir su reembolso. `orderId` y `monto` son
- * textos ya formateados.
+ * textos ya formateados; `estado` es el `estadoReembolso` del backend.
  */
-export function buildRefundSteps(params: { percentage?: number | null; monto?: string; orderId?: string }): string[] {
+export function buildRefundSteps(params: { percentage?: number | null; monto?: string; orderId?: string; estado?: string | null }): string[] {
   const { percentage, monto, orderId } = params;
+  const estado = (params.estado ?? '').toUpperCase();
   const pctTxt = percentage ? `${percentage}%` : '';
   const montoTxt = monto ? ` (${monto})` : '';
+  const reembolsoTxt = `El reembolso ${pctTxt ? `del ${pctTxt} ` : ''}del subtotal de la compra en la tienda${montoTxt}`;
+  // O74 (pruebas de lanzamiento, 27-sep): con REEMBOLSO_ERROR la lista decia "fue solicitado a la
+  // pasarela" aunque la solicitud fallo; y con RECHAZADO no decia que el comprador no lo acepto.
+  const solicitudTxt = estado === 'REEMBOLSO_ERROR'
+    ? `La solicitud a la pasarela de pagos (Flow) del reembolso ${pctTxt ? `del ${pctTxt} ` : ''}del subtotal de la compra en la tienda${montoTxt} falló. Soporte puede reintentarla o marcarlo como devuelto manualmente.`
+    : estado === 'REEMBOLSO_RECHAZADO'
+      ? `${reembolsoTxt} fue solicitado a la pasarela de pagos (Flow), pero el comprador no lo aceptó. Soporte puede reintentarlo o marcarlo como devuelto manualmente.`
+      : `${reembolsoTxt} fue solicitado a la pasarela de pagos (Flow).`;
+  const acreditacionTxt = estado === 'REEMBOLSO_ERROR' || estado === 'REEMBOLSO_RECHAZADO'
+    ? 'Cuando se solicite con éxito, se acreditará en el mismo medio de pago usado en la compra, en un plazo estimado de 5 a 10 días hábiles.'
+    : 'Se acreditará en el mismo medio de pago usado en la compra, en un plazo estimado de 5 a 10 días hábiles.';
   return [
     'La resolución ya fue aplicada y notificada al comprador por chat, correo electrónico y app móvil.',
-    `El reembolso ${pctTxt ? `del ${pctTxt} ` : ''}del subtotal de la compra en la tienda${montoTxt} fue solicitado a la pasarela de pagos (Flow).`,
-    'Se acreditará en el mismo medio de pago usado en la compra, en un plazo estimado de 5 a 10 días hábiles.',
+    solicitudTxt,
+    acreditacionTxt,
     `El comprador puede seguir el estado en RepuesTop → "Mis pedidos" → detalle del pedido${orderId ? ` ${orderId}` : ''}.`,
     'Al concretarse, el comprador recibe un comprobante por correo electrónico.',
   ];

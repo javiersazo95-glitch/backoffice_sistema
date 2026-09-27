@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react';
 import { formatRut, validateRut } from '@/utils/rut';
 import { formatOrderNumber, orderNumberSearchText } from '@/utils/orderNumber';
+import { toChileIso } from '@/utils/formatters';
 import { useQuery } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
@@ -63,6 +64,7 @@ import {
   formatDate,
   formatDateTime,
   formatDateTimeLocal,
+  chileDay,
   formatMonthName,
   formatMoney,
   getBarWidth,
@@ -381,7 +383,7 @@ function selectMetricRows<T>(source: T[], selected: Set<string>, getId: (row: T)
 }
 
 function getLiquidationPeriod(dateValue: string): string {
-  const [year, month, day] = (dateValue.split('T')[0] ?? '').split('-').map(Number);
+  const [year, month, day] = chileDay(dateValue).split('-').map(Number);
   if (!year || !month || !day) return dateValue;
   const start = new Date(year, month - 1, day);
   start.setDate(start.getDate() - ((start.getDay() - 4 + 7) % 7));
@@ -391,8 +393,9 @@ function getLiquidationPeriod(dateValue: string): string {
   return `${formatDate(toDateString(start))} - ${formatDate(toDateString(end))}`;
 }
 
+// O77 (27-sep): el ciclo semanal se corta con el dia del pago en Chile (la fecha de pago trae zona).
 function getPaymentPeriod(dateValue: string): { start: string; end: string } {
-  const [year, month, day] = (dateValue.split('T')[0] ?? '').split('-').map(Number);
+  const [year, month, day] = chileDay(dateValue).split('-').map(Number);
   if (!year || !month || !day) return { start: dateValue, end: dateValue };
   const start = new Date(year, month - 1, day);
   start.setDate(start.getDate() - ((start.getDay() - 4 + 7) % 7));
@@ -811,7 +814,8 @@ export default function AdminFinancePage() {
   /** Compras de fichas para publicidad dentro del periodo de filtro de Caja y gastos. */
   const cajaPeriodAds = useMemo(() => {
     const rows = advertising?.compras ?? [];
-    return rows.filter((row) => isWithinRange((row.fecha ?? '').slice(0, 10), filters.gastos.start, filters.gastos.end));
+    // O77 (27-sep): el dia de la compra en hora de Chile, no el de la marca UTC.
+    return rows.filter((row) => isWithinRange(chileDay(row.fecha), filters.gastos.start, filters.gastos.end));
   }, [advertising?.compras, filters.gastos.start, filters.gastos.end]);
 
   /**
@@ -1089,7 +1093,7 @@ export default function AdminFinancePage() {
   /** Compras de publicidad dentro del periodo de filtro de Retiros/Socios. */
   const periodPartnerAds = useMemo(() => {
     const rows = advertising?.compras ?? [];
-    return rows.filter((row) => isWithinRange((row.fecha ?? '').slice(0, 10), filters.retiros.start, filters.retiros.end));
+    return rows.filter((row) => isWithinRange(chileDay(row.fecha), filters.retiros.start, filters.retiros.end));
   }, [advertising?.compras, filters.retiros.start, filters.retiros.end]);
 
   /**
@@ -2904,7 +2908,8 @@ export default function AdminFinancePage() {
                     <td><strong>{entry.id}</strong></td>
                     <td>
                       <div>{formatDate(entry.date)}</div>
-                      {entry.date.includes('T') && <small style={{ color: 'var(--muted, #64748b)', fontSize: '11px' }}>{entry.date.split('T')[1]?.slice(0, 5)}</small>}
+                      {/* O77 (27-sep): la hora de una compra de publicidad viene en UTC; se muestra la de Chile. */}
+                      {entry.date.includes('T') && <small style={{ color: 'var(--muted, #64748b)', fontSize: '11px' }}>{toChileIso(entry.date).split('T')[1]?.slice(0, 5)}</small>}
                     </td>
                     <td>
                       {entry.type === 'pedido' ? (
