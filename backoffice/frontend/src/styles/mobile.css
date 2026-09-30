@@ -1963,6 +1963,7 @@
   /* Detalle de mediación (página completa) */
   .mb-shell .mediation-management-view {
     max-width: none;
+    overflow-x: clip;
   }
 
   .mb-shell .mediation-management-shell {
@@ -1978,8 +1979,101 @@
     grid-template-columns: 1fr 1fr !important;
   }
 
+  /* Chats con comprador y tienda: ventana de alto fijo que cabe entre la barra superior y la
+     barra de acciones. El hilo ocupa el espacio libre y el campo de texto queda siempre al pie,
+     haya uno o cien mensajes. */
+  .mb-shell .mediation-chat-card:not(.carga-chat-conversation) {
+    height: calc(100dvh - var(--mb-topbar-h) - var(--mb-tabbar-h) - var(--mb-safe-t) - var(--mb-safe-b) - 32px);
+    min-height: 420px;
+    max-height: 680px;
+    gap: 10px;
+    padding: 12px;
+    overflow: hidden;
+  }
+
+  body.mb-has-actionbar .mb-shell .mediation-chat-card:not(.carga-chat-conversation) {
+    height: calc(100dvh - var(--mb-topbar-h) - var(--mb-tabbar-h) - var(--mb-safe-t) - var(--mb-safe-b) - 32px - 66px);
+  }
+
+  .mb-shell .mediation-chat-card:not(.carga-chat-conversation) .mediation-chat-header {
+    padding-bottom: 10px;
+  }
+
+  .mb-shell .mediation-chat-title {
+    flex: 1 1 auto;
+  }
+
+  .mb-shell .mediation-chat-title > div {
+    min-width: 0;
+  }
+
+  .mb-shell .mediation-chat-title h3,
+  .mb-shell .mediation-chat-party {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mb-shell .mediation-chat-badge {
+    flex: 0 0 auto;
+  }
+
+  .mb-shell .mediation-chat-banner {
+    flex: 0 1 auto;
+    max-height: 38%;
+    margin: 0;
+    overflow-y: auto;
+  }
+
   .mb-shell .mediation-chat-thread {
-    max-height: 60vh !important;
+    flex: 1 1 auto;
+    min-height: 140px;
+    max-height: none !important;
+    padding: 10px 8px 6px;
+    overscroll-behavior: contain;
+    scrollbar-gutter: auto;
+  }
+
+  .mb-shell .mediation-chat-thread .mediation-chat-empty {
+    min-height: 100%;
+  }
+
+  .mb-shell .mediation-chat-card .chat-bubble {
+    max-width: 82%;
+    min-width: 0;
+  }
+
+  .mb-shell .mediation-chat-card .chat-bubble p {
+    overflow-wrap: anywhere;
+  }
+
+  .mb-shell .mediation-chat-composer {
+    grid-template-columns: minmax(0, 1fr) 46px;
+    gap: 8px;
+  }
+
+  .mb-shell .mediation-chat-input {
+    min-width: 0;
+    height: 46px;
+  }
+
+  .mb-shell .mediation-chat-send {
+    width: 46px;
+    height: 46px;
+  }
+
+  /* Historial de reportes: el filtro baja bajo el titulo en lugar de empujar la pagina hacia
+     la derecha (tiene estilos en linea, de ahi el !important). */
+  .mb-shell .mediation-notes-summary .mediation-resolution-summary-head {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .mb-shell .mediation-notes-summary .mediation-resolution-summary-head > select {
+    flex: 1 1 100%;
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 40px;
   }
 
   .mb-shell .mediation-verdict-toggle {
@@ -2250,6 +2344,101 @@
 
   .jira-issue-title {
     font-size: 19px !important;
+  }
+
+  /* El modal del ticket scrollea en vertical; nada debe poder arrastrarlo hacia los lados. */
+  .jira-backdrop > .jira-modal,
+  .mb-embedded .mb-sheet-body:has(.jira-modal-embedded) {
+    overflow-x: hidden !important;
+  }
+
+  .jira-file-control {
+    grid-template-columns: minmax(0, 1fr);
+    min-width: 0;
+  }
+
+  .jira-file-control input {
+    width: 100%;
+    min-width: 0;
+  }
+
+  /* Comentarios como un chat: del mas antiguo al mas reciente y el campo de texto al pie,
+     pegado al borde inferior mientras se recorre la conversacion. */
+  .jira-section:has(> .jira-comment-list) {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .jira-section:has(> .jira-comment-list) > .jira-activity-tabs {
+    order: 1;
+  }
+
+  .jira-section:has(> .jira-comment-list) > .jira-comment-list {
+    order: 2;
+    flex-direction: column-reverse;
+    gap: 16px;
+    padding-bottom: 12px;
+  }
+
+  .jira-section:has(> .jira-comment-list) > .jira-comment-composer,
+  .jira-section:has(> .jira-comment-list) > .jira-qa-review-result {
+    order: 3;
+  }
+
+  .jira-comment-composer {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    align-items: flex-end;
+    gap: 8px;
+    margin: 0 calc(-1 * var(--mb-sp-4));
+    padding: 10px var(--mb-sp-4) calc(10px + var(--mb-safe-b));
+    border-top: 1px solid #DFE1E6;
+    background: #fff;
+  }
+
+  .jira-comment-composer > .jira-avatar {
+    display: none;
+  }
+
+  .jira-comment-composer-body {
+    flex-direction: row;
+    align-items: flex-end;
+    gap: 8px;
+  }
+
+  .jira-comment-composer-body textarea {
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 46px;
+    min-height: 46px;
+    max-height: 140px;
+    padding: 10px 12px;
+    line-height: 1.4;
+    resize: none;
+  }
+
+  .jira-comment-composer-actions {
+    flex: 0 0 auto;
+  }
+
+  .jira-comment-composer-actions .jira-hint {
+    display: none;
+  }
+
+  .jira-comment-composer-actions .jira-primary-button {
+    height: 46px;
+    padding: 0 14px;
+  }
+
+  .jira-comment,
+  .jira-comment-content {
+    min-width: 0;
+  }
+
+  .jira-comment-head {
+    flex-wrap: wrap;
+    row-gap: 2px;
   }
 
   .jira-primary-button,
@@ -3546,42 +3735,201 @@
     border-radius: 12px;
   }
 
+  /* Conversacion abierta: pantalla completa fija sobre el shell (portal a body). El alto lo
+     ajusta ConversacionMovil al area visible para que el teclado no tape el campo de texto. */
+  .carga-chat-mobile-detail {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: var(--mb-z-sheet);
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    padding-top: var(--mb-safe-t);
+    background: #fff;
+    overflow: hidden;
+    overscroll-behavior: contain;
+    animation: mbSlideUp var(--mb-dur) var(--mb-ease);
+  }
+
   .carga-chat-mobile-detail .carga-chat-conversation {
-    height: calc(100dvh - var(--mb-topbar-h) - var(--mb-tabbar-h) - var(--mb-safe-t) - var(--mb-safe-b) - 110px);
-    min-height: 460px;
-    padding: 12px;
-    border-radius: 16px;
+    flex: 1 1 auto;
+    width: 100%;
+    height: auto;
+    min-height: 0;
+    gap: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    overflow: hidden;
+  }
+
+  .carga-chat-mobile-detail .carga-chat-conv-head {
+    flex: 0 0 auto;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 8px 12px 10px 6px;
+  }
+
+  .carga-chat-mobile-detail .carga-chat-back {
+    width: var(--mb-touch);
+    height: var(--mb-touch);
+    border: 0;
+    background: transparent;
+  }
+
+  .carga-chat-mobile-detail .carga-chat-back .ui-icon {
+    width: 20px;
+    height: 20px;
+  }
+
+  .carga-chat-mobile-detail .carga-chat-conv-head > .mediation-chat-icon {
+    display: none;
+  }
+
+  .carga-chat-mobile-detail .carga-chat-conv-title {
+    padding-top: 3px;
+  }
+
+  .carga-chat-mobile-detail .carga-chat-conv-title h3 {
+    font-size: 16px;
+  }
+
+  .carga-chat-mobile-detail .carga-chat-conv-ids {
+    gap: 0 10px;
+    font-size: 11.5px;
+  }
+
+  .carga-chat-mobile-detail .carga-chat-conv-ids > * {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .carga-chat-mobile-detail .carga-chat-conv-head > :last-child:not(.carga-chat-conv-title) {
+    flex: 0 0 auto;
+    margin-top: 10px;
   }
 
   .carga-chat-conv-info {
-    align-items: stretch;
+    flex: 0 0 auto;
     flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .carga-chat-mobile-detail .carga-chat-conv-info {
+    padding: 10px 12px 0;
+  }
+
+  .carga-chat-conv-facts {
+    gap: 2px 14px;
+    font-size: 12px;
+  }
+
+  .carga-chat-contexto {
+    flex: 0 0 auto;
+    order: 0;
+    padding: 7px 10px;
+    font-size: 12px;
   }
 
   .carga-chat-estado {
+    display: flex;
     justify-content: space-between;
   }
 
   .carga-chat-estado select {
     flex: 1 1 auto;
+    min-width: 0;
     min-height: 40px;
   }
 
+  .carga-chat-mobile-detail .carga-chat-banner {
+    flex: 0 0 auto;
+    margin: 8px 12px 0;
+    padding: 7px 10px;
+    font-size: 12px;
+  }
+
+  .carga-chat-mobile-detail .carga-chat-thread {
+    flex: 1 1 auto;
+    min-height: 0;
+    margin: 10px 0 0;
+    padding: 12px 10px;
+    border-radius: 0;
+    border-top: 1px solid #e8eef6;
+    overscroll-behavior: contain;
+    scrollbar-gutter: auto;
+  }
+
   .carga-chat-bubble {
-    max-width: 86%;
+    max-width: 84%;
+    min-width: 0;
+  }
+
+  .carga-chat-bubble p {
+    overflow-wrap: anywhere;
+  }
+
+  .carga-chat-mobile-detail .carga-chat-attachment {
+    flex: 0 0 auto;
+    margin: 8px 12px 0;
   }
 
   .carga-chat-composer {
-    grid-template-columns: minmax(0, 1fr) 42px 48px;
+    grid-template-columns: minmax(0, 1fr) 44px 46px;
+    align-items: end;
+  }
+
+  .carga-chat-mobile-detail .carga-chat-composer {
+    flex: 0 0 auto;
+    padding: 8px 12px calc(8px + var(--mb-safe-b));
+    border-top: 1px solid #e8eef6;
+    background: #fff;
+  }
+
+  .carga-chat-textarea {
+    min-width: 0;
+    height: 46px;
+    min-height: 46px;
+    max-height: 120px;
+    padding: 10px 12px;
+    line-height: 1.4;
+    resize: none;
+  }
+
+  .carga-chat-composer .mediation-chat-send {
+    width: 44px;
+    height: 46px;
   }
 
   .carga-chat-send {
     justify-content: center;
+    height: 46px;
     padding: 0;
   }
 
   .carga-chat-send span {
     display: none;
+  }
+
+  .carga-chat-mobile-detail .carga-chat-counter {
+    margin: 0;
+    padding: 0 12px 4px;
+  }
+
+  /* Donde el navegador lo soporta, el campo crece con el texto hasta su max-height. */
+  @supports (field-sizing: content) {
+    .carga-chat-textarea,
+    .jira-comment-composer-body textarea {
+      height: auto;
+      field-sizing: content;
+    }
   }
 
   .carga-chat-lightbox {

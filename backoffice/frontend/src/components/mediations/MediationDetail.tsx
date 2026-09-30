@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, type ChangeEvent, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, useMemo, type ChangeEvent, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -400,6 +400,7 @@ function ChatCard({
   banner?: ReactNode;
 }) {
   const [draft, setDraft] = useState('');
+  const threadRef = useRef<HTMLDivElement>(null);
   const resolvedPhotoUrl = useMemo(() => resolveProfileImageUrl(photoUrl), [photoUrl]);
   const [imageFailed, setImageFailed] = useState(false);
   const visiblePhotoUrl = resolvedPhotoUrl && !imageFailed ? resolvedPhotoUrl : null;
@@ -407,6 +408,28 @@ function ChatCard({
   useEffect(() => {
     setImageFailed(false);
   }, [resolvedPhotoUrl]);
+
+  // Como en cualquier chat, la conversacion se abre en el ultimo mensaje y baja sola al llegar
+  // uno nuevo. Solo se mueve el hilo, nunca la pagina.
+  useLayoutEffect(() => {
+    const thread = threadRef.current;
+    if (thread) thread.scrollTop = thread.scrollHeight;
+  }, [messages.length]);
+
+  // Si el hilo cambia de alto (en movil lo achica la barra de acciones al montarse, o el teclado)
+  // y se estaba viendo lo ultimo, sigue mostrando lo ultimo.
+  useEffect(() => {
+    const thread = threadRef.current;
+    if (!thread || typeof ResizeObserver === 'undefined') return;
+    let altoAnterior = thread.clientHeight;
+    const observer = new ResizeObserver(() => {
+      const estabaAlFinal = thread.scrollHeight - thread.scrollTop - altoAnterior < 40;
+      altoAnterior = thread.clientHeight;
+      if (estabaAlFinal) thread.scrollTop = thread.scrollHeight;
+    });
+    observer.observe(thread);
+    return () => observer.disconnect();
+  }, []);
 
   const handleSend = () => {
     const trimmed = draft.trim();
@@ -441,7 +464,7 @@ function ChatCard({
 
       {banner ? <div className="mediation-chat-banner">{banner}</div> : null}
 
-      <div className="mediation-chat-thread">
+      <div className="mediation-chat-thread" ref={threadRef}>
         {messages.length ? (
           messages.map((message) => <ChatBubble key={message.id} message={message} accent={accent} partyPhotoUrl={visiblePhotoUrl} />)
         ) : (

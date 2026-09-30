@@ -422,7 +422,7 @@ export default function ChatCargaConversacion({ chatId, inicial, onBack }: ChatC
           maxLength={MAX_TEXTO}
           rows={2}
           disabled={cerrado || enviarMutation.isPending}
-          placeholder={cerrado ? 'Conversación cerrada' : imagen ? 'Agrega un comentario a la imagen (opcional)' : 'Escribe tu respuesta… (Ctrl + Enter para enviar)'}
+          placeholder={cerrado ? 'Conversación cerrada' : imagen ? 'Agrega un comentario a la imagen (opcional)' : onBack ? 'Escribe tu respuesta…' : 'Escribe tu respuesta… (Ctrl + Enter para enviar)'}
           aria-label={`Mensaje para ${tienda}`}
         />
         <input

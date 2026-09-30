@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import * as cargaApi from '@/api/supportCargaInventario';
 import type { FiltroEstadoChat, TarjetaChat } from '@/api/supportCargaInventario';
@@ -6,6 +8,7 @@ import UiIcon from '@/components/shared/UiIcon';
 import { EmptyState, RecordCard, RecordList } from '@/components/mobile';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { useBackToClose } from '@/hooks/useBackToClose';
+import { useLockBodyScroll } from '@/hooks/useLockBodyScroll';
 import ChatCargaTarjeta, { EstadoChatBadge, nombreTienda, previewUltimoMensaje } from './ChatCargaTarjeta';
 import ChatCargaConversacion, { CARGA_CHATS_KEY, CARGA_RESUMEN_KEY } from './ChatCargaConversacion';
 import { FILTROS_ESTADO, MOTIVO_LABELS, contarFiltro, formatCierreAutomatico, formatRelativo } from './cargaInventarioLabels';
@@ -29,6 +32,40 @@ function useDebouncedValue<T>(value: T, delay: number): T {
     return () => window.clearTimeout(timer);
   }, [value, delay]);
   return debounced;
+}
+
+/**
+ * Conversacion a pantalla completa en el telefono, al estilo de una app de mensajeria: la
+ * pagina de fondo no se mueve y el alto sigue al area visible (visualViewport), asi el
+ * teclado no tapa el campo de texto ni empuja la cabecera fuera de la pantalla.
+ */
+function ConversacionMovil({ children }: { children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useLockBodyScroll(true);
+
+  useEffect(() => {
+    const vv = window.visualViewport;
+    const el = ref.current;
+    if (!vv || !el) return;
+    const ajustar = () => {
+      el.style.height = `${vv.height}px`;
+      el.style.transform = vv.offsetTop ? `translateY(${vv.offsetTop}px)` : '';
+    };
+    ajustar();
+    vv.addEventListener('resize', ajustar);
+    vv.addEventListener('scroll', ajustar);
+    return () => {
+      vv.removeEventListener('resize', ajustar);
+      vv.removeEventListener('scroll', ajustar);
+    };
+  }, []);
+
+  return createPortal(
+    <div ref={ref} className="carga-chat-mobile-detail" role="dialog" aria-modal="true" aria-label="Conversación de soporte">
+      {children}
+    </div>,
+    document.body,
+  );
 }
 
 export default function SoporteCargaInventarioView() {
@@ -127,9 +164,9 @@ export default function SoporteCargaInventarioView() {
   if (isMobile) {
     if (seleccionadoId !== null) {
       return (
-        <div className="carga-chat-mobile-detail">
+        <ConversacionMovil>
           <ChatCargaConversacion key={seleccionadoId} chatId={seleccionadoId} inicial={seleccionado} onBack={cerrarConversacion} />
-        </div>
+        </ConversacionMovil>
       );
     }
 
