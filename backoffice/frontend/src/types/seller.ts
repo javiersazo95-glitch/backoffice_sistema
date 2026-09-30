@@ -2,6 +2,7 @@ export enum SellerStatus {
   APROBADO = 'APROBADO',
   POR_CORREGIR = 'POR_CORREGIR',
   RECHAZADO = 'RECHAZADO',
+  SUSPENDIDO = 'SUSPENDIDO',
 }
 
 export enum TrustLevel {

@@ -25,6 +25,7 @@ import { MediationStatus, type MediationResponse, type ResolvedCaseResponse } fr
 import AreaHomeShortcut from '@/components/shared/AreaHomeShortcut';
 import SellerDocumentsModal from './SellerDocumentsModal';
 import SellerProfileModal, { SellerBlockHistoryModal, SellerReportsModal } from './SellerProfileModal';
+import SuspendSellerModal from './SuspendSellerModal';
 import SellerActiveMediationsModal from './SellerActiveMediationsModal';
 import { showToast } from '@/components/layout/Toast';
 
@@ -566,21 +567,29 @@ export default function SellersPage() {
     setInfoSeller(null);
   };
 
+  // H62: el motivo lo escribe el operador en el dialogo (antes iba fijo "Bloqueado desde perfil").
+  const [suspendTargetId, setSuspendTargetId] = useState<number | null>(null);
+
   const handleBlockAccount = (id: number) => {
-    if (confirm('¿Estás seguro de bloquear esta cuenta?')) {
-      suspendMutation.mutate(
-        { id, data: { reason: 'Bloqueado desde perfil' } },
-        {
-          onSuccess: () => {
-            showToast('Cuenta bloqueada');
-            setSellerInfoOpen(false);
-          },
-          onError: (error: any) => {
-            showToast(error?.response?.data?.message || 'No se pudo bloquear la cuenta');
-          },
-        }
-      );
-    }
+    setSuspendTargetId(id);
+  };
+
+  const handleConfirmSuspend = (reason: string) => {
+    if (suspendTargetId == null) return;
+    suspendMutation.mutate(
+      { id: suspendTargetId, data: { reason } },
+      {
+        onSuccess: () => {
+          showToast('Tienda suspendida');
+          setSuspendTargetId(null);
+          setSellerInfoOpen(false);
+          setSellerBlockHistoryOpen(false);
+        },
+        onError: (error: any) => {
+          showToast(error?.response?.data?.message || 'No se pudo suspender la tienda');
+        },
+      }
+    );
   };
 
   const { data: sellerBlockHistory = [], isLoading: isBlockHistoryLoading } = useQuery({
@@ -776,6 +785,14 @@ export default function SellersPage() {
         blockHistory={sellerBlockHistory}
         isLoading={isBlockHistoryLoading}
         onSuspend={handleBlockAccount}
+      />
+
+      <SuspendSellerModal
+        isOpen={suspendTargetId != null}
+        storeName={suspendTargetId != null ? findSellerById(suspendTargetId)?.storeName ?? sellerDetailView?.storeName : null}
+        isSubmitting={suspendMutation.isPending}
+        onClose={() => setSuspendTargetId(null)}
+        onConfirm={handleConfirmSuspend}
       />
     </>
   );

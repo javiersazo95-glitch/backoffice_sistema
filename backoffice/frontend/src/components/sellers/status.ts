@@ -3,7 +3,8 @@ import { SellerStatus } from '@/types/seller';
 export type SellerOperationalStatus =
   | SellerStatus.APROBADO
   | SellerStatus.POR_CORREGIR
-  | SellerStatus.RECHAZADO;
+  | SellerStatus.RECHAZADO
+  | SellerStatus.SUSPENDIDO;
 
 interface SellerStatusSource {
   status: SellerStatus | string;
@@ -20,9 +21,11 @@ export function getSellerStatusLabel(status: SellerOperationalStatus): string {
     [SellerStatus.APROBADO]: 'Aprobado',
     [SellerStatus.POR_CORREGIR]: 'Por corregir',
     [SellerStatus.RECHAZADO]: 'Rechazado',
+    // H62: una tienda suspendida no es una rechazada (esa es la negativa a su alta).
+    [SellerStatus.SUSPENDIDO]: 'Suspendido',
   };
 
-  return labels[status];
+  return labels[status] ?? String(status);
 }
 
 export function getSellerStatusTone(status: SellerOperationalStatus): string {

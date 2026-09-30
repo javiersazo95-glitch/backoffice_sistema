@@ -148,11 +148,13 @@ export function mediationCaseSummary(item: { id: string | number; orderId: strin
 export function resolveBuyerName(item?: { buyer?: string | null; title?: string | null } | null): string {
   if (!item) return 'Comprador';
   if (item.buyer && item.buyer.trim()) return item.buyer.trim();
-  if (item.title) {
+  // H62: solo los casos "Comprador vs <nombre>" llevan al comprador en el titulo. En una
+  // suspension directa el titulo es "Suspensión directa de cuenta" y se mostraba como comprador.
+  if (item.title && /^Comprador vs /i.test(item.title)) {
     const fromTitle = item.title.replace(/^Comprador vs /i, '').trim();
     if (fromTitle) return fromTitle;
   }
-  return 'Comprador';
+  return item.title ? 'Sin comprador asociado' : 'Comprador';
 }
 
 export interface BlockedTargetInfo {

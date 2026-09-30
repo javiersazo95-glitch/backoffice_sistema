@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useMediations, useMediation, useInitMediation, useBlockAccount, useReactivateAccount, useAddMessage, useEditMessage, useDeleteMessage } from '@/hooks/useMediations';
-import { useSeller, useSellerDocuments } from '@/hooks/useSellers';
+import { useSeller, useSellerDocuments, useSuspendSeller } from '@/hooks/useSellers';
 import { useQuery } from '@tanstack/react-query';
 import * as mediationsApi from '@/api/mediations';
 import MetricCard from '@/components/shared/MetricCard';
@@ -28,6 +28,7 @@ import FilterContext from './FilterContext';
 import MediationDetailPanel, { ResolvedMediationDetailPanel } from './MediationDetailPanel';
 import SellerDocumentsModal from '@/components/sellers/SellerDocumentsModal';
 import SellerProfileModal from '@/components/sellers/SellerProfileModal';
+import SuspendSellerModal from '@/components/sellers/SuspendSellerModal';
 import SellerActiveMediationsModal from '@/components/sellers/SellerActiveMediationsModal';
 import {
   MediationInitModal,
@@ -212,6 +213,11 @@ export default function MediacionesPage() {
   const [sellerDocumentsOpen, setSellerDocumentsOpen] = useState(false);
   const [sellerMediationsOpen, setSellerMediationsOpen] = useState(false);
   const [selectedSellerId, setSelectedSellerId] = useState<number | null>(null);
+  // H63 (pruebas de lanzamiento, 30-sep): "Bloquear tienda" del perfil llamaba a handleBlockAccount
+  // con el id del VENDEDOR, que termina en PATCH /mediations/{id}/block-account: suspendia la mediacion
+  // que tuviera ese numero, o fallaba. La tienda se suspende igual que desde Vendedores.
+  const [suspendSellerId, setSuspendSellerId] = useState<number | null>(null);
+  const suspendSellerMutation = useSuspendSeller();
   const { data, isLoading } = useMediations(filter);
   const { data: mediationDetail } = useMediation(selectedId ?? 0);
   const { data: resolvedCases, isLoading: isLoadingResolvedCases } = useQuery({
@@ -786,7 +792,30 @@ export default function MediacionesPage() {
         seller={sellerDetail || null}
         onOpenDocuments={handleOpenSellerDocuments}
         onOpenMediation={handleOpenSellerMediations}
-        onSuspend={handleBlockAccount}
+        onSuspend={(sellerId) => setSuspendSellerId(sellerId)}
+      />
+
+      <SuspendSellerModal
+        isOpen={suspendSellerId != null}
+        storeName={sellerDetail?.storeName}
+        isSubmitting={suspendSellerMutation.isPending}
+        onClose={() => setSuspendSellerId(null)}
+        onConfirm={(reason) => {
+          if (suspendSellerId == null) return;
+          suspendSellerMutation.mutate(
+            { id: suspendSellerId, data: { reason } },
+            {
+              onSuccess: () => {
+                showToast('Tienda suspendida');
+                setSuspendSellerId(null);
+                setSellerInfoOpen(false);
+              },
+              onError: (error: any) => {
+                showToast(error?.response?.data?.message || 'No se pudo suspender la tienda');
+              },
+            },
+          );
+        }}
       />
 
       <SellerDocumentsModal

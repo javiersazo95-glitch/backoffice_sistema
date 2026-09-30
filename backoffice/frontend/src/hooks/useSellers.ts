@@ -55,6 +55,8 @@ export function useSuspendSeller() {
       sellersApi.suspendSeller(id, data),
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['sellers'] });
+      // La suspension crea un caso en "Cuentas bloqueadas" y cierra las mediaciones de sus pedidos cancelados.
+      queryClient.invalidateQueries({ queryKey: ['mediations'] });
       queryClient.invalidateQueries({ queryKey: ['seller', variables.id] });
       queryClient.invalidateQueries({ queryKey: ['audits'] });
       queryClient.invalidateQueries({ queryKey: ['seller-block-history', variables.id] });
