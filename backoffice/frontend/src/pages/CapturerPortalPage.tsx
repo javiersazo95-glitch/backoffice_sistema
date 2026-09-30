@@ -10,6 +10,8 @@ import type { CapturerConfig,CapturerDashboard,CapturerMovement } from '@/types/
 import { DEFAULT_CAPTURER_CONFIG } from '@/types/capturer';
 import { BANCOS_BCI,TIPO_CUENTA_OPTIONS } from '@/modules/administration/constants';
 import CapturerLayout from '@/components/capturer/CapturerLayout';
+import { useIsMobile } from '@/hooks/useIsMobile';
+import { RecordCard, RecordList, EmptyState } from '@/components/mobile';
 
 // Los datos bancarios del captador se solicitan igual que los de un socio para el
 // retiro de dinero: RUT, titular, banco (con código BCI), tipo y número de cuenta.
@@ -277,6 +279,7 @@ function Comisiones({d,estado,onEstado}:{d:CapturerDashboard;estado:string;onEst
 type RankRow={posicion:number;alias:string;region:string;puntos:number;propio:boolean;fotoPerfil?:string|null};
 const rankColors=['#1462e8','#07845a','#7040d7','#ef3e75','#0f766e','#b45309'];
 function Ranking({d,data,loading,mode,onMode,period,onPeriod}:{d:CapturerDashboard;data?:{posicionPropia:number;posiciones:RankRow[]};loading:boolean;mode:'REGIONAL'|'GLOBAL';onMode:(v:'REGIONAL'|'GLOBAL')=>void;period:string;onPeriod:(v:string)=>void}){
+ const isMobile=useIsMobile();
  const [search,setSearch]=useState('');
  const [regionF,setRegionF]=useState('TODAS');
  const [order,setOrder]=useState('POSICION');
@@ -352,7 +355,26 @@ function Ranking({d,data,loading,mode,onMode,period,onPeriod}:{d:CapturerDashboa
 
   <section className="cap-rk-table-card">
    <div className="cap-table-wrap">
-    <table className="cap-table cap-rk-table">
+    {isMobile ? (
+ <RecordList loading={loading} ariaLabel="Ranking de captadores" empty={<EmptyState icon="crown" title="Sin participantes" description="Todavía no hay participantes para este período." />}>
+  {visibles.map(r=>{
+   const dif=r.puntos-puntos;
+   return <RecordCard key={`${r.alias}-${r.posicion}`}
+    leading={<CapturerAvatar className="cap-rk-avatar" nombre={r.alias} fotoPerfil={r.fotoPerfil} background={rankColors[r.posicion%rankColors.length]}/>}
+    title={<>@{r.alias}{r.propio&&<span className="cap-rk-you">Tú</span>}</>}
+    subtitle={r.region}
+    badge={<span className={`cap-rk-pos${r.posicion<=3?' cap-rk-pos-top':''}`}>{r.posicion<=3&&<span aria-hidden="true">{['🥇','🥈','🥉'][r.posicion-1]}</span>}#{r.posicion}</span>}
+    tone={r.propio?'success':'default'}
+    selected={r.propio}
+    meta={[
+     {label:'Puntos',value:r.puntos.toLocaleString('es-CL')},
+     {label:'Diferencia contigo',value:r.propio?'—':<span className={dif>0?'cap-dif cap-dif-up':dif<0?'cap-dif cap-dif-down':'cap-dif'}>{dif>0?'+':''}{dif.toLocaleString('es-CL')}</span>},
+    ]}
+   />;
+  })}
+ </RecordList>
+) : (
+<table className="cap-table cap-rk-table">
      <thead><tr><th>Posición</th><th>Captador</th><th>Región</th><th className="cap-right">Puntos</th><th className="cap-right">Diferencia contigo</th></tr></thead>
      <tbody>
       {loading?<tr><td colSpan={5} className="cap-empty-cell">Cargando ranking…</td></tr>:
@@ -377,6 +399,7 @@ function Ranking({d,data,loading,mode,onMode,period,onPeriod}:{d:CapturerDashboa
        }):<tr><td colSpan={5} className="cap-empty-cell">Todavía no hay participantes para este período.</td></tr>}
      </tbody>
     </table>
+)}
    </div>
    <footer className="cap-rk-foot">
     <span>Mostrando {desde} a {hasta} de {filtered.length} captadores</span>
@@ -428,6 +451,7 @@ function pageList(current:number,pages:number):Array<number|'…'>{
 /* ---------------- Retiros y banco ---------------- */
 const bankRequired:Array<keyof BankForm>=['rut','titular','banco','tipoCuenta','numeroCuenta'];
 function Finanzas({d,bank,onBank,amount,onAmount,receipt,onReceipt,onSaveBank,onWithdraw}:{d:CapturerDashboard;bank:BankForm;onBank:(v:BankForm|((b:BankForm)=>BankForm))=>void;amount:string;onAmount:(v:string)=>void;receipt:File|null;onReceipt:(f:File|null)=>void;onSaveBank:(e:React.FormEvent)=>void;onWithdraw:(e:React.FormEvent)=>void}){
+ const isMobile=useIsMobile();
  const set=(patch:Partial<BankForm>)=>onBank(b=>({...b,...patch}));
  const bankComplete=bankRequired.every(k=>String(bank[k]??'').trim().length>0);
  const solicitudEnCurso=d.retiros.find(r=>r.estado==='PENDIENTE'||r.estado==='EN_REVISION');
@@ -554,7 +578,23 @@ function Finanzas({d,bank,onBank,amount,onAmount,receipt,onReceipt,onSaveBank,on
   <section className="cap-card">
    <div className="cap-card-head"><h2 className="cap-h2">Historial de retiros</h2><span className="cap-muted cap-sub">{d.retiros.length} solicitud(es)</span></div>
    <div className="cap-table-wrap">
-    <table className="cap-table">
+    {isMobile ? (
+ <RecordList ariaLabel="Historial de retiros" empty={<EmptyState icon="bank" title="Sin retiros" description="Aún no has solicitado retiros." />}>
+  {d.retiros.map(r=><RecordCard key={r.id}
+   title={r.codigo}
+   subtitle={`Solicitado el ${new Date(r.fecha).toLocaleDateString('es-CL')}`}
+   badge={<Badge estado={r.estado}/>}
+   tone={r.estado==='RECHAZADO'?'danger':r.estado==='PAGADO'?'success':'default'}
+   meta={[
+    {label:'Monto',value:<strong>{formatCurrency(r.monto)}</strong>},
+    {label:'Fecha de pago',value:r.fechaPago?new Date(r.fechaPago).toLocaleDateString('es-CL'):'—'},
+    {label:'Cuenta destino',value:r.banco?`${r.banco} · ${[r.tipoCuenta,r.numeroCuenta].filter(Boolean).join(' · ')||'—'}`:'—',wide:true},
+    ...(r.motivoRechazo?[{label:'Observación',value:r.motivoRechazo,wide:true}]:[]),
+   ]}
+  />)}
+ </RecordList>
+) : (
+<table className="cap-table">
      <thead><tr><th>Fecha</th><th>Código</th><th>Cuenta destino</th><th className="cap-right">Monto</th><th>Estado</th><th>Fecha de pago</th><th>Observación</th></tr></thead>
      <tbody>{d.retiros.length?d.retiros.map(r=><tr key={r.id}>
       <td>{new Date(r.fecha).toLocaleDateString('es-CL')}</td>
@@ -566,6 +606,7 @@ function Finanzas({d,bank,onBank,amount,onAmount,receipt,onReceipt,onSaveBank,on
       <td className="cap-muted">{r.motivoRechazo||'—'}</td>
      </tr>):<tr><td colSpan={7} className="cap-empty-cell">Aún no has solicitado retiros.</td></tr>}</tbody>
     </table>
+)}
    </div>
   </section>
  </div>;
@@ -582,8 +623,26 @@ function FunnelStep({icon,label,value,tone}:{icon:ReactNode;label:string;value:n
  return <div className="cap-funnel-step"><span className={`cap-metric-icon cap-tone-${tone}`}>{icon}</span><div><span className="cap-metric-label">{label}</span><strong>{value}</strong></div></div>;
 }
 function MovementsTable({rows}:{rows:CapturerMovement[]}){
+ const isMobile=useIsMobile();
  return <div className="cap-table-wrap">
-  <table className="cap-table">
+  {isMobile ? (
+ <RecordList ariaLabel="Movimientos de comisión" empty={<EmptyState icon="wallet" title="Sin movimientos" description="Aún no tienes movimientos de comisión." />}>
+  {rows.map(m=>{
+   const negocio=(m.negocioNombre||'').trim()||m.descripcion;
+   return <RecordCard key={m.id}
+    leading={<CapturerAvatar className="cap-feed-avatar" nombre={negocio} fotoPerfil={m.negocioFoto}/>}
+    title={negocio}
+    subtitle={`${new Date(m.fecha).toLocaleDateString('es-CL')}${m.negocioNombre&&m.descripcion&&m.descripcion!==m.negocioNombre?` · ${m.descripcion}`:''}`}
+    badge={<Badge estado={m.estado}/>}
+    meta={[
+     {label:'Comisión',value:<strong>{formatCurrency(m.montoComision)}</strong>},
+     {label:'Tipo',value:<span className={`cap-chip cap-chip-${m.tipo==='CASA'||m.tipo==='VENTA_REPUESTOS'||m.tipo==='COMPRA_COMPRADOR'?'blue':'violet'}`}>{tipoLabel(m.tipo)}</span>},
+    ]}
+   />;
+  })}
+ </RecordList>
+) : (
+<table className="cap-table">
    <thead><tr><th>Fecha</th><th>Empresa / Negocio</th><th>Tipo</th><th className="cap-right">Comisión</th><th>Estado</th></tr></thead>
    <tbody>{rows.length?rows.map(m=>{
     const negocio = (m.negocioNombre || '').trim() || m.descripcion;
@@ -608,6 +667,7 @@ function MovementsTable({rows}:{rows:CapturerMovement[]}){
     );
    }):<tr><td colSpan={5} className="cap-empty-cell">Aún no tienes movimientos de comisión.</td></tr>}</tbody>
   </table>
+)}
  </div>;
 }
 function Badge({estado}:{estado:string}){

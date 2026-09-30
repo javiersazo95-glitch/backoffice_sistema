@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import UiIcon from '@/components/shared/UiIcon';
+import MobileTopBar from '@/components/mobile/MobileTopBar';
+import { useIsMobile } from '@/hooks/useIsMobile';
 import { showToast } from '@/components/layout/Toast';
 import * as permissionsApi from '@/api/permissions';
 import * as foundersApi from '@/api/founders';
@@ -73,6 +75,7 @@ function invitationStatus(user: permissionsApi.PermissionUser) {
 
 export default function PermissionsConfigPage() {
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<'permisos' | 'usuarios' | 'captadores' | 'fundador'>('permisos');
   const [inviteName, setInviteName] = useState('');
@@ -305,7 +308,10 @@ export default function PermissionsConfigPage() {
   };
 
   return (
-    <section className="permissions-config-shell">
+    <section className={`permissions-config-shell${isMobile ? ' mb-standalone' : ''}`}>
+      {isMobile && (
+        <MobileTopBar leading="back" title="Gestión de permisos" subtitle="Configuración" onBack={() => navigate('/')} />
+      )}
       <header className="permissions-config-topbar">
         <button className="ghost-button" onClick={() => navigate('/')}>
           <UiIcon name="arrowRight" className="rotate-180" />

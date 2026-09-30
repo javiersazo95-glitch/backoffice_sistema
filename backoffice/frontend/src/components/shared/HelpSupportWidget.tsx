@@ -6,6 +6,8 @@ import * as supportApi from '@/api/support';
 import type { TicketCategory, TicketPriority, TicketPlatform } from '@/api/support';
 import UiIcon from './UiIcon';
 import { showToast } from '@/components/layout/Toast';
+import { useIsMobile } from '@/hooks/useIsMobile';
+import BottomSheet from '@/components/mobile/BottomSheet';
 
 interface HelpSupportWidgetProps {
   /** Controlled mode: pass isOpen + onClose to use without the floating button */
@@ -13,130 +15,7 @@ interface HelpSupportWidgetProps {
   onClose?: () => void;
 }
 
-export default function HelpSupportWidget({ isOpen: controlledOpen, onClose }: HelpSupportWidgetProps = {}) {
-  const [localOpen, setLocalOpen] = useState(false);
-  const isControlled = controlledOpen !== undefined;
-  const isOpen = isControlled ? controlledOpen : localOpen;
-  const closePanel = isControlled ? (onClose ?? (() => {})) : () => setLocalOpen(false);
-  const togglePanel = () => setLocalOpen((prev) => !prev);
-  const [view, setView] = useState<'help' | 'report'>('help');
-  const location = useLocation();
-  const { user } = useAuth();
-  const queryClient = useQueryClient();
-
-  // Determine current platform based on route
-  const currentPlatformInfo = useMemo<{
-    id: TicketPlatform;
-    name: string;
-    faqs: { q: string; a: string }[];
-  }>(() => {
-    const path = location.pathname;
-    if (path.includes('/administracion')) {
-      return {
-        id: 'ADMINISTRACION_CONTABLE',
-        name: 'Administración Contable',
-        faqs: [
-          {
-            q: '¿Cómo conciliar movimientos?',
-            a: 'Ve a la sección Gastos o Liquidaciones, sube tu planilla CSV de transacciones bancarias, y utiliza la verificación automática.',
-          },
-          {
-            q: '¿Cuándo se liberan los fondos a tiendas?',
-            a: 'Las liquidaciones semanales se calculan y consolidan automáticamente cada lunes para todas las órdenes en estado "Completados".',
-          },
-          {
-            q: '¿Cómo registrar retiros de socios?',
-            a: 'En la sección de Retiros de Socios, haz clic en "Registrar retiro". Asegúrate de que el monto no exceda el cupo máximo disponible.',
-          },
-        ],
-      };
-    } else if (path.includes('/confianza')) {
-      return {
-        id: 'MEDIACION_CONFIANZA',
-        name: 'Mediación y Confianza',
-        faqs: [
-          {
-            q: '¿Cómo validar un vendedor nuevo?',
-            a: 'Ingresa a Validaciones, revisa los documentos cargados (RUT, Patente) y verifica que la información tributaria y RUT coincidan.',
-          },
-          {
-            q: '¿Cuándo se escala una mediación?',
-            a: 'Si un vendedor no responde al reclamo del comprador tras 3 días hábiles, el caso se escala para intervención del mediador.',
-          },
-          {
-            q: '¿Cómo bloquear una cuenta sospechosa?',
-            a: 'Abre la ficha del vendedor desde Perfiles y selecciona "Suspender cuenta". El sistema bloqueará sus retiros y operaciones.',
-          },
-        ],
-      };
-    }
-    return {
-      id: 'APP_MOBILE',
-      name: 'App Mobile RepuesTop',
-      faqs: [
-        {
-          q: '¿Cómo reportar errores generales?',
-          a: 'Describe la falla en el formulario de abajo indicando los pasos para reproducir el bug y su nivel de impacto.',
-        },
-      ],
-    };
-  }, [location.pathname]);
-
-  // Form states
-  const [reason, setReason] = useState('');
-  const [description, setDescription] = useState('');
-  const [category, setCategory] = useState<TicketCategory>('FALLA_TECNICA');
-  const [priority, setPriority] = useState<TicketPriority>('MEDIA');
-  const [reporterName, setReporterName] = useState(user?.fullName || 'Operador Interno');
-
-  const createMutation = useMutation({
-    mutationFn: supportApi.createTicket,
-    onSuccess: () => {
-      // Invalidate queries so support dashboard updates
-      queryClient.invalidateQueries({ queryKey: ['support-workspace'] });
-      queryClient.invalidateQueries({ queryKey: ['support-tickets'] });
-      queryClient.invalidateQueries({ queryKey: ['support-tickets-global'] });
-      
-      showToast('Falla reportada exitosamente a Soporte');
-      closePanel();
-      resetForm();
-    },
-    onError: (err: any) => {
-      showToast(err.message || 'Error al enviar reporte de soporte');
-    },
-  });
-
-  const resetForm = () => {
-    setReason('');
-    setDescription('');
-    setCategory('FALLA_TECNICA');
-    setPriority('MEDIA');
-    setView('help');
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!reason.trim() || !description.trim()) {
-      showToast('Por favor completa todos los campos obligatorios');
-      return;
-    }
-
-    createMutation.mutate({
-      reason,
-      lastMessage: description,
-      category,
-      priority,
-      reporterType: 'INTERNO',
-      reporterName,
-      sellerId: null,
-      platform: currentPlatformInfo.id,
-    });
-  };
-
-  return (
-    <>
-      {/* CSS Styles injection for self-containment */}
-      <style>{`
+const helpStyles = `
         .help-widget-btn {
           position: fixed;
           bottom: 24px;
@@ -380,7 +259,274 @@ export default function HelpSupportWidget({ isOpen: controlledOpen, onClose }: H
           opacity: 0.6;
           cursor: not-allowed;
         }
-      `}</style>
+`;
+
+export default function HelpSupportWidget({ isOpen: controlledOpen, onClose }: HelpSupportWidgetProps = {}) {
+  const [localOpen, setLocalOpen] = useState(false);
+  const isControlled = controlledOpen !== undefined;
+  const isOpen = isControlled ? controlledOpen : localOpen;
+  const closePanel = isControlled ? (onClose ?? (() => {})) : () => setLocalOpen(false);
+  const togglePanel = () => setLocalOpen((prev) => !prev);
+  const [view, setView] = useState<'help' | 'report'>('help');
+  const location = useLocation();
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
+
+  // Determine current platform based on route
+  const currentPlatformInfo = useMemo<{
+    id: TicketPlatform;
+    name: string;
+    faqs: { q: string; a: string }[];
+  }>(() => {
+    const path = location.pathname;
+    if (path.includes('/administracion')) {
+      return {
+        id: 'ADMINISTRACION_CONTABLE',
+        name: 'Administración Contable',
+        faqs: [
+          {
+            q: '¿Cómo conciliar movimientos?',
+            a: 'Ve a la sección Gastos o Liquidaciones, sube tu planilla CSV de transacciones bancarias, y utiliza la verificación automática.',
+          },
+          {
+            q: '¿Cuándo se liberan los fondos a tiendas?',
+            a: 'Las liquidaciones semanales se calculan y consolidan automáticamente cada lunes para todas las órdenes en estado "Completados".',
+          },
+          {
+            q: '¿Cómo registrar retiros de socios?',
+            a: 'En la sección de Retiros de Socios, haz clic en "Registrar retiro". Asegúrate de que el monto no exceda el cupo máximo disponible.',
+          },
+        ],
+      };
+    } else if (path.includes('/confianza')) {
+      return {
+        id: 'MEDIACION_CONFIANZA',
+        name: 'Mediación y Confianza',
+        faqs: [
+          {
+            q: '¿Cómo validar un vendedor nuevo?',
+            a: 'Ingresa a Validaciones, revisa los documentos cargados (RUT, Patente) y verifica que la información tributaria y RUT coincidan.',
+          },
+          {
+            q: '¿Cuándo se escala una mediación?',
+            a: 'Si un vendedor no responde al reclamo del comprador tras 3 días hábiles, el caso se escala para intervención del mediador.',
+          },
+          {
+            q: '¿Cómo bloquear una cuenta sospechosa?',
+            a: 'Abre la ficha del vendedor desde Perfiles y selecciona "Suspender cuenta". El sistema bloqueará sus retiros y operaciones.',
+          },
+        ],
+      };
+    }
+    return {
+      id: 'APP_MOBILE',
+      name: 'App Mobile RepuesTop',
+      faqs: [
+        {
+          q: '¿Cómo reportar errores generales?',
+          a: 'Describe la falla en el formulario de abajo indicando los pasos para reproducir el bug y su nivel de impacto.',
+        },
+      ],
+    };
+  }, [location.pathname]);
+
+  // Form states
+  const [reason, setReason] = useState('');
+  const [description, setDescription] = useState('');
+  const [category, setCategory] = useState<TicketCategory>('FALLA_TECNICA');
+  const [priority, setPriority] = useState<TicketPriority>('MEDIA');
+  const [reporterName, setReporterName] = useState(user?.fullName || 'Operador Interno');
+
+  const createMutation = useMutation({
+    mutationFn: supportApi.createTicket,
+    onSuccess: () => {
+      // Invalidate queries so support dashboard updates
+      queryClient.invalidateQueries({ queryKey: ['support-workspace'] });
+      queryClient.invalidateQueries({ queryKey: ['support-tickets'] });
+      queryClient.invalidateQueries({ queryKey: ['support-tickets-global'] });
+      
+      showToast('Falla reportada exitosamente a Soporte');
+      closePanel();
+      resetForm();
+    },
+    onError: (err: any) => {
+      showToast(err.message || 'Error al enviar reporte de soporte');
+    },
+  });
+
+  const resetForm = () => {
+    setReason('');
+    setDescription('');
+    setCategory('FALLA_TECNICA');
+    setPriority('MEDIA');
+    setView('help');
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!reason.trim() || !description.trim()) {
+      showToast('Por favor completa todos los campos obligatorios');
+      return;
+    }
+
+    createMutation.mutate({
+      reason,
+      lastMessage: description,
+      category,
+      priority,
+      reporterType: 'INTERNO',
+      reporterName,
+      sellerId: null,
+      platform: currentPlatformInfo.id,
+    });
+  };
+
+  const panelBody = (
+    <div className="help-panel-body">
+      {view === 'help' ? (
+        /* VIEW: HELP / FAQ */
+        <div className="help-faq-section">
+          <h4 className="help-faq-title">Preguntas Frecuentes</h4>
+          {currentPlatformInfo.faqs.map((faq, index) => (
+            <div className="help-faq-item" key={index}>
+              <strong className="help-faq-q">
+                <UiIcon name="check" style={{ width: 14, height: 14, color: 'var(--blue)' }} />
+                {faq.q}
+              </strong>
+              <p className="help-faq-a">{faq.a}</p>
+            </div>
+          ))}
+        </div>
+      ) : (
+        /* VIEW: REPORT BUG FORM */
+        <form onSubmit={handleSubmit}>
+          <div className="help-form-header" onClick={() => setView('help')}>
+            <UiIcon name="arrowLeft" />
+            <span>Volver a preguntas frecuentes</span>
+          </div>
+
+          <div className="help-form-group">
+            <label>Plataforma Origen</label>
+            <input
+              type="text"
+              className="help-input help-input-readonly"
+              value={currentPlatformInfo.name}
+              readOnly
+            />
+          </div>
+
+          <div className="help-form-group">
+            <label>Reportante (Tú)</label>
+            <input
+              type="text"
+              className="help-input"
+              value={reporterName}
+              onChange={(e) => setReporterName(e.target.value)}
+              required
+            />
+          </div>
+
+          <div className="help-form-group" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            <div>
+              <label>Categoría</label>
+              <select
+                className="help-select"
+                value={category}
+                onChange={(e) => setCategory(e.target.value as TicketCategory)}
+              >
+                <option value="FALLA_TECNICA">Falla Técnica</option>
+                <option value="SOLICITUD_AYUDA">Ayuda</option>
+                <option value="CONSULTA">Consulta</option>
+              </select>
+            </div>
+            <div>
+              <label>Prioridad</label>
+              <select
+                className="help-select"
+                value={priority}
+                onChange={(e) => setPriority(e.target.value as TicketPriority)}
+              >
+                <option value="CRITICA">Crítica</option>
+                <option value="ALTA">Alta</option>
+                <option value="MEDIA">Media</option>
+                <option value="BAJA">Baja</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="help-form-group">
+            <label>Asunto o Título del Reporte</label>
+            <input
+              type="text"
+              className="help-input"
+              placeholder="Ej. Error al validar RUT comercial"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              required
+            />
+          </div>
+
+          <div className="help-form-group">
+            <label>Descripción del Problema</label>
+            <textarea
+              className="help-textarea"
+              placeholder="Describe los pasos para reproducir o los detalles de tu consulta..."
+              rows={4}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              required
+            />
+          </div>
+
+          <button
+            className="help-form-submit-btn"
+            type="submit"
+            disabled={createMutation.isPending}
+          >
+            <UiIcon name="check" />
+            {createMutation.isPending ? 'Enviando...' : 'Enviar Reporte a Soporte'}
+          </button>
+        </form>
+      )}
+    </div>
+
+  );
+
+  const panelFooter = view === 'help' ? (
+    <footer className="help-panel-footer">
+      <button className="help-report-trigger-btn" type="button" onClick={() => setView('report')}>
+        <UiIcon name="alert" />
+        Reportar Falla o Incidencia
+      </button>
+    </footer>
+  ) : null;
+
+  if (isMobile) {
+    return (
+      <>
+        <style>{helpStyles}</style>
+        <BottomSheet
+          open={isOpen}
+          onClose={closePanel}
+          title="Ayuda e incidencias"
+          subtitle={`Plataforma: ${currentPlatformInfo.name}`}
+          height="full"
+          flush
+          id="mb-help"
+          className="mb-help-sheet"
+        >
+          {panelBody}
+          {panelFooter}
+        </BottomSheet>
+      </>
+    );
+  }
+
+  return (
+    <>
+      {/* CSS Styles injection for self-containment */}
+      <style>{helpStyles}</style>
 
       {/* Floating button — hidden on /administracion and /confianza (help icon in page header handles it there) */}
       {!isControlled && !location.pathname.startsWith('/administracion') && !location.pathname.startsWith('/confianza') && (
@@ -403,122 +549,9 @@ export default function HelpSupportWidget({ isOpen: controlledOpen, onClose }: H
             </button>
           </header>
 
-          <div className="help-panel-body">
-            {view === 'help' ? (
-              /* VIEW: HELP / FAQ */
-              <div className="help-faq-section">
-                <h4 className="help-faq-title">Preguntas Frecuentes</h4>
-                {currentPlatformInfo.faqs.map((faq, index) => (
-                  <div className="help-faq-item" key={index}>
-                    <strong className="help-faq-q">
-                      <UiIcon name="check" style={{ width: 14, height: 14, color: 'var(--blue)' }} />
-                      {faq.q}
-                    </strong>
-                    <p className="help-faq-a">{faq.a}</p>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              /* VIEW: REPORT BUG FORM */
-              <form onSubmit={handleSubmit}>
-                <div className="help-form-header" onClick={() => setView('help')}>
-                  <UiIcon name="arrowLeft" />
-                  <span>Volver a preguntas frecuentes</span>
-                </div>
+          {panelBody}
 
-                <div className="help-form-group">
-                  <label>Plataforma Origen</label>
-                  <input
-                    type="text"
-                    className="help-input help-input-readonly"
-                    value={currentPlatformInfo.name}
-                    readOnly
-                  />
-                </div>
-
-                <div className="help-form-group">
-                  <label>Reportante (Tú)</label>
-                  <input
-                    type="text"
-                    className="help-input"
-                    value={reporterName}
-                    onChange={(e) => setReporterName(e.target.value)}
-                    required
-                  />
-                </div>
-
-                <div className="help-form-group" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                  <div>
-                    <label>Categoría</label>
-                    <select
-                      className="help-select"
-                      value={category}
-                      onChange={(e) => setCategory(e.target.value as TicketCategory)}
-                    >
-                      <option value="FALLA_TECNICA">Falla Técnica</option>
-                      <option value="SOLICITUD_AYUDA">Ayuda</option>
-                      <option value="CONSULTA">Consulta</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label>Prioridad</label>
-                    <select
-                      className="help-select"
-                      value={priority}
-                      onChange={(e) => setPriority(e.target.value as TicketPriority)}
-                    >
-                      <option value="CRITICA">Crítica</option>
-                      <option value="ALTA">Alta</option>
-                      <option value="MEDIA">Media</option>
-                      <option value="BAJA">Baja</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="help-form-group">
-                  <label>Asunto o Título del Reporte</label>
-                  <input
-                    type="text"
-                    className="help-input"
-                    placeholder="Ej. Error al validar RUT comercial"
-                    value={reason}
-                    onChange={(e) => setReason(e.target.value)}
-                    required
-                  />
-                </div>
-
-                <div className="help-form-group">
-                  <label>Descripción del Problema</label>
-                  <textarea
-                    className="help-textarea"
-                    placeholder="Describe los pasos para reproducir o los detalles de tu consulta..."
-                    rows={4}
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    required
-                  />
-                </div>
-
-                <button
-                  className="help-form-submit-btn"
-                  type="submit"
-                  disabled={createMutation.isPending}
-                >
-                  <UiIcon name="check" />
-                  {createMutation.isPending ? 'Enviando...' : 'Enviar Reporte a Soporte'}
-                </button>
-              </form>
-            )}
-          </div>
-
-          {view === 'help' && (
-            <footer className="help-panel-footer">
-              <button className="help-report-trigger-btn" type="button" onClick={() => setView('report')}>
-                <UiIcon name="alert" />
-                Reportar Falla o Incidencia
-              </button>
-            </footer>
-          )}
+          {panelFooter}
         </article>
       )}
     </>

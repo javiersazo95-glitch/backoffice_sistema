@@ -267,31 +267,31 @@ export default function SellerDetailCard({
               </button>
             </div>
             <div className="case-modal-body" style={{ display: 'grid', gap: '12px', padding: '16px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '8px', borderBottom: '1px solid #f1f3f4', paddingBottom: '8px' }}>
+              <div className="mb-kv" style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '8px', borderBottom: '1px solid #f1f3f4', paddingBottom: '8px' }}>
                 <span style={{ color: '#5f6368', fontSize: '12px' }}>Razón social</span>
                 <strong style={{ fontSize: '13px' }}>{getBankDetails(seller).razonSocial}</strong>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '8px', borderBottom: '1px solid #f1f3f4', paddingBottom: '8px' }}>
+              <div className="mb-kv" style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '8px', borderBottom: '1px solid #f1f3f4', paddingBottom: '8px' }}>
                 <span style={{ color: '#5f6368', fontSize: '12px' }}>Banco</span>
                 <strong style={{ fontSize: '13px' }}>{getBankDetails(seller).bank}</strong>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '8px', borderBottom: '1px solid #f1f3f4', paddingBottom: '8px' }}>
+              <div className="mb-kv" style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '8px', borderBottom: '1px solid #f1f3f4', paddingBottom: '8px' }}>
                 <span style={{ color: '#5f6368', fontSize: '12px' }}>Tipo de cuenta</span>
                 <strong style={{ fontSize: '13px' }}>{getBankDetails(seller).accountType}</strong>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '8px', borderBottom: '1px solid #f1f3f4', paddingBottom: '8px' }}>
+              <div className="mb-kv" style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '8px', borderBottom: '1px solid #f1f3f4', paddingBottom: '8px' }}>
                 <span style={{ color: '#5f6368', fontSize: '12px' }}>N° de cuenta</span>
                 <strong style={{ fontSize: '13px' }}>{getBankDetails(seller).accountNumber}</strong>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '8px', borderBottom: '1px solid #f1f3f4', paddingBottom: '8px' }}>
+              <div className="mb-kv" style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '8px', borderBottom: '1px solid #f1f3f4', paddingBottom: '8px' }}>
                 <span style={{ color: '#5f6368', fontSize: '12px' }}>RUT</span>
                 <strong style={{ fontSize: '13px' }}>{getBankDetails(seller).rut}</strong>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '8px', borderBottom: '1px solid #f1f3f4', paddingBottom: '8px' }}>
+              <div className="mb-kv" style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '8px', borderBottom: '1px solid #f1f3f4', paddingBottom: '8px' }}>
                 <span style={{ color: '#5f6368', fontSize: '12px' }}>Email</span>
                 <strong style={{ fontSize: '13px' }}>{getBankDetails(seller).email}</strong>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '8px' }}>
+              <div className="mb-kv" style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '8px' }}>
                 <span style={{ color: '#5f6368', fontSize: '12px' }}>Beneficiario</span>
                 <strong style={{ fontSize: '13px' }}>{getBankDetails(seller).beneficiary}</strong>
               </div>

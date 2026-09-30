@@ -10,6 +10,9 @@ import type { AuditFilterRequest } from '@/types/audit';
 import { AuditModule } from '@/types/audit';
 import AreaHomeShortcut from '@/components/shared/AreaHomeShortcut';
 import FounderSellerName from '@/components/shared/FounderSellerName';
+import { useIsMobile } from '@/hooks/useIsMobile';
+import { RecordCard, RecordList, EmptyState, DetailSheet, FilterSheet, FilterTrigger } from '@/components/mobile';
+import { countActiveFilters } from '@/utils/filters';
 
 function formatPeriod(start: string, end: string): string {
   if (!start || !end) return 'Todo el periodo';
@@ -27,6 +30,8 @@ export default function AuditPage() {
   const [filter, setFilter] = useState<AuditFilterRequest>({ page: 0, size: PAGE_SIZES.AUDITS });
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [periodOpen, setPeriodOpen] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const isMobile = useIsMobile();
 
   const { data, isLoading } = useQuery({
     queryKey: ['audits', filter],
@@ -63,6 +68,67 @@ export default function AuditPage() {
     );
   };
 
+  const expandedDetail = expandedLog ? (
+    <div className="audit-detail-card">
+      <div className="audit-detail-hero">
+        <div className="status-icon blue">
+          <span className="ui-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg></span>
+        </div>
+        <div className="audit-hero-copy">
+          <span>AUDITORÍA DETALLE</span>
+          <h2>{expandedLog.action}</h2>
+          <p>{expandedLog.detail}</p>
+        </div>
+        <div className="audit-hero-status">
+          <Badge text={expandedLog.result} variant={expandedLog.result === 'EXITOSO' ? 'APROBADO' : 'RECHAZADO'} />
+          <small>IP: {expandedLog.ipAddress}</small>
+        </div>
+      </div>
+
+      <div className="audit-detail-grid">
+        <div className="audit-context-card">
+          <div className="audit-section-head">
+            <div className="status-icon blue mini-icon">
+              <span className="ui-icon"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /></svg></span>
+            </div>
+            <div>
+              <h3>Contexto</h3>
+              <p>{expandedLog.userFullName} · <FounderSellerName name={expandedLog.sellerName} founder={expandedLog.sellerFounder} /></p>
+            </div>
+          </div>
+          <div className="audit-context-meta">
+            <span>Operador <strong>{expandedLog.userFullName}</strong></span>
+            <span>Vendedor <strong><FounderSellerName name={expandedLog.sellerName} founder={expandedLog.sellerFounder} /></strong></span>
+            <span>RUT <strong>{expandedLog.sellerRut}</strong></span>
+            <span>Módulo <strong>{expandedLog.module}</strong></span>
+          </div>
+        </div>
+
+        <div className="audit-change-card">
+          <div className="audit-section-head">
+            <div className="status-icon amber mini-icon">
+              <span className="ui-icon"><svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" /></svg></span>
+            </div>
+            <div>
+              <h3>Cambios</h3>
+              <p>Estado anterior y posterior</p>
+            </div>
+          </div>
+          <div className="audit-state">
+            {renderState(expandedLog.previousState, 'Estado Anterior')}
+            <div className="arrow">
+              <span className="ui-icon"><svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></svg></span>
+            </div>
+            {renderState(expandedLog.nextState, 'Estado Posterior')}
+          </div>
+        </div>
+      </div>
+    </div>
+  ) : null;
+
+  const expandedRow = logs.find((log) => log.id === expandedId);
+  const activeFilterCount = countActiveFilters({ module: filter.module, startDate: filter.startDate, endDate: filter.endDate });
+
   return (
     <>
       <div className="page-header">
@@ -88,6 +154,79 @@ export default function AuditPage() {
       </div>
 
       <div className="panel">
+        {isMobile ? (
+          <>
+            <div className="mb-filter-row">
+              <input
+                type="search"
+                className="input"
+                placeholder="Buscar en bitácora…"
+                value={filter.search ?? ''}
+                onChange={(e) => setFilter((f) => ({ ...f, search: e.target.value, page: 0 }))}
+                aria-label="Buscar en bitácora"
+              />
+              <FilterTrigger count={activeFilterCount} onClick={() => setFiltersOpen(true)} />
+            </div>
+            <FilterSheet
+              open={filtersOpen}
+              onClose={() => setFiltersOpen(false)}
+              title="Filtrar bitácora"
+              activeCount={activeFilterCount}
+              onClear={() => setFilter((f) => ({ ...f, module: undefined, startDate: undefined, endDate: undefined, page: 0 }))}
+            >
+              <label>
+                Módulo
+                <select
+                  className="select"
+                  value={filter.module ?? ''}
+                  onChange={(e) => setFilter((f) => ({ ...f, module: (e.target.value || undefined) as AuditModule | undefined, page: 0 }))}
+                >
+                  <option value="">Todos los módulos</option>
+                  <option value="VENDEDORES">Vendedores</option>
+                  <option value="VALIDACIONES">Validaciones</option>
+                  <option value="MEDIACIONES">Mediaciones</option>
+                  <option value="ALERTAS">Alertas</option>
+                </select>
+              </label>
+              <div className="mb-filter-field">
+                Periodo
+                <div className="mb-chip-row">
+                  {periodPresets.map((preset) => {
+                    const active = (filter.startDate ?? '') === preset.start && (filter.endDate ?? '') === preset.end;
+                    return (
+                      <button
+                        key={preset.label}
+                        type="button"
+                        className={`mb-action${active ? ' mb-action--primary' : ''}`}
+                        onClick={() => setFilter((f) => ({ ...f, startDate: preset.start || undefined, endDate: preset.end || undefined, page: 0 }))}
+                      >
+                        {preset.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <label>
+                Desde
+                <input
+                  type="date"
+                  className="input"
+                  value={filter.startDate ?? ''}
+                  onChange={(e) => setFilter((f) => ({ ...f, startDate: e.target.value || undefined, page: 0 }))}
+                />
+              </label>
+              <label>
+                Hasta
+                <input
+                  type="date"
+                  className="input"
+                  value={filter.endDate ?? ''}
+                  onChange={(e) => setFilter((f) => ({ ...f, endDate: e.target.value || undefined, page: 0 }))}
+                />
+              </label>
+            </FilterSheet>
+          </>
+        ) : (
         <div className="audit-filter-bar">
           <input
             type="search"
@@ -139,9 +278,50 @@ export default function AuditPage() {
             )}
           </div>
         </div>
+        )}
 
         {isLoading ? (
           <div className="panel-body">Cargando bitácora...</div>
+        ) : isMobile ? (
+          <>
+            <RecordList
+              ariaLabel="Registros de auditoría"
+              empty={<EmptyState icon="audit" title="Sin registros" description="No hay movimientos en la bitácora para este filtro." />}
+            >
+              {logs.map((log) => (
+                <RecordCard
+                  key={log.id}
+                  title={log.action}
+                  subtitle={`${log.userFullName} · ${formatDateTime(log.createdAt)}`}
+                  badge={<Badge text={log.module} variant={moduleBadgeVariant[log.module] ?? ''} />}
+                  tone={log.result === 'EXITOSO' ? 'default' : 'danger'}
+                  meta={[
+                    { label: 'Vendedor', value: <FounderSellerName name={log.sellerName} founder={log.sellerFounder} /> },
+                    { label: 'Resultado', value: log.result },
+                    { label: 'Detalle', value: log.detail, wide: true },
+                  ]}
+                  selected={expandedId === log.id}
+                  onPress={() => setExpandedId(log.id)}
+                />
+              ))}
+            </RecordList>
+            <DetailSheet
+              open={Boolean(expandedRow)}
+              onClose={() => setExpandedId(null)}
+              title={expandedRow?.action ?? 'Detalle'}
+              subtitle={expandedRow ? formatDateTime(expandedRow.createdAt) : undefined}
+              id="mb-audit-detail"
+            >
+              {expandedDetail ?? <RecordList loading skeletonCount={2} />}
+            </DetailSheet>
+            <Pagination
+              currentPage={filter.page ?? 0}
+              totalPages={data?.totalPages ?? 0}
+              totalItems={data?.totalElements ?? 0}
+              pageSize={PAGE_SIZES.AUDITS}
+              onPageChange={(p) => setFilter((f) => ({ ...f, page: p }))}
+            />
+          </>
         ) : (
           <>
             <div className="table-wrap">
@@ -182,61 +362,7 @@ export default function AuditPage() {
                         <tr key={`${log.id}-detail`}>
                           <td colSpan={8} style={{ padding: 0, background: '#fbfdff' }}>
                             <div style={{ padding: 16 }}>
-                              <div className="audit-detail-card">
-                                <div className="audit-detail-hero">
-                                  <div className="status-icon blue">
-                                    <span className="ui-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg></span>
-                                  </div>
-                                  <div className="audit-hero-copy">
-                                    <span>AUDITORÍA DETALLE</span>
-                                    <h2>{expandedLog.action}</h2>
-                                    <p>{expandedLog.detail}</p>
-                                  </div>
-                                  <div className="audit-hero-status">
-                                    <Badge text={expandedLog.result} variant={expandedLog.result === 'EXITOSO' ? 'APROBADO' : 'RECHAZADO'} />
-                                    <small>IP: {expandedLog.ipAddress}</small>
-                                  </div>
-                                </div>
-
-                                <div className="audit-detail-grid">
-                                  <div className="audit-context-card">
-                                    <div className="audit-section-head">
-                                      <div className="status-icon blue mini-icon">
-                                        <span className="ui-icon"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /></svg></span>
-                                      </div>
-                                      <div>
-                                        <h3>Contexto</h3>
-                                        <p>{expandedLog.userFullName} · <FounderSellerName name={expandedLog.sellerName} founder={expandedLog.sellerFounder} /></p>
-                                      </div>
-                                    </div>
-                                    <div className="audit-context-meta">
-                                      <span>Operador <strong>{expandedLog.userFullName}</strong></span>
-                                      <span>Vendedor <strong><FounderSellerName name={expandedLog.sellerName} founder={expandedLog.sellerFounder} /></strong></span>
-                                      <span>RUT <strong>{expandedLog.sellerRut}</strong></span>
-                                      <span>Módulo <strong>{expandedLog.module}</strong></span>
-                                    </div>
-                                  </div>
-
-                                  <div className="audit-change-card">
-                                    <div className="audit-section-head">
-                                      <div className="status-icon amber mini-icon">
-                                        <span className="ui-icon"><svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" /></svg></span>
-                                      </div>
-                                      <div>
-                                        <h3>Cambios</h3>
-                                        <p>Estado anterior y posterior</p>
-                                      </div>
-                                    </div>
-                                    <div className="audit-state">
-                                      {renderState(expandedLog.previousState, 'Estado Anterior')}
-                                      <div className="arrow">
-                                        <span className="ui-icon"><svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></svg></span>
-                                      </div>
-                                      {renderState(expandedLog.nextState, 'Estado Posterior')}
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
+                              {expandedDetail}
                             </div>
                           </td>
                         </tr>

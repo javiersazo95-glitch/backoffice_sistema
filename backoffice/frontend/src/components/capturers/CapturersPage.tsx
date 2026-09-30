@@ -11,10 +11,13 @@ import CapturerVideoRepositoryView from "./CapturerVideoRepositoryView";
 import { NivelBadge, estadoNegocio, medalCss } from "./capturerMetricsUi";
 import CapturerDetailModal from "./CapturerDetailModal";
 import CapturerAvatar from "./CapturerAvatar";
+import { useIsMobile } from '@/hooks/useIsMobile';
+import { RecordCard, RecordList, EmptyState } from '@/components/mobile';
 
 type Counts = { casas: number; servicios: number };
 
 export default function CapturersPage() {
+  const isMobile = useIsMobile();
   const [search, setSearch] = useState("");
   const [state, setState] = useState("TODOS");
   const [region, setRegion] = useState("TODAS");
@@ -419,6 +422,45 @@ export default function CapturersPage() {
 
           <section className="cps-table-card">
             <div className="cps-table-wrap">
+              {isMobile ? (
+                <RecordList
+                  loading={q.isLoading}
+                  ariaLabel="Captadores"
+                  empty={<EmptyState icon="users" title="Sin captadores" description="No hay captadores que coincidan con los filtros." />}
+                >
+                  {rows.map((c, i) => {
+                    const n = counts.get(c.id);
+                    const pos = rankByAlias.get(c.alias)?.posicion;
+                    return (
+                      <RecordCard
+                        key={c.id}
+                        leading={<CapturerAvatar className="cps-avatar" nombre={c.nombre} fotoPerfil={c.fotoPerfil} background={colors[(c.id + i) % colors.length]} />}
+                        title={c.nombre}
+                        badgePlacement="below"
+                        subtitle={`@${c.alias} · ${c.comuna}, ${c.region}`}
+                        badge={(
+                          <>
+                            <span className={c.activo ? "cps-pill cps-pill-on" : "cps-pill cps-pill-off"}>{c.activo ? "Activo" : "Suspendido"}</span>
+                            {pos ? <span className={`cps-rank${pos <= 3 ? " cps-rank-top" : ""}`}>#{pos}</span> : null}
+                          </>
+                        )}
+                        tone={c.activo ? 'default' : 'muted'}
+                        meta={[
+                          { label: 'Código', value: c.codigoReferido || '—' },
+                          { label: 'Ganancia del mes', value: c.gananciaMes !== undefined && c.gananciaMes !== null ? formatCurrency(c.gananciaMes) : '—' },
+                          { label: 'Casas', value: n ? n.casas : '–' },
+                          { label: 'Servicios', value: n ? n.servicios : '–' },
+                          { label: 'Compradores', value: c.compradoresConvertidos ?? 0 },
+                          { label: 'Nivel', value: <NivelBadge nivel={c.nivelSocial} /> },
+                          { label: 'Contacto', value: `${c.email} · ${c.telefono || 'Sin teléfono'}`, wide: true },
+                        ]}
+                        onPress={() => setSelected(c)}
+                        ariaLabel={`Ver detalle de ${c.nombre}`}
+                      />
+                    );
+                  })}
+                </RecordList>
+              ) : (
               <table className="cps-table cps-table-fixed" style={{ minWidth: 980 }}>
                 <colgroup>
                   <col style={{ width: "15.5%" }} />
@@ -530,6 +572,7 @@ export default function CapturersPage() {
                   )}
                 </tbody>
               </table>
+              )}
             </div>
             <footer className="cps-foot">
               <span>

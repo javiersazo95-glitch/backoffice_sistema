@@ -4,6 +4,8 @@ import * as saleReceiptsApi from '@/api/saleReceipts';
 import MetricCard from '@/components/shared/MetricCard';
 import Pagination from '@/components/shared/Pagination';
 import UiIcon from '@/components/shared/UiIcon';
+import { useIsMobile } from '@/hooks/useIsMobile';
+import { RecordCard, RecordList, EmptyState } from '@/components/mobile';
 
 type Filtro = 'todas' | 'sin' | 'con';
 
@@ -42,6 +44,7 @@ function formatDateTime(value?: string | null) {
  * y una cancelada no documenta una venta que no ocurrió.
  */
 export default function BoletasVentaPage() {
+  const isMobile = useIsMobile();
   const [filtro, setFiltro] = useState<Filtro>('sin');
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(20);
@@ -155,7 +158,46 @@ export default function BoletasVentaPage() {
         )}
 
         <div className="table-wrap">
-          <table className="wide-table">
+          {isMobile ? (
+isError ? (
+  <EmptyState tone="error" icon="alert" title="No se pudieron cargar las subórdenes" description={error instanceof Error ? error.message : 'Error desconocido.'} action={<button type="button" className="mb-action" onClick={() => refetch()}><UiIcon name="refresh" />Reintentar</button>} />
+) : (
+<RecordList
+  loading={isLoading}
+  ariaLabel="Subórdenes"
+  empty={<EmptyState icon="fileCheck" title={filtro === 'sin' ? 'Todo documentado' : 'Sin subórdenes'} description={filtro === 'sin' ? 'No hay subórdenes confirmadas sin boleta.' : 'No hay subórdenes que mostrar con este filtro.'} />}
+>
+  {filas.map((fila) => (
+    <RecordCard
+      key={fila.subordenId}
+      title={fila.codigoPedido}
+      badgePlacement="below"
+      subtitle={`${fila.tienda || '—'} · ${formatDateTime(fila.fechaPedido)}`}
+      badge={(
+        <>
+          <span className={`status-pill ${ESTADO_TONO[fila.estado] || 'tone-gray'}`}>{ESTADO_LABEL[fila.estado] || fila.estado}</span>
+          {fila.boletaCargada
+            ? <span className="status-pill tone-green">{fila.tipoDocumentoTributario === 'FACTURA' ? 'Factura' : 'Boleta'}</span>
+            : <span className="status-pill tone-red">Sin documento</span>}
+        </>
+      )}
+      tone={fila.boletaCargada ? 'default' : 'warning'}
+      meta={[
+        { label: 'Comprador', value: fila.comprador || '—' },
+        { label: 'Correo', value: fila.compradorEmail || '—' },
+        ...(fila.boletaCargada ? [{ label: 'Documento subido', value: formatDateTime(fila.boletaSubidaAt), wide: true }] : []),
+      ]}
+      actions={fila.boletaCargada ? (
+        <button type="button" className="mb-action mb-action--primary" disabled={descargando === fila.subordenId} onClick={() => descargar(fila.subordenId)}>
+          <UiIcon name="eye" />Ver {fila.boletaNombre ? 'documento' : 'boleta'}
+        </button>
+      ) : undefined}
+    />
+  ))}
+</RecordList>
+)
+) : (
+<table className="wide-table">
             <thead>
               <tr>
                 <th>Pedido</th>
@@ -251,6 +293,7 @@ export default function BoletasVentaPage() {
               )}
             </tbody>
           </table>
+)}
         </div>
       </section>
 

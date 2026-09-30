@@ -16,6 +16,11 @@ import type { MediationNoteType } from '@/utils/mediationNotes';
 import { mediationStatusDisplay } from '@/utils/formatters';
 import { normalizeVisibleMediationStatus } from '@/utils/manualMediationStatus';
 import MediationTable from './MediationTable';
+import { MediationCardList } from './MediationTable.mobile';
+import { MediationResolvedCardList } from './MediationResolvedTable.mobile';
+import { BlockedAccountsCardList } from './BlockedAccountsTable.mobile';
+import { useIsMobile } from '@/hooks/useIsMobile';
+import DetailHost from '@/components/mobile/DetailHost';
 import MediationResolvedTable from './MediationResolvedTable';
 import BlockedAccountsTable from './BlockedAccountsTable';
 import MediationFilterBar from './MediationFilterBar';
@@ -178,6 +183,7 @@ function mergeDocumentLists(sellerId: number, ...documentLists: Array<SellerDocu
 export default function MediacionesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const deepLinkHandledRef = useRef('');
   const [filter, setFilter] = useState<MediationFilterRequest>({ activeOnly: true, blocked: false, page: 0, size: PAGE_SIZES.MEDIATIONS });
   const [search, setSearch] = useState('');
@@ -575,6 +581,16 @@ export default function MediacionesPage() {
                       <span className="panel-count active-count">{statusMetrics.active}</span>
                     </div>
 
+                    {isMobile ? (
+                      <MediationCardList
+                        mediations={mediations}
+                        selectedId={selectedId}
+                        onSelect={setSelectedId}
+                        onOpenMediationCase={(id) => navigate(`/confianza/mediations/${id}`)}
+                        onOpenReactivation={(id) => { setSelectedId(id); setReactivateModalOpen(true); }}
+                        onOpenSellerInfo={handleOpenSellerInfo}
+                      />
+                    ) : (
                     <MediationTable
                       mediations={mediations}
                       selectedId={selectedId}
@@ -583,6 +599,7 @@ export default function MediacionesPage() {
                       onOpenReactivation={(id) => { setSelectedId(id); setReactivateModalOpen(true); }}
                       onOpenSellerInfo={handleOpenSellerInfo}
                     />
+                    )}
 
                     <Pagination
                       currentPage={filter.page ?? 0}
@@ -597,7 +614,19 @@ export default function MediacionesPage() {
                 </>
               )}
 
-              {activeTab === 'blocked' && (
+              {activeTab === 'blocked' && isMobile && (
+                  <BlockedAccountsCardList
+                    accounts={blockedAccounts?.content ?? []}
+                    totalItems={blockedAccounts?.totalElements ?? 0}
+                    isLoading={isLoadingBlockedAccounts}
+                    selectedId={selectedBlockedAccount?.id}
+                    onSelect={setSelectedBlockedAccount}
+                    onOpenSellerInfo={handleOpenSellerInfo}
+                    onOpenHistory={(id) => { setBlockedHistoryId(id); setBlockedHistoryOpen(true); }}
+                    onOpenAppeal={(id) => { setAppealMediationId(id); setAppealModalOpen(true); }}
+                  />
+              )}
+              {activeTab === 'blocked' && !isMobile && (
                   <BlockedAccountsTable
                     accounts={blockedAccounts?.content ?? []}
                     totalItems={blockedAccounts?.totalElements ?? 0}
@@ -610,7 +639,17 @@ export default function MediacionesPage() {
                   />
               )}
 
-              {activeTab === 'resolved' && (
+              {activeTab === 'resolved' && isMobile && (
+                  <MediationResolvedCardList
+                    cases={resolvedCases?.content ?? []}
+                    totalItems={resolvedCases?.totalElements ?? 0}
+                    isLoading={isLoadingResolvedCases}
+                    selectedId={selectedResolvedCase?.id}
+                    onSelect={setSelectedResolvedCase}
+                    onOpenTimeline={(item) => { setSelectedTimelineCase(item); setResolvedTimelineOpen(true); }}
+                  />
+              )}
+              {activeTab === 'resolved' && !isMobile && (
                   <MediationResolvedTable
                     cases={resolvedCases?.content ?? []}
                     totalItems={resolvedCases?.totalElements ?? 0}
@@ -623,6 +662,13 @@ export default function MediacionesPage() {
             </article>
 
         {activeTab === 'mediations' && selectedMediation && (
+          <DetailHost
+            open
+            onClose={() => setSelectedId(null)}
+            title={selectedMediation.externalId}
+            subtitle={selectedMediation.reason}
+            id="mb-mediation-detail"
+          >
           <MediationDetailPanel
             item={selectedMediation}
             onOpenReactivation={(id) => { setSelectedId(id); setReactivateModalOpen(true); }}
@@ -633,8 +679,16 @@ export default function MediacionesPage() {
             onBlockAccount={handleBlockAccount}
             onOpenSellerInfo={handleOpenSellerInfo}
           />
+          </DetailHost>
         )}
         {activeTab === 'blocked' && selectedBlockedAccount && (
+          <DetailHost
+            open
+            onClose={() => setSelectedBlockedAccount(null)}
+            title={selectedBlockedAccount.externalId}
+            subtitle={selectedBlockedAccount.sellerName}
+            id="mb-blocked-detail"
+          >
           <MediationDetailPanel
             item={selectedBlockedAccount}
             onOpenReactivation={(id) => { setSelectedId(id); setReactivateModalOpen(true); }}
@@ -645,13 +699,22 @@ export default function MediacionesPage() {
             onBlockAccount={handleBlockAccount}
             onOpenSellerInfo={handleOpenSellerInfo}
           />
+          </DetailHost>
         )}
         {activeTab === 'resolved' && selectedResolvedCase && (
+          <DetailHost
+            open
+            onClose={() => setSelectedResolvedCase(null)}
+            title={selectedResolvedCase.externalId}
+            subtitle={selectedResolvedCase.reason}
+            id="mb-resolved-detail"
+          >
           <ResolvedMediationDetailPanel
             item={selectedResolvedCase}
             onOpenTimeline={(item) => { setSelectedTimelineCase(item); setResolvedTimelineOpen(true); }}
             onOpenSellerInfo={handleOpenSellerInfo}
           />
+          </DetailHost>
         )}
       </section>
 

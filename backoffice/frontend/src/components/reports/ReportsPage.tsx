@@ -10,7 +10,11 @@ import { formatDateTime } from '@/utils/formatters';
 import { PAGE_SIZES } from '@/utils/constants';
 import AreaHomeShortcut from '@/components/shared/AreaHomeShortcut';
 import FounderSellerName from '@/components/shared/FounderSellerName';
+import UiIcon from '@/components/shared/UiIcon';
 import type { ReportObjectType, ReportResponse } from '@/types/report';
+import { useIsMobile } from '@/hooks/useIsMobile';
+import { RecordCard, RecordList, EmptyState, FilterSheet, FilterTrigger } from '@/components/mobile';
+import { countActiveFilters } from '@/utils/filters';
 
 const OBJECT_TYPE_META: Record<ReportObjectType, { label: string; tone: string }> = {
   ANUNCIO: { label: 'Anuncio', tone: 'blue' },
@@ -33,6 +37,8 @@ export default function ReportsPage() {
   const [responsibleFilter, setResponsibleFilter] = useState('');
   const [selectedReportId, setSelectedReportId] = useState<number | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const isMobile = useIsMobile();
 
   // Consulta para obtener la totalidad de reportes y extraer la lista única de nombres
   const { data: allReportsData } = useQuery({
@@ -113,6 +119,82 @@ export default function ReportsPage() {
     setIsDetailOpen(true);
   };
 
+  const objectTypeSelect = (
+    <select
+      className="select"
+      value={objectTypeFilter}
+      onChange={(e) => {
+        setObjectTypeFilter(e.target.value);
+        setPage(0);
+      }}
+      aria-label="Contenido reportado"
+    >
+      <option value="">Todo el contenido</option>
+      <option value="ANUNCIO">Anuncios</option>
+      <option value="PRODUCTO">Productos</option>
+      <option value="TIENDA">Tiendas</option>
+      <option value="CHAT_COTIZACION">Chats de cotización</option>
+    </select>
+  );
+  const originSelect = (
+    <select
+      className="select"
+      value={originFilter}
+      onChange={(e) => {
+        setOriginFilter(e.target.value);
+        setTypeFilter('');
+        setResponsibleFilter('');
+        setPage(0);
+      }}
+      aria-label="Origen del reporte"
+    >
+      <option value="">Seleccione origen...</option>
+      <option value="ALL">Todos</option>
+      <option value="REPORTANTE">Reportante</option>
+      <option value="REPORTADO">Reportado</option>
+    </select>
+  );
+  const typeSelect = (
+    <select
+      className="select"
+      value={typeFilter}
+      onChange={(e) => {
+        setTypeFilter(e.target.value);
+        setResponsibleFilter('');
+        setPage(0);
+      }}
+      disabled={!originFilter}
+      aria-label="Tipo de reporte"
+    >
+      <option value="">Seleccione tipo...</option>
+      <option value="ALL">Todos</option>
+      <option value="VENDEDOR">Vendedor</option>
+      <option value="COMPRADOR">Comprador</option>
+    </select>
+  );
+  const responsibleSelect = (
+    <select
+      className="select"
+      value={responsibleFilter}
+      onChange={(e) => {
+        setResponsibleFilter(e.target.value);
+        setPage(0);
+      }}
+      disabled={!originFilter || !typeFilter}
+      aria-label="Responsable del reporte"
+    >
+      <option value="">Seleccione responsable...</option>
+      <option value="ALL">Todos</option>
+      {responsibleOptions.map((name) => (
+        <option key={name} value={name}>
+          {name}
+        </option>
+      ))}
+    </select>
+  );
+
+  const activeFilterCount = countActiveFilters({ objectTypeFilter, originFilter, typeFilter, responsibleFilter });
+
   return (
     <>
       <div className="page-header">
@@ -125,7 +207,7 @@ export default function ReportsPage() {
         </div>
       </div>
 
-      <section className="metric-grid compact" style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))' }}>
+      <section className="metric-grid compact reports-metric-grid" style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))' }}>
         <MetricCard
           label="Total reportes"
           value={summary?.totalReportes ?? 0}
@@ -149,7 +231,7 @@ export default function ReportsPage() {
         />
       </section>
 
-      <section className="metric-grid compact" style={{ gridTemplateColumns: 'repeat(4, minmax(0, 1fr))' }}>
+      <section className="metric-grid compact reports-metric-grid" style={{ gridTemplateColumns: 'repeat(4, minmax(0, 1fr))' }}>
         <MetricCard label="Anuncios" value={summary?.reportesAnuncios ?? 0} tone="blue" iconName="megaphone" description="Publicaciones publicitarias reportadas" />
         <MetricCard label="Productos" value={summary?.reportesProductos ?? 0} tone="violet" iconName="cube" description="Repuestos reportados desde su detalle" />
         <MetricCard label="Tiendas" value={summary?.reportesTiendas ?? 0} tone="green" iconName="home" description="Perfiles de tienda reportados" />
@@ -162,9 +244,46 @@ export default function ReportsPage() {
           <span className="panel-count">{data?.totalElements ?? 0}</span>
         </div>
 
-        <div 
-          className="seller-filter-bar" 
-          style={{ 
+        {isMobile ? (
+          <>
+            <div className="mb-filter-row">
+              <input
+                type="search"
+                className="input"
+                placeholder="Buscar motivo o descripción…"
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setResponsibleFilter('');
+                  setPage(0);
+                }}
+                aria-label="Buscar reportes"
+              />
+              <FilterTrigger count={activeFilterCount} onClick={() => setFiltersOpen(true)} />
+            </div>
+            <FilterSheet
+              open={filtersOpen}
+              onClose={() => setFiltersOpen(false)}
+              title="Filtrar reportes"
+              activeCount={activeFilterCount}
+              onClear={() => {
+                setObjectTypeFilter('');
+                setOriginFilter('');
+                setTypeFilter('');
+                setResponsibleFilter('');
+                setPage(0);
+              }}
+            >
+              <label>Contenido reportado{objectTypeSelect}</label>
+              <label>Origen{originSelect}</label>
+              <label>Tipo{typeSelect}</label>
+              <label>Responsable{responsibleSelect}</label>
+            </FilterSheet>
+          </>
+        ) : (
+        <div
+          className="seller-filter-bar"
+          style={{
             display: 'grid',
             gridTemplateColumns: 'minmax(220px, 2fr) repeat(4, minmax(140px, 1fr))',
             gap: '16px',
@@ -185,75 +304,70 @@ export default function ReportsPage() {
               setPage(0);
             }}
           />
-          <select
-            className="select"
-            value={objectTypeFilter}
-            onChange={(e) => {
-              setObjectTypeFilter(e.target.value);
-              setPage(0);
-            }}
-            aria-label="Contenido reportado"
-          >
-            <option value="">Todo el contenido</option>
-            <option value="ANUNCIO">Anuncios</option>
-            <option value="PRODUCTO">Productos</option>
-            <option value="TIENDA">Tiendas</option>
-            <option value="CHAT_COTIZACION">Chats de cotización</option>
-          </select>
-          <select
-            className="select"
-            value={originFilter}
-            onChange={(e) => {
-              setOriginFilter(e.target.value);
-              setTypeFilter('');
-              setResponsibleFilter('');
-              setPage(0);
-            }}
-            aria-label="Origen del reporte"
-          >
-            <option value="">Seleccione origen...</option>
-            <option value="ALL">Todos</option>
-            <option value="REPORTANTE">Reportante</option>
-            <option value="REPORTADO">Reportado</option>
-          </select>
-          <select
-            className="select"
-            value={typeFilter}
-            onChange={(e) => {
-              setTypeFilter(e.target.value);
-              setResponsibleFilter('');
-              setPage(0);
-            }}
-            disabled={!originFilter}
-            aria-label="Tipo de reporte"
-          >
-            <option value="">Seleccione tipo...</option>
-            <option value="ALL">Todos</option>
-            <option value="VENDEDOR">Vendedor</option>
-            <option value="COMPRADOR">Comprador</option>
-          </select>
-          <select
-            className="select"
-            value={responsibleFilter}
-            onChange={(e) => {
-              setResponsibleFilter(e.target.value);
-              setPage(0);
-            }}
-            disabled={!originFilter || !typeFilter}
-            aria-label="Responsable del reporte"
-          >
-            <option value="">Seleccione responsable...</option>
-            <option value="ALL">Todos</option>
-            {responsibleOptions.map((name) => (
-              <option key={name} value={name}>
-                {name}
-              </option>
-            ))}
-          </select>
+          {objectTypeSelect}
+          {originSelect}
+          {typeSelect}
+          {responsibleSelect}
         </div>
+        )}
 
         {isLoading ? (
           <div className="panel-body">Cargando reportes...</div>
+        ) : isMobile ? (
+          <>
+            <RecordList
+              ariaLabel="Lista de reportes"
+              empty={<EmptyState icon="flag" title="Sin reportes" description="No se encontraron reportes con estos filtros." />}
+            >
+              {reports.map((report) => {
+                const meta = OBJECT_TYPE_META[reportObjectType(report)];
+                return (
+                  <RecordCard
+                    key={report.id}
+                    title={report.motivo}
+                    subtitle={`${report.idExterno || `#${report.id}`} · ${formatDateTime(report.fechaCreacion)}`}
+                    badge={<Badge text={meta.label} variant={meta.tone} />}
+                    meta={[
+                      {
+                        label: 'Reportante',
+                        value: (
+                          <>
+                            <FounderSellerName name={report.reportanteName} founder={report.reportanteType === 'VENDEDOR' && report.reportanteFounder} />
+                            <small className="mb-meta-sub">{report.reportanteType === 'COMPRADOR' ? 'Comprador' : 'Vendedor'}</small>
+                          </>
+                        ),
+                      },
+                      {
+                        label: 'Reportado',
+                        value: (
+                          <>
+                            <FounderSellerName name={report.reportadoName} founder={report.reportadoType === 'VENDEDOR' && report.reportadoFounder} />
+                            <small className="mb-meta-sub">{report.reportadoType === 'COMPRADOR' ? 'Comprador' : 'Vendedor'}</small>
+                          </>
+                        ),
+                      },
+                      ...(report.objetoTitulo ? [{ label: 'Contenido', value: report.objetoTitulo, wide: true }] : []),
+                      ...(report.descripcion ? [{ label: 'Descripción', value: <span className="mb-clamp-3">{report.descripcion}</span>, wide: true }] : []),
+                    ]}
+                    onPress={() => handleOpenDetail(report.id)}
+                    actions={(
+                      <button type="button" className="mb-action mb-action--primary" onClick={() => handleOpenDetail(report.id)}>
+                        <UiIcon name="eye" />
+                        Ver detalle
+                      </button>
+                    )}
+                  />
+                );
+              })}
+            </RecordList>
+            <Pagination
+              currentPage={page}
+              totalPages={data?.totalPages ?? 0}
+              totalItems={data?.totalElements ?? 0}
+              pageSize={PAGE_SIZES.MEDIATIONS}
+              onPageChange={setPage}
+            />
+          </>
         ) : (
           <>
             <div className="table-wrap">
@@ -390,7 +504,7 @@ export default function ReportsPage() {
       >
         {selectedReport && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+            <div className="mb-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
               <div className="panel" style={{ padding: 16 }}>
                 <h3 style={{ marginTop: 0, marginBottom: 12, borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: 6 }}>
                   Reportante (Quién reporta)

@@ -83,6 +83,8 @@ import {
   slug,
   validateReceipt,
 } from './utils';
+import { useIsMobile } from '@/hooks/useIsMobile';
+import { RecordCard, RecordList, EmptyState } from '@/components/mobile';
 
 type SelectableView = 'pedidos' | 'liquidaciones' | 'gastos';
 type PageView = SelectableView | 'retiros' | 'ingresos' | 'caja';
@@ -597,6 +599,7 @@ function TablePager({
 }
 
 export default function AdminFinancePage() {
+  const isMobile = useIsMobile();
   const location = useLocation();
   const navigate = useNavigate();
   const orderImportRef = useRef<HTMLInputElement | null>(null);
@@ -2380,7 +2383,47 @@ export default function AdminFinancePage() {
                   ))}
               </div>
             </div>
-            <table className="wide-table">
+            {isMobile ? (
+<RecordList ariaLabel="Compras de publicidad" empty={<EmptyState icon="megaphone" title="Sin compras de publicidad" description={advertisingQuery ? 'No hay compras que coincidan con la búsqueda.' : 'Todavía no se han registrado compras de fichas.'} />}>
+  {filteredAdvertisingOrders.map((row) => (
+    <RecordCard
+      key={row.id}
+      title={row.codigo}
+      subtitle={`${row.comprador ?? 'Sin registrar'} · ${formatDateTimeLocal(row.fecha)}`}
+      badge={(
+        <>
+          <span className={`status-pill ${slug(row.estado)}`}>{row.estado}</span>
+          {row.documentoCargado
+            ? <span className="status-pill tone-green">{row.documentoTipo === 'FACTURA' ? 'Factura' : 'Boleta'}{row.documentoFolio ? ` · ${row.documentoFolio}` : ''}</span>
+            : <span className="status-pill tone-red">Sin documento</span>}
+        </>
+      )}
+      tone={row.documentoCargado ? 'default' : 'warning'}
+      meta={[
+        { label: 'Fichas', value: row.cantidadFichas.toLocaleString('es-CL') },
+        { label: 'Monto pagado', value: formatMoney(row.montoPagado) },
+        { label: 'Comisión pasarela', value: formatMoney(row.comisionPasarela) },
+        { label: 'Ganancia', value: formatMoney(row.montoNeto) },
+        { label: 'Método de pago', value: row.metodoPago ?? '—' },
+        { label: 'Correo', value: row.correo ?? '—' },
+      ]}
+      onPress={() => setSelectedAdvertisingOrder(row)}
+      actions={(
+        <>
+          <button type="button" className="mb-action" onClick={() => setSelectedAdvertisingOrder(row)}><UiIcon name="eye" />Resumen</button>
+          {row.documentoDescargable && (
+            <button type="button" className="mb-action" onClick={() => verDocumentoRecarga(row.id)}><UiIcon name="fileCheck" />Ver {row.documentoTipo === 'FACTURA' ? 'factura' : 'boleta'}</button>
+          )}
+          <button type="button" className={`mb-action ${row.documentoCargado ? 'mb-action--success' : 'mb-action--primary'}`} onClick={() => abrirDocumentoRecarga(row)}>
+            <UiIcon name={row.documentoCargado ? 'fileCheck' : 'receipt'} />{row.documentoCargado ? 'Reemplazar' : 'Emitir documento'}
+          </button>
+        </>
+      )}
+    />
+  ))}
+</RecordList>
+) : (
+<table className="wide-table">
               <thead>
                 <tr>
                   <th>Código</th><th>Fecha</th><th>Quién pagó</th><th>Correo</th><th>Fichas</th>
@@ -2461,6 +2504,7 @@ export default function AdminFinancePage() {
                 )}
               </tbody>
             </table>
+)}
             <div className="table-footer compact-footer">
               <span>{filteredAdvertisingOrders.length} registros mostrados</span>
             </div>
@@ -2518,7 +2562,42 @@ export default function AdminFinancePage() {
               </table>
 
             ) : (
-            <table className="wide-table">
+            isMobile ? (
+<RecordList ariaLabel="Pedidos" empty={<EmptyState icon="clipboard" title="Sin pedidos" description="No hay pedidos para los filtros seleccionados." />}>
+  {orderPage.rows.map((order) => {
+    const criticality = getOrderCriticality(order);
+    const showCriticality = criticality.level === 'warning' || criticality.level === 'critical';
+    return (
+      <RecordCard
+        key={order.id}
+        leading={<label className="mb-check" onClick={(e) => e.stopPropagation()}><input type="checkbox" checked={selectedRows.pedidos.has(order.id)} onChange={() => toggleSelection('pedidos', order.id)} aria-label={`Seleccionar pedido ${order.id}`} /></label>}
+        title={formatOrderNumber(order.id)}
+        subtitle={<>{order.buyer} · <FounderSellerName name={order.seller} founder={order.sellerFounder} /></>}
+        badge={<span className={`status-pill ${slug(order.status)}`}>{order.status}</span>}
+        tone={showCriticality ? (criticality.level === 'critical' ? 'danger' : 'warning') : 'default'}
+        meta={[
+          { label: 'Total', value: formatMoney(order.total) },
+          { label: 'Fecha', value: formatDateTime(order.date) },
+          { label: 'Producto', value: order.product, wide: true },
+          { label: 'Última actualización', value: formatDateTime(order.updatedAt), wide: true },
+          ...(order.cancellationTooltip ? [{ label: 'Nota', value: order.cancellationTooltip, wide: true }] : []),
+        ]}
+        onPress={() => showOrderDetail(order)}
+        actions={(
+          <>
+            <button type="button" className="mb-action" onClick={() => showOrderDetail(order)}><UiIcon name="eye" />Detalle</button>
+            <button type="button" className="mb-action" onClick={() => showOrderHistory(order.id)}><UiIcon name="clock" />Historial</button>
+            {showCriticality && (
+              <button type="button" className={`mb-action ${criticality.level === 'critical' ? 'mb-action--danger' : ''}`} onClick={() => setSelectedOrderCriticality(order)}><UiIcon name="alert" />{criticality.label}</button>
+            )}
+          </>
+        )}
+      />
+    );
+  })}
+</RecordList>
+) : (
+<table className="wide-table">
               <thead>
                 <tr>
                   <SelectionHeader view="pedidos" sourceIds={filteredOrders.map((order) => order.id)} selected={selectedRows.pedidos} onToggle={toggleMassSelection} />
@@ -2573,6 +2652,7 @@ export default function AdminFinancePage() {
                 )) : <tr><td colSpan={10}><div className="empty-state">No hay pedidos para los filtros seleccionados.</div></td></tr>}
               </tbody>
             </table>
+)
             )}
             <div className="table-footer compact-footer">
               <span>{orderPage.rows.length} registros mostrados</span>
@@ -2672,7 +2752,38 @@ export default function AdminFinancePage() {
           <section className="table-shell">
             {liquidationTab !== 'LIQUIDADO' && <div className="table-toolbar"><input className="input" type="search" placeholder="Buscar por ID, vendedor o referencia..." value={filters.liquidaciones.query} onChange={(event) => updateFilter('liquidaciones', { query: event.target.value })} /></div>}
             {liquidationTab === 'EN_LIQUIDACION' ? (
-              <table className="wide-table">
+              isMobile ? (
+<RecordList ariaLabel="Liquidaciones en curso" empty={<EmptyState icon="clipboard" title="Sin liquidaciones en curso" description="No hay liquidaciones en curso para el rango seleccionado." />}>
+  {enLiquidationGroups.map((group) => {
+    const registeredDocument = getGroupDocument(group);
+    const documentComplete = Boolean(registeredDocument && isIssuedDocumentComplete(registeredDocument.document));
+    return (
+      <RecordCard
+        key={group.key}
+        title={<FounderSellerName name={group.seller} founder={group.sellerFounder} />}
+        subtitle={`${group.rut} · ${group.legalName}`}
+        badge={documentComplete ? <span className="status-pill tone-green">Documento listo</span> : <span className="status-pill tone-amber">{registeredDocument ? 'Documento incompleto' : 'Sin documento'}</span>}
+        meta={[
+          { label: 'Liquidaciones', value: group.settlements.length },
+          { label: 'IVA acumulado', value: formatMoney(group.iva) },
+          { label: 'Correo', value: group.email, wide: true },
+        ]}
+        onPress={() => setSelectedLiquidationSeller(group)}
+        actions={(
+          <>
+            <button type="button" className="mb-action" onClick={() => setSelectedLiquidationSeller(group)}><UiIcon name="eye" />Vista previa</button>
+            <button type="button" className={`mb-action ${documentComplete ? 'mb-action--success' : 'mb-action--primary'}`} onClick={() => openGroupDocument(group)}>
+              <UiIcon name={documentComplete ? 'fileCheck' : 'receipt'} />{documentComplete ? 'Ver documento' : registeredDocument ? 'Completar' : 'Emitir'}
+            </button>
+            {documentComplete && <button type="button" className="mb-action" onClick={() => openGroupDocument(group, true)}><UiIcon name="edit" />Editar</button>}
+          </>
+        )}
+      />
+    );
+  })}
+</RecordList>
+) : (
+<table className="wide-table">
                 <thead><tr><th>Vendedor</th><th>RUT</th><th>Razón social / Nombre</th><th>Correo</th><th>Cantidad liquidaciones</th><th>IVA acumulado</th><th>Acciones</th></tr></thead>
                 <tbody>{enLiquidationGroups.length ? enLiquidationGroups.map((group) => {
                   const registeredDocument = getGroupDocument(group);
@@ -2680,10 +2791,56 @@ export default function AdminFinancePage() {
                   return <tr key={group.key}><td><FounderSellerName name={group.seller} founder={group.sellerFounder} /></td><td>{group.rut}</td><td>{group.legalName}</td><td>{group.email}</td><td>{group.settlements.length}</td><td>{formatMoney(group.iva)}</td><td><div className="action-cell"><button className="action-button neutral" type="button" onClick={() => setSelectedLiquidationSeller(group)} title="Vista previa de liquidaciones"><UiIcon name="eye" /></button><button className={`action-button ${documentComplete ? 'success' : 'issue'}`} type="button" onClick={() => openGroupDocument(group)} title={documentComplete ? 'Ver boleta o factura registrada' : registeredDocument ? 'Completar boleta o factura' : 'Emitir boleta o factura'}><UiIcon name={documentComplete ? 'fileCheck' : 'receipt'} /></button>{documentComplete && <button className="action-button neutral" type="button" onClick={() => openGroupDocument(group, true)} title="Editar boleta o factura registrada"><UiIcon name="edit" /></button>}</div></td></tr>;
                 }) : <tr><td colSpan={7}><div className="empty-state">No hay liquidaciones en curso para el rango seleccionado.</div></td></tr>}</tbody>
               </table>
+)
             ) : liquidationTab === 'LIQUIDADO' ? (
-              <table className="wide-table paid-liquidations-table"><thead><tr><th>Código de pago</th><th>Fecha de pago</th><th>Vendedores</th><th>Cantidad de boletas/facturas</th><th>Fecha de liquidación</th><th>Acciones</th></tr></thead><tbody>{paidPaymentsForPeriod.length ? paidPaymentsForPeriod.map((payment) => <tr key={payment.pagoId}><td>PAG-{String(payment.pagoId).padStart(6, '0')}</td><td>{formatDate(payment.fechaPago)}</td><td><SellerListTooltip sellers={payment.retiros.map((retiro) => ({ name: retiro.nombreTienda, founder: retiro.sellerFounder }))} /></td><td>{payment.retiros.length}</td><td>{formatDate(getPaymentPeriod(payment.fechaPago).start)} - {formatDate(getPaymentPeriod(payment.fechaPago).end)}</td><td><div className="action-cell"><button className="action-button neutral" type="button" onClick={() => { setSelectedPaidPayment(payment); setPaidDetailQuery(''); setPaidDetailSeller(''); }} title="Ver liquidaciones del pago"><UiIcon name="eye" /></button><button className="action-button issue" type="button" onClick={() => setPaidDocumentsPayment(payment)} title="Historial de boletas"><UiIcon name="receipt" /></button></div></td></tr>) : <tr><td colSpan={6}><div className="empty-state">No hay liquidaciones pagadas para el período seleccionado.</div></td></tr>}</tbody></table>
+              isMobile ? (
+<RecordList ariaLabel="Liquidaciones pagadas" empty={<EmptyState icon="check" title="Sin pagos en el período" description="No hay liquidaciones pagadas para el período seleccionado." />}>
+  {paidPaymentsForPeriod.map((payment) => (
+    <RecordCard
+      key={payment.pagoId}
+      title={`PAG-${String(payment.pagoId).padStart(6, '0')}`}
+      subtitle={`Pagado el ${formatDate(payment.fechaPago)}`}
+      badge={<span className="status-pill tone-green">Pagado</span>}
+      meta={[
+        { label: 'Boletas / facturas', value: payment.retiros.length },
+        { label: 'Periodo', value: `${formatDate(getPaymentPeriod(payment.fechaPago).start)} - ${formatDate(getPaymentPeriod(payment.fechaPago).end)}` },
+        { label: 'Vendedores', value: <SellerListTooltip sellers={payment.retiros.map((retiro) => ({ name: retiro.nombreTienda, founder: retiro.sellerFounder }))} />, wide: true },
+      ]}
+      actions={(
+        <>
+          <button type="button" className="mb-action" onClick={() => { setSelectedPaidPayment(payment); setPaidDetailQuery(''); setPaidDetailSeller(''); }}><UiIcon name="eye" />Liquidaciones</button>
+          <button type="button" className="mb-action" onClick={() => setPaidDocumentsPayment(payment)}><UiIcon name="receipt" />Boletas</button>
+        </>
+      )}
+    />
+  ))}
+</RecordList>
+) : (
+<table className="wide-table paid-liquidations-table"><thead><tr><th>Código de pago</th><th>Fecha de pago</th><th>Vendedores</th><th>Cantidad de boletas/facturas</th><th>Fecha de liquidación</th><th>Acciones</th></tr></thead><tbody>{paidPaymentsForPeriod.length ? paidPaymentsForPeriod.map((payment) => <tr key={payment.pagoId}><td>PAG-{String(payment.pagoId).padStart(6, '0')}</td><td>{formatDate(payment.fechaPago)}</td><td><SellerListTooltip sellers={payment.retiros.map((retiro) => ({ name: retiro.nombreTienda, founder: retiro.sellerFounder }))} /></td><td>{payment.retiros.length}</td><td>{formatDate(getPaymentPeriod(payment.fechaPago).start)} - {formatDate(getPaymentPeriod(payment.fechaPago).end)}</td><td><div className="action-cell"><button className="action-button neutral" type="button" onClick={() => { setSelectedPaidPayment(payment); setPaidDetailQuery(''); setPaidDetailSeller(''); }} title="Ver liquidaciones del pago"><UiIcon name="eye" /></button><button className="action-button issue" type="button" onClick={() => setPaidDocumentsPayment(payment)} title="Historial de boletas"><UiIcon name="receipt" /></button></div></td></tr>) : <tr><td colSpan={6}><div className="empty-state">No hay liquidaciones pagadas para el período seleccionado.</div></td></tr>}</tbody></table>
+)
             ) : (
-            <table className="wide-table">
+            isMobile ? (
+<RecordList ariaLabel="Liquidaciones pendientes" empty={<EmptyState icon="clipboard" title="Sin liquidaciones" description="No hay liquidaciones para el rango seleccionado." />}>
+  {settlementPage.rows.map((settlement) => (
+    <RecordCard
+      key={settlement.id}
+      leading={<label className="mb-check" onClick={(e) => e.stopPropagation()}><input type="checkbox" checked={selectedRows.liquidaciones.has(settlement.id)} onChange={() => toggleSelection('liquidaciones', settlement.id)} aria-label={`Seleccionar liquidación ${settlement.id}`} /></label>}
+      title={settlement.id}
+      subtitle={<><FounderSellerName name={settlement.seller} founder={settlement.sellerFounder} /> · {formatDate(settlement.date)}</>}
+      badge={<span className={`status-pill ${slug('Finalizado')}`}>Finalizado</span>}
+      meta={[
+        { label: 'Pedido', value: formatOrderNumber(settlement.orderId) },
+        { label: 'Venta total', value: formatMoney(settlement.saleTotal) },
+        { label: 'Descuentos al vendedor', value: formatMoney(settlement.commission) },
+        { label: 'Ganancia neta RepuesTop', value: formatMoney(settlement.netSettlement) },
+      ]}
+      onPress={() => showSettlementDetail(settlement)}
+      actions={<button type="button" className="mb-action" onClick={() => showSettlementDetail(settlement)}><UiIcon name="eye" />Ver detalle</button>}
+    />
+  ))}
+</RecordList>
+) : (
+<table className="wide-table">
               <thead>
                 <tr>
                   <SelectionHeader view="liquidaciones" sourceIds={filteredSettlements.map((settlement) => settlement.id)} selected={selectedRows.liquidaciones} onToggle={toggleMassSelection} />
@@ -2748,6 +2905,7 @@ export default function AdminFinancePage() {
                 )) : <tr><td colSpan={10}><div className="empty-state">No hay liquidaciones para el rango seleccionado.</div></td></tr>}
               </tbody>
             </table>
+)
             )}
             <div className="table-footer compact-footer">
               <span>{liquidationTab === 'LIQUIDADO' ? `${paidPaymentsForPeriod.length} pagos mostrados` : `${settlementPage.rows.length} registros mostrados`}</span>
@@ -2882,7 +3040,37 @@ export default function AdminFinancePage() {
                 <UiIcon name="download" />
               </button>
             </div>
-            <table className="wide-table">
+            {isMobile ? (
+<RecordList ariaLabel="Movimientos de caja" empty={<EmptyState icon="bank" title="Sin movimientos" description="No hay movimientos de caja para los filtros seleccionados." />}>
+  {cajaPage.rows.map((entry) => (
+    <RecordCard
+      key={`${entry.type}-${entry.id}`}
+      title={entry.concept}
+      subtitle={`${entry.id} · ${formatDate(entry.date)}${entry.date.includes('T') ? ` ${toChileIso(entry.date).split('T')[1]?.slice(0, 5) ?? ''}` : ''}`}
+      badge={<span className={`status-pill ${entry.type === 'pedido' ? 'finalizado' : 'preparando'}`}>{entry.type === 'pedido' ? 'Pedido' : 'Publicidad'}</span>}
+      meta={[
+        { label: 'En caja (70%)', value: <strong style={{ color: '#059669' }}>{formatMoney(entry.cashAmount)}</strong> },
+        { label: 'Ganancia neta', value: formatMoney(entry.netProfit) },
+        { label: 'Venta total', value: formatMoney(entry.totalSale) },
+        { label: 'Comisión / Retención', value: entry.commissionOrDeduction },
+        { label: 'Comprador', value: entry.buyer },
+        { label: entry.type === 'pedido' ? 'Vendedor' : 'Pack', value: entry.type === 'pedido' ? <FounderSellerName name={entry.sellerOrPack} founder={entry.sellerFounder} /> : entry.sellerOrPack },
+      ]}
+      actions={(
+        <>
+          {entry.type === 'pedido' && entry.originalSettlement && (
+            <button type="button" className="mb-action" onClick={() => showSettlementDetail(entry.originalSettlement!)}><UiIcon name="eye" />Detalle del pedido</button>
+          )}
+          {entry.type === 'publicidad' && entry.originalAdvertising && (
+            <button type="button" className="mb-action" onClick={() => setSelectedAdvertisingOrder(entry.originalAdvertising!)}><UiIcon name="eye" />Detalle de publicidad</button>
+          )}
+        </>
+      )}
+    />
+  ))}
+</RecordList>
+) : (
+<table className="wide-table">
               <thead>
                 <tr>
                   <th>Origen</th>
@@ -2972,6 +3160,7 @@ export default function AdminFinancePage() {
                 )}
               </tbody>
             </table>
+)}
             <div className="table-footer compact-footer">
               <span>{filteredCajaEntries.length} registros mostrados</span>
               <TablePager view="caja" state={pagination.caja} totalPages={cajaPage.totalPages} onPage={updatePage} onPageSize={updatePageSize} />
@@ -3044,7 +3233,31 @@ export default function AdminFinancePage() {
                 <UiIcon name="plus" />Registrar gasto
               </button>
             </div>
-            <table>
+            {isMobile ? (
+<RecordList ariaLabel="Gastos" empty={<EmptyState icon="receipt" title="Sin gastos" description="No hay gastos registrados." />}>
+  {expensePage.rows.map((expense) => (
+    <RecordCard
+      key={expense.id}
+      leading={<label className="mb-check" onClick={(e) => e.stopPropagation()}><input type="checkbox" checked={selectedRows.gastos.has(expense.id)} onChange={() => toggleSelection('gastos', expense.id)} aria-label={`Seleccionar gasto ${expense.description}`} /></label>}
+      title={expense.description}
+      subtitle={`${formatDate(expense.date)} · ${expense.category}`}
+      badge={<strong className="mb-amount">{formatMoney(expense.amount)}</strong>}
+      meta={[
+        { label: 'Comprobante', value: expense.receipt || 'Sin archivo', wide: true },
+      ]}
+      onPress={() => openExpense(expense)}
+      actions={(
+        <>
+          <button type="button" className="mb-action" onClick={() => setReceiptExpense(expense)} disabled={!expense.receipt}><UiIcon name="receipt" />Comprobante</button>
+          <button type="button" className="mb-action" onClick={() => openExpense(expense)}><UiIcon name="edit" />Editar</button>
+          <button type="button" className="mb-action mb-action--danger mb-action--icon" aria-label="Eliminar gasto" onClick={() => deleteExpense(expense.id)}><UiIcon name="trash" /></button>
+        </>
+      )}
+    />
+  ))}
+</RecordList>
+) : (
+<table>
               <thead>
                 <tr>
                   <SelectionHeader view="gastos" sourceIds={filteredExpenses.map((expense) => expense.id)} selected={selectedRows.gastos} onToggle={toggleMassSelection} />
@@ -3071,6 +3284,7 @@ export default function AdminFinancePage() {
                 )) : <tr><td colSpan={7}><div className="empty-state">No hay gastos registrados.</div></td></tr>}
               </tbody>
             </table>
+)}
             <div className="table-footer compact-footer">
               <span>{expensePage.rows.length} registros mostrados</span>
               <TablePager view="gastos" state={pagination.gastos} totalPages={expensePage.totalPages} onPage={updatePage} onPageSize={updatePageSize} />
@@ -3186,7 +3400,37 @@ export default function AdminFinancePage() {
                 </select>
               </div>
             </div>
-            <table className="wide-table">
+            {isMobile ? (
+<RecordList ariaLabel="Ingresos de socios" empty={<EmptyState icon="wallet" title="Sin ingresos" description="No hay ingresos de socios para los filtros seleccionados." />}>
+  {partnerIncomePage.rows.map((entry) => (
+    <RecordCard
+      key={`${entry.type}-${entry.id}`}
+      title={entry.concept}
+      subtitle={`${entry.id} · ${formatDate(entry.date)}`}
+      badge={<span className={`status-pill ${entry.type === 'pedido' ? 'finalizado' : 'preparando'}`}>{entry.type === 'pedido' ? 'Pedido' : 'Publicidad'}</span>}
+      meta={[
+        { label: 'Total socios (30%)', value: <strong style={{ color: '#7c3aed' }}>{formatMoney(entry.partnerShare)}</strong> },
+        { label: 'Ganancia neta', value: formatMoney(entry.netProfit) },
+        { label: 'Comisión / Descuento', value: entry.commissionLabel },
+        { label: 'Comisión pasarela', value: formatMoney(entry.gatewayFee) },
+        { label: 'IVA', value: formatMoney(entry.iva) },
+        { label: entry.type === 'pedido' ? 'Vendedor' : 'Pack', value: entry.type === 'pedido' ? <FounderSellerName name={entry.sellerOrPack} founder={entry.sellerFounder} /> : entry.sellerOrPack },
+      ]}
+      actions={(
+        <>
+          {entry.type === 'pedido' && entry.originalSettlement && (
+            <button type="button" className="mb-action" onClick={() => showSettlementDetail(entry.originalSettlement!)}><UiIcon name="eye" />Detalle del pedido</button>
+          )}
+          {entry.type === 'publicidad' && entry.originalAdvertising && (
+            <button type="button" className="mb-action" onClick={() => setSelectedAdvertisingOrder(entry.originalAdvertising!)}><UiIcon name="eye" />Detalle de publicidad</button>
+          )}
+        </>
+      )}
+    />
+  ))}
+</RecordList>
+) : (
+<table className="wide-table">
               <thead>
                 <tr>
                   <th>Origen</th>
@@ -3266,6 +3510,7 @@ export default function AdminFinancePage() {
                 )}
               </tbody>
             </table>
+)}
             <div className="table-footer compact-footer">
               <span>{filteredPartnerIncomes.length} registros mostrados</span>
               <TablePager view="ingresos" state={pagination.ingresos} totalPages={partnerIncomePage.totalPages} onPage={updatePage} onPageSize={updatePageSize} />
@@ -3338,7 +3583,44 @@ export default function AdminFinancePage() {
               </select>
               <button className="primary-button" type="button" onClick={openWithdrawal}><UiIcon name="wallet" />Registrar retiro</button>
             </div>
-            <table className="wide-table">
+            {isMobile ? (
+<RecordList ariaLabel="Retiros de socios" empty={<EmptyState icon="bank" title="Sin retiros" description="No hay retiros registrados para este periodo." />}>
+  {withdrawalPage.rows.map((withdrawal) => {
+    const partnerBalance = withdrawalPartnerBalances[withdrawal.beneficiary] ?? withdrawal.balanceAfter;
+    const pagado = withdrawal.estado === 'PAGADO';
+    const isDocComplete = Boolean(
+      withdrawal.documentoLiquidacionCompleto ||
+      (withdrawal.documentoLiquidacionNombre && withdrawal.documentoLiquidacionTipo && withdrawal.documentoLiquidacionRut)
+    );
+    return (
+      <RecordCard
+        key={withdrawal.id}
+        title={withdrawal.codigoRetiro || 'Retiro'}
+        subtitle={`${withdrawal.beneficiary} · ${formatDate(withdrawal.date)}`}
+        badge={<span className={`status-pill ${pagado ? 'tone-green' : 'tone-amber'}`}>{pagado ? 'Pagado' : 'Pendiente'}</span>}
+        tone={partnerBalance < 0 ? 'danger' : 'default'}
+        meta={[
+          { label: 'Monto', value: formatMoney(withdrawal.amount) },
+          { label: 'Saldo socio', value: formatMoney(partnerBalance) },
+          { label: 'Tipo', value: 'Libre disposición socios' },
+          { label: 'Motivo', value: withdrawal.reason, wide: true },
+        ]}
+        onPress={() => showWithdrawalDetail(withdrawal)}
+        actions={(
+          <>
+            <button type="button" className="mb-action" onClick={() => showWithdrawalDetail(withdrawal)}><UiIcon name="eye" />Detalle</button>
+            <button type="button" className={`mb-action ${isDocComplete ? 'mb-action--success' : 'mb-action--primary'}`} onClick={() => openPartnerWithdrawalDocument(withdrawal)}>
+              <UiIcon name={isDocComplete ? 'fileCheck' : 'receipt'} />{isDocComplete ? 'Documento' : 'Cargar documento'}
+            </button>
+            {isDocComplete && <button type="button" className="mb-action" onClick={() => openPartnerWithdrawalDocument(withdrawal, true)}><UiIcon name="edit" />Editar</button>}
+          </>
+        )}
+      />
+    );
+  })}
+</RecordList>
+) : (
+<table className="wide-table">
               <thead>
                 <tr><th>Código</th><th>Fecha</th><th>Tipo</th><th>Quién retiró</th><th>Motivo</th><th>Monto</th><th>Saldo socio</th><th>Estado de la solicitud</th><th>Acciones</th></tr>
               </thead>
@@ -3395,6 +3677,7 @@ export default function AdminFinancePage() {
                 }) : <tr><td colSpan={9}><div className="empty-state">No hay retiros registrados para este periodo.</div></td></tr>}
               </tbody>
             </table>
+)}
             <div className="table-footer compact-footer">
               <span>{withdrawalPage.rows.length} registros mostrados</span>
               <TablePager view="retiros" state={pagination.retiros} totalPages={withdrawalPage.totalPages} onPage={updatePage} onPageSize={updatePageSize} />
@@ -4068,10 +4351,11 @@ export default function AdminFinancePage() {
         >
           <div className="form-grid" style={{ padding: '20px', gap: '20px' }}>
             <div
-              className="order-detail-cards"
+              className="mb-grid order-detail-cards"
               style={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+                /* movil: .mb-grid */
                 gap: '20px',
               }}
             >
@@ -4114,7 +4398,7 @@ export default function AdminFinancePage() {
                   </h3>
                 </div>
 
-                <dl style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '12px 10px', margin: 0 }}>
+                <dl className="mb-kv" style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '12px 10px', margin: 0 }}>
                   <dt style={{ color: '#64748b', fontSize: '13px', fontWeight: 600 }}>N.º pedido:</dt>
                   <dd style={{ margin: 0, color: '#0f172a', fontSize: '13px', fontWeight: 700 }}>
                     {formatOrderNumber(selectedDetailOrder.id)}
@@ -4192,7 +4476,7 @@ export default function AdminFinancePage() {
                   </h3>
                 </div>
 
-                <dl style={{ display: 'grid', gridTemplateColumns: '100px 1fr', gap: '12px 10px', margin: 0 }}>
+                <dl className="mb-kv" style={{ display: 'grid', gridTemplateColumns: '100px 1fr', gap: '12px 10px', margin: 0 }}>
                   <dt style={{ color: '#64748b', fontSize: '13px', fontWeight: 600 }}>Comprador:</dt>
                   <dd style={{ margin: 0, color: '#334155', fontSize: '13px', fontWeight: 650 }}>
                     {selectedDetailOrder.buyer}

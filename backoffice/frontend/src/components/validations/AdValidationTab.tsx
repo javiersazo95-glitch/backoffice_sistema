@@ -5,6 +5,8 @@ import type { AdValidationItem, AdModerationStatus } from '@/types/adValidation'
 import UiIcon from '@/components/shared/UiIcon';
 import { showToast } from '@/components/layout/Toast';
 import AuthedImage from '@/components/shared/AuthedImage';
+import { useIsMobile } from '@/hooks/useIsMobile';
+import { RecordCard, RecordList, EmptyState } from '@/components/mobile';
 
 // El backend ya manda `ownerSellerId` con prefijo (CodigoVendedor.PREFIJO, hoy "RTP-").
 // Esto es solo el respaldo para respuestas antiguas que traian el id pelado; antes estaba
@@ -60,6 +62,7 @@ function formatDate(dateStr?: string | null): string {
 
 export default function AdValidationTab() {
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'TODOS' | 'PENDIENTE' | 'APROBADO' | 'RECHAZADO'>('TODOS');
   const [tierFilter, setTierFilter] = useState<string>('ALL');
@@ -344,7 +347,7 @@ export default function AdValidationTab() {
 
       {/* 3. Table Shell & Toolbar */}
       <section className="table-shell">
-        <div className="table-toolbar" style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'nowrap' }}>
+        <div className="table-toolbar mb-toolbar" style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'nowrap' }}>
           <input
             className="input"
             type="search"
@@ -464,6 +467,71 @@ export default function AdValidationTab() {
         </div>
 
         {/* 4. Ads Data Table */}
+        {isMobile ? (
+          isError ? (
+            <EmptyState tone="error" icon="alert" title="Error al cargar" description="No se pudieron cargar las publicaciones de anuncios." />
+          ) : (
+            <RecordList
+              loading={isLoading}
+              ariaLabel="Publicaciones del mural de anuncios"
+              empty={<EmptyState icon="megaphone" title="Sin publicaciones" description="No se encontraron publicaciones con los filtros aplicados." />}
+            >
+              {pagedAds.map((ad) => {
+                const status = getAdStatus(ad);
+                const tierMeta = TIER_META[ad.tier] || { label: ad.tier, pillClass: 'tone-gray' };
+                const primaryImage = ad.images && ad.images.length > 0 ? ad.images[0] : null;
+                return (
+                  <RecordCard
+                    key={ad.id}
+                    leading={primaryImage ? <AuthedImage src={primaryImage} alt="" fallbackSrc="/assets/repuestop-logo-cropped.jpg" /> : <UiIcon name="megaphone" />}
+                    title={ad.title}
+                    badgePlacement="below"
+                    subtitle={ad.company}
+                    badge={(
+                      <>
+                        {status === 'APROBADO' && <span className="status-pill tone-green">Publicado</span>}
+                        {status === 'PENDIENTE' && <span className="status-pill tone-amber">Pendiente</span>}
+                        {status === 'RECHAZADO' && <span className="status-pill tone-red">Rechazado</span>}
+                        <span className={`status-pill ${tierMeta.pillClass}`}>{tierMeta.label}</span>
+                      </>
+                    )}
+                    tone={status === 'RECHAZADO' ? 'danger' : status === 'PENDIENTE' ? 'warning' : 'default'}
+                    meta={[
+                      { label: 'Categoría', value: ad.categoryLabel || ad.category },
+                      { label: 'Ubicación', value: `${ad.commune || '—'} · ${ad.region || 'Chile'}` },
+                      { label: 'Contacto', value: ad.whatsapp ? `${ad.phone || 'Sin fono'} · WA ${ad.whatsapp}` : (ad.phone || 'Sin fono') },
+                      { label: 'Propietario', value: ad.ownerSellerId ? `${ad.ownerEmail || 'Usuario'} · ${formatSellerId(ad.ownerSellerId)}` : (ad.ownerEmail || `Usuario #${ad.ownerUserId || 'N/A'}`) },
+                      { label: 'Publicado', value: formatDate(ad.publishedAt) },
+                      { label: 'Expira', value: formatDate(ad.expiresAt) },
+                      ...(status === 'RECHAZADO' && ad.rejectionReason ? [{ label: 'Motivo de rechazo', value: ad.rejectionReason, wide: true }] : []),
+                    ]}
+                    onPress={() => setSelectedAdForDetail(ad)}
+                    actions={(
+                      <>
+                        <button type="button" className="mb-action" onClick={() => setSelectedAdForDetail(ad)}>
+                          <UiIcon name="eye" />
+                          Inspeccionar
+                        </button>
+                        {status !== 'APROBADO' && (
+                          <button type="button" className="mb-action mb-action--success" onClick={() => approveMutation.mutate(ad.id)} disabled={approveMutation.isPending}>
+                            <UiIcon name="check" />
+                            Aprobar
+                          </button>
+                        )}
+                        {status !== 'RECHAZADO' && (
+                          <button type="button" className="mb-action mb-action--danger" onClick={() => handleOpenReject(ad)} disabled={rejectMutation.isPending}>
+                            <UiIcon name="shieldX" />
+                            Rechazar
+                          </button>
+                        )}
+                      </>
+                    )}
+                  />
+                );
+              })}
+            </RecordList>
+          )
+        ) : (
         <table className="wide-table">
           <thead>
             <tr>
@@ -650,6 +718,7 @@ export default function AdValidationTab() {
             )}
           </tbody>
         </table>
+        )}
 
         {/* Table Footer with Pager */}
         <div className="table-footer">

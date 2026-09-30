@@ -9,6 +9,8 @@ import { formatCurrency } from '@/utils/formatters';
 import type { CapturerWithdrawal } from '@/types/capturer';
 import { downloadFile } from './utils';
 import { BCI_NOMINA_MIME_TYPE } from './constants';
+import { useIsMobile } from '@/hooks/useIsMobile';
+import { RecordCard, RecordList, EmptyState } from '@/components/mobile';
 
 type Tab = 'gestion' | 'historial';
 
@@ -37,6 +39,7 @@ function formatDateTime(value?: string | null) {
 }
 
 export default function PagoCaptadoresPage() {
+  const isMobile = useIsMobile();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<Tab>('gestion');
   const [rejectionTarget, setRejectionTarget] = useState<CapturerWithdrawal | null>(null);
@@ -191,7 +194,35 @@ export default function PagoCaptadoresPage() {
             </div>
 
             <div className="table-responsive">
-              <table>
+              {isMobile ? (
+<RecordList
+  loading={withdrawalsQuery.isLoading}
+  ariaLabel="Retiros pendientes de captadores"
+  empty={<EmptyState icon="wallet" title="Sin solicitudes pendientes" description="No hay solicitudes de retiro de captadores pendientes." />}
+>
+  {pending.map((withdrawal) => (
+    <RecordCard
+      key={withdrawal.id}
+      leading={<CapturerAvatar nombre={withdrawal.captador || withdrawal.alias} fotoPerfil={withdrawal.fotoPerfil} size={40} />}
+      title={withdrawal.captador || 'Captador'}
+      subtitle={`@${withdrawal.alias || 'sin-alias'} · ${withdrawal.rut || 'RUT no informado'}`}
+      badge={<strong className="mb-amount">{formatCurrency(withdrawal.monto)}</strong>}
+      meta={[
+        { label: 'Solicitud', value: withdrawal.codigo },
+        { label: 'Fecha', value: formatDateTime(withdrawal.fecha) },
+        { label: 'Cuenta de destino', value: `${withdrawal.banco || 'Banco no informado'} · ${withdrawal.tipoCuenta || 'Cuenta'} · ${withdrawal.numeroCuenta || 'Sin número'}`, wide: true },
+      ]}
+      actions={(
+        <>
+          <button type="button" className="mb-action" onClick={() => void capturerApi.viewCapturerReceipt(withdrawal.id)}><UiIcon name="document" />Ver boleta</button>
+          <button type="button" className="mb-action mb-action--danger" disabled={isSubmitting} onClick={() => setRejectionTarget(withdrawal)}>Rechazar</button>
+        </>
+      )}
+    />
+  ))}
+</RecordList>
+) : (
+<table>
                   <thead>
                     <tr>
                       <th>Solicitud</th>
@@ -242,6 +273,7 @@ export default function PagoCaptadoresPage() {
                   ))}
                 </tbody>
               </table>
+)}
             </div>
           </section>
         </>
@@ -262,7 +294,29 @@ export default function PagoCaptadoresPage() {
               <span className="status-pill success">{paymentRounds.length} rondas</span>
             </div>
             <div className="table-responsive">
-              <table>
+              {isMobile ? (
+<RecordList
+  loading={withdrawalsQuery.isLoading}
+  ariaLabel="Rondas de pago"
+  empty={<EmptyState icon="clock" title="Sin rondas de pago" description="Aún no existen rondas de pago para captadores." />}
+>
+  {paymentRounds.map((round) => (
+    <RecordCard
+      key={round.key}
+      title={`Ronda ${round.key}`}
+      subtitle={`Pagada el ${formatDate(round.withdrawals[0]?.fechaPago)}`}
+      badge={<span className="status-pill success">Pagado</span>}
+      meta={[
+        { label: 'Total pagado', value: <strong>{formatCurrency(round.total)}</strong> },
+        { label: 'Retiros', value: round.withdrawals.length },
+        { label: 'Captadores', value: round.withdrawals.map((withdrawal) => withdrawal.alias || withdrawal.captador || 'Captador').join(', '), wide: true },
+        { label: 'Códigos incluidos', value: round.withdrawals.map((withdrawal) => withdrawal.codigo).join(', '), wide: true },
+      ]}
+    />
+  ))}
+</RecordList>
+) : (
+<table>
                 <thead>
                   <tr>
                     <th>Ronda</th>
@@ -303,6 +357,7 @@ export default function PagoCaptadoresPage() {
                   ))}
                 </tbody>
               </table>
+)}
             </div>
           </section>
         </>

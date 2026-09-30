@@ -12,6 +12,9 @@ import { buildDocumentDownloadName, downloadDocument, previewDocument, resolveDo
 import AdValidationTab from './AdValidationTab';
 import CapturerValidationTab from './CapturerValidationTab';
 import ServiceValidationTab from './ServiceValidationTab';
+import { useIsMobile } from '@/hooks/useIsMobile';
+import { DetailHost, FilterSheet, FilterTrigger } from '@/components/mobile';
+import { countActiveFilters } from '@/utils/filters';
 
 
 type RequiredDocumentStatus = ValidationStatus | 'POR_CORREGIR';
@@ -296,6 +299,8 @@ function parseObservationHistory(notes: string | undefined): ObservationHistoryI
 export default function ValidationsPage() {
   const [activeTab, setActiveTab] = useState<'registros' | 'captadores' | 'servicios' | 'anuncios'>('registros');
   const [selectedSellerId, setSelectedSellerId] = useState<number | null>(null);
+  const isMobile = useIsMobile();
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ACTIVOS');
   const [dateFilter, setDateFilter] = useState('');
@@ -503,6 +508,43 @@ export default function ValidationsPage() {
         <AdValidationTab />
       ) : (
         <>
+          {isMobile ? (
+            <>
+              <div className="mb-filter-row">
+                <input
+                  type="search"
+                  className="input"
+                  value={searchTerm}
+                  onChange={(event) => setSearchTerm(event.target.value)}
+                  placeholder="Buscar tienda o responsable…"
+                  aria-label="Buscar solicitudes"
+                />
+                <FilterTrigger count={countActiveFilters({ statusFilter, dateFilter }, { statusFilter: STATUS_OPTIONS[0]?.value })} onClick={() => setFiltersOpen(true)} />
+              </div>
+              <FilterSheet
+                open={filtersOpen}
+                onClose={() => setFiltersOpen(false)}
+                title="Filtrar solicitudes"
+                activeCount={countActiveFilters({ statusFilter, dateFilter }, { statusFilter: STATUS_OPTIONS[0]?.value })}
+                onClear={clearFilters}
+              >
+                <label>
+                  Estado
+                  <select className="select" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+                    {STATUS_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Fecha
+                  <input className="input" type="date" value={dateFilter} onChange={(event) => setDateFilter(event.target.value)} />
+                </label>
+              </FilterSheet>
+            </>
+          ) : (
           <div className="validation-filters">
             <label className="validation-search-field">
               <UiIcon name="search" />
@@ -535,6 +577,7 @@ export default function ValidationsPage() {
               Limpiar filtros
             </button>
           </div>
+          )}
 
           <div className="validation-content-grid">
             <aside className="validation-request-list" aria-label="Solicitudes de validación">
@@ -580,6 +623,13 @@ export default function ValidationsPage() {
               })}
             </aside>
 
+            <DetailHost
+              open={Boolean(selectedGroup)}
+              onClose={() => setSelectedSellerId(null)}
+              title={selectedGroup?.sellerName ?? 'Solicitud'}
+              subtitle={selectedGroup ? getStatusLabel(selectedGroup.status) : undefined}
+              id="mb-validation-detail"
+            >
             <main className="validation-detail-stack">
               {!selectedGroup && !isLoadingValidations && (
                 <div className="validation-empty-state large">Selecciona una solicitud para revisar sus documentos.</div>
@@ -904,6 +954,7 @@ export default function ValidationsPage() {
             </>
           )}
         </main>
+        </DetailHost>
       </div>
 
       {approvalFeedbackOpen && (

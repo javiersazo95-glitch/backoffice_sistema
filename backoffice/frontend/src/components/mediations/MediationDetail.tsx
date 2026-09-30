@@ -30,6 +30,8 @@ import { getReports } from '@/api/reports';
 import { downloadDocument, previewDocument, resolveNavigableDocumentUrl } from '@/utils/documentUrls';
 import { resolveProfileImageUrl } from '@/api/client';
 import mediatorProfileImage from '@/assets/mediator-profile.jpg';
+import { useIsMobile } from '@/hooks/useIsMobile';
+import StickyActionBar from '@/components/mobile/StickyActionBar';
 
 type MediationModalItem = MediationResponse & Partial<MediationDetailResponse>;
 
@@ -538,6 +540,7 @@ export default function MediationDetail({
   onBlockAccount,
   onSendMessage,
 }: MediationDetailProps) {
+  const isMobile = useIsMobile();
   const navigate = useNavigate();
   const { id: paramId } = useParams<{ id: string }>();
   const parsedId = paramId ? Number(paramId) : null;
@@ -1334,6 +1337,36 @@ export default function MediationDetail({
             )}
           </section>
 
+          {isMobile ? (
+            <>
+              <div className="mediation-management-footer mb-footer-secondary">
+                <button className="secondary-button" type="button" onClick={handleBack}>
+                  Volver atrás
+                </button>
+                <button className="secondary-button" type="button" disabled={!favor}>
+                  Guardar borrador
+                </button>
+              </div>
+              <StickyActionBar>
+                <button
+                  className="primary-button"
+                  type="button"
+                  onClick={requestResolve}
+                  disabled={decision !== 'resolve' || !resolveReady || resolveMutation.isPending}
+                >
+                  <UiIcon name="check" /> {resolveMutation.isPending ? 'Resolviendo…' : 'Resolver caso'}
+                </button>
+                <button
+                  className="danger-button"
+                  type="button"
+                  onClick={handleSuspend}
+                  disabled={decision !== 'block' || !suspendReady}
+                >
+                  <UiIcon name="shieldX" /> Suspender
+                </button>
+              </StickyActionBar>
+            </>
+          ) : (
           <div className="mediation-management-footer">
             <button className="secondary-button" type="button" onClick={handleBack}>
               Volver atrás
@@ -1360,6 +1393,7 @@ export default function MediationDetail({
               </button>
             </div>
           </div>
+          )}
         </div>
 
         {/* O64 (pruebas de lanzamiento, 25-sep): confirmacion antes de resolver. Mismo molde que

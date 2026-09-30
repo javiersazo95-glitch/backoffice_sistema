@@ -1,4 +1,6 @@
 import type { ReactNode } from 'react';
+import { useIsMobile } from '@/hooks/useIsMobile';
+import { useLockBodyScroll } from '@/hooks/useLockBodyScroll';
 
 interface ModalProps {
   isOpen: boolean;
@@ -9,6 +11,9 @@ interface ModalProps {
 }
 
 export default function Modal({ isOpen, onClose, title, children, wide }: ModalProps) {
+  const isMobile = useIsMobile();
+  useLockBodyScroll(isOpen && isMobile);
+
   if (!isOpen) return null;
 
   return (

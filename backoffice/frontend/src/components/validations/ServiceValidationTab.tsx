@@ -5,6 +5,8 @@ import UiIcon from '@/components/shared/UiIcon';
 import { showToast } from '@/components/layout/Toast';
 import type { AutomotiveServiceReview } from '@/types/capturer';
 import CapturerAvatar from '@/components/capturers/CapturerAvatar';
+import { useIsMobile } from '@/hooks/useIsMobile';
+import { RecordCard, RecordList, EmptyState } from '@/components/mobile';
 
 type ServiceStatus = 'PENDIENTE' | 'POR_CORREGIR' | 'APROBADO' | 'RECHAZADO';
 type StatusFilter = 'TODOS' | ServiceStatus;
@@ -41,6 +43,7 @@ function formatDate(value?: string | null): string {
 export default function ServiceValidationTab() {
   const qc = useQueryClient();
 
+  const isMobile = useIsMobile();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('TODOS');
   const [selectedMonth, setSelectedMonth] = useState('ALL');
@@ -179,7 +182,7 @@ export default function ServiceValidationTab() {
       </div>
 
       <section className="table-shell">
-        <div className="table-toolbar" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'nowrap' }}>
+        <div className="table-toolbar mb-toolbar" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'nowrap' }}>
           <input
             className="input"
             type="search"
@@ -209,6 +212,73 @@ export default function ServiceValidationTab() {
           </button>
         </div>
 
+        {isMobile ? (
+          query.isError ? (
+            <EmptyState tone="error" icon="alert" title="Error al cargar" description="No se pudieron cargar los expedientes de servicios." />
+          ) : (
+            <RecordList
+              loading={query.isLoading}
+              ariaLabel="Expedientes de servicios automotrices"
+              empty={<EmptyState icon="store" title="Sin expedientes" description="No se encontraron expedientes con los filtros aplicados." />}
+            >
+              {paged.map((s) => {
+                const status = statusOf(s);
+                const meta = STATUS_META[status];
+                const loadedDocs = DOCUMENTS.filter((d) => docName(s, d.field)).length;
+                const editable = status === 'PENDIENTE' || status === 'POR_CORREGIR';
+                return (
+                  <RecordCard
+                    key={s.id}
+                    leading={<CapturerAvatar nombre={s.nombreNegocio} fotoPerfil={s.logoUrl} size={40} background="#6d3fd6" />}
+                    title={s.nombreNegocio}
+                    subtitle={`${s.rutNegocio || 'Sin RUT'} · ${s.responsable || 'Sin responsable'}`}
+                    badge={(
+                      <span className={`status-pill ${meta.pill}`} style={{ gap: 5 }}>
+                        <UiIcon name={meta.icon} style={{ width: 13, height: 13 }} />
+                        {meta.label}
+                      </span>
+                    )}
+                    tone={status === 'RECHAZADO' ? 'danger' : status === 'PENDIENTE' ? 'warning' : 'default'}
+                    meta={[
+                      { label: 'Solicitante', value: s.usuarioNombre },
+                      { label: 'Documentos', value: `${loadedDocs} / ${DOCUMENTS.length}` },
+                      { label: 'Ubicación', value: `${s.comuna || '—'} · ${s.region || 'Chile'}` },
+                      { label: 'Captador', value: s.captadorAlias ? `@${s.captadorAlias}` : 'Directo' },
+                      { label: 'Enviado', value: formatDate(s.submittedAt) },
+                      { label: 'Correo', value: s.usuarioEmail },
+                      ...(s.notasRevision ? [{ label: 'Observación', value: s.notasRevision, wide: true }] : []),
+                    ]}
+                    onPress={() => setDetail(s)}
+                    actions={(
+                      <>
+                        <button type="button" className="mb-action" onClick={() => setDetail(s)}>
+                          <UiIcon name="eye" />
+                          Expediente
+                        </button>
+                        {editable && (
+                          <>
+                            <button type="button" className="mb-action mb-action--success" disabled={mutation.isPending} onClick={() => mutation.mutate({ id: s.id, action: 'approve' })}>
+                              <UiIcon name="check" />
+                              Aprobar
+                            </button>
+                            <button type="button" className="mb-action" disabled={mutation.isPending} onClick={() => openDecision(s, 'request-correction')}>
+                              <UiIcon name="refresh" />
+                              Corregir
+                            </button>
+                            <button type="button" className="mb-action mb-action--danger" disabled={mutation.isPending} onClick={() => openDecision(s, 'reject')}>
+                              <UiIcon name="shieldX" />
+                              Rechazar
+                            </button>
+                          </>
+                        )}
+                      </>
+                    )}
+                  />
+                );
+              })}
+            </RecordList>
+          )
+        ) : (
         <table className="wide-table">
           <thead>
             <tr>
@@ -293,6 +363,7 @@ export default function ServiceValidationTab() {
             )}
           </tbody>
         </table>
+        )}
 
         <div className="table-footer">
           <span>Mostrando <strong>{paged.length}</strong> de <strong>{filtered.length}</strong> expedientes</span>

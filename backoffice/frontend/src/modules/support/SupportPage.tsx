@@ -16,6 +16,9 @@ import type { TicketResponse, TicketStatus, TicketPriority, TicketCategory, Repo
 import { useAuth } from '@/context/AuthContext';
 import { hasBackofficePermission } from '@/hooks/usePermissions';
 import { previewDocument } from '@/utils/documentUrls';
+import { useIsMobile } from '@/hooks/useIsMobile';
+import { RecordCard, RecordList, EmptyState, FilterSheet, FilterTrigger, DetailHost } from '@/components/mobile';
+import { countActiveFilters } from '@/utils/filters';
 
 const PLATFORM_LABELS: Record<TicketPlatform, string> = {
   ADMINISTRACION_CONTABLE: 'Administración Contable',
@@ -401,6 +404,17 @@ function SupportQaPage() {
               })}
             </aside>
 
+            <DetailHost
+              open={Boolean(selectedBugView)}
+              onClose={() => {
+                setSelectedBugId(null);
+                setReviewComment('');
+                setReviewFile(null);
+              }}
+              title={selectedBugView?.reason ?? 'Defecto'}
+              subtitle={selectedBugView ? getDefectStatusLabel(selectedBugView.status) : undefined}
+              id="mb-qa-detail"
+            >
             <main className="validation-detail-stack">
               {selectedBugView ? (
                 <SupportTicketDetailModal
@@ -434,6 +448,7 @@ function SupportQaPage() {
                 </div>
               )}
             </main>
+            </DetailHost>
 
             <main className="validation-detail-stack" style={{ display: 'none' }}>
               {selectedBug ? (
@@ -754,7 +769,7 @@ function SupportQaPage() {
                 />
               </label>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div className="mb-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <label style={{ display: 'grid', gap: '6px' }}>
                   <span style={{ fontSize: '13px', fontWeight: 'bold' }}>Área *</span>
                   <select
@@ -784,7 +799,7 @@ function SupportQaPage() {
                 </label>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div className="mb-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <label style={{ display: 'grid', gap: '6px' }}>
                   <span style={{ fontSize: '13px', fontWeight: 'bold' }}>Entorno *</span>
                   <select
@@ -938,6 +953,8 @@ export default function SupportPage() {
   const [categoryFilter, setCategoryFilter] = useState<string>('All');
   const [platformFilter, setPlatformFilter] = useState<TicketPlatform | 'All'>('All');
   const [page, setPage] = useState(0);
+  const isMobile = useIsMobile();
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   // Modales
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -1314,6 +1331,48 @@ export default function SupportPage() {
         </div>
       ) : activeTab === 'qa-reports' ? (
         <div className="support-tickets-layout" style={{ marginTop: '24px' }}>
+          {isMobile ? (
+            <>
+              <div className="mb-filter-row">
+                <input className="input" type="search" value={search} onChange={(e) => { setSearch(e.target.value); setPage(0); }} placeholder="Buscar reporte QA..." />
+                <FilterTrigger count={countActiveFilters({ statusFilter, priorityFilter, platformFilter }, { statusFilter: 'All', priorityFilter: 'All', platformFilter: 'All' })} onClick={() => setFiltersOpen(true)} />
+              </div>
+              <FilterSheet
+                open={filtersOpen}
+                onClose={() => setFiltersOpen(false)}
+                title="Filtrar reportes QA"
+                activeCount={countActiveFilters({ statusFilter, priorityFilter, platformFilter }, { statusFilter: 'All', priorityFilter: 'All', platformFilter: 'All' })}
+                onClear={clearFilters}
+              >
+
+            <label className="validation-filter-field" style={{ flex: '1 1 170px', margin: 0 }}>
+              <span>Estado</span>
+              <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }}>
+                <option value="All">Todos</option>
+                {SUPPORT_QA_STATUS_FILTER_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+            </label>
+            <label className="validation-filter-field" style={{ flex: '1 1 170px', margin: 0 }}>
+              <span>Prioridad</span>
+              <select value={priorityFilter} onChange={(e) => { setPriorityFilter(e.target.value); setPage(0); }}>
+                <option value="All">Todas</option>
+                {Object.entries(PRIORITY_LABELS).map(([val, label]) => <option key={val} value={val}>{label}</option>)}
+              </select>
+            </label>
+            <label className="validation-filter-field" style={{ flex: '1 1 190px', margin: 0 }}>
+              <span>Plataforma</span>
+              <select value={platformFilter} onChange={(e) => { setPlatformFilter(e.target.value as TicketPlatform | 'All'); setPage(0); }}>
+                <option value="All">Todas</option>
+                <option value="ADMINISTRACION_CONTABLE">Administración Contable</option>
+                <option value="MEDIACION_CONFIANZA">Mediación y Confianza</option>
+                <option value="APP_MOBILE">App Mobile RepuesTop</option>
+              </select>
+            </label>
+              </FilterSheet>
+            </>
+          ) : (
           <div className="validation-filters" style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', marginBottom: '20px', minHeight: 'auto', padding: '16px 20px', alignItems: 'center' }}>
             <label className="validation-search-field" style={{ flex: '2 1 280px', margin: 0 }}>
               <UiIcon name="search" />
@@ -1349,9 +1408,46 @@ export default function SupportPage() {
               Limpiar
             </button>
           </div>
+          )}
 
           <div className="panel" style={{ overflow: 'hidden' }}>
             <div className="table-wrap">
+              {isMobile ? (
+                <RecordList
+                  loading={isLoadingQaReports}
+                  ariaLabel="Reportes QA"
+                  empty={<EmptyState icon="alert" title="Sin reportes QA" description="No hay reportes QA para los filtros seleccionados." />}
+                >
+                  {visibleSupportQaReports.map((ticket) => (
+                    <RecordCard
+                      key={ticket.id}
+                      leading={<CapturerAvatar nombre={ticket.reporterName} fotoPerfil={ticket.reporterPhoto} size={40} />}
+                      title={ticket.reason}
+                      clampTitle
+                      badgePlacement="below"
+                      subtitle={`${ticket.externalId} · ${formatDate(ticket.createdAt)}`}
+                      badge={(
+                        <>
+                          <span className={`support-qa-status-badge ${QA_STATUS_TONE_CLASSES[ticket.status]}`}>{getStatusLabel(ticket.status, true)}</span>
+                          <Badge text={PRIORITY_LABELS[ticket.priority]} variant={PRIORITY_TONES[ticket.priority]} />
+                        </>
+                      )}
+                      tone={ticket.priority === 'CRITICA' ? 'danger' : ticket.priority === 'ALTA' ? 'warning' : 'default'}
+                      meta={[
+                        { label: 'QA', value: <FounderSellerName name={ticket.reporterName} founder={ticket.reporterType === 'VENDEDOR' && ticket.sellerFounder} /> },
+                        { label: 'Plataforma', value: ticket.platform ? PLATFORM_LABELS[ticket.platform] : 'General' },
+                      ]}
+                      onPress={() => setSelectedTicket(ticket)}
+                      actions={(
+                        <button type="button" className="mb-action mb-action--primary" onClick={() => setSelectedTicket(ticket)}>
+                          <UiIcon name="arrowRight" />
+                          Ver reporte
+                        </button>
+                      )}
+                    />
+                  ))}
+                </RecordList>
+              ) : (
               <table className="support-qa-table">
                 <colgroup>
                   {Array.from({ length: 8 }).map((_, index) => <col key={index} />)}
@@ -1395,6 +1491,7 @@ export default function SupportPage() {
                   ))}
                 </tbody>
               </table>
+              )}
             </div>
           </div>
 
@@ -1411,6 +1508,68 @@ export default function SupportPage() {
       ) : (
         /* VISTA: TICKETS (LISTADO Y FILTROS) */
         <div className="support-tickets-layout" style={{ marginTop: '24px' }}>
+          {isMobile ? (
+            <>
+              <div className="mb-filter-row">
+                <input className="input" type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar por ID, reportante o motivo..." />
+                <FilterTrigger count={countActiveFilters({ statusFilter, priorityFilter, categoryFilter, platformFilter }, { statusFilter: 'All', priorityFilter: 'All', categoryFilter: 'All', platformFilter: 'All' })} onClick={() => setFiltersOpen(true)} />
+              </div>
+              <FilterSheet
+                open={filtersOpen}
+                onClose={() => setFiltersOpen(false)}
+                title="Filtrar tickets"
+                activeCount={countActiveFilters({ statusFilter, priorityFilter, categoryFilter, platformFilter }, { statusFilter: 'All', priorityFilter: 'All', categoryFilter: 'All', platformFilter: 'All' })}
+                onClear={clearFilters}
+              >
+
+
+            <label className="validation-filter-field" style={{ flex: '1 1 170px', margin: 0 }}>
+              <span>Estado</span>
+              <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+                <option value="All">Sin cerrar</option>
+                {Object.entries(STATUS_LABELS)
+                  .filter(([val]) => val !== 'PENDIENTE_VENDEDOR' && val !== 'PENDIENTE_COMPRADOR')
+                  .map(([val, label]) => (
+                  <option key={val} value={val}>{label}</option>
+                  ))}
+              </select>
+            </label>
+
+            <label className="validation-filter-field" style={{ flex: '1 1 170px', margin: 0 }}>
+              <span>Prioridad</span>
+              <select value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value)}>
+                <option value="All">Todas</option>
+                {Object.entries(PRIORITY_LABELS).map(([val, label]) => (
+                  <option key={val} value={val}>{label}</option>
+                ))}
+              </select>
+            </label>
+
+            <label className="validation-filter-field" style={{ flex: '1 1 170px', margin: 0 }}>
+              <span>Categoría</span>
+              <select value={categoryFilter} onChange={(e) => { setCategoryFilter(e.target.value); setPage(0); }}>
+                <option value="All">Todas</option>
+                {Object.entries(CATEGORY_LABELS).map(([val, label]) => (
+                  <option key={val} value={val}>{label}</option>
+                ))}
+              </select>
+            </label>
+
+            <label className="validation-filter-field" style={{ flex: '1 1 190px', margin: 0 }}>
+              <span>Plataforma</span>
+              <select value={platformFilter} onChange={(e) => {
+                setPlatformFilter(e.target.value as TicketPlatform | 'All');
+                setPage(0);
+              }}>
+                <option value="All">Todas</option>
+                {Object.entries(PLATFORM_LABELS).map(([val, label]) => (
+                  <option key={val} value={val}>{label}</option>
+                ))}
+              </select>
+            </label>
+              </FilterSheet>
+            </>
+          ) : (
           <div className="validation-filters" style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', marginBottom: '20px', minHeight: 'auto', padding: '16px 20px', alignItems: 'center' }}>
             <label className="validation-search-field" style={{ flex: '2 1 280px', margin: 0 }}>
               <UiIcon name="search" />
@@ -1472,9 +1631,49 @@ export default function SupportPage() {
               Limpiar
             </button>
           </div>
+          )}
 
           <div className="panel" style={{ overflow: 'hidden' }}>
             <div className="table-wrap">
+              {isMobile ? (
+                <RecordList
+                  loading={isLoadingTickets}
+                  ariaLabel="Tickets de soporte"
+                  empty={<EmptyState icon="message" title="Sin tickets" description="No se encontraron tickets con los filtros seleccionados." />}
+                >
+                  {(ticketsData?.content ?? []).map((ticket) => (
+                    <RecordCard
+                      key={ticket.id}
+                      leading={<CapturerAvatar nombre={ticket.reporterName} fotoPerfil={ticket.reporterPhoto} size={40} />}
+                      title={ticket.reason}
+                      clampTitle
+                      badgePlacement="below"
+                      subtitle={`${ticket.externalId} · ${formatDate(ticket.createdAt)}`}
+                      badge={(
+                        <>
+                          <Badge text={getStatusLabel(ticket.status, ticket.origin === 'QA')} variant={STATUS_TONES[ticket.status]} />
+                          <Badge text={PRIORITY_LABELS[ticket.priority]} variant={PRIORITY_TONES[ticket.priority]} />
+                        </>
+                      )}
+                      tone={ticket.priority === 'CRITICA' ? 'danger' : ticket.priority === 'ALTA' ? 'warning' : 'default'}
+                      meta={[
+                        { label: 'Reportante', value: <FounderSellerName name={ticket.reporterName} founder={ticket.reporterType === 'VENDEDOR' && ticket.sellerFounder} /> },
+                        { label: 'Tipo', value: ticket.platform === 'SITIO_WEB' ? 'Consulta web' : REPORTER_LABELS[ticket.reporterType] },
+                        { label: 'Plataforma', value: ticket.platform ? PLATFORM_LABELS[ticket.platform] : 'General / App' },
+                        { label: 'Categoría', value: <>{CATEGORY_LABELS[ticket.category]}{ticket.origin === 'GARANTIA_LEGAL' ? ' · Garantía legal' : ''}</> },
+                        { label: 'SLA', value: ticket.sla || 'N/A' },
+                      ]}
+                      onPress={() => setSelectedTicket(ticket)}
+                      actions={(
+                        <button type="button" className="mb-action mb-action--primary" onClick={() => setSelectedTicket(ticket)}>
+                          <UiIcon name="arrowRight" />
+                          Atender ticket
+                        </button>
+                      )}
+                    />
+                  ))}
+                </RecordList>
+              ) : (
               <table style={{ tableLayout: 'fixed', width: '100%' }}>
                 <thead>
                   <tr>
@@ -1541,6 +1740,7 @@ export default function SupportPage() {
                   )}
                 </tbody>
               </table>
+              )}
             </div>
 
             {/* Paginación */}
@@ -1728,7 +1928,7 @@ export default function SupportPage() {
             </div>
 
             <form onSubmit={handleCreateTicket} style={{ marginTop: '20px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+              <div className="mb-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
                 <label className="validation-filter-field" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                   <span>Tipo de Reportante</span>
                   <select value={newReporterType} disabled={isInternalTicketPlatform} onChange={(e) => {
@@ -1774,7 +1974,7 @@ export default function SupportPage() {
                 </div>
               )}
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+              <div className="mb-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
                 <label className="validation-filter-field" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                   <span>Categoría</span>
                   <select value={newCategory} onChange={(e) => setNewCategory(e.target.value as TicketCategory)}>

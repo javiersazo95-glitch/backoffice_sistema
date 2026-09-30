@@ -4,6 +4,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { UserSummaryResponse } from '@/types/auth';
 import UiIcon from '@/components/shared/UiIcon';
 import * as notifApi from '@/api/notifications';
+import { useIsMobile } from '@/hooks/useIsMobile';
+import BottomSheet from '@/components/mobile/BottomSheet';
 
 interface NotificationBellProps {
   user: UserSummaryResponse | null;
@@ -29,6 +31,7 @@ export default function NotificationBell({ user }: NotificationBellProps) {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
   const userId = user?.id;
 
   const { data: unreadCount = 0 } = useQuery({
@@ -70,7 +73,9 @@ export default function NotificationBell({ user }: NotificationBellProps) {
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === 'Escape') setOpen(false);
     }
-    if (open) {
+    // En movil el listado vive en un sheet (portal fuera de este contenedor), que gestiona su
+    // propio cierre: el listener de "clic fuera" lo cerraria al tocar dentro.
+    if (open && !isMobile) {
       document.addEventListener('mousedown', handleClickOutside);
       document.addEventListener('keydown', handleKeyDown);
     }
@@ -78,7 +83,7 @@ export default function NotificationBell({ user }: NotificationBellProps) {
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [open]);
+  }, [open, isMobile]);
 
   if (!user) return null;
 
@@ -91,6 +96,60 @@ export default function NotificationBell({ user }: NotificationBellProps) {
       navigate(notif.targetRoute);
     }
   };
+
+  const listBody = (
+    <div className="notification-dropdown-body">
+      {isLoading ? (
+        <div className="notification-empty">Cargando avisos...</div>
+      ) : notifications.length === 0 ? (
+        <div className="notification-empty">
+          <UiIcon name="fileCheck" />
+          <p>No tienes notificaciones pendientes.</p>
+        </div>
+      ) : (
+        notifications.slice(0, 15).map((n) => {
+          const isDte = n.tipo?.includes('RECARGA') || n.tipo?.includes('DTE') || n.tipo?.includes('TRIBUTARI');
+          return (
+            <div
+              key={n.id}
+              className={`notification-item${!n.leida ? ' unread' : ''}${isDte ? ' dte-alert' : ''}`}
+              onClick={() => handleSelectNotification(n)}
+              role="button"
+              tabIndex={0}
+            >
+              <div className="notification-item-icon">
+                <UiIcon name={isDte ? 'wallet' : 'alert'} />
+              </div>
+              <div className="notification-item-content">
+                <div className="notification-item-top">
+                  <strong className="notification-item-title">{n.titulo}</strong>
+                  <span className="notification-item-time">{timeAgo(n.createdAt)}</span>
+                </div>
+                <p className="notification-item-message">{n.mensaje}</p>
+                {n.targetRoute && (
+                  <span className="notification-item-link">
+                    Ver detalle en Pedidos &rarr;
+                  </span>
+                )}
+              </div>
+              {!n.leida && <span className="notification-item-dot" title="No leída" />}
+            </div>
+          );
+        })
+      )}
+    </div>
+  );
+
+  const markAllButton = unreadCount > 0 ? (
+    <button
+      type="button"
+      className="notification-mark-all-btn"
+      onClick={() => markAllReadMutation.mutate()}
+      disabled={markAllReadMutation.isPending}
+    >
+      Marcar leídas
+    </button>
+  ) : null;
 
   return (
     <div className="notification-bell-container" ref={dropdownRef}>
@@ -109,7 +168,21 @@ export default function NotificationBell({ user }: NotificationBellProps) {
         )}
       </button>
 
-      {open && (
+      {isMobile ? (
+        <BottomSheet
+          open={open}
+          onClose={() => setOpen(false)}
+          title="Notificaciones"
+          subtitle={unreadCount > 0 ? `${unreadCount} sin leer` : 'Al día'}
+          height="auto"
+          flush
+          id="mb-notifications"
+          className="mb-notifications-sheet"
+          footer={markAllButton ? <div className="mb-notifications-foot">{markAllButton}</div> : undefined}
+        >
+          {listBody}
+        </BottomSheet>
+      ) : open && (
         <div className="notification-dropdown">
           <div className="notification-dropdown-header">
             <div className="notification-header-title">
@@ -119,58 +192,10 @@ export default function NotificationBell({ user }: NotificationBellProps) {
                 <span className="notification-unread-pill">{unreadCount}</span>
               )}
             </div>
-            {unreadCount > 0 && (
-              <button
-                type="button"
-                className="notification-mark-all-btn"
-                onClick={() => markAllReadMutation.mutate()}
-                disabled={markAllReadMutation.isPending}
-              >
-                Marcar leídas
-              </button>
-            )}
+            {markAllButton}
           </div>
 
-          <div className="notification-dropdown-body">
-            {isLoading ? (
-              <div className="notification-empty">Cargando avisos...</div>
-            ) : notifications.length === 0 ? (
-              <div className="notification-empty">
-                <UiIcon name="fileCheck" />
-                <p>No tienes notificaciones pendientes.</p>
-              </div>
-            ) : (
-              notifications.slice(0, 15).map((n) => {
-                const isDte = n.tipo?.includes('RECARGA') || n.tipo?.includes('DTE') || n.tipo?.includes('TRIBUTARI');
-                return (
-                  <div
-                    key={n.id}
-                    className={`notification-item${!n.leida ? ' unread' : ''}${isDte ? ' dte-alert' : ''}`}
-                    onClick={() => handleSelectNotification(n)}
-                    role="button"
-                    tabIndex={0}
-                  >
-                    <div className="notification-item-icon">
-                      <UiIcon name={isDte ? 'wallet' : 'alert'} />
-                    </div>
-                    <div className="notification-item-content">
-                      <div className="notification-item-top">
-                        <strong className="notification-item-title">{n.titulo}</strong>
-                        <span className="notification-item-time">{timeAgo(n.createdAt)}</span>
-                      </div>
-                      <p className="notification-item-message">{n.mensaje}</p>
-                      {n.targetRoute && (
-                        <span className="notification-item-link">
-                          Ver detalle en Pedidos &rarr;
-                        </span>
-                      )}
-                    </div>
-                    {!n.leida && <span className="notification-item-dot" title="No leída" />}
-                  </div>
-                );
-              })
-            )}
-          </div>
+          {listBody}
         </div>
       )}
     </div>

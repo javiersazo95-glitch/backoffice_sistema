@@ -4,6 +4,7 @@ import UiIcon from './UiIcon';
 import HelpSupportWidget from './HelpSupportWidget';
 import { useAuth } from '@/context/AuthContext';
 import { Role } from '@/types/auth';
+import { useIsMobile } from '@/hooks/useIsMobile';
 
 interface AreaHomeShortcutProps {
   className?: string;
@@ -16,6 +17,7 @@ export default function AreaHomeShortcut({ className = '' }: AreaHomeShortcutPro
   const { user, logout } = useAuth();
   const menuRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -48,6 +50,9 @@ export default function AreaHomeShortcut({ className = '' }: AreaHomeShortcutPro
     setUserMenuOpen(false);
     navigate('/retiros');
   };
+
+  // En telefonos el shell movil ya ofrece inicio, ayuda, retiros y cierre de sesion.
+  if (isMobile) return null;
 
   return (
     <>

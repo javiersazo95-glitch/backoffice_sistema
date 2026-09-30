@@ -13,6 +13,14 @@ import { AlertSeverity } from '@/types/alert';
 import { showToast } from '@/components/layout/Toast';
 import AreaHomeShortcut from '@/components/shared/AreaHomeShortcut';
 import FounderSellerName from '@/components/shared/FounderSellerName';
+import UiIcon from '@/components/shared/UiIcon';
+import { useIsMobile } from '@/hooks/useIsMobile';
+import { RecordCard, RecordList, EmptyState, DetailHost } from '@/components/mobile';
+
+const SEVERITY_TONE: Record<string, 'danger' | 'warning' | 'default'> = {
+  CRITICA: 'danger',
+  ALTA: 'warning',
+};
 
 export default function AlertsPage() {
   const [page, setPage] = useState(0);
@@ -20,6 +28,7 @@ export default function AlertsPage() {
   const [severity, setSeverity] = useState<AlertSeverity | undefined>(undefined);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
 
   const { data, isLoading } = useQuery({
     queryKey: ['alerts', search, severity, page],
@@ -61,6 +70,61 @@ export default function AlertsPage() {
   // distintivo) pero no cuenta como pendiente: antes "Alta 1" y "Señales de Riesgo 1" seguian en 1
   // despues de marcarla. El backend no filtra por estado, asi que se separa aqui (sobre la pagina).
   const pendingAlerts = alerts.filter((a) => !a.reviewed);
+
+  const detailPanel = selectedAlert ? (
+    <div className="side-panel">
+      <div className="side-panel-head">
+        <div>
+          <h2>{selectedAlert.signalType}</h2>
+          <p><FounderSellerName name={selectedAlert.sellerName} founder={selectedAlert.sellerFounder} /></p>
+        </div>
+        <Badge text={selectedAlert.severity} variant={selectedAlert.severity} />
+      </div>
+
+      <div className="side-section">
+        <div className="detail-row"><span className="detail-label">Evidencia</span><span className="detail-value">{selectedAlert.evidence}</span></div>
+        <div className="detail-row"><span className="detail-label">Impacto</span><span className="detail-value">{selectedAlert.impact}</span></div>
+        <div className="detail-row"><span className="detail-label">Acción Recomendada</span><span className="detail-value">{selectedAlert.action}</span></div>
+        <div className="detail-row"><span className="detail-label">Revisada</span><span className="detail-value">{selectedAlert.reviewed ? 'Sí' : 'No'}</span></div>
+        <div className="detail-row"><span className="detail-label">Fecha</span><span className="detail-value">{formatDateTime(selectedAlert.createdAt)}</span></div>
+      </div>
+
+      {/* Pruebas de lanzamiento, 25-sep: alerta de un reembolso fallido o rechazado en Flow.
+          Reintentar o marcar la devolucion manual cierra la alerta en el backend. */}
+      {selectedAlert.refundPayment ? (
+        <div className="side-section" style={{ display: 'grid', gap: 8 }}>
+          <div className="detail-row">
+            <span className="detail-label">Reembolso</span>
+            <span className="detail-value">
+              {selectedAlert.refundPayment.orderCode ?? '—'} · {formatCurrency(selectedAlert.refundPayment.amount ?? 0)}
+            </span>
+          </div>
+          <div className="detail-row">
+            <span className="detail-label">Estado</span>
+            <span className="detail-value">
+              {selectedAlert.refundPayment.manual
+                ? 'Devuelto manualmente por soporte'
+                : refundStatusView(selectedAlert.refundPayment.status).label}
+            </span>
+          </div>
+          <RefundSupportActions refund={selectedAlert.refundPayment} />
+        </div>
+      ) : null}
+
+      <div style={{ display: 'grid', gap: 8 }}>
+        {!selectedAlert.reviewed && (
+          <>
+            <button className="primary-button" onClick={() => reviewMutation.mutate(selectedAlert.id)}>
+              Marcar como Revisada
+            </button>
+            <button className="secondary-button" onClick={() => escalateMutation.mutate(selectedAlert.id)}>
+              Escalar a Mediación
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  ) : null;
 
   return (
     <>
@@ -106,6 +170,48 @@ export default function AlertsPage() {
 
           {isLoading ? (
             <div className="panel-body">Cargando alertas...</div>
+          ) : isMobile ? (
+            <>
+              <RecordList
+                ariaLabel="Señales de riesgo"
+                empty={<EmptyState icon="alert" title="Sin alertas" description="No hay señales de riesgo con estos filtros." />}
+              >
+                {alerts.map((alert) => (
+                  <RecordCard
+                    key={alert.id}
+                    title={alert.signalType}
+                    subtitle={<FounderSellerName name={alert.sellerName} founder={alert.sellerFounder} />}
+                    badge={(
+                      <>
+                        <Badge text={alert.severity} variant={alert.severity} />
+                        {alert.reviewed && <Badge text="Revisada" variant="green" />}
+                      </>
+                    )}
+                    tone={alert.reviewed ? 'muted' : (SEVERITY_TONE[alert.severity] ?? 'default')}
+                    meta={[
+                      { label: 'Fecha', value: formatDateTime(alert.createdAt) },
+                      { label: 'Acción', value: alert.action },
+                      { label: 'Evidencia', value: alert.evidence, wide: true },
+                    ]}
+                    selected={selectedId === alert.id}
+                    onPress={() => setSelectedId(alert.id)}
+                    actions={!alert.reviewed ? (
+                      <button type="button" className="mb-action mb-action--success" onClick={() => reviewMutation.mutate(alert.id)} disabled={reviewMutation.isPending}>
+                        <UiIcon name="check" />
+                        Marcar revisada
+                      </button>
+                    ) : undefined}
+                  />
+                ))}
+              </RecordList>
+              <Pagination
+                currentPage={page}
+                totalPages={data?.totalPages ?? 0}
+                totalItems={data?.totalElements ?? 0}
+                pageSize={PAGE_SIZES.ALERTS}
+                onPageChange={setPage}
+              />
+            </>
           ) : (
             <>
               <div className="table-wrap">
@@ -161,58 +267,15 @@ export default function AlertsPage() {
         </div>
 
         {selectedAlert && (
-          <div className="side-panel">
-            <div className="side-panel-head">
-              <div>
-                <h2>{selectedAlert.signalType}</h2>
-                <p><FounderSellerName name={selectedAlert.sellerName} founder={selectedAlert.sellerFounder} /></p>
-              </div>
-              <Badge text={selectedAlert.severity} variant={selectedAlert.severity} />
-            </div>
-
-            <div className="side-section">
-              <div className="detail-row"><span className="detail-label">Evidencia</span><span className="detail-value">{selectedAlert.evidence}</span></div>
-              <div className="detail-row"><span className="detail-label">Impacto</span><span className="detail-value">{selectedAlert.impact}</span></div>
-              <div className="detail-row"><span className="detail-label">Acción Recomendada</span><span className="detail-value">{selectedAlert.action}</span></div>
-              <div className="detail-row"><span className="detail-label">Revisada</span><span className="detail-value">{selectedAlert.reviewed ? 'Sí' : 'No'}</span></div>
-              <div className="detail-row"><span className="detail-label">Fecha</span><span className="detail-value">{formatDateTime(selectedAlert.createdAt)}</span></div>
-            </div>
-
-            {/* Pruebas de lanzamiento, 25-sep: alerta de un reembolso fallido o rechazado en Flow.
-                Reintentar o marcar la devolucion manual cierra la alerta en el backend. */}
-            {selectedAlert.refundPayment ? (
-              <div className="side-section" style={{ display: 'grid', gap: 8 }}>
-                <div className="detail-row">
-                  <span className="detail-label">Reembolso</span>
-                  <span className="detail-value">
-                    {selectedAlert.refundPayment.orderCode ?? '—'} · {formatCurrency(selectedAlert.refundPayment.amount ?? 0)}
-                  </span>
-                </div>
-                <div className="detail-row">
-                  <span className="detail-label">Estado</span>
-                  <span className="detail-value">
-                    {selectedAlert.refundPayment.manual
-                      ? 'Devuelto manualmente por soporte'
-                      : refundStatusView(selectedAlert.refundPayment.status).label}
-                  </span>
-                </div>
-                <RefundSupportActions refund={selectedAlert.refundPayment} />
-              </div>
-            ) : null}
-
-            <div style={{ display: 'grid', gap: 8 }}>
-              {!selectedAlert.reviewed && (
-                <>
-                  <button className="primary-button" onClick={() => reviewMutation.mutate(selectedAlert.id)}>
-                    Marcar como Revisada
-                  </button>
-                  <button className="secondary-button" onClick={() => escalateMutation.mutate(selectedAlert.id)}>
-                    Escalar a Mediación
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
+          <DetailHost
+            open
+            onClose={() => setSelectedId(null)}
+            title={selectedAlert.signalType}
+            subtitle={selectedAlert.sellerName}
+            id="mb-alert-detail"
+          >
+            {detailPanel}
+          </DetailHost>
         )}
       </div>
 

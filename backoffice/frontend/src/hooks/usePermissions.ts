@@ -45,3 +45,14 @@ export function usePermissions() {
     hasPermission,
   };
 }
+
+/**
+ * Perfil "solo QA" de Soporte: tiene la ranura QA pero no la de operador. SupportPage le muestra
+ * exclusivamente el tablero de defectos, y el shell movil un unico destino ("Bugs").
+ */
+export function isSupportQaOnly(user: UserSummaryResponse | null | undefined): boolean {
+  if (!user) return false;
+  const isOperator = hasBackofficePermission(user, 'SOPORTE', 'OPERADOR');
+  const isQa = hasBackofficePermission(user, 'SOPORTE', 'QA');
+  return isQa && !isOperator;
+}

@@ -3,6 +3,10 @@ import type { ReactNode } from 'react';
 import { useLocation,useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import CapturerAvatar from '@/components/capturers/CapturerAvatar';
+import { useIsMobile } from '@/hooks/useIsMobile';
+import { BottomSheet, MoreSheet, TabBar } from '@/components/mobile';
+import type { TabItem } from '@/components/mobile';
+import type { NavItem } from '@/components/layout/navConfig';
 
 type Alert={label:string;detail:string;to:string};
 type Props={alias?:string;region?:string;comuna?:string;fotoPerfil?:string|null;alerts?:Alert[];children:ReactNode};
@@ -16,16 +20,45 @@ const navItems:Array<{to:string;label:string;icon:ReactNode}>=[
  {to:'/captador/cuenta',label:'Mi cuenta',icon:<UserIcon/>},
 ];
 
+/* Movil: barra inferior con los 4 destinos principales y hoja "Mas" con el resto. */
+const mobileTabs:TabItem[]=[
+ {key:'resumen',label:'Resumen',icon:<HomeIcon/>,to:'/captador',exact:true},
+ {key:'comisiones',label:'Comisiones',icon:<MoneyIcon/>,to:'/captador/comisiones'},
+ {key:'ranking',label:'Ranking',icon:<TrophyIcon/>,to:'/captador/ranking'},
+ {key:'redes',label:'Redes',icon:<SocialIcon/>,to:'/captador/redes-sociales'},
+];
+const mobileMore:NavItem[]=[
+ {path:'/captador/retiros',label:'Retiros y banco',badge:0,icon:'bank'},
+ {path:'/captador/cuenta',label:'Mi cuenta',badge:0,icon:'user'},
+ {path:'/captador/chats',label:'Chats',badge:0,icon:'message'},
+ {path:'/captador/ayuda',label:'Ayuda',badge:0,icon:'help'},
+ {path:'/captador/soporte',label:'Soporte',badge:0,icon:'headset'},
+];
+
 export default function CapturerLayout({alias,region,comuna,fotoPerfil,alerts=[],children}:Props){
- const navigate=useNavigate(); const {pathname}=useLocation(); const {logout}=useAuth();
- const [menu,setMenu]=useState(false); const [bell,setBell]=useState(false); const [drawer,setDrawer]=useState(false);
+ const navigate=useNavigate(); const {pathname}=useLocation(); const {logout,user}=useAuth();
+ const isMobile=useIsMobile();
+ const [menu,setMenu]=useState(false); const [bell,setBell]=useState(false); const [drawer,setDrawer]=useState(false); const [more,setMore]=useState(false);
  const root=useRef<HTMLDivElement>(null);
- useEffect(()=>{function onClick(e:MouseEvent){if(!root.current?.contains(e.target as Node)){setMenu(false);setBell(false);}}document.addEventListener('mousedown',onClick);return()=>document.removeEventListener('mousedown',onClick);},[]);
- const go=(to:string)=>{setMenu(false);setBell(false);setDrawer(false);navigate(to);};
- async function exit(){setMenu(false);await logout();navigate('/login?type=capturer',{replace:true});}
- return <div className="cap-root" ref={root}>
+ useEffect(()=>{if(isMobile)return;function onClick(e:MouseEvent){if(!root.current?.contains(e.target as Node)){setMenu(false);setBell(false);}}document.addEventListener('mousedown',onClick);return()=>document.removeEventListener('mousedown',onClick);},[isMobile]);
+ useEffect(()=>{setMore(false);setMenu(false);setBell(false);},[pathname]);
+ const go=(to:string)=>{setMenu(false);setBell(false);setDrawer(false);setMore(false);navigate(to);};
+ async function exit(){setMenu(false);setMore(false);await logout();navigate('/login?type=capturer',{replace:true});}
+ const moreActive=mobileMore.some(item=>pathname.startsWith(item.path));
+
+ const bellItems=alerts.length?alerts.map(a=><button role="menuitem" type="button" key={a.label} className="cap-pop-item" onClick={()=>go(a.to)}><strong>{a.label}</strong><small>{a.detail}</small></button>):<p className="cap-pop-empty">No tienes avisos pendientes.</p>;
+ const menuItems=<>
+  <button role="menuitem" type="button" className="cap-menu-item" onClick={()=>go('/captador/cuenta')}><UserIcon/>Mis datos y cuenta</button>
+  <button role="menuitem" type="button" className="cap-menu-item" onClick={()=>go('/captador/chats')}><ChatIcon/>Chats</button>
+  <button role="menuitem" type="button" className="cap-menu-item" onClick={()=>go('/captador/ayuda')}><HelpIcon/>Ayuda</button>
+  <button role="menuitem" type="button" className="cap-menu-item" onClick={()=>go('/captador/soporte')}><SupportIcon/>Soporte</button>
+  <div className="cap-menu-divider"/>
+  <button role="menuitem" type="button" className="cap-menu-item cap-menu-danger" onClick={exit}><LogoutIcon/>Cerrar sesión</button>
+ </>;
+
+ return <div className={isMobile?'cap-root mb-cap':'cap-root'} ref={root}>
   <style>{css}</style>
-  <aside className={drawer?'cap-side cap-side-open':'cap-side'}>
+  {!isMobile&&<aside className={drawer?'cap-side cap-side-open':'cap-side'}>
    <div className="cap-brand"><img src="/assets/repuestop-captadores.jpg" alt="RepuesTop"/></div>
    <nav aria-label="Secciones del portal de captadores" className="cap-nav">
     {navItems.map(item=>{const active=item.to==='/captador'?pathname==='/captador':pathname.startsWith(item.to);
@@ -39,11 +72,11 @@ export default function CapturerLayout({alias,region,comuna,fotoPerfil,alerts=[]
      <button type="button" onClick={()=>go('/captador/soporte')} className="cap-help-cta"><SupportIcon/>Soporte</button>
     </div>
    </div>
-  </aside>
-  {drawer&&<button type="button" aria-label="Cerrar menú" className="cap-scrim" onClick={()=>setDrawer(false)}/>}
+  </aside>}
+  {!isMobile&&drawer&&<button type="button" aria-label="Cerrar menú" className="cap-scrim" onClick={()=>setDrawer(false)}/>}
   <div className="cap-main">
    <header className="cap-top">
-    <button type="button" aria-label="Abrir menú de navegación" className="cap-burger" onClick={()=>setDrawer(true)}><BurgerIcon/></button>
+    {!isMobile&&<button type="button" aria-label="Abrir menú de navegación" className="cap-burger" onClick={()=>setDrawer(true)}><BurgerIcon/></button>}
     <div className="cap-hello">
      <h1>Hola, {alias||'captador'} <span aria-hidden="true">👋</span></h1>
      {(comuna||region)&&<p><PinIcon/>{[comuna,region].filter(Boolean).join(', ')}</p>}
@@ -53,10 +86,12 @@ export default function CapturerLayout({alias,region,comuna,fotoPerfil,alerts=[]
       <button type="button" aria-label="Notificaciones" aria-expanded={bell} className="cap-bell" onClick={()=>{setBell(v=>!v);setMenu(false);}}>
        <BellIcon/>{alerts.length>0&&<span className="cap-badge">{alerts.length}</span>}
       </button>
-      {bell&&<div className="cap-pop" role="menu">
+      {bell&&(isMobile
+       ?<BottomSheet open onClose={()=>setBell(false)} title="Notificaciones" subtitle={alerts.length?`${alerts.length} aviso${alerts.length===1?'':'s'}`:'Al día'} height="auto" id="mb-cap-bell"><div className="mb-cap-pop">{bellItems}</div></BottomSheet>
+       :<div className="cap-pop" role="menu">
        <span className="cap-pop-title">Notificaciones</span>
-       {alerts.length?alerts.map(a=><button role="menuitem" type="button" key={a.label} className="cap-pop-item" onClick={()=>go(a.to)}><strong>{a.label}</strong><small>{a.detail}</small></button>):<p className="cap-pop-empty">No tienes avisos pendientes.</p>}
-      </div>}
+       {bellItems}
+      </div>)}
      </div>
      <div className="cap-pop-wrap">
       <button type="button" aria-label="Abrir menú de usuario" aria-expanded={menu} className="cap-user" onClick={()=>{setMenu(v=>!v);setBell(false);}}>
@@ -64,19 +99,20 @@ export default function CapturerLayout({alias,region,comuna,fotoPerfil,alerts=[]
        <span className="cap-user-text"><strong>{alias||'Captador'}</strong><small>Captador</small></span>
        <ChevronIcon/>
       </button>
-      {menu&&<div className="cap-pop cap-pop-right" role="menu">
-       <button role="menuitem" type="button" className="cap-menu-item" onClick={()=>go('/captador/cuenta')}><UserIcon/>Mis datos y cuenta</button>
-       <button role="menuitem" type="button" className="cap-menu-item" onClick={()=>go('/captador/chats')}><ChatIcon/>Chats</button>
-       <button role="menuitem" type="button" className="cap-menu-item" onClick={()=>go('/captador/ayuda')}><HelpIcon/>Ayuda</button>
-       <button role="menuitem" type="button" className="cap-menu-item" onClick={()=>go('/captador/soporte')}><SupportIcon/>Soporte</button>
-       <div className="cap-menu-divider"/>
-       <button role="menuitem" type="button" className="cap-menu-item cap-menu-danger" onClick={exit}><LogoutIcon/>Cerrar sesión</button>
-      </div>}
+      {menu&&(isMobile
+       ?<BottomSheet open onClose={()=>setMenu(false)} title={alias||'Captador'} subtitle="Tu cuenta de captador" height="auto" id="mb-cap-user"><div className="mb-cap-pop">{menuItems}</div></BottomSheet>
+       :<div className="cap-pop cap-pop-right" role="menu">
+       {menuItems}
+      </div>)}
      </div>
     </div>
    </header>
    <div className="cap-content">{children}</div>
   </div>
+  {isMobile&&<>
+   <TabBar items={mobileTabs} onMore={()=>setMore(true)} moreActive={more||moreActive} ariaLabel="Secciones del portal de captadores"/>
+   <MoreSheet open={more} onClose={()=>setMore(false)} user={user} items={mobileMore} onLogout={exit} sectionsTitle="Más secciones"/>
+  </>}
  </div>;
 }
 

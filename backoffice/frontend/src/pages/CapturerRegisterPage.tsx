@@ -300,6 +300,7 @@ export default function CapturerRegisterPage() {
     >
       {/* Luces sutiles de fondo */}
       <div
+        className="cap-reg-blob"
         style={{
           position: 'fixed',
           top: '5%',
@@ -312,6 +313,7 @@ export default function CapturerRegisterPage() {
         }}
       />
       <div
+        className="cap-reg-blob"
         style={{
           position: 'fixed',
           bottom: '5%',
@@ -409,6 +411,7 @@ export default function CapturerRegisterPage() {
         {/* Indicador de pasos */}
         {!pendingEmail && (
           <div
+            className="cap-reg-steps"
             style={{
               display: 'grid',
               gridTemplateColumns: 'repeat(3, 1fr)',

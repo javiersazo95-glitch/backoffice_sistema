@@ -10,6 +10,8 @@ import FounderSellerName from '@/components/shared/FounderSellerName';
 import SellerListTooltip from '@/components/shared/SellerListTooltip';
 import { downloadFile } from './utils';
 import type { RetiroAdminResponse, RetiroDetalleResponse, PagoProveedorResponse, ConfiguracionPagos, Withdrawal } from './types';
+import { useIsMobile } from '@/hooks/useIsMobile';
+import { RecordCard, RecordList, EmptyState } from '@/components/mobile';
 
 // Helper to calculate Thursday-to-Wednesday cycle range
 function getCurrentCycleRange() {
@@ -82,6 +84,7 @@ function sociosDelPago(payment: PagoProveedorResponse, partnerWithdrawals: Withd
 }
 
 export default function PagoProveedoresPage() {
+  const isMobile = useIsMobile();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<'gestion' | 'historial'>('gestion');
   const [isProcesarModalOpen, setIsProcesarModalOpen] = useState(false);
@@ -427,7 +430,73 @@ export default function PagoProveedoresPage() {
             </div>
             
             <div className="table-wrap">
-              <table className="wide-table">
+              {isMobile ? (
+<RecordList
+  loading={isLoading}
+  ariaLabel="Solicitudes de retiro del ciclo"
+  empty={<EmptyState icon="wallet" title="Sin solicitudes" description="No hay solicitudes de retiros registradas para este ciclo." />}
+>
+  {pendingWithdrawals.map((w) => (
+    <RecordCard
+      key={`prov-${w.retiroId}`}
+      title={<FounderSellerName name={w.nombreTienda} founder={w.sellerFounder} />}
+      subtitle={`${w.codigoRetiro || '—'} · ${formatDate(w.fecha)}`}
+      badge={<span className="status-pill tone-blue">Proveedor</span>}
+      meta={[
+        { label: 'Monto', value: <strong>{formatMoney(w.monto)}</strong> },
+        { label: 'RUT', value: w.rut },
+        { label: 'Banco', value: w.banco },
+        { label: 'Cuenta', value: `${w.tipoCuenta} · ${w.numeroCuenta}` },
+        { label: 'Email', value: w.email, wide: true },
+      ]}
+      onPress={() => setSelectedPendingRetiroId(w.retiroId)}
+      actions={<button type="button" className="mb-action" onClick={() => setSelectedPendingRetiroId(w.retiroId)}><UiIcon name="eye" />Ver solicitud</button>}
+    />
+  ))}
+  {pendingPartnerWithdrawals.map((w) => {
+    const isDocComplete = Boolean(
+      w.documentoLiquidacionCompleto ||
+      (w.documentoLiquidacionNombre && w.documentoLiquidacionTipo && w.documentoLiquidacionRut)
+    );
+    return (
+      <RecordCard
+        key={`socio-${w.id}`}
+        title={w.beneficiary}
+        subtitle={`${w.codigoRetiro || '—'} · ${formatDate(w.date)}`}
+        badge={<span className="status-pill tone-violet">Socio</span>}
+        tone={isDocComplete ? 'default' : 'warning'}
+        meta={[
+          { label: 'Monto', value: <strong>{formatMoney(w.amount)}</strong> },
+          { label: 'RUT', value: w.rut || '—' },
+          { label: 'Banco', value: w.banco || 'Sin registrar' },
+          { label: 'Cuenta', value: `${w.tipoCuenta || '—'} · ${w.numeroCuenta || '—'}` },
+          { label: 'Email', value: w.email || '—', wide: true },
+        ]}
+        actions={(
+          <button
+            type="button"
+            className={`mb-action ${isDocComplete ? 'mb-action--success' : 'mb-action--primary'}`}
+            onClick={() => setPartnerDocModal({
+              retiroId: Number(w.id),
+              beneficiary: w.beneficiary,
+              type: w.documentoLiquidacionTipo || 'Boleta de Honorarios',
+              rut: w.documentoLiquidacionRut || w.rut || '',
+              razonSocial: w.documentoLiquidacionRazonSocial || w.titular || w.beneficiary,
+              email: w.documentoLiquidacionEmail || w.email || '',
+              detalle: w.documentoLiquidacionDetalle || `Retiro de libre disposición socio - ${w.beneficiary}`,
+              iva: w.documentoLiquidacionIva != null ? String(w.documentoLiquidacionIva) : '0',
+              pdfName: w.documentoLiquidacionNombre || '',
+            })}
+          >
+            <UiIcon name={isDocComplete ? 'fileCheck' : 'receipt'} />{isDocComplete ? 'Documento tributario' : 'Cargar documento'}
+          </button>
+        )}
+      />
+    );
+  })}
+</RecordList>
+) : (
+<table className="wide-table">
                 <thead>
                   <tr>
                     <th>Cód. Solicitud</th>
@@ -530,6 +599,7 @@ export default function PagoProveedoresPage() {
                   )}
                 </tbody>
               </table>
+)}
             </div>
           </section>
         </>
@@ -611,7 +681,35 @@ export default function PagoProveedoresPage() {
             </div>
             
             <div className="table-wrap">
-              <table className="wide-table">
+              {isMobile ? (
+<RecordList
+  loading={isLoading}
+  ariaLabel="Historial de pagos conciliados"
+  empty={<EmptyState icon="check" title="Sin pagos" description="No se encontraron registros de pagos para los filtros seleccionados." />}
+>
+  {paidPayments.map((payment) => {
+    const sociosPagados = sociosDelPago(payment, partnerWithdrawals);
+    const partnerSellers = sociosPagados.map((w) => ({ name: w.beneficiary, isPartner: true }));
+    return (
+      <RecordCard
+        key={payment.pagoId}
+        title={`PAG-${String(payment.pagoId).padStart(6, '0')}`}
+        subtitle={`${payment.retiros.length + sociosPagados.length} solicitudes · ${formatDate(payment.fechaPago)}`}
+        badge={<span className="status-pill tone-green">{payment.estado}</span>}
+        meta={[
+          { label: 'Monto pagado', value: <strong style={{ color: '#2e7d32' }}>{formatMoney(payment.montoTotal)}</strong> },
+          { label: 'Fecha de pago', value: formatDate(payment.fechaPago) },
+          { label: 'Tiendas', value: payment.retiros.length > 0 ? <SellerListTooltip sellers={payment.retiros.map((retiro) => ({ name: retiro.nombreTienda, founder: retiro.sellerFounder }))} /> : '—', wide: true },
+          ...(partnerSellers.length > 0 ? [{ label: 'Socios', value: <SellerListTooltip sellers={partnerSellers} />, wide: true }] : []),
+        ]}
+        onPress={() => setSelectedPagoId(payment.pagoId)}
+        actions={<button type="button" className="mb-action" onClick={() => setSelectedPagoId(payment.pagoId)}><UiIcon name="eye" />Detalle del pago</button>}
+      />
+    );
+  })}
+</RecordList>
+) : (
+<table className="wide-table">
                 <thead>
                   <tr>
                     <th>Cód. Solicitud</th>
@@ -686,14 +784,15 @@ export default function PagoProveedoresPage() {
                   )}
                 </tbody>
               </table>
+)}
             </div>
           </section>
         </>
       )}
 
       {selectedPendingRetiroId !== null && (
-        <div className="modal-backdrop" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setSelectedPendingRetiroId(null)}>
-          <div className="modal-content" style={{ background: '#fff', borderRadius: 12, width: '90%', maxWidth: 650, padding: 24 }} onClick={(event) => event.stopPropagation()}>
+        <div className="modal-backdrop pp-modal-backdrop" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setSelectedPendingRetiroId(null)}>
+          <div className="modal-content pp-modal" style={{ background: '#fff', borderRadius: 12, width: '90%', maxWidth: 650, padding: 24 }} onClick={(event) => event.stopPropagation()}>
             <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #eee', paddingBottom: 12 }}>
               <h3 style={{ margin: 0 }}>Solicitud de retiro {pendingWithdrawals.find((w) => w.retiroId === selectedPendingRetiroId)?.codigoRetiro || ''}</h3>
               <button type="button" onClick={() => setSelectedPendingRetiroId(null)} style={{ background: 'transparent', border: 0, fontSize: 20 }}>&times;</button>
@@ -743,8 +842,8 @@ export default function PagoProveedoresPage() {
 
       {/* Details Popup Modal */}
       {selectedPagoId !== null && (
-        <div className="modal-backdrop" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setSelectedPagoId(null)}>
-          <div className="modal-content" style={{ background: '#fff', borderRadius: '12px', width: '90%', maxWidth: '650px', padding: '24px', boxShadow: '0 20px 40px rgba(0,0,0,0.15)', display: 'flex', flexDirection: 'column', gap: '15px' }} onClick={(e) => e.stopPropagation()}>
+        <div className="modal-backdrop pp-modal-backdrop" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setSelectedPagoId(null)}>
+          <div className="modal-content pp-modal" style={{ background: '#fff', borderRadius: '12px', width: '90%', maxWidth: '650px', padding: '24px', boxShadow: '0 20px 40px rgba(0,0,0,0.15)', display: 'flex', flexDirection: 'column', gap: '15px' }} onClick={(e) => e.stopPropagation()}>
             <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #eee', paddingBottom: '12px' }}>
               <h3 style={{ margin: 0, fontSize: '18px' }}>
                 Detalle de Pago PAG-{String(selectedPagoId).padStart(6, '0')}
@@ -839,8 +938,8 @@ export default function PagoProveedoresPage() {
 
       {/* Rechazo de un deposito que reboto en el banco */}
       {retiroARechazar !== null && (
-        <div className="modal-backdrop" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100 }} onClick={() => !rechazando && setRetiroARechazar(null)}>
-          <div className="modal-content" style={{ background: '#fff', borderRadius: 12, width: '90%', maxWidth: 480, padding: 24, display: 'flex', flexDirection: 'column', gap: 14 }} onClick={(e) => e.stopPropagation()}>
+        <div className="modal-backdrop pp-modal-backdrop" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100 }} onClick={() => !rechazando && setRetiroARechazar(null)}>
+          <div className="modal-content pp-modal" style={{ background: '#fff', borderRadius: 12, width: '90%', maxWidth: 480, padding: 24, display: 'flex', flexDirection: 'column', gap: 14 }} onClick={(e) => e.stopPropagation()}>
             <h3 style={{ margin: 0, fontSize: 17 }}>El depósito rebotó</h3>
             <p style={{ margin: 0, fontSize: 13, color: '#4a5568', lineHeight: 1.5 }}>
               Retiro <strong>{retiroARechazar.codigo || 'solicitado'}</strong> de{' '}
@@ -894,8 +993,8 @@ export default function PagoProveedoresPage() {
 
       {/* Procesar Pago Warning Modal */}
       {isProcesarModalOpen && (
-        <div className="modal-backdrop" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div className="modal-content" style={{ background: '#fff', borderRadius: '12px', width: '90%', maxWidth: '500px', padding: '24px', boxShadow: '0 20px 40px rgba(0,0,0,0.15)', display: 'flex', flexDirection: 'column', gap: '15px', textAlign: 'center' }}>
+        <div className="modal-backdrop pp-modal-backdrop" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div className="modal-content pp-modal" style={{ background: '#fff', borderRadius: '12px', width: '90%', maxWidth: '500px', padding: '24px', boxShadow: '0 20px 40px rgba(0,0,0,0.15)', display: 'flex', flexDirection: 'column', gap: '15px', textAlign: 'center' }}>
             <div style={{ color: '#d32f2f', display: 'flex', justifyContent: 'center', marginBottom: '10px' }}>
               <UiIcon name="alert" style={{ width: '48px', height: '48px' }} />
             </div>
@@ -936,8 +1035,8 @@ export default function PagoProveedoresPage() {
       )}
 
       {incompleteDocumentSellers.length > 0 && (
-        <div className="modal-backdrop" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setIncompleteDocumentSellers([])}>
-          <div className="modal-content" style={{ background: '#fff', borderRadius: 12, width: '90%', maxWidth: 520, padding: 24, boxShadow: '0 20px 40px rgba(0,0,0,.15)' }} onClick={(event) => event.stopPropagation()}>
+        <div className="modal-backdrop pp-modal-backdrop" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setIncompleteDocumentSellers([])}>
+          <div className="modal-content pp-modal" style={{ background: '#fff', borderRadius: 12, width: '90%', maxWidth: 520, padding: 24, boxShadow: '0 20px 40px rgba(0,0,0,.15)' }} onClick={(event) => event.stopPropagation()}>
             <div style={{ color: '#d32f2f', display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
               <UiIcon name="alert" style={{ width: 48, height: 48 }} />
             </div>
@@ -962,8 +1061,8 @@ export default function PagoProveedoresPage() {
       )}
 
       {partnerDocModal && (
-        <div className="modal-backdrop" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setPartnerDocModal(null)}>
-          <div className="modal-content" style={{ background: '#fff', borderRadius: 12, width: '90%', maxWidth: 540, padding: 24, boxShadow: '0 20px 40px rgba(0,0,0,.15)' }} onClick={(e) => e.stopPropagation()}>
+        <div className="modal-backdrop pp-modal-backdrop" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setPartnerDocModal(null)}>
+          <div className="modal-content pp-modal" style={{ background: '#fff', borderRadius: 12, width: '90%', maxWidth: 540, padding: 24, boxShadow: '0 20px 40px rgba(0,0,0,.15)' }} onClick={(e) => e.stopPropagation()}>
             <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #eee', paddingBottom: 12, marginBottom: 16 }}>
               <h3 style={{ margin: 0, fontSize: 18 }}>Cargar documento tributario — Socio: {partnerDocModal.beneficiary}</h3>
               <button type="button" onClick={() => setPartnerDocModal(null)} style={{ background: 'transparent', border: 0, fontSize: 20, cursor: 'pointer' }}>&times;</button>
@@ -1088,8 +1187,8 @@ export default function PagoProveedoresPage() {
       )}
 
       {isConfigModalOpen && (
-        <div className="modal-backdrop" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setIsConfigModalOpen(false)}>
-          <div className="modal-content" style={{ background: '#fff', borderRadius: 12, width: '90%', maxWidth: 480, padding: 24, boxShadow: '0 20px 40px rgba(0,0,0,.15)' }} onClick={(event) => event.stopPropagation()}>
+        <div className="modal-backdrop pp-modal-backdrop" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setIsConfigModalOpen(false)}>
+          <div className="modal-content pp-modal" style={{ background: '#fff', borderRadius: 12, width: '90%', maxWidth: 480, padding: 24, boxShadow: '0 20px 40px rgba(0,0,0,.15)' }} onClick={(event) => event.stopPropagation()}>
             <h3 style={{ margin: 0, color: '#1a202c' }}>Cuenta de cargo (BCI)</h3>
             <p style={{ margin: '10px 0 16px', color: '#4a5568', fontSize: 13, lineHeight: 1.5 }}>
               Cuenta bancaria de RepuesTop que aparecerá en la columna "Nº Cuenta de Cargo" de la nómina exportada. Se guarda una sola vez y aplica a todos los exports.

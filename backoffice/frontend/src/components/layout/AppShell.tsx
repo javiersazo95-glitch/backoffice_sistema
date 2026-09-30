@@ -5,10 +5,19 @@ import { useAuth } from '@/context/AuthContext';
 import Sidebar from './Sidebar';
 import HelpSupportWidget from '@/components/shared/HelpSupportWidget';
 import NotificationBell from './NotificationBell';
+import { useIsMobile } from '@/hooks/useIsMobile';
+import MobileShell from '@/components/mobile/MobileShell';
 
 export default function AppShell({ children, noSidebar }: { children?: ReactNode; noSidebar?: boolean }) {
   const { user } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const isMobile = useIsMobile();
+
+  // Telefonos: shell propio (barra superior + barra inferior + hoja "Mas"). El escritorio
+  // sigue por las dos ramas de abajo sin cambios.
+  if (isMobile) {
+    return <MobileShell>{children ?? <Outlet />}</MobileShell>;
+  }
 
   if (noSidebar) {
     return (

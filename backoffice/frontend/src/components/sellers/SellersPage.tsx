@@ -11,6 +11,9 @@ import RegisteredSellersLegend from '@/components/shared/RegisteredSellersLegend
 import SellerMetricGrid from './SellerMetricGrid';
 import SellerFilterBar from './SellerFilterBar';
 import SellerTable from './SellerTable';
+import { SellerCardList } from './SellerTable.mobile';
+import Pagination from '@/components/shared/Pagination';
+import { useIsMobile } from '@/hooks/useIsMobile';
 import ReportsPanel from './ReportsPanel';
 import ImpactMediationsPanel from './ImpactMediationsPanel';
 import ResolvedCasesPanel from './ResolvedCasesPanel';
@@ -183,6 +186,7 @@ export default function SellersPage() {
   const navigate = useNavigate();
   const [filter, setFilter] = useState<SellerFilterRequest>({ page: 0, size: PAGE_SIZES.SELLERS, search: '', status: undefined, startDate: '', endDate: '' });
   const [searchInput, setSearchInput] = useState('');
+  const isMobile = useIsMobile();
   const [statusDisplay, setStatusDisplay] = useState('Todos');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -636,6 +640,22 @@ export default function SellersPage() {
             <div className="panel-body">Cargando vendedores...</div>
           ) : (
             <>
+              {isMobile ? (
+                <SellerCardList
+                  sellers={pagedSellers}
+                  onViewSeller={handleOpenSellerInfo}
+                  onViewDocs={handleViewDocs}
+                  expandedId={expandedId}
+                  onToggleExpand={handleToggleExpand}
+                  mediations={mediationsBySeller}
+                  blockedMediations={blockedMediationsBySeller}
+                  onReviewMediation={handleReviewMediation}
+                  onOpenMediation={handleOpenSellerMediations}
+                  onOpenReports={handleOpenSellerReports}
+                  onShowBlockHistory={handleShowBlockHistory}
+                  selectedSellerId={selectedSellerId}
+                />
+              ) : (
               <SellerTable
                 sellers={pagedSellers}
                 onViewSeller={handleOpenSellerInfo}
@@ -650,8 +670,19 @@ export default function SellersPage() {
                 onShowBlockHistory={handleShowBlockHistory}
                 selectedSellerId={selectedSellerId}
               />
+              )}
 
-              {totalPages > 0 && (
+              {totalPages > 0 && isMobile && (
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  totalItems={totalElements}
+                  pageSize={pageSize}
+                  onPageChange={(page) => setFilter((f) => ({ ...f, page }))}
+                />
+              )}
+
+              {totalPages > 0 && !isMobile && (
                 <div className="pagination">
                   <span>Mostrando {currentPage * pageSize + 1} a {Math.min((currentPage + 1) * pageSize, totalElements)} de {totalElements} vendedores</span>
                   <div className="page-buttons">

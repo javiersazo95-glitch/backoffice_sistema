@@ -7,6 +7,8 @@ import UiIcon from '@/components/shared/UiIcon';
 import { showToast } from '@/components/layout/Toast';
 import type { CapturerConfig, CapturerProfile, CapturerStatus } from '@/types/capturer';
 import CapturerAvatar from '@/components/capturers/CapturerAvatar';
+import { useIsMobile, MOBILE_QUERY } from '@/hooks/useIsMobile';
+import { RecordCard, RecordList, EmptyState } from '@/components/mobile';
 
 type StatusFilter = 'TODOS' | CapturerStatus;
 
@@ -41,6 +43,7 @@ export default function CapturerValidationTab() {
   const qc = useQueryClient();
   const { user } = useAuth();
 
+  const isMobile = useIsMobile();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('TODOS');
   const [selectedMonth, setSelectedMonth] = useState('ALL');
@@ -54,7 +57,7 @@ export default function CapturerValidationTab() {
   const [rejectNotes, setRejectNotes] = useState('');
 
   const [config, setConfig] = useState<CapturerConfig | null>(null);
-  const [configOpen, setConfigOpen] = useState(true);
+  const [configOpen, setConfigOpen] = useState(() => typeof window === 'undefined' || !window.matchMedia(MOBILE_QUERY).matches);
   const [savedConfig, setSavedConfig] = useState<CapturerConfig | null>(null);
 
   const query = useQuery({ queryKey: ['capturer-validations'], queryFn: api.listCapturers });
@@ -277,7 +280,7 @@ export default function CapturerValidationTab() {
       )}
 
       <section className="table-shell">
-        <div className="table-toolbar" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'nowrap' }}>
+        <div className="table-toolbar mb-toolbar" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'nowrap' }}>
           <input
             className="input"
             type="search"
@@ -306,6 +309,65 @@ export default function CapturerValidationTab() {
           </button>
         </div>
 
+        {isMobile ? (
+          query.isError ? (
+            <EmptyState tone="error" icon="alert" title="Error al cargar" description="No se pudieron cargar las solicitudes de captadores." />
+          ) : (
+            <RecordList
+              loading={query.isLoading}
+              ariaLabel="Solicitudes de captadores"
+              empty={<EmptyState icon="users" title="Sin captadores" description="No se encontraron captadores con los filtros aplicados." />}
+            >
+              {paged.map((c) => {
+                const meta = STATUS_META[c.estado];
+                return (
+                  <RecordCard
+                    key={c.id}
+                    leading={<CapturerAvatar nombre={c.nombre} fotoPerfil={c.fotoPerfil} />}
+                    title={c.nombre}
+                    subtitle={`@${c.alias} · ${c.rut}`}
+                    badge={(
+                      <span className={`status-pill ${meta.pill}`} style={{ gap: 5 }}>
+                        <UiIcon name={meta.icon} style={{ width: 13, height: 13 }} />
+                        {meta.label}
+                      </span>
+                    )}
+                    tone={c.estado === 'RECHAZADO' ? 'danger' : c.estado === 'PENDIENTE' ? 'warning' : 'default'}
+                    meta={[
+                      { label: 'Correo', value: c.email },
+                      { label: 'Teléfono', value: c.telefono || 'Sin teléfono' },
+                      { label: 'Ubicación', value: `${c.comuna || '—'} · ${c.region || 'Chile'}` },
+                      { label: 'Referido', value: c.codigoReferido || 'Directo' },
+                      { label: 'Registrado', value: formatDate(c.createdAt) },
+                      ...(c.motivoRechazo ? [{ label: 'Motivo de rechazo', value: c.motivoRechazo, wide: true }] : []),
+                    ]}
+                    onPress={() => setDetail(c)}
+                    actions={(
+                      <>
+                        <button type="button" className="mb-action" onClick={() => setDetail(c)}>
+                          <UiIcon name="eye" />
+                          Ficha
+                        </button>
+                        {c.estado !== 'APROBADO' && (
+                          <button type="button" className="mb-action mb-action--success" disabled={approveMutation.isPending} onClick={() => approveMutation.mutate(c.id)}>
+                            <UiIcon name="check" />
+                            Aprobar
+                          </button>
+                        )}
+                        {c.estado !== 'RECHAZADO' && (
+                          <button type="button" className="mb-action mb-action--danger" disabled={rejectMutation.isPending} onClick={() => openReject(c)}>
+                            <UiIcon name="shieldX" />
+                            Rechazar
+                          </button>
+                        )}
+                      </>
+                    )}
+                  />
+                );
+              })}
+            </RecordList>
+          )
+        ) : (
         <table className="wide-table">
           <thead>
             <tr>
@@ -386,6 +448,7 @@ export default function CapturerValidationTab() {
             )}
           </tbody>
         </table>
+        )}
 
         <div className="table-footer">
           <span>Mostrando <strong>{paged.length}</strong> de <strong>{filtered.length}</strong> captadores</span>
