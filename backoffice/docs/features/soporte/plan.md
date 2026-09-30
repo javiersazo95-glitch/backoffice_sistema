@@ -12,6 +12,7 @@ Este documento describe la hoja de ruta y las tareas técnicas para implementar 
 
 Para ajustarse al contexto de startup (operación simple realizada por los 2 socios):
 1. **Evitar Sobrediseño**: No implementar flujos de chat en tiempo real ni integraciones complejas de correo externo.
+   - **Excepción: soporte de carga de inventario.** El tab `/soporte/carga-inventario` (`frontend/src/modules/support/cargaInventario/`) tiene un chat con el vendedor que pide ayuda mientras carga su inventario desde el panel. No es tiempo real: funciona por consulta periódica (bandeja cada 10 s, resumen cada 15 s y mensajes cada 5 s pidiendo solo los nuevos con `despuesDe`), sin websockets. Endpoints bajo `/api/v1/support/carga-inventario`. Solo el vendedor puede cerrar la conversación; se cierra sola si no responde en 24 horas después del último mensaje de soporte, y soporte solo puede cambiar el estado entre "Esperando soporte", "En atención" y "Esperando al vendedor".
 2. **Formulario de Registro Simple**: Permitir la creación de tickets directamente desde el backoffice cuando el equipo interno detecta fallas.
 3. **Bandeja Unificada**: Una sola tabla con filtros básicos por prioridad y categoría para responder y resolver incidencias rápidamente.
 4. **Diferenciación Estricta**: Quitar del panel de soporte las métricas asociadas a "boletas pendientes" (eso corresponde a finanzas/confianza) y enfocarse en tickets de fallas de la aplicación.

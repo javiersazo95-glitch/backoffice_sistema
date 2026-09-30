@@ -19,6 +19,7 @@ import { previewDocument } from '@/utils/documentUrls';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { RecordCard, RecordList, EmptyState, FilterSheet, FilterTrigger, DetailHost } from '@/components/mobile';
 import { countActiveFilters } from '@/utils/filters';
+import SoporteCargaInventarioView, { useResumenCargaInventario } from './cargaInventario/SoporteCargaInventarioView';
 
 const PLATFORM_LABELS: Record<TicketPlatform, string> = {
   ADMINISTRACION_CONTABLE: 'Administración Contable',
@@ -925,6 +926,7 @@ export default function SupportPage() {
   const isSupportQa = hasBackofficePermission(user, 'SOPORTE', 'QA');
   const activeTab = useMemo(() => {
     if (location.pathname.endsWith('/qa-reports')) return 'qa-reports';
+    if (location.pathname.endsWith('/carga-inventario')) return 'carga-inventario';
     return location.pathname.endsWith('/tickets') ? 'tickets' : 'resumen';
   }, [location.pathname]);
 
@@ -939,6 +941,9 @@ export default function SupportPage() {
     enabled: isSupportOperator,
     refetchInterval: 15000,
   });
+
+  // Contador del tab "Soporte carga de inventario" (conversaciones abiertas y mensajes sin leer).
+  const { data: cargaResumen } = useResumenCargaInventario(isSupportOperator);
 
   const resolutionRate = useMemo(() => {
     const total = workspaceData.openTickets + workspaceData.expiredSlaTickets;
@@ -1184,6 +1189,21 @@ export default function SupportPage() {
           <UiIcon name="alert" />
           Reportes QA
         </button>
+        <button
+          className={activeTab === 'carga-inventario' ? 'active' : ''}
+          onClick={() => navigate('/soporte/carga-inventario')}
+          type="button"
+          title={cargaResumen ? `${cargaResumen.abiertos} abiertas · ${cargaResumen.noLeidos} mensajes sin leer` : undefined}
+        >
+          <UiIcon name="upload" />
+          Soporte carga de inventario
+          {cargaResumen && cargaResumen.abiertos > 0 ? (
+            <span className="module-tab-count" aria-label={`${cargaResumen.abiertos} abiertas`}>{cargaResumen.abiertos}</span>
+          ) : null}
+          {cargaResumen && cargaResumen.noLeidos > 0 ? (
+            <span className="module-tab-count unread" aria-label={`${cargaResumen.noLeidos} mensajes sin leer`}>{cargaResumen.noLeidos} sin leer</span>
+          ) : null}
+        </button>
       </nav>
 
       {activeTab === 'resumen' ? (
@@ -1328,6 +1348,14 @@ export default function SupportPage() {
               </article>
             </aside>
           </div>
+        </div>
+      ) : activeTab === 'carga-inventario' ? (
+        <div style={{ marginTop: '24px' }}>
+          {isSupportOperator ? (
+            <SoporteCargaInventarioView />
+          ) : (
+            <p className="carga-chat-sin-permiso">Necesitas el permiso de operador de soporte para ver estas conversaciones.</p>
+          )}
         </div>
       ) : activeTab === 'qa-reports' ? (
         <div className="support-tickets-layout" style={{ marginTop: '24px' }}>

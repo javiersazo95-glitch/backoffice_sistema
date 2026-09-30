@@ -10,6 +10,8 @@ export interface NavItem {
   exact?: boolean;
   /** Rutas adicionales que dejan el item activo (p. ej. el index del area). */
   aliases?: string[];
+  /** Etiqueta corta para la barra inferior movil, donde la completa no cabe. */
+  shortLabel?: string;
 }
 
 export interface NavSection {
@@ -33,6 +35,7 @@ export const navSections: NavSection[] = [
       { path: '/soporte', label: 'Resumen', badge: 0, icon: 'dashboard', exact: true },
       { path: '/soporte/tickets', label: 'Tickets', badge: 0, icon: 'message' },
       { path: '/soporte/qa-reports', label: 'Reportes QA', badge: 0, icon: 'alert' },
+      { path: '/soporte/carga-inventario', label: 'Soporte carga de inventario', shortLabel: 'Carga inventario', badge: 0, icon: 'upload' },
     ],
   },
   {
@@ -160,7 +163,7 @@ const AREA_ICON: Record<MobileAreaKey, string> = {
 const MOBILE_PRIMARY: Record<MobileAreaKey, string[]> = {
   confianza: ['/confianza', '/confianza/validations', '/confianza/mediations', '/confianza/sellers'],
   administracion: ['/administracion/resumen', '/administracion/pedidos', '/administracion/liquidaciones', '/administracion/gastos'],
-  soporte: ['/soporte', '/soporte/tickets', '/soporte/qa-reports'],
+  soporte: ['/soporte', '/soporte/tickets', '/soporte/qa-reports', '/soporte/carga-inventario'],
 };
 
 /** Rutas que existen pero no figuran en el sidebar; en movil se alcanzan desde "Mas". */

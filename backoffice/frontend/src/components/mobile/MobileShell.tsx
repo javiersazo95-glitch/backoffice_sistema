@@ -59,7 +59,7 @@ export default function MobileShell({ children }: { children: ReactNode }) {
 
   const tabItems: TabItem[] = (nav?.primary ?? []).map((item) => ({
     key: item.path,
-    label: item.label,
+    label: item.shortLabel ?? item.label,
     icon: item.icon,
     to: item.path,
     exact: item.exact,

@@ -3351,3 +3351,84 @@
     }
   }
 }
+
+
+/* Soporte carga de inventario en telefono: lista de tarjetas y conversacion a pantalla completa. */
+@media (max-width: 768px) {
+  .carga-chat-view {
+    gap: 12px;
+  }
+
+  .carga-chat-intro-kpis {
+    width: 100%;
+  }
+
+  .carga-chat-chips {
+    flex-wrap: nowrap;
+    margin: 0 -16px;
+    padding: 0 16px 2px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .carga-chat-chips::-webkit-scrollbar {
+    display: none;
+  }
+
+  .carga-chat-chip {
+    flex: 0 0 auto;
+    min-height: 40px;
+  }
+
+  .carga-chat-search {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .carga-chat-search .input {
+    min-height: 46px;
+    border-radius: 12px;
+  }
+
+  .carga-chat-mobile-detail .carga-chat-conversation {
+    height: calc(100dvh - var(--mb-topbar-h) - var(--mb-tabbar-h) - var(--mb-safe-t) - var(--mb-safe-b) - 110px);
+    min-height: 460px;
+    padding: 12px;
+    border-radius: 16px;
+  }
+
+  .carga-chat-conv-info {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .carga-chat-estado {
+    justify-content: space-between;
+  }
+
+  .carga-chat-estado select {
+    flex: 1 1 auto;
+    min-height: 40px;
+  }
+
+  .carga-chat-bubble {
+    max-width: 86%;
+  }
+
+  .carga-chat-composer {
+    grid-template-columns: minmax(0, 1fr) 42px 48px;
+  }
+
+  .carga-chat-send {
+    justify-content: center;
+    padding: 0;
+  }
+
+  .carga-chat-send span {
+    display: none;
+  }
+
+  .carga-chat-lightbox {
+    padding: 12px;
+  }
+}
