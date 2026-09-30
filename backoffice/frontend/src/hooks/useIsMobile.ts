@@ -1,12 +1,14 @@
 import { useSyncExternalStore } from 'react';
 
 /**
- * Breakpoint unico de la experiencia movil. Todo lo que este por debajo (telefonos en vertical
- * y horizontal) recibe el shell movil, las listas de tarjetas y los bottom sheets; por encima
- * (tablets y escritorio) la aplicacion se renderiza exactamente como antes.
- * Debe coincidir con la media query de src/styles/mobile.css.
+ * Breakpoint unico de la experiencia movil: telefonos en vertical (hasta 768px de ancho) y
+ * telefonos en horizontal (pantalla tactil de poca altura). En horizontal un telefono mide mas de
+ * 768px de ancho y recibia el diseno de escritorio, que fija el home al alto de la pantalla y lo
+ * cortaba. Un computador con mouse nunca cumple la segunda condicion, asi que escritorio y tablets
+ * se renderizan exactamente como antes.
+ * Debe coincidir con las media queries de src/styles/mobile.css.
  */
-export const MOBILE_QUERY = '(max-width: 768px)';
+export const MOBILE_QUERY = '(max-width: 768px), (pointer: coarse) and (max-height: 520px)';
 
 const canMatch = () => typeof window !== 'undefined' && typeof window.matchMedia === 'function';
 

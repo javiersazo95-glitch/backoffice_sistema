@@ -2,7 +2,8 @@
    RepuesTop Backoffice · Experiencia móvil (teléfonos, ≤ 768px)
    ----------------------------------------------------------------------------
    Este archivo se carga DESPUÉS de styles.css y todo su contenido vive dentro de
-   @media (max-width: 768px). Por construcción no puede afectar al escritorio.
+   @media (max-width: 768px), (pointer: coarse) and (max-height: 520px): teléfonos en
+   vertical y en horizontal. Por construcción no puede afectar al escritorio (mouse).
    Convenciones:
      - Prefijo `mb-` para el shell y las primitivas móviles (src/components/mobile).
      - `!important` solo para vencer estilos inline de escritorio o CSS inyectado
@@ -13,7 +14,7 @@
               9 páginas (por área, se completan por fases) · 10 hover/motion
    ============================================================================ */
 
-@media (max-width: 768px) {
+@media (max-width: 768px), (pointer: coarse) and (max-height: 520px) {
 
   /* ── 1. Tokens ─────────────────────────────────────────────────────────── */
   :root {
@@ -48,9 +49,8 @@
     -webkit-text-size-adjust: 100%;
   }
 
-  body {
-    overscroll-behavior-y: none;
-  }
+  /* Sin overscroll-behavior en body: si body llega a ser contenedor de scroll, bloquearía el
+     encadenamiento del gesto hacia el documento y la página quedaría inmóvil. */
 
   /* 16px en campos evita el zoom automático de iOS al enfocar. */
   input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
@@ -1627,11 +1627,20 @@
   /* ── 9. Páginas (se completan por fases) ───────────────────────────────── */
 
   /* Selector de áreas: el bloqueo de scroll de escritorio corta el contenido. */
-  html:has(.area-selector-shell),
-  body:has(.area-selector-shell) {
-    overflow: auto !important;
+  /* Un solo contenedor de scroll (el documento). Si html y body tienen overflow a la vez, body
+     se vuelve contenedor propio sin nada que desplazar y atrapa el gesto: el home no bajaba. */
+  html:has(.area-selector-shell) {
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
     height: auto !important;
   }
+
+  body:has(.area-selector-shell) {
+    overflow: visible !important;
+    height: auto !important;
+    min-height: 100dvh;
+  }
+
 
   .area-selector-shell {
     display: block !important;
@@ -3320,6 +3329,153 @@
     flex: 1 1 96px !important;
   }
 
+  /* Teléfono en horizontal: el home aprovecha el ancho (1 columna en vertical, 3 en horizontal) */
+  .area-selector-content .area-selector-grid {
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)) !important;
+    width: 100% !important;
+    max-width: none !important;
+  }
+
+  .area-selector-content,
+  .area-selector-main {
+    width: 100% !important;
+    max-width: none !important;
+  }
+
+  .area-selector-content {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+
+  .area-selector-content .area-selector-banner {
+    width: 100% !important;
+    max-width: none !important;
+  }
+
+  /* Tablas de detalle como tarjetas apiladas (ver MobileTableLabeler) */
+  table.mb-stack-table,
+  table.mb-stack-table > tbody,
+  table.mb-stack-table > tfoot {
+    display: block !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    table-layout: auto !important;
+    border: 0 !important;
+    background: transparent !important;
+  }
+
+  table.mb-stack-table > thead,
+  table.mb-stack-table > colgroup {
+    display: none !important;
+  }
+
+  table.mb-stack-table > tbody > tr,
+  table.mb-stack-table > tfoot > tr {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px 12px;
+    width: 100% !important;
+    margin: 0 0 10px;
+    padding: 12px 14px;
+    border: 1px solid var(--line);
+    border-radius: var(--mb-r-m);
+    background: #fff;
+    box-shadow: var(--mb-elev-1);
+  }
+
+  table.mb-stack-table > tfoot > tr {
+    background: #f6f9ff;
+  }
+
+  table.mb-stack-table > tbody > tr > td,
+  table.mb-stack-table > tfoot > tr > td,
+  table.mb-stack-table > tfoot > tr > th {
+    display: block !important;
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    position: static !important;
+    text-align: left !important;
+    white-space: normal !important;
+    overflow-wrap: anywhere;
+    font-size: 14px !important;
+    line-height: 1.35;
+    color: var(--ink);
+  }
+
+  table.mb-stack-table > tbody > tr > td::before,
+  table.mb-stack-table > tfoot > tr > td::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 2px;
+    font-size: 11px;
+    font-weight: 750;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  table.mb-stack-table > tbody > tr > td[data-label=""]::before,
+  table.mb-stack-table > tfoot > tr > td[data-label=""]::before {
+    display: none;
+  }
+
+  /* Primera celda = título de la tarjeta */
+  table.mb-stack-table > tbody > tr > td:first-child {
+    grid-column: 1 / -1;
+    padding-bottom: 8px !important;
+    border-bottom: 1px dashed var(--soft-line) !important;
+    font-size: 15.5px !important;
+    font-weight: 750;
+  }
+
+  /* Celdas con colspan (vacíos, filas expandidas) y celdas de acciones ocupan todo el ancho */
+  table.mb-stack-table td.mb-stack-span,
+  table.mb-stack-table td[data-label=""],
+  table.mb-stack-table td:has(button),
+  table.mb-stack-table td:has(table) {
+    grid-column: 1 / -1;
+  }
+
+  table.mb-stack-table td.mb-stack-span {
+    border-bottom: 0 !important;
+    padding-bottom: 0 !important;
+  }
+
+  table.mb-stack-table > tbody > tr:has(> td.mb-stack-span:only-child) {
+    display: block !important;
+  }
+
+  table.mb-stack-table td .action-cell,
+  table.mb-stack-table td .seller-actions,
+  table.mb-stack-table td .table-actions {
+    display: flex !important;
+    flex-wrap: wrap;
+    justify-content: flex-start !important;
+    gap: 8px;
+  }
+
+  /* El contenedor ya no necesita scroll horizontal ni sombra de borde */
+  .table-wrap:has(> table.mb-stack-table),
+  .modal-table-scroll:has(table.mb-stack-table),
+  .cbt-scroll:has(> table.mb-stack-table),
+  .cap-table-wrap:has(> table.mb-stack-table),
+  .cpx-table-wrap:has(> table.mb-stack-table),
+  .cpd-table-wrap:has(> table.mb-stack-table),
+  .table-shell:has(> table.mb-stack-table) {
+    overflow: visible !important;
+    max-height: none !important;
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    mask-image: none !important;
+  }
+
   /* ── 10. Hover y movimiento ────────────────────────────────────────────── */
   @media (hover: none) {
     button:hover,
@@ -3354,7 +3510,7 @@
 
 
 /* Soporte carga de inventario en telefono: lista de tarjetas y conversacion a pantalla completa. */
-@media (max-width: 768px) {
+@media (max-width: 768px), (pointer: coarse) and (max-height: 520px) {
   .carga-chat-view {
     gap: 12px;
   }

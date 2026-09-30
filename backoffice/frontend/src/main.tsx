@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { AuthProvider } from '@/context/AuthContext';
 import Toast from '@/components/layout/Toast';
+import MobileTableLabeler from '@/components/mobile/MobileTableLabeler';
 import App from '@/App';
 import '@/styles/styles.css';
 import '@/styles/mobile.css';
@@ -29,6 +30,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           <AuthProvider>
             <App />
             <Toast />
+            <MobileTableLabeler />
           </AuthProvider>
         </QueryClientProvider>
       </BrowserRouter>
