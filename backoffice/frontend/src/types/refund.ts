@@ -7,7 +7,7 @@ export interface RefundPayment {
   orderId?: number | null;
   /** PED-0000019 */
   orderCode?: string | null;
-  origin: 'CANCELACION_COMPRADOR' | 'CANCELACION_VENDEDOR' | 'MEDIACION' | 'PAGO_TARDIO_SIN_STOCK' | 'PAGO_DUPLICADO' | 'OTRO';
+  origin: 'CANCELACION_COMPRADOR' | 'CANCELACION_VENDEDOR' | 'MEDIACION' | 'PAGO_TARDIO_SIN_STOCK' | 'PAGO_DUPLICADO' | 'SUSPENSION_TIENDA' | 'OTRO';
   /** Monto pendiente: es lo que se vuelve a pedir a Flow al reintentar. */
   amount: number;
   /** Estado crudo del Pago: REEMBOLSO_ERROR, REEMBOLSO_RECHAZADO, REEMBOLSO_SOLICITADO, REEMBOLSADO... */

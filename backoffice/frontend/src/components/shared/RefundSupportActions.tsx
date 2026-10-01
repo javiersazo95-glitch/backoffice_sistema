@@ -36,6 +36,8 @@ function originLabel(origin: RefundPayment['origin']): string {
       return 'pago tardío sin stock';
     case 'PAGO_DUPLICADO':
       return 'pago duplicado';
+    case 'SUSPENSION_TIENDA':
+      return 'suspensión de la tienda';
     default:
       return 'reembolso';
   }
