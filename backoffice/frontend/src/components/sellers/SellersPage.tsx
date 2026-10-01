@@ -19,7 +19,7 @@ import ImpactMediationsPanel from './ImpactMediationsPanel';
 import ResolvedCasesPanel from './ResolvedCasesPanel';
 import { useSellers, useSeller, useSellerDocuments, useSuspendSeller } from '@/hooks/useSellers';
 import { PAGE_SIZES } from '@/utils/constants';
-import { SellerStatus, type SellerResponse, type SellerFilterRequest, type SellerDetailResponse, type SellerDocumentResponse } from '@/types/seller';
+import { SellerStatus, type NivelSuspension, type SellerResponse, type SellerFilterRequest, type SellerDetailResponse, type SellerDocumentResponse } from '@/types/seller';
 import type { RiskCase, ImpactMediation, ResolvedCase } from '@/types/cases';
 import { MediationStatus, type MediationResponse, type ResolvedCaseResponse } from '@/types/mediation';
 import AreaHomeShortcut from '@/components/shared/AreaHomeShortcut';
@@ -574,10 +574,10 @@ export default function SellersPage() {
     setSuspendTargetId(id);
   };
 
-  const handleConfirmSuspend = (reason: string) => {
+  const handleConfirmSuspend = (reason: string, nivel: NivelSuspension, duracion?: string) => {
     if (suspendTargetId == null) return;
     suspendMutation.mutate(
-      { id: suspendTargetId, data: { reason } },
+      { id: suspendTargetId, data: { reason, nivel, duracion } },
       {
         onSuccess: () => {
           showToast('Tienda suspendida');

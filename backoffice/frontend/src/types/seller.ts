@@ -142,6 +142,12 @@ export interface UpdateSellerRequest {
   documentsSummary?: string;
 }
 
+export type NivelSuspension = 'TEMPORAL' | 'DEFINITIVA' | 'FRAUDE';
+
 export interface SuspendSellerRequest {
   reason: string;
+  /** H59: sin nivel, el backend la toma como DEFINITIVA. */
+  nivel?: NivelSuspension;
+  /** H59: 3_DIAS, 7_DIAS, 15_DIAS, 1_MES o 3_MESES; obligatoria en TEMPORAL. */
+  duracion?: string;
 }
