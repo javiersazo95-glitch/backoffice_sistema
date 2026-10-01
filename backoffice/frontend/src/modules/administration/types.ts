@@ -253,6 +253,11 @@ export interface RetiroAdminResponse {
   fecha: string;
   estado: string;
   fechaEfectiva: string;
+  // H59 fase 4: la tienda esta suspendida y sus fondos retenidos (temporal, reserva de cierre o
+  // fraude). El backend rechaza pagarlos y la nomina los deja fuera.
+  proveedorId?: number;
+  fondosRetenidos?: boolean;
+  motivoRetencion?: string | null;
   documentoLiquidacionNombre?: string;
   documentoLiquidacionTipo?: string;
   documentoLiquidacionRut?: string;

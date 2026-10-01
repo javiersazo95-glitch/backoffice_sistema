@@ -3,16 +3,21 @@ import UiIcon from '@/components/shared/UiIcon';
 import { useLockBodyScroll } from '@/hooks/useLockBodyScroll';
 import type { NivelSuspension } from '@/types/seller';
 import { useIsMobile } from '@/hooks/useIsMobile';
+import { useAuth } from '@/context/AuthContext';
+import { Role } from '@/types/auth';
 
 export const MOTIVO_SUSPENSION_MIN = 5;
 export const MOTIVO_SUSPENSION_MAX = 200;
+/** H59 fase 6: el fraude exige describir la evidencia (lo valida tambien el backend). */
+export const EVIDENCIA_FRAUDE_MIN = 20;
+export const EVIDENCIA_FRAUDE_MAX = 2000;
 
 interface SuspendSellerModalProps {
   isOpen: boolean;
   storeName?: string | null;
   isSubmitting?: boolean;
   onClose: () => void;
-  onConfirm: (reason: string, nivel: NivelSuspension, duracion?: string) => void;
+  onConfirm: (reason: string, nivel: NivelSuspension, duracion?: string, evidencia?: string) => void;
 }
 
 const DURACIONES: Array<[string, string]> = [
@@ -41,7 +46,7 @@ const NIVELES: Array<{ valor: NivelSuspension; titulo: string; detalle: string }
   {
     valor: 'FRAUDE',
     titulo: 'Fraude',
-    detalle: 'Lo pagado que no ha salido se cancela ahora y se reembolsa al comprador por Flow. Lo que ya va en camino queda en revisión. Úsala solo con evidencia.',
+    detalle: 'Lo pagado que no ha salido se cancela ahora y se reembolsa al comprador por Flow. Lo que ya va en camino queda en revisión y los fondos de la tienda se retienen. Solo administradores, con evidencia.',
   },
 ];
 
@@ -57,12 +62,19 @@ export default function SuspendSellerModal({ isOpen, storeName, isSubmitting = f
   const [reason, setReason] = useState('');
   const [nivel, setNivel] = useState<NivelSuspension>('DEFINITIVA');
   const [duracion, setDuracion] = useState('7_DIAS');
+  const [evidencia, setEvidencia] = useState('');
+  // H59 fase 6: el fraude (reembolso inmediato, fondos retenidos sin plazo) solo lo marca un
+  // administrador; el backend lo rechaza para cualquier otro permiso.
+  const { user } = useAuth();
+  const puedeMarcarFraude = user?.role === Role.SUPER_ADMIN;
+  const niveles = puedeMarcarFraude ? NIVELES : NIVELES.filter((opcion) => opcion.valor !== 'FRAUDE');
 
   useEffect(() => {
     if (!isOpen) {
       setReason('');
       setNivel('DEFINITIVA');
       setDuracion('7_DIAS');
+      setEvidencia('');
     }
   }, [isOpen]);
 
@@ -70,11 +82,16 @@ export default function SuspendSellerModal({ isOpen, storeName, isSubmitting = f
 
   const trimmed = reason.trim();
   const tooShort = trimmed.length > 0 && trimmed.length < MOTIVO_SUSPENSION_MIN;
-  const canSubmit = trimmed.length >= MOTIVO_SUSPENSION_MIN && !isSubmitting;
+  const evidenciaTrim = evidencia.trim();
+  const faltaEvidencia = nivel === 'FRAUDE' && evidenciaTrim.length < EVIDENCIA_FRAUDE_MIN;
+  const canSubmit = trimmed.length >= MOTIVO_SUSPENSION_MIN && !faltaEvidencia && !isSubmitting;
 
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
-    if (canSubmit) onConfirm(trimmed, nivel, nivel === 'TEMPORAL' ? duracion : undefined);
+    if (canSubmit) {
+      onConfirm(trimmed, nivel, nivel === 'TEMPORAL' ? duracion : undefined,
+        nivel === 'FRAUDE' ? evidenciaTrim : undefined);
+    }
   };
 
   return (
@@ -97,7 +114,7 @@ export default function SuspendSellerModal({ isOpen, storeName, isSubmitting = f
           </p>
           <fieldset className="blocked-review-field" style={{ border: 0, padding: 0, margin: '0 0 12px' }}>
             <legend style={{ fontWeight: 600, marginBottom: 6 }}>Tipo de suspensión *</legend>
-            {NIVELES.map((opcion) => (
+            {niveles.map((opcion) => (
               <label
                 key={opcion.valor}
                 style={{
@@ -145,6 +162,22 @@ export default function SuspendSellerModal({ isOpen, storeName, isSubmitting = f
           </label>
           {tooShort && (
             <small style={{ color: '#dc2626' }}>El motivo debe contener al menos {MOTIVO_SUSPENSION_MIN} caracteres.</small>
+          )}
+          {nivel === 'FRAUDE' && (
+            <label className="blocked-review-field">
+              <span>Evidencia del fraude * (interna, no la ve la tienda)</span>
+              <textarea
+                name="suspensionEvidencia"
+                rows={4}
+                maxLength={EVIDENCIA_FRAUDE_MAX}
+                value={evidencia}
+                onChange={(e) => setEvidencia(e.target.value)}
+                placeholder="Qué se verificó y dónde consta: folios, pedidos, comprobantes, conversaciones."
+              />
+              {evidenciaTrim.length > 0 && faltaEvidencia && (
+                <small style={{ color: '#dc2626' }}>Describe la evidencia con al menos {EVIDENCIA_FRAUDE_MIN} caracteres.</small>
+              )}
+            </label>
           )}
           <div className="blocked-review-footer">
             <button className="secondary-button" type="button" onClick={onClose}>

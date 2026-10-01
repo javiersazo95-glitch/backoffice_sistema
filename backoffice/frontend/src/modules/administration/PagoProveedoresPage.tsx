@@ -198,7 +198,8 @@ export default function PagoProveedoresPage() {
     const refreshedSupplier = await refetch();
     const latestPendingWithdrawals = (refreshedSupplier.data ?? withdrawals).filter((withdrawal) => {
       const createdDate = parseFecha(withdrawal.fecha);
-      return withdrawal.estado === 'SOLICITADO' && createdDate <= cycleEnd;
+      // H59 fase 4: lo de una tienda suspendida no se paga (el backend tambien lo rechaza).
+      return withdrawal.estado === 'SOLICITADO' && createdDate <= cycleEnd && !withdrawal.fondosRetenidos;
     });
 
     const incompletePartners = latestPendingPartner
@@ -286,7 +287,7 @@ export default function PagoProveedoresPage() {
    * pedir al backend un endpoint combinado.
    */
   const handleExportExcel = async () => {
-    const hayProveedores = pendingWithdrawals.length > 0;
+    const hayProveedores = pendingWithdrawals.some((w) => !w.fondosRetenidos);
     const haySocios = pendingPartnerWithdrawals.length > 0;
 
     if (!hayProveedores && !haySocios) {
@@ -441,7 +442,9 @@ export default function PagoProveedoresPage() {
       key={`prov-${w.retiroId}`}
       title={<FounderSellerName name={w.nombreTienda} founder={w.sellerFounder} />}
       subtitle={`${w.codigoRetiro || '—'} · ${formatDate(w.fecha)}`}
-      badge={<span className="status-pill tone-blue">Proveedor</span>}
+      badge={w.fondosRetenidos
+        ? <span className="status-pill tone-red" title={w.motivoRetencion ?? undefined}>Retenido: tienda suspendida</span>
+        : <span className="status-pill tone-blue">Proveedor</span>}
       meta={[
         { label: 'Monto', value: <strong>{formatMoney(w.monto)}</strong> },
         { label: 'RUT', value: w.rut },
@@ -522,7 +525,9 @@ export default function PagoProveedoresPage() {
                       {pendingWithdrawals.map((w) => (
                         <tr key={`prov-${w.retiroId}`}>
                           <td><strong>{w.codigoRetiro || '—'}</strong></td>
-                          <td><span className="status-pill tone-blue">Proveedor</span></td>
+                          <td>{w.fondosRetenidos
+                            ? <span className="status-pill tone-red" title={w.motivoRetencion ?? undefined}>Retenido: tienda suspendida</span>
+                            : <span className="status-pill tone-blue">Proveedor</span>}</td>
                           <td><FounderSellerName name={w.nombreTienda} founder={w.sellerFounder} /></td>
                           <td>{w.rut}</td>
                           <td>{w.banco}</td>

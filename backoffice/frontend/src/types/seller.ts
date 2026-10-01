@@ -150,4 +150,6 @@ export interface SuspendSellerRequest {
   nivel?: NivelSuspension;
   /** H59: 3_DIAS, 7_DIAS, 15_DIAS, 1_MES o 3_MESES; obligatoria en TEMPORAL. */
   duracion?: string;
+  /** H59 fase 6: obligatoria en FRAUDE (solo SUPER_ADMIN). Interna. */
+  evidencia?: string;
 }

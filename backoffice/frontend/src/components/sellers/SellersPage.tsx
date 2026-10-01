@@ -574,10 +574,10 @@ export default function SellersPage() {
     setSuspendTargetId(id);
   };
 
-  const handleConfirmSuspend = (reason: string, nivel: NivelSuspension, duracion?: string) => {
+  const handleConfirmSuspend = (reason: string, nivel: NivelSuspension, duracion?: string, evidencia?: string) => {
     if (suspendTargetId == null) return;
     suspendMutation.mutate(
-      { id: suspendTargetId, data: { reason, nivel, duracion } },
+      { id: suspendTargetId, data: { reason, nivel, duracion, evidencia } },
       {
         onSuccess: () => {
           showToast('Tienda suspendida');

@@ -800,10 +800,10 @@ export default function MediacionesPage() {
         storeName={sellerDetail?.storeName}
         isSubmitting={suspendSellerMutation.isPending}
         onClose={() => setSuspendSellerId(null)}
-        onConfirm={(reason, nivel, duracion) => {
+        onConfirm={(reason, nivel, duracion, evidencia) => {
           if (suspendSellerId == null) return;
           suspendSellerMutation.mutate(
-            { id: suspendSellerId, data: { reason, nivel, duracion } },
+            { id: suspendSellerId, data: { reason, nivel, duracion, evidencia } },
             {
               onSuccess: () => {
                 showToast('Tienda suspendida');

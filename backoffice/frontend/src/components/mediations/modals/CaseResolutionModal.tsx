@@ -5,7 +5,7 @@ import ModalField from '@/components/shared/ModalField';
 import Badge from '@/components/shared/Badge';
 import UiIcon from '@/components/shared/UiIcon';
 import FounderSellerName from '@/components/shared/FounderSellerName';
-import { mediationStatusDisplay, getBlockedTargetInfo, resolveBuyerName } from '@/utils/formatters';
+import { mediationStatusDisplay, getBlockedTargetInfo, resolveBuyerName, formatDateTime } from '@/utils/formatters';
 
 interface CaseResolutionModalProps {
   isOpen: boolean;
@@ -71,12 +71,14 @@ export default function CaseResolutionModal({ isOpen, onClose, item, mode, onSub
             <ModalField label="Tipo de caso" value={kind} />
             <ModalField label="Pedido" value={item.orderId} />
             <ModalField label="Tienda" value={<FounderSellerName name={item.sellerName} founder={item.sellerFounder} />} />
-            <ModalField label="Comprador" value={resolveBuyerName(item)} />
+            {/* H59 fase 6 (observacion de H62): la suspension directa de una tienda no tiene comprador
+                (su registro "S/P" trae "Comprador" de relleno). */}
+            {item.orderId !== 'S/P' && <ModalField label="Comprador" value={resolveBuyerName(item)} />}
             {mode === 'reactivate' && (
               <ModalField label="Cuenta bloqueada" value={blockedTarget.fullTargetLabel} />
             )}
             <ModalField label="Monto" value={item.amount} />
-            <ModalField label="Fecha actual" value={item.updatedAt} />
+            <ModalField label="Fecha actual" value={item.updatedAt ? formatDateTime(item.updatedAt) : '—'} />
           </div>
 
           <label className="message-field">
