@@ -233,6 +233,15 @@ export default function MediacionesPage() {
     queryFn: () => mediationsApi.getMediations({ blocked: true, page: 0, size: 100 }),
   });
 
+  // H59 fase 0 (1-oct): el panel guarda una copia del bloqueo; al reactivar la cuenta la lista se
+  // refresca y el panel seguia mostrando "Cuenta Bloqueada" hasta recargar la pagina.
+  useEffect(() => {
+    if (!selectedBlockedAccount || !blockedAccounts?.content) return;
+    if (!blockedAccounts.content.some((item) => item.id === selectedBlockedAccount.id)) {
+      setSelectedBlockedAccount(null);
+    }
+  }, [blockedAccounts, selectedBlockedAccount]);
+
   const { data: sellerDetail } = useSeller(selectedSellerId ?? 0);
   const { data: sellerDocuments } = useSellerDocuments(selectedSellerId ?? 0);
   const sellerDocumentList = useMemo(() => {
