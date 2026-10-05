@@ -1,8 +1,11 @@
 /**
  * Espejo del catálogo backend `ResolucionMediacionCatalogo`.
  * Las figuras de resolución están tipificadas según la Ley N° 19.496 sobre
- * Protección de los Derechos de los Consumidores (LPDC). Mantener las `key` y
- * `label` sincronizadas con el backend.
+ * Protección de los Derechos de los Consumidores (LPDC). Mantener las `key`,
+ * `label` y `motivo` sincronizadas con el backend.
+ *
+ * U4 (5-oct): el `fundamentoLegal` es solo para el mediador; las partes reciben el `motivo`
+ * en lenguaje simple, sin artículos de ley.
  */
 
 export type MediationFavor = 'COMPRADOR' | 'VENDEDOR';
@@ -12,6 +15,8 @@ export interface MediationResolutionOption {
   favor: MediationFavor;
   label: string;
   fundamentoLegal: string;
+  /** Lo que leen comprador y tienda: el porqué de la decisión, sin citar la ley. */
+  motivo: string;
   /** El mediador debe ingresar un porcentaje de reembolso (1–100). */
   requiresPercentage: boolean;
   /** La figura implica devolución de dinero al comprador. */
@@ -25,6 +30,7 @@ export const MEDIATION_RESOLUTION_OPTIONS: MediationResolutionOption[] = [
     label: 'Reembolso íntegro de lo pagado',
     fundamentoLegal:
       'Artículos 19 a 21 de la Ley N° 19.496 (garantía legal y derecho de opción del consumidor a la restitución de lo pagado)',
+    motivo: 'El producto presentó una falla o no correspondía a lo comprado, y la garantía legal permite pedir la devolución de lo pagado.',
     requiresPercentage: false,
     appliesRefund: true,
   },
@@ -34,6 +40,7 @@ export const MEDIATION_RESOLUTION_OPTIONS: MediationResolutionOption[] = [
     label: 'Rebaja proporcional del precio (reembolso parcial)',
     fundamentoLegal:
       'Artículo 20 de la Ley N° 19.496 (derecho a la devolución de la parte proporcional del precio)',
+    motivo: 'El producto no correspondía del todo a lo comprado, y la garantía legal permite pedir la devolución de la parte proporcional del precio.',
     requiresPercentage: true,
     appliesRefund: true,
   },
@@ -42,6 +49,7 @@ export const MEDIATION_RESOLUTION_OPTIONS: MediationResolutionOption[] = [
     favor: 'COMPRADOR',
     label: 'Reposición o cambio del producto',
     fundamentoLegal: 'Artículo 20 de la Ley N° 19.496 (derecho del consumidor a la reposición del producto)',
+    motivo: 'El producto presentó una falla o no correspondía a lo comprado, y la garantía legal permite pedir su cambio.',
     requiresPercentage: false,
     appliesRefund: false,
   },
@@ -50,6 +58,7 @@ export const MEDIATION_RESOLUTION_OPTIONS: MediationResolutionOption[] = [
     favor: 'COMPRADOR',
     label: 'Reparación gratuita del producto',
     fundamentoLegal: 'Artículos 20 y 41 de la Ley N° 19.496 (derecho a la reparación gratuita)',
+    motivo: 'El producto presentó una falla, y la garantía legal permite pedir su reparación sin costo.',
     requiresPercentage: false,
     appliesRefund: false,
   },
@@ -59,6 +68,7 @@ export const MEDIATION_RESOLUTION_OPTIONS: MediationResolutionOption[] = [
     label: 'Reclamo rechazado: producto conforme',
     fundamentoLegal:
       'Artículo 21 de la Ley N° 19.496 (no se acreditó la falta de conformidad del producto dentro del plazo legal)',
+    motivo: 'No se acreditó una falla ni una diferencia con lo comprado.',
     requiresPercentage: false,
     appliesRefund: false,
   },
@@ -67,6 +77,7 @@ export const MEDIATION_RESOLUTION_OPTIONS: MediationResolutionOption[] = [
     favor: 'VENDEDOR',
     label: 'Entrega y recepción conforme acreditada',
     fundamentoLegal: 'Artículo 21 de la Ley N° 19.496 (consta la entrega del producto en las condiciones convenidas)',
+    motivo: 'Consta que el producto se entregó en las condiciones acordadas.',
     requiresPercentage: false,
     appliesRefund: false,
   },
@@ -76,6 +87,7 @@ export const MEDIATION_RESOLUTION_OPTIONS: MediationResolutionOption[] = [
     label: 'Reclamo presentado fuera del plazo legal',
     fundamentoLegal:
       'Artículo 21 inciso 1 (plazo de 6 meses) y artículo 3 bis de la Ley N° 19.496 (plazo de retracto)',
+    motivo: 'El reclamo se presentó después de los plazos de la garantía legal (6 meses) y del derecho a retracto (10 días).',
     requiresPercentage: false,
     appliesRefund: false,
   },
@@ -178,9 +190,8 @@ export function buildVeredictoPreview(params: {
 
   const favorTexto = favor === 'COMPRADOR' ? 'a favor del comprador' : 'a favor de la tienda';
   let text =
-    `Conforme a la Ley N° 19.496 sobre Protección de los Derechos de los Consumidores, y habiendo ` +
-    `revisado los antecedentes del caso ${externalId ?? ''}, RepuesTop resuelve esta mediación ${favorTexto}. ` +
-    `Fundamento legal: ${option.fundamentoLegal}. Medida aplicada: ${option.label}.`;
+    `Revisamos los antecedentes del caso ${externalId ?? ''} y resolvimos esta mediación ${favorTexto}. ` +
+    `Motivo: ${option.motivo} Medida aplicada: ${option.label}.`;
 
   if (option.appliesRefund) {
     const pct = option.requiresPercentage ? refundPercentage ?? 0 : 100;
@@ -191,6 +202,8 @@ export function buildVeredictoPreview(params: {
   } else if (favor === 'VENDEDOR') {
     text += ' En esta oportunidad no procede un reembolso al comprador.';
   }
+  // Solo al comprador (art. 3 g de la Ley 19.496), igual que el mensaje real del backend.
+  text += ' Al comprador se le recuerda que siempre puede acudir al Juzgado de Policía Local o reclamar en el SERNAC.';
 
   return text;
 }
