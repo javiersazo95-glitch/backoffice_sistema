@@ -252,7 +252,7 @@ export default function AreaSelectorPage() {
             </article>
           )}
 
-          <footer className="area-selector-footer">© 2025 RepuesTop. Todos los derechos reservados.</footer>
+          <footer className="area-selector-footer">© {new Date().getFullYear()} RepuesTop. Todos los derechos reservados.</footer>
         </div>
       </div>
     </section>
