@@ -226,7 +226,7 @@ export default function MediacionesPage() {
   const { data: resolvedCases, isLoading: isLoadingResolvedCases, isError: isErrorResolvedCases, error: errorResolvedCases, refetch: refetchResolvedCases } = useQuery({
     queryKey: ['mediations', 'resolved-cases'],
     queryFn: async () => {
-      const result = await fetchAllPages((page, size) => mediationsApi.getMediations({ status: MediationStatus.RESUELTA, page, size }));
+      const result = await fetchAllPages((page, size) => mediationsApi.getMediations({ status: `${MediationStatus.RESUELTA},${MediationStatus.CERRADA}`, page, size }));
       // El listado devuelve MediacionRespuestaDTO, que no trae `mediationId` (solo `id`); los
       // modales de resueltos lo leen, asi que se completa aqui para que el historial cargue.
       return { ...result, content: result.content.map((item) => ({ ...item, mediationId: item.id })) } as any;

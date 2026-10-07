@@ -5,7 +5,6 @@ import CapturerAvatar from '@/components/capturers/CapturerAvatar';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as supportApi from '@/api/support';
-import * as sellersApi from '@/api/sellers';
 import UiIcon from '@/components/shared/UiIcon';
 import AreaHomeShortcut from '@/components/shared/AreaHomeShortcut';
 import Badge from '@/components/shared/Badge';
@@ -1007,8 +1006,8 @@ export default function SupportPage() {
 
   // Query de sellers para el selector del nuevo ticket
   const { data: sellersData } = useQuery({
-    queryKey: ['support-sellers-lookup'],
-    queryFn: () => fetchAllPages((page, size) => sellersApi.getSellers({ page, size })),
+    queryKey: ['support-stores-lookup'],
+    queryFn: () => supportApi.getSupportStores(),
     enabled: isSupportOperator,
   });
 
@@ -1019,7 +1018,7 @@ export default function SupportPage() {
     enabled: isSupportOperator && activeTab === 'resumen',
   });
 
-  const sellers = sellersData?.content ?? [];
+  const sellers = sellersData ?? [];
   const globalTickets = globalTicketsData?.content ?? [];
 
   const reportStats = useMemo(() => {
@@ -1865,7 +1864,7 @@ export default function SupportPage() {
                     <select value={newSellerId ?? ''} onChange={(e) => setNewSellerId(e.target.value ? Number(e.target.value) : null)}>
                       <option value="">Seleccionar tienda...</option>
                       {sellers.map((s) => (
-                        <option key={s.id} value={s.id}>{s.storeName} (RUT: {s.rut})</option>
+                        <option key={s.id} value={s.id}>{s.nombreTienda}{s.rut ? ` (RUT: ${s.rut})` : ''}</option>
                       ))}
                     </select>
                   </label>

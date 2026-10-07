@@ -10,6 +10,14 @@ export async function getAlerts(search?: string, severity?: AlertSeverity, page 
   return response.data;
 }
 
+/** Totales por severidad sobre TODAS las alertas (no solo la pagina visible). */
+export interface AlertsSummary { total: number; critica: number; alta: number; media: number }
+
+export async function getAlertsSummary(): Promise<AlertsSummary> {
+  const response = await apiClient.get<AlertsSummary>('/alerts/summary');
+  return response.data;
+}
+
 export async function markAsReviewed(id: number): Promise<AlertResponse> {
   const response = await apiClient.patch<AlertResponse>(`/alerts/${id}/review`);
   return response.data;

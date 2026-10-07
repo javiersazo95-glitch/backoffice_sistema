@@ -37,6 +37,9 @@ export default function AlertsPage() {
     queryFn: () => alertsApi.getAlerts(search || undefined, severity, page, PAGE_SIZES.ALERTS),
   });
 
+  // Las tarjetas contaban solo la pagina visible (8 filas) y cambiaban al paginar.
+  const { data: summary } = useQuery({ queryKey: ['alerts', 'summary'], queryFn: alertsApi.getAlertsSummary });
+
   const { data: receipts, isError: receiptsError, error: receiptsErrorDetail, refetch: refetchReceipts } = useQuery({
     queryKey: ['receipts'],
     queryFn: () => receiptsApi.getReceipts(0, PAGE_SIZES.RECEIPTS),
@@ -163,9 +166,9 @@ export default function AlertsPage() {
       {receiptsError && <QueryErrorNotice error={receiptsErrorDetail} what="los comprobantes en seguimiento" onRetry={refetchReceipts} />}
 
       <div className="metric-grid compact">
-        <MetricCard label="Críticas" value={pendingAlerts.filter((a) => a.severity === AlertSeverity.CRITICA).length} tone="red" />
-        <MetricCard label="Alta" value={pendingAlerts.filter((a) => a.severity === AlertSeverity.ALTA).length} tone="amber" />
-        <MetricCard label="Media" value={pendingAlerts.filter((a) => a.severity === AlertSeverity.MEDIA).length} tone="blue" />
+        <MetricCard label="Críticas" value={summary?.critica ?? pendingAlerts.filter((a) => a.severity === AlertSeverity.CRITICA).length} tone="red" description="Total registradas" />
+        <MetricCard label="Alta" value={summary?.alta ?? pendingAlerts.filter((a) => a.severity === AlertSeverity.ALTA).length} tone="amber" description="Total registradas" />
+        <MetricCard label="Media" value={summary?.media ?? pendingAlerts.filter((a) => a.severity === AlertSeverity.MEDIA).length} tone="blue" description="Total registradas" />
       </div>
 
       <div className="alert-layout">

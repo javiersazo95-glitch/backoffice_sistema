@@ -454,15 +454,24 @@ export default function ValidationsPage() {
     }
   }
 
+  /**
+   * Ids de verificacion a enviar al backend. El `id` de cada documento es sintetico
+   * (verificacion*10+sub) y antes se mandaba tal cual: con 11 o mas verificaciones, los ids
+   * 11..16 de la tienda 1 caian sobre las verificaciones 11..16 de otras tiendas. Se usa
+   * `verificationId` (uno por grupo, sin repetir) y, si un backend viejo no lo manda, el id.
+   */
+  const verificationIdsOf = (documents: ValidationResponse[]) =>
+    Array.from(new Set(documents.map((document) => document.verificationId ?? document.id)));
+
   function approveSelectedRequest() {
     if (pendingDocuments.length === 0) return;
-    approveMutation.mutate(pendingDocuments.map((document) => document.id));
+    approveMutation.mutate(verificationIdsOf(pendingDocuments));
   }
 
   function requestSelectedCorrection() {
     if (pendingDocuments.length === 0 || !decisionNotes.trim()) return;
     correctMutation.mutate({
-      ids: pendingDocuments.map((document) => document.id),
+      ids: verificationIdsOf(pendingDocuments),
       notes: decisionNotes.trim(),
     });
   }

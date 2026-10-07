@@ -17,6 +17,8 @@ export interface ReceiptFollowupResponse {
   priority: TicketPriority;
   /** Texto de vencimiento que arma el backend ("Vence en 2 dias"). Se llama asi en el DTO. */
   dueInformation: string;
+  /** Fecha de vencimiento real (el backend ordena por ella). */
+  dueAt?: string | null;
   detail: string;
   createdAt: string;
   updatedAt: string;

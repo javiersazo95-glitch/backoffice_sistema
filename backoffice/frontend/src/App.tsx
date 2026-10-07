@@ -123,7 +123,7 @@ function RequireApprovedCapturer({ children }: { children: JSX.Element }) {
       </div>
     );
   }
-  if (statusQuery.isError && estadoHttpDe(statusQuery.error) === 403) {
+  if (user?.capturerAccessActive === false || (statusQuery.isError && estadoHttpDe(statusQuery.error) === 403)) {
     return <CapturerAccessSuspended onLogout={() => void logout()} />;
   }
   if (statusQuery.data && statusQuery.data.estado !== 'APROBADO') {

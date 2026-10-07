@@ -6,7 +6,10 @@ export enum ValidationStatus {
 }
 
 export interface ValidationResponse {
+  /** Id sintetico del documento (verificationId*10+sub). Para aprobar/corregir/rechazar usar verificationId. */
   id: number;
+  /** Id real de la verificacion del proveedor; lo expone el backend desde la auditoria de ids. */
+  verificationId?: number;
   sellerId: number;
   sellerName: string;
   sellerFounder?: boolean;

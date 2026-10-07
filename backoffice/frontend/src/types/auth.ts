@@ -21,5 +21,7 @@ export interface UserSummaryResponse {
   initials: string;
   role: Role;
   permissions?: BackofficePermission[];
+  /** Solo captadores: false cuando Permisos le desactivo el acceso al portal. */
+  capturerAccessActive?: boolean | null;
 }
 
