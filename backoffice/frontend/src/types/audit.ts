@@ -3,6 +3,7 @@ export enum AuditModule {
   VALIDACIONES = 'VALIDACIONES',
   MEDIACIONES = 'MEDIACIONES',
   ALERTAS = 'ALERTAS',
+  CAPTADORES = 'CAPTADORES',
 }
 
 export interface AuditLogResponse {

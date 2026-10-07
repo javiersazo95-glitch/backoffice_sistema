@@ -21,9 +21,3 @@ export interface ValidationResponse {
   updatedAt: string;
 }
 
-export interface CreateValidationRequest {
-  sellerId: number;
-  documentType: string;
-  dueAt: string;
-  notes?: string;
-}

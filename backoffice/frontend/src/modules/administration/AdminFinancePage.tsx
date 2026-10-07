@@ -12,6 +12,7 @@ import FounderSellerName from '@/components/shared/FounderSellerName';
 import FounderSellerList from '@/components/shared/FounderSellerList';
 import SellerListTooltip from '@/components/shared/SellerListTooltip';
 import * as administrationApi from '@/api/administration';
+import apiClient from '@/api/client';
 import type { TipoRetiro } from '@/api/administration';
 import {
   BANCOS_BCI,
@@ -681,6 +682,37 @@ export default function AdminFinancePage() {
   const [registeredDocumentPreview, setRegisteredDocumentPreview] = useState<RegisteredDocumentPreview | null>(null);
   const [paidDocumentPreview, setPaidDocumentPreview] = useState<PaidDocumentPreview | null>(null);
   const [receiptExpense, setReceiptExpense] = useState<Expense | null>(null);
+  /**
+   * El backend devuelve `receiptUrl` relativa a si mismo (/api/v1/administration/expenses/{id}/receipt)
+   * y la ruta exige el token. Pegarla tal cual en un <iframe src> apuntaba al host del backoffice
+   * (404 con la API en otro origen) y ademas una navegacion no lleva el Bearer. Se descarga con
+   * apiClient y se muestra como blob, igual que el documento de liquidacion.
+   */
+  const [receiptObjectUrl, setReceiptObjectUrl] = useState<string | null>(null);
+  const [receiptLoadError, setReceiptLoadError] = useState(false);
+  useEffect(() => {
+    const raw = receiptExpense?.receiptUrl;
+    setReceiptLoadError(false);
+    if (!raw) { setReceiptObjectUrl(null); return undefined; }
+    if (/^(blob|data):/i.test(raw)) { setReceiptObjectUrl(raw); return undefined; }
+
+    let cancelled = false;
+    let objectUrl: string | null = null;
+    setReceiptObjectUrl(null);
+    // apiClient ya lleva el prefijo /api/v1: se le quita el origen y ese prefijo si vienen.
+    const path = raw.replace(/^https?:\/\/[^/]+/i, '').replace(/^\/?api\/v1/i, '');
+    apiClient.get<Blob>(path, { responseType: 'blob' })
+      .then((response) => {
+        if (cancelled) return;
+        objectUrl = URL.createObjectURL(response.data);
+        setReceiptObjectUrl(objectUrl);
+      })
+      .catch(() => { if (!cancelled) setReceiptLoadError(true); });
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [receiptExpense]);
   const [reportOpen, setReportOpen] = useState(false);
   const [selectedDetailOrder, setSelectedDetailOrder] = useState<Order | null>(null);
   const [selectedDetailSettlement, setSelectedDetailSettlement] = useState<Settlement | null>(null);
@@ -4084,11 +4116,15 @@ export default function AdminFinancePage() {
       {receiptExpense && (
         <Modal title="Comprobante del gasto" subtitle={`${receiptExpense.description} · ${receiptExpense.receipt ?? ''}`} onClose={() => setReceiptExpense(null)}>
           <div className="receipt-viewer">
-            {receiptExpense.receiptUrl
-              ? receiptExpense.receiptType === 'application/pdf' || receiptExpense.receipt?.toLowerCase().endsWith('.pdf')
-                ? <iframe title={`Comprobante ${receiptExpense.receipt}`} src={receiptExpense.receiptUrl} />
-                : <img src={receiptExpense.receiptUrl} alt={`Comprobante ${receiptExpense.receipt}`} />
-              : <div className="empty-state compact-empty">El gasto tiene registrado el comprobante {receiptExpense.receipt}, pero no hay un archivo cargado en esta sesión para previsualizar.</div>}
+            {!receiptExpense.receiptUrl
+              ? <div className="empty-state compact-empty">El gasto tiene registrado el comprobante {receiptExpense.receipt}, pero no hay un archivo cargado en esta sesión para previsualizar.</div>
+              : receiptLoadError
+                ? <div className="notice notice-error" role="alert"><p><UiIcon name="alert" /> No se pudo descargar el comprobante del backend.</p></div>
+                : !receiptObjectUrl
+                  ? <div className="empty-state compact-empty">Cargando comprobante…</div>
+                  : receiptExpense.receiptType === 'application/pdf' || receiptExpense.receipt?.toLowerCase().endsWith('.pdf')
+                    ? <iframe title={`Comprobante ${receiptExpense.receipt}`} src={receiptObjectUrl} />
+                    : <img src={receiptObjectUrl} alt={`Comprobante ${receiptExpense.receipt}`} />}
           </div>
         </Modal>
       )}

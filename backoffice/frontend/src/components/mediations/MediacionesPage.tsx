@@ -224,7 +224,9 @@ export default function MediacionesPage() {
     queryKey: ['mediations', 'resolved-cases'],
     queryFn: async () => {
       const result = await mediationsApi.getMediations({ status: MediationStatus.RESUELTA, page: 0, size: 100 });
-      return result as any;
+      // El listado devuelve MediacionRespuestaDTO, que no trae `mediationId` (solo `id`); los
+      // modales de resueltos lo leen, asi que se completa aqui para que el historial cargue.
+      return { ...result, content: result.content.map((item) => ({ ...item, mediationId: item.id })) } as any;
     },
   });
 

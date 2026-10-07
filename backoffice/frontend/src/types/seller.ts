@@ -27,7 +27,8 @@ export interface SellerResponse {
   trustLevel: TrustLevel;
   trustScore: number;
   rating: number;
-  responseTime: string;
+  /** No lo envia el backend hoy; se deja opcional para no mostrar "undefined". */
+  responseTime?: string;
   openTickets: number;
   mediationCount: number;
   returnsCount: number;
@@ -37,7 +38,8 @@ export interface SellerResponse {
   salesCount: number;
   createdAt?: string;
   documentsSummary: string;
-  bankStatus: BankStatus;
+  /** No lo envia el backend hoy; el estado de bloqueo sale de `status`. */
+  bankStatus?: BankStatus;
   lastActivityAt: string;
   address?: string;
   email?: string;
@@ -124,22 +126,6 @@ export interface SellerFilterRequest {
   endDate?: string;
   page?: number;
   size?: number;
-}
-
-export interface CreateSellerRequest {
-  storeName: string;
-  rut: string;
-  city: string;
-}
-
-export interface UpdateSellerRequest {
-  storeName?: string;
-  city?: string;
-  trustLevel?: TrustLevel;
-  trustScore?: number;
-  rating?: number;
-  bankStatus?: BankStatus;
-  documentsSummary?: string;
 }
 
 export type NivelSuspension = 'TEMPORAL' | 'DEFINITIVA' | 'FRAUDE';

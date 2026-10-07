@@ -291,7 +291,7 @@ export default function AlertsPage() {
                 <div key={r.id} className="receipt-item">
                   <div>
                     <strong><FounderSellerName name={r.sellerName} founder={r.sellerFounder} /></strong>
-                    <span>Orden {r.orderId} · {r.dueInfo}</span>
+                    <span>Orden {r.orderId} · {r.dueInformation}</span>
                     {r.detail && <p>{r.detail}</p>}
                   </div>
                   <div style={{ display: 'grid', gap: 6, alignItems: 'center' }}>

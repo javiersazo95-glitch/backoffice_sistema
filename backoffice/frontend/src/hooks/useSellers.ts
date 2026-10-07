@@ -2,8 +2,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as sellersApi from '@/api/sellers';
 import type {
   SellerFilterRequest,
-  CreateSellerRequest,
-  UpdateSellerRequest,
   SuspendSellerRequest,
 } from '@/types/seller';
 
@@ -19,32 +17,6 @@ export function useSeller(id: number) {
     queryKey: ['seller', id],
     queryFn: () => sellersApi.getSellerById(id),
     enabled: !!id,
-  });
-}
-
-export function useCreateSeller() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (data: CreateSellerRequest) => sellersApi.createSeller(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['sellers'] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
-    },
-  });
-}
-
-export function useUpdateSeller() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, data }: { id: number; data: UpdateSellerRequest }) =>
-      sellersApi.updateSeller(id, data),
-    onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['sellers'] });
-      queryClient.invalidateQueries({ queryKey: ['seller', variables.id] });
-      queryClient.invalidateQueries({ queryKey: ['audits'] });
-      queryClient.invalidateQueries({ queryKey: ['seller-block-history', variables.id] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
-    },
   });
 }
 

@@ -3,8 +3,6 @@ import type { PageResponse } from '@/types/common';
 import type {
   SellerResponse,
   SellerDetailResponse,
-  CreateSellerRequest,
-  UpdateSellerRequest,
   SuspendSellerRequest,
   SellerFilterRequest,
   SellerDocumentResponse,
@@ -71,33 +69,6 @@ function normalizeSellerDocument(document: DocumentLike, sellerId: number): Sell
   };
 }
 
-function mergeSellerDocuments(
-  sellerDocuments: SellerDocumentResponse[],
-  validationDocuments: ValidationResponse[],
-): SellerDocumentResponse[] {
-  const merged = new Map<string, SellerDocumentResponse>();
-
-  sellerDocuments.forEach((document) => {
-    const normalizedDocument = normalizeSellerDocument(document as DocumentLike, document.sellerId);
-    if (normalizedDocument) {
-      merged.set(normalizeDocumentType(normalizedDocument.documentType), normalizedDocument);
-    }
-  });
-
-  validationDocuments.forEach((document) => {
-    const normalizedDocument = normalizeSellerDocument(document as DocumentLike, document.sellerId);
-    if (normalizedDocument) {
-      const key = normalizeDocumentType(normalizedDocument.documentType);
-      const current = merged.get(key);
-      if (!current || (!current.documentUrl && normalizedDocument.documentUrl)) {
-        merged.set(key, normalizedDocument);
-      }
-    }
-  });
-
-  return Array.from(merged.values());
-}
-
 export async function getSellers(params?: SellerFilterRequest): Promise<PageResponse<SellerResponse>> {
   const response = await apiClient.get<PageResponse<SellerResponse>>('/sellers', { params });
   return response.data;
@@ -105,16 +76,6 @@ export async function getSellers(params?: SellerFilterRequest): Promise<PageResp
 
 export async function getSellerById(id: number): Promise<SellerDetailResponse> {
   const response = await apiClient.get<SellerDetailResponse>(`/sellers/${id}`);
-  return response.data;
-}
-
-export async function createSeller(data: CreateSellerRequest): Promise<SellerResponse> {
-  const response = await apiClient.post<SellerResponse>('/sellers', data);
-  return response.data;
-}
-
-export async function updateSeller(id: number, data: UpdateSellerRequest): Promise<SellerResponse> {
-  const response = await apiClient.patch<SellerResponse>(`/sellers/${id}`, data);
   return response.data;
 }
 
@@ -150,16 +111,13 @@ export async function getSellerSales(id: number, page = 0, size = 5): Promise<Pa
   return response.data;
 }
 
+/**
+ * Solo `/sellers/{id}/documents`. Antes ademas bajaba `/validations?size=500` completo en cada
+ * apertura para mezclarlo, y el backend ya arma ese listado desde la misma verificacion.
+ */
 export async function getSellerDocuments(id: number): Promise<SellerDocumentResponse[]> {
   const response = await apiClient.get<SellerDocumentResponse[]>(`/sellers/${id}/documents`);
-
-  try {
-    const validationsResponse = await apiClient.get<PageResponse<ValidationResponse>>('/validations', {
-      params: { page: 0, size: 500 },
-    });
-    const sellerValidations = validationsResponse.data.content.filter((document) => document.sellerId === id);
-    return mergeSellerDocuments(response.data, sellerValidations);
-  } catch {
-    return response.data;
-  }
+  return response.data
+    .map((document) => normalizeSellerDocument(document as DocumentLike, document.sellerId ?? id))
+    .filter((document): document is SellerDocumentResponse => document !== null);
 }

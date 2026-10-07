@@ -23,19 +23,3 @@ export interface UserSummaryResponse {
   permissions?: BackofficePermission[];
 }
 
-export interface AuthResponse {
-  accessToken: string;
-  refreshToken: string;
-  tokenType: string;
-  expiresIn: number;
-  user: UserSummaryResponse;
-}
-
-export interface LoginRequest {
-  username: string;
-  password: string;
-}
-
-export interface RefreshTokenRequest {
-  refreshToken: string;
-}

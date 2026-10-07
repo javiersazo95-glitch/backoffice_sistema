@@ -7,6 +7,13 @@ import { formatDateTime } from '@/utils/formatters';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { RecordCard, RecordList, EmptyState, FilterSheet, FilterTrigger, CardAvatar } from '@/components/mobile';
 import { countActiveFilters } from '@/utils/filters';
+import { resolveProfileImageUrl } from '@/api/client';
+
+/**
+ * El backend manda el rol tal cual esta en la tabla de usuarios: CLIENTE, PROVEEDOR u OPERADOR.
+ * Antes se comparaba contra SELLER/VENDEDOR, que nunca llegan, y todo el mundo salia "Comprador".
+ */
+const isSellerRole = (rol: string | null | undefined) => ['PROVEEDOR', 'VENDEDOR', 'SELLER'].includes((rol ?? '').toUpperCase());
 
 export default function FeedbackPage() {
   const [search, setSearch] = useState('');
@@ -22,7 +29,7 @@ export default function FeedbackPage() {
   const approvalMutation = useMutation({ mutationFn: ({ id, approved }: { id: number; approved: boolean }) => feedbackApi.setSystemFeedbackApproval(id, approved), onSuccess: () => queryClient.invalidateQueries({ queryKey: ['system-feedback'] }) });
   const feedbackForTab = tab === 'home' ? homeFeedback : data;
   const visible = useMemo(() => feedbackForTab.filter((item) => {
-    const isSeller = ['SELLER', 'VENDEDOR'].includes(item.usuarioRol);
+    const isSeller = isSellerRole(item.usuarioRol);
     const matchesSearch = `${item.usuarioNombre} ${item.comentario}`.toLowerCase().includes(search.trim().toLowerCase());
     const matchesApproval = approvalFilter === 'all'
       || (approvalFilter === 'approved' && item.aprobado)
@@ -76,9 +83,9 @@ export default function FeedbackPage() {
           {visible.map((item) => (
             <RecordCard
               key={item.id}
-              leading={<CardAvatar src={item.usuarioPerfilUrl} name={item.usuarioNombre} />}
+              leading={<CardAvatar src={(resolveProfileImageUrl(item.usuarioPerfilUrl) ?? undefined)} name={item.usuarioNombre} />}
               title={item.usuarioNombre}
-              subtitle={`${['SELLER', 'VENDEDOR'].includes(item.usuarioRol) ? 'Vendedor' : 'Comprador'} · ${formatDateTime(item.fechaCreacion)}`}
+              subtitle={`${isSellerRole(item.usuarioRol) ? 'Vendedor' : 'Comprador'} · ${formatDateTime(item.fechaCreacion)}`}
               badge={<span className={`feedback-approval ${item.aprobado ? 'approved' : 'pending'}`}>{item.aprobado ? 'Aprobado' : 'Pendiente'}</span>}
               footer={(
                 <>
@@ -108,6 +115,6 @@ export default function FeedbackPage() {
     <section className="feedback-metrics"><MetricCard label="Total feedback" value={data.length} tone="blue" description="Comentarios recibidos" iconName="message" /><MetricCard label="Publicados en home" value={publishedCount} tone="green" description="Un testimonio vigente por usuario" iconName="message" /><MetricCard label="Calificación promedio" value={average ? `${average.toFixed(1)} / 5` : '—'} tone="amber" description="Experiencia reportada" iconName="star" /></section>
     <div className="feedback-tabs" role="tablist" aria-label="Vistas de feedback"><button type="button" role="tab" aria-selected={tab === 'all'} className={tab === 'all' ? 'active' : ''} onClick={() => setTab('all')}>Todos los feedback <span>{data.length}</span></button><button type="button" role="tab" aria-selected={tab === 'home'} className={tab === 'home' ? 'active' : ''} onClick={() => setTab('home')}>Mostrados en el home <span>{publishedCount}</span></button></div>
     <section className="feedback-filters" aria-label="Filtros de feedback"><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por usuario o comentario" />{approvalSelect}{roleSelect}{ratingSelect}</section>
-    {isLoading ? <p className="feedback-state">Cargando feedback…</p> : isError ? <p className="feedback-state error">No pudimos cargar el feedback.</p> : visible.length === 0 ? <p className="feedback-state">No hay comentarios que coincidan.</p> : <div className="feedback-table-wrap"><table className="feedback-table"><thead><tr><th>Usuario</th><th>Rol</th><th>Calificación</th><th>Comentario</th><th>Fecha</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>{visible.map((item) => <tr key={item.id}><td><div className="feedback-user">{item.usuarioPerfilUrl ? <img src={item.usuarioPerfilUrl} alt="" /> : <span>{item.usuarioNombre?.slice(0, 1)}</span>}<strong>{item.usuarioNombre}</strong></div></td><td>{['SELLER', 'VENDEDOR'].includes(item.usuarioRol) ? 'Vendedor' : 'Comprador'}</td><td><b className="feedback-rating">{'★'.repeat(item.calificacion)}{'☆'.repeat(5 - item.calificacion)}</b></td><td className="feedback-comment">{item.comentario}</td><td>{formatDateTime(item.fechaCreacion)}</td><td><span className={`feedback-approval ${item.aprobado ? 'approved' : 'pending'}`}>{item.aprobado ? 'Aprobado' : 'Pendiente'}</span></td><td><button type="button" className={item.aprobado ? 'feedback-action remove' : 'feedback-action'} disabled={approvalMutation.isPending} onClick={() => approvalMutation.mutate({ id: item.id, approved: !item.aprobado })}>{item.aprobado ? 'Quitar del home' : 'Aprobar para home'}</button></td></tr>)}</tbody></table></div>}
+    {isLoading ? <p className="feedback-state">Cargando feedback…</p> : isError ? <p className="feedback-state error">No pudimos cargar el feedback.</p> : visible.length === 0 ? <p className="feedback-state">No hay comentarios que coincidan.</p> : <div className="feedback-table-wrap"><table className="feedback-table"><thead><tr><th>Usuario</th><th>Rol</th><th>Calificación</th><th>Comentario</th><th>Fecha</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>{visible.map((item) => <tr key={item.id}><td><div className="feedback-user">{(resolveProfileImageUrl(item.usuarioPerfilUrl) ?? undefined) ? <img src={(resolveProfileImageUrl(item.usuarioPerfilUrl) ?? undefined)} alt="" /> : <span>{item.usuarioNombre?.slice(0, 1)}</span>}<strong>{item.usuarioNombre}</strong></div></td><td>{isSellerRole(item.usuarioRol) ? 'Vendedor' : 'Comprador'}</td><td><b className="feedback-rating">{'★'.repeat(item.calificacion)}{'☆'.repeat(5 - item.calificacion)}</b></td><td className="feedback-comment">{item.comentario}</td><td>{formatDateTime(item.fechaCreacion)}</td><td><span className={`feedback-approval ${item.aprobado ? 'approved' : 'pending'}`}>{item.aprobado ? 'Aprobado' : 'Pendiente'}</span></td><td><button type="button" className={item.aprobado ? 'feedback-action remove' : 'feedback-action'} disabled={approvalMutation.isPending} onClick={() => approvalMutation.mutate({ id: item.id, approved: !item.aprobado })}>{item.aprobado ? 'Quitar del home' : 'Aprobar para home'}</button></td></tr>)}</tbody></table></div>}
   </main>;
 }

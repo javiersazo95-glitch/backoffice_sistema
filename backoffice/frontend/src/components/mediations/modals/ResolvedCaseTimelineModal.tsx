@@ -70,7 +70,7 @@ function DocLink({ name, url }: { name: string; url: string }) {
 }
 
 export default function ResolvedCaseTimelineModal({ isOpen, onClose, item }: ResolvedCaseTimelineModalProps) {
-  const { data: detail, isLoading } = useMediation(item?.mediationId ?? 0);
+  const { data: detail, isLoading } = useMediation(item?.mediationId ?? item?.id ?? 0);
 
   if (!item) return null;
 

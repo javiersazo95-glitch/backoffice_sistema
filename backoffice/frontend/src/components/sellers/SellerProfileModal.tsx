@@ -744,7 +744,7 @@ export default function SellerProfileModal({
 
               <section className="seller-profile-metric-strip" style={{ gridTemplateColumns: 'repeat(4, minmax(0, 1fr))' }}>
                 <InfoStat className="seller-profile-metric-stat" label="Estado actual" value={seller.status} sub={`Desde ${latestActivityDate}`} />
-                <InfoStat className="seller-profile-metric-stat" label="Última actividad" value={latestActivityDate} sub={seller.responseTime} />
+                <InfoStat className="seller-profile-metric-stat" label="Última actividad" value={latestActivityDate} sub={seller.responseTime ?? 'Sin dato de respuesta'} />
                 <InfoStat className="seller-profile-metric-stat" label="Mediaciones" value={inProgressMediations.length} sub="Activas" />
                 <InfoStat className="seller-profile-metric-stat" label="Reportes" value={sellerReports.length || seller.pendingReceipts} sub="Total" />
               </section>

@@ -51,6 +51,7 @@ export default function AuditPage() {
     VALIDACIONES: 'en-proceso',
     MEDIACIONES: 'en-mediacion',
     ALERTAS: 'pendiente',
+    CAPTADORES: 'aprobado',
   };
 
   const renderState = (state: Record<string, string> | undefined, label: string) => {
@@ -151,6 +152,7 @@ export default function AuditPage() {
         <MetricCard label="Validaciones" value={logs.filter((l) => l.module === AuditModule.VALIDACIONES).length} tone="amber" />
         <MetricCard label="Mediaciones" value={logs.filter((l) => l.module === AuditModule.MEDIACIONES).length} tone="violet" />
         <MetricCard label="Alertas" value={logs.filter((l) => l.module === AuditModule.ALERTAS).length} tone="red" />
+        <MetricCard label="Captadores" value={logs.filter((l) => l.module === AuditModule.CAPTADORES).length} tone="blue" />
       </div>
 
       <div className="panel">
@@ -186,6 +188,7 @@ export default function AuditPage() {
                   <option value="VALIDACIONES">Validaciones</option>
                   <option value="MEDIACIONES">Mediaciones</option>
                   <option value="ALERTAS">Alertas</option>
+                  <option value="CAPTADORES">Captadores</option>
                 </select>
               </label>
               <div className="mb-filter-field">
@@ -245,6 +248,7 @@ export default function AuditPage() {
             <option value="VALIDACIONES">Validaciones</option>
             <option value="MEDIACIONES">Mediaciones</option>
             <option value="ALERTAS">Alertas</option>
+            <option value="CAPTADORES">Captadores</option>
           </select>
           <input
             type="date"
