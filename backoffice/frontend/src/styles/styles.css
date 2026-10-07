@@ -20227,3 +20227,93 @@ main.feedback-page .feedback-page-header .area-home-shortcut-group { margin-left
   color: #9f1239;
   white-space: nowrap;
 }
+
+/* dash-kit: piezas de los resumenes de area (KpiTile, ActionQueue, InsightList, MiniBars, DashboardSection) */
+.tone-muted { --tone: var(--muted); --tone-soft: #eef2f7; }
+.dash-kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.dash-row-title { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 18px 0 10px; }
+.dash-row-title h2 { margin: 0; font-size: 15px; font-weight: 700; color: var(--ink); }
+.dash-row-title span { color: var(--muted); font-size: 12px; }
+.dash-kpi { --tone: var(--blue); --tone-soft: #eaf2ff; position: relative; display: grid; gap: 6px; min-width: 0; padding: 14px 16px 12px; border: 1px solid var(--line); border-left: 5px solid var(--tone); border-radius: 10px; background: var(--surface); box-shadow: var(--shadow); color: var(--ink); text-align: left; font: inherit; }
+.dash-kpi.tone-blue { --tone: var(--blue); --tone-soft: #eaf2ff; }
+.dash-kpi.tone-green { --tone: var(--green); --tone-soft: var(--green-soft); }
+.dash-kpi.tone-amber { --tone: var(--amber); --tone-soft: var(--amber-soft); }
+.dash-kpi.tone-red { --tone: var(--red); --tone-soft: var(--red-soft); }
+.dash-kpi.tone-violet { --tone: var(--violet); --tone-soft: var(--violet-soft); }
+.dash-kpi.tone-muted { --tone: var(--muted); --tone-soft: #eef2f7; }
+.dash-kpi--link { cursor: pointer; transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease; }
+.dash-kpi--link:hover, .dash-kpi--link:focus-visible { transform: translateY(-2px); box-shadow: 0 14px 30px rgba(15, 27, 45, 0.1); border-color: var(--tone); outline: none; }
+.dash-kpi--urgent { background: linear-gradient(180deg, #fff 0%, var(--red-soft) 100%); }
+.dash-kpi--urgent .dash-kpi-value { color: var(--red); }
+.dash-kpi-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.dash-kpi-icon { display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 8px; background: var(--tone-soft); color: var(--tone); flex: 0 0 auto; }
+.dash-kpi-icon .ui-icon { width: 16px; height: 16px; }
+.dash-kpi-label { display: inline-flex; align-items: center; gap: 2px; font-size: 13px; font-weight: 600; color: var(--muted); line-height: 1.2; }
+.dash-kpi-value { font-size: 28px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; color: var(--ink); }
+.dash-kpi-secondary { font-size: 12px; color: var(--muted); line-height: 1.35; }
+.dash-kpi-go { display: inline-flex; align-items: center; gap: 4px; margin-top: 2px; font-size: 12px; font-weight: 600; color: var(--tone); }
+.dash-kpi-go .ui-icon { width: 14px; height: 14px; }
+.dash-kpi-error { display: grid; gap: 2px; }
+.dash-kpi-error strong { font-size: 24px; color: var(--muted); }
+.dash-kpi-error small { color: var(--red); font-size: 12px; }
+.dash-link-button { appearance: none; display: inline-flex; align-items: center; gap: 4px; padding: 0; border: 0; background: none; color: var(--blue); font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.dash-link-button .ui-icon { width: 14px; height: 14px; }
+.dash-kpi .metric-info-tooltip-content { right: auto; left: 0; }
+
+.dash-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-bottom: 16px; }
+.dash-section { min-width: 0; padding: 16px 18px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); box-shadow: var(--shadow); }
+.dash-section--wide { grid-column: 1 / -1; }
+.dash-section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.dash-section-head h2 { display: inline-flex; align-items: center; gap: 6px; margin: 0; font-size: 15px; font-weight: 700; color: var(--ink); }
+.dash-section-head h2 .ui-icon { width: 16px; height: 16px; color: var(--blue); }
+.dash-empty { display: flex; align-items: center; gap: 8px; padding: 14px 12px; border-radius: 8px; background: var(--soft); color: var(--muted); font-size: 13px; }
+.dash-empty .ui-icon { width: 16px; height: 16px; color: var(--green); }
+
+.dash-queue { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.dash-queue-row { --tone: var(--blue); display: grid; grid-template-columns: 10px minmax(0, 1fr) auto auto; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--soft-line); border-radius: 8px; background: var(--soft); }
+.dash-queue-row.tone-amber { --tone: var(--amber); }
+.dash-queue-row.tone-red { --tone: var(--red); background: #fff7f6; border-color: #ffd9d5; }
+.dash-queue-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--tone); }
+.dash-queue-copy { display: grid; gap: 2px; min-width: 0; }
+.dash-queue-copy strong { font-size: 13px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dash-queue-copy span { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dash-queue-meta { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+.dash-queue-meta b { font-size: 13px; color: var(--ink); }
+.dash-age { font-size: 12px; font-weight: 700; color: var(--tone); }
+.dash-age.tone-blue { --tone: var(--blue); } .dash-age.tone-amber { --tone: var(--amber); } .dash-age.tone-red { --tone: var(--red); }
+.dash-queue-open { padding: 6px 12px; font-size: 12px; }
+.dash-queue-row--skeleton { grid-template-columns: 1fr; gap: 6px; }
+
+.dash-insights { background: linear-gradient(180deg, #fbfdff 0%, #f3f8ff 100%); }
+.dash-insight-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.dash-insight { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 10px 12px; border-left: 4px solid var(--tone); border-radius: 8px; background: var(--surface); --tone: var(--green); }
+.dash-insight--warn { --tone: var(--amber); }
+.dash-insight--alert { --tone: var(--red); }
+.dash-insight-icon { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--soft); color: var(--tone); }
+.dash-insight-icon .ui-icon { width: 15px; height: 15px; }
+.dash-insight p { margin: 0; font-size: 13px; line-height: 1.4; color: var(--ink); }
+.dash-insight .secondary-button { padding: 6px 12px; font-size: 12px; white-space: nowrap; }
+
+.dash-bars { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.dash-bar { --tone: var(--blue); }
+.dash-bar.tone-green { --tone: var(--green); } .dash-bar.tone-amber { --tone: var(--amber); } .dash-bar.tone-red { --tone: var(--red); } .dash-bar.tone-violet { --tone: var(--violet); } .dash-bar.tone-muted { --tone: #94a3b8; }
+.dash-bar, .dash-bar-button { display: grid; grid-template-columns: minmax(110px, 160px) minmax(0, 1fr) auto; align-items: center; gap: 10px; width: 100%; }
+.dash-bar-button { appearance: none; padding: 0; border: 0; background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; border-radius: 6px; }
+.dash-bar-button:hover .dash-bar-label, .dash-bar-button:focus-visible .dash-bar-label { color: var(--blue); text-decoration: underline; }
+.dash-bar-label { font-size: 13px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dash-bar-track { display: block; height: 10px; border-radius: 999px; background: var(--soft-line); overflow: hidden; }
+.dash-bar-track span { display: block; height: 100%; border-radius: inherit; background: var(--tone); transition: width 300ms ease; }
+.dash-bar-value { font-size: 13px; font-weight: 700; color: var(--ink); white-space: nowrap; }
+.dash-bar-value small { font-weight: 500; color: var(--muted); }
+
+.dash-skeleton-line { display: block; height: 12px; margin: 6px 0; border-radius: 6px; background: linear-gradient(90deg, #edf2f7 0%, #f7faff 50%, #edf2f7 100%); background-size: 200% 100%; animation: dash-shimmer 1.2s linear infinite; }
+.dash-skeleton-line--short { width: 55%; }
+.dash-skeleton-line--value { width: 40%; height: 26px; }
+@keyframes dash-shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+
+@media (max-width: 980px) {
+  .dash-grid { grid-template-columns: 1fr; }
+  .dash-queue-row { grid-template-columns: 10px minmax(0, 1fr) auto; }
+  .dash-queue-meta { grid-column: 2; justify-content: flex-start; flex-wrap: wrap; white-space: normal; }
+  .dash-queue-open { grid-column: 3; grid-row: 1 / span 2; }
+}
