@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import QueryErrorNotice from '@/components/shared/QueryErrorNotice';
 import { useQuery } from '@tanstack/react-query';
 import * as reportsApi from '@/api/reports';
 import MetricCard from '@/components/shared/MetricCard';
@@ -94,7 +95,7 @@ export default function ReportsPage() {
     return search || undefined;
   }, [responsibleFilter, search]);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['reports', searchParam, reporterTypeParam, objectTypeFilter, page],
     queryFn: () =>
       reportsApi.getReports({
@@ -206,6 +207,7 @@ export default function ReportsPage() {
           <AreaHomeShortcut />
         </div>
       </div>
+      {isError && <QueryErrorNotice error={error} what="los reportes" onRetry={refetch} />}
 
       <section className="metric-grid compact reports-metric-grid" style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))' }}>
         <MetricCard

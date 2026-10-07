@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { mensajeDeError } from '@/api/client';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import UiIcon from '@/components/shared/UiIcon';
@@ -107,13 +108,13 @@ export default function PermissionsConfigPage() {
   const founderConfigMutation = useMutation({
     mutationFn: foundersApi.updateFounderConfig,
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['founder-config'] }); showToast('Ranura general actualizada'); },
-    onError: (error: any) => showToast(error.message || 'No se pudo actualizar la ranura general'),
+    onError: (error: any) => showToast(mensajeDeError(error, 'No se pudo actualizar la ranura general')),
   });
 
   const founderMutation = useMutation({
     mutationFn: ({ sellerId, founder }: { sellerId: number; founder: boolean }) => foundersApi.setFounder(sellerId, founder),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['founder-sellers'] }); showToast('Condición Fundador actualizada'); },
-    onError: (error: any) => showToast(error.message || 'No se pudo actualizar al vendedor'),
+    onError: (error: any) => showToast(mensajeDeError(error, 'No se pudo actualizar al vendedor')),
   });
 
   const { data: usersData, isLoading: isLoadingUsers } = useQuery({
@@ -213,7 +214,7 @@ export default function PermissionsConfigPage() {
       setActiveTab('usuarios');
     },
     onError: (error: any) => {
-      const text = error.response?.data?.message || error.message || 'No se pudo invitar al empleado';
+      const text = error.response?.data?.message || mensajeDeError(error, 'No se pudo invitar al empleado');
       setInviteFeedback({ tone: 'error', text });
       showToast(text);
     },
@@ -231,7 +232,7 @@ export default function PermissionsConfigPage() {
       showToast(text);
     },
     onError: (error: any) => {
-      const text = error.response?.data?.message || error.message || 'No se pudo reenviar la invitación';
+      const text = error.response?.data?.message || mensajeDeError(error, 'No se pudo reenviar la invitación');
       setInviteFeedback({ tone: 'error', text });
       showToast(text);
     },
@@ -249,7 +250,7 @@ export default function PermissionsConfigPage() {
       setEditingEmployee(null);
     },
     onError: (error: any) => {
-      const text = error.response?.data?.message || error.message || 'No se pudieron actualizar los permisos';
+      const text = error.response?.data?.message || mensajeDeError(error, 'No se pudieron actualizar los permisos');
       showToast(text);
     },
   });
@@ -261,7 +262,7 @@ export default function PermissionsConfigPage() {
       showToast('Empleado eliminado del sistema');
     },
     onError: (error: any) => {
-      const text = error.response?.data?.message || error.message || 'No se pudo eliminar al empleado';
+      const text = error.response?.data?.message || mensajeDeError(error, 'No se pudo eliminar al empleado');
       showToast(text);
     },
   });
@@ -295,7 +296,7 @@ export default function PermissionsConfigPage() {
       queryClient.invalidateQueries({ queryKey: ['permission-users'] });
       showToast('Permiso eliminado');
     },
-    onError: (error: any) => showToast(error.message || 'No se pudo eliminar el permiso'),
+    onError: (error: any) => showToast(mensajeDeError(error, 'No se pudo eliminar el permiso')),
   });
 
   const isInviting = Boolean(inviteName.trim() || inviteEmail.trim());

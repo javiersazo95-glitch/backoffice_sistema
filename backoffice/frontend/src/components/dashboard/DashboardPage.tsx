@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react';
+import QueryErrorNotice from '@/components/shared/QueryErrorNotice';
 import { useQuery } from '@tanstack/react-query';
 import * as mediationsApi from '@/api/mediations';
 import * as reportsApi from '@/api/reports';
@@ -54,7 +55,7 @@ function escalationLevel(days: number) {
 }
 
 export default function DashboardPage() {
-  const { data, isLoading } = useDashboardSummary();
+  const { data, isLoading, isError, error, refetch } = useDashboardSummary();
   const [expandedPanels, setExpandedPanels] = useState({
     mediations: false,
     alerts: false,
@@ -87,6 +88,7 @@ export default function DashboardPage() {
 
   return (
     <>
+      {isError && <QueryErrorNotice error={error} what="los indicadores del panel" onRetry={refetch} />}
       <section className={`trust-command-hero tone-${currentTrustTone}`}>
         <div className="trust-command-copy">
           <span className="trust-hero-eyebrow">

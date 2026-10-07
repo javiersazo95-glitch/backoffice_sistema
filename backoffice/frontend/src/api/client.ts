@@ -142,4 +142,35 @@ apiClient.interceptors.response.use(
   },
 );
 
+/**
+ * Mensaje legible de un fallo de red: primero el `message` que manda el backend en el cuerpo
+ * (es el que explica el motivo real: "Escribe la respuesta final para el cliente"), luego el
+ * mensaje del error y, si no hay nada, el texto de respaldo. Antes casi todas las pantallas
+ * mostraban `error.message`, que con axios es "Request failed with status code 422".
+ */
+export function mensajeDeError(error: unknown, fallback = 'Error desconocido.'): string {
+  if (axios.isAxiosError(error)) {
+    const data = error.response?.data as { message?: unknown; error?: unknown } | undefined;
+    if (typeof data?.message === 'string' && data.message.trim()) return data.message;
+    if (typeof data?.error === 'string' && data.error.trim()) return data.error;
+    if (error.response?.status === 403) return 'No tienes permiso para realizar esta acción.';
+    if (!error.response) return 'No se pudo conectar con el servidor.';
+  }
+  if (error instanceof Error && error.message) return error.message;
+  return fallback;
+}
+
+/** Codigo HTTP de un fallo de axios, o null si no hubo respuesta o no es un error de red. */
+export function estadoHttpDe(error: unknown): number | null {
+  return axios.isAxiosError(error) && typeof error.response?.status === 'number' ? error.response.status : null;
+}
+
+/**
+ * Para las descargas que usan `fetch` directo (documentos, imagenes con token) y por tanto no
+ * pasan por el interceptor: ante un 401 avisan por aqui para que la sesion se cierre igual.
+ */
+export function avisarSesionCaducada() {
+  alCaducarSesion?.();
+}
+
 export default apiClient;

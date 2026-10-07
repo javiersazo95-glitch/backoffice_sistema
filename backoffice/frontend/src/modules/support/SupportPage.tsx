@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { mensajeDeError } from '@/api/client';
 import CapturerAvatar from '@/components/capturers/CapturerAvatar';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -171,7 +172,7 @@ function SupportQaPage() {
       queryClient.invalidateQueries({ queryKey: ['qa-reports'] });
       showToast('Defecto registrado con éxito');
     },
-    onError: (error: any) => showToast(error.message || 'No se pudo registrar el defecto'),
+    onError: (error: any) => showToast(mensajeDeError(error, 'No se pudo registrar el defecto')),
   });
 
   const updateMutation = useMutation({
@@ -201,7 +202,7 @@ function SupportQaPage() {
       setReviewFile(null);
       showToast(variables.nextAction ? 'Revisión registrada con éxito' : 'Documento adjuntado con éxito');
     },
-    onError: (error: any) => showToast(error.message || 'No se pudo registrar la revisión'),
+    onError: (error: any) => showToast(mensajeDeError(error, 'No se pudo registrar la revisión')),
   });
 
   // Client-side filtering & search
@@ -742,7 +743,7 @@ function SupportQaPage() {
                   });
                 } catch (error: any) {
                   if (!didStartCreate) {
-                    showToast(error.message || 'Error al registrar el defecto');
+                    showToast(mensajeDeError(error, 'Error al registrar el defecto'));
                   }
                 } finally {
                   setIsCreatingDefect(false);
@@ -1059,7 +1060,7 @@ export default function SupportPage() {
       showToast('Ticket creado exitosamente');
     },
     onError: (err: any) => {
-      showToast(err.message || 'Error al crear ticket');
+      showToast(mensajeDeError(err, 'Error al crear ticket'));
     },
   });
 
@@ -1084,7 +1085,7 @@ export default function SupportPage() {
       showToast(variables.file ? 'Documento adjuntado con éxito' : 'Estado del ticket actualizado');
     },
     onError: (err: any) => {
-      showToast(err.message || 'Error al actualizar ticket');
+      showToast(mensajeDeError(err, 'Error al actualizar ticket'));
     },
   });
 

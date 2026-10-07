@@ -1,4 +1,5 @@
 import apiClient, { API_BASE_URL, API_ORIGIN } from '@/api/client';
+import { avisarSesionCaducada } from '@/api/client';
 
 const MIME_EXTENSION_MAP: Record<string, string> = {
   'application/pdf': 'pdf',
@@ -187,6 +188,7 @@ export async function downloadDocument(documentUrl?: string, fileName = 'documen
     const response = await fetch(resolvedUrl, {
       headers: getAuthHeadersFor(resolvedUrl),
     });
+    if (response.status === 401 && isBackendUrl(resolvedUrl)) avisarSesionCaducada();
     if (!response.ok) throw new Error('No se pudo descargar el documento.');
 
     const blob = await response.blob();
@@ -226,6 +228,7 @@ export async function previewDocument(documentUrl?: string) {
     const response = await fetch(resolvedUrl, {
       headers: getAuthHeadersFor(resolvedUrl),
     });
+    if (response.status === 401 && isBackendUrl(resolvedUrl)) avisarSesionCaducada();
 
     if (!response.ok) {
       if (win) win.close();

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import QueryErrorNotice from '@/components/shared/QueryErrorNotice';
 import { useQuery } from '@tanstack/react-query';
 import * as auditsApi from '@/api/audits';
 import MetricCard from '@/components/shared/MetricCard';
@@ -33,7 +34,7 @@ export default function AuditPage() {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const isMobile = useIsMobile();
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['audits', filter],
     queryFn: () => auditsApi.getAuditLogs(filter),
   });
@@ -145,6 +146,7 @@ export default function AuditPage() {
           <AreaHomeShortcut />
         </div>
       </div>
+      {isError && <QueryErrorNotice error={error} what="los registros de auditoría" onRetry={refetch} />}
 
       <div className="metric-grid compact audit-metric-grid">
         <MetricCard label="Total Registros" value={data?.totalElements ?? 0} tone="blue" />

@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { mensajeDeError } from '@/api/client';
+import QueryErrorNotice from '@/components/shared/QueryErrorNotice';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as alertsApi from '@/api/alerts';
 import * as receiptsApi from '@/api/receipts';
@@ -30,12 +32,12 @@ export default function AlertsPage() {
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['alerts', search, severity, page],
     queryFn: () => alertsApi.getAlerts(search || undefined, severity, page, PAGE_SIZES.ALERTS),
   });
 
-  const { data: receipts } = useQuery({
+  const { data: receipts, isError: receiptsError, error: receiptsErrorDetail, refetch: refetchReceipts } = useQuery({
     queryKey: ['receipts'],
     queryFn: () => receiptsApi.getReceipts(0, PAGE_SIZES.RECEIPTS),
   });
@@ -46,6 +48,7 @@ export default function AlertsPage() {
       queryClient.invalidateQueries({ queryKey: ['receipts'] });
       showToast('Boleta resuelta');
     },
+    onError: (error) => showToast(mensajeDeError(error, 'No se pudo resolver la boleta.')),
   });
 
   const reviewMutation = useMutation({
@@ -54,6 +57,7 @@ export default function AlertsPage() {
       queryClient.invalidateQueries({ queryKey: ['alerts'] });
       showToast('Alerta revisada');
     },
+    onError: (error) => showToast(mensajeDeError(error, 'No se pudo marcar la alerta como revisada.')),
   });
 
   const escalateMutation = useMutation({
@@ -62,6 +66,7 @@ export default function AlertsPage() {
       queryClient.invalidateQueries({ queryKey: ['alerts'] });
       showToast('Escalado a mediación');
     },
+    onError: (error) => showToast(mensajeDeError(error, 'No se pudo escalar la alerta a mediación.')),
   });
 
   const alerts = data?.content ?? [];
@@ -154,6 +159,8 @@ export default function AlertsPage() {
           <AreaHomeShortcut />
         </div>
       </div>
+      {isError && <QueryErrorNotice error={error} what="las alertas" onRetry={refetch} />}
+      {receiptsError && <QueryErrorNotice error={receiptsErrorDetail} what="los comprobantes en seguimiento" onRetry={refetchReceipts} />}
 
       <div className="metric-grid compact">
         <MetricCard label="Críticas" value={pendingAlerts.filter((a) => a.severity === AlertSeverity.CRITICA).length} tone="red" />

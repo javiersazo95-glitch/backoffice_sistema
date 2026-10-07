@@ -12,7 +12,7 @@ import FounderSellerName from '@/components/shared/FounderSellerName';
 import FounderSellerList from '@/components/shared/FounderSellerList';
 import SellerListTooltip from '@/components/shared/SellerListTooltip';
 import * as administrationApi from '@/api/administration';
-import apiClient from '@/api/client';
+import apiClient, { mensajeDeError } from '@/api/client';
 import type { TipoRetiro } from '@/api/administration';
 import {
   BANCOS_BCI,
@@ -1478,7 +1478,7 @@ export default function AdminFinancePage() {
       pushActivity('wallet', exists ? 'Gasto actualizado' : 'Gasto registrado', `${saved.category} - ${saved.description}`);
       setExpenseDraft(null);
     } catch (err) {
-      window.alert('No se pudo guardar el gasto: ' + (err instanceof Error ? err.message : 'Error desconocido.'));
+      window.alert('No se pudo guardar el gasto: ' + (mensajeDeError(err, 'Error desconocido.')));
     }
   }
 
@@ -1587,7 +1587,7 @@ export default function AdminFinancePage() {
         try {
           document = { ...document, pdfUrl: await administrationApi.getLiquidationDocumentFile('PROVEEDOR', group.retiroId) };
         } catch (error) {
-          window.alert(error instanceof Error ? error.message : 'No se pudo cargar el PDF registrado.');
+          window.alert(mensajeDeError(error, 'No se pudo cargar el PDF registrado.'));
         }
       }
       setRegisteredDocumentPreview({ orderId, document });
@@ -1631,7 +1631,7 @@ export default function AdminFinancePage() {
         try {
           document = { ...document, pdfUrl: await administrationApi.getLiquidationDocumentFile('SOCIO', Number(withdrawal.id)) };
         } catch (error) {
-          window.alert(error instanceof Error ? error.message : 'No se pudo cargar el PDF registrado.');
+          window.alert(mensajeDeError(error, 'No se pudo cargar el PDF registrado.'));
         }
       }
       setRegisteredDocumentPreview({ orderId: withdrawal.codigoRetiro || `SOCIO-${withdrawal.id}`, document });
@@ -1687,7 +1687,7 @@ export default function AdminFinancePage() {
         eliminarDocumento: Boolean(documentDraft.originalPdfName && !documentDraft.pdfName),
       }, documentDraft.pdfFile);
     } catch (error) {
-      window.alert(error instanceof Error ? error.message : 'No se pudo registrar la boleta o factura.');
+      window.alert(mensajeDeError(error, 'No se pudo registrar la boleta o factura.'));
       return;
     }
     const savedDocument: IssuedDocument = {
@@ -1739,7 +1739,7 @@ export default function AdminFinancePage() {
       const fileUrl = await administrationApi.getLiquidationDocumentFile('PROVEEDOR', retiroId);
       setPaidDocumentPreview({ fileName, fileUrl });
     } catch (error) {
-      window.alert(error instanceof Error ? error.message : 'No se pudo cargar el PDF registrado.');
+      window.alert(mensajeDeError(error, 'No se pudo cargar el PDF registrado.'));
     }
   }
 
@@ -1885,7 +1885,7 @@ export default function AdminFinancePage() {
       pushActivity('wallet', 'Datos bancarios actualizados', `Cuenta de ${socioBancoDraft.nombre} guardada`);
       setSocioBancoDraft(null);
     } catch (err) {
-      setSocioBancoError('No se pudieron guardar los datos bancarios: ' + (err instanceof Error ? err.message : 'error desconocido.'));
+      setSocioBancoError('No se pudieron guardar los datos bancarios: ' + (mensajeDeError(err, 'error desconocido.')));
     }
   }
 
@@ -1946,7 +1946,7 @@ export default function AdminFinancePage() {
       // El backend revalida el tope; su mensaje es el que manda.
       const apiMessage = isAxiosError(err) && typeof err.response?.data?.message === 'string'
         ? err.response.data.message
-        : err instanceof Error ? err.message : 'Error desconocido.';
+        : mensajeDeError(err, 'Error desconocido.');
       setWithdrawalError('No se pudo registrar el retiro: ' + apiMessage);
     }
   }
@@ -1963,7 +1963,7 @@ export default function AdminFinancePage() {
       });
       pushActivity('wallet', 'Gasto eliminado', 'Se eliminó un gasto registrado');
     } catch (err) {
-      window.alert('No se pudo eliminar el gasto: ' + (err instanceof Error ? err.message : 'Error desconocido.'));
+      window.alert('No se pudo eliminar el gasto: ' + (mensajeDeError(err, 'Error desconocido.')));
     }
   }
 

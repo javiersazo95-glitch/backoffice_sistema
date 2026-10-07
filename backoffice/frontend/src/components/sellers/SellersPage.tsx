@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import QueryErrorNotice from '@/components/shared/QueryErrorNotice';
 import { useQueries, useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import * as sellersApi from '@/api/sellers';
@@ -229,7 +230,7 @@ export default function SellersPage() {
     size: PAGE_SIZES.MAX,
   };
 
-  const { data, isLoading } = useSellers(sellerListFilter);
+  const { data, isLoading, isError, error, refetch } = useSellers(sellerListFilter);
   const { data: allSellersData } = useSellers({ page: 0, size: PAGE_SIZES.MAX });
   const { data: sellerDocs } = useSellerDocuments(selectedSellerId ?? 0);
   const { data: sellerDetail } = useSeller(selectedSellerId ?? 0);
@@ -615,6 +616,7 @@ export default function SellersPage() {
         description="Control operativo de vendedores visibles, mediaciones asociadas y casos bloqueados."
         actions={<AreaHomeShortcut />}
       />
+      {isError && <QueryErrorNotice error={error} what="las tiendas" onRetry={refetch} />}
 
       <SellerMetricGrid
         activeSellers={sellerMetricCounts.active}

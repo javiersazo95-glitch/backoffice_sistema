@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { mensajeDeError } from '@/api/client';
+import QueryErrorNotice from '@/components/shared/QueryErrorNotice';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as sellersApi from '@/api/sellers';
 import * as validationsApi from '@/api/validations';
@@ -309,7 +311,7 @@ export default function ValidationsPage() {
   const [approvalFeedbackOpen, setApprovalFeedbackOpen] = useState(false);
   const queryClient = useQueryClient();
 
-  const { data: validationsData, isLoading: isLoadingValidations } = useQuery({
+  const { data: validationsData, isLoading: isLoadingValidations, isError: isErrorValidations, error: errorValidations, refetch: refetchValidations } = useQuery({
     queryKey: ['validations-workspace'],
     queryFn: () => validationsApi.getValidations(0, PAGE_SIZES.MAX),
   });
@@ -386,6 +388,7 @@ export default function ValidationsPage() {
       setSelectedSellerId(null);
       setApprovalFeedbackOpen(true);
     },
+    onError: (error) => showToast(mensajeDeError(error, 'No se pudo aprobar la validación.')),
   });
 
   const correctMutation = useMutation({
@@ -399,6 +402,7 @@ export default function ValidationsPage() {
       setDecisionNotes('');
       showToast('Corrección solicitada');
     },
+    onError: (error) => showToast(mensajeDeError(error, 'No se pudo solicitar la corrección.')),
   });
 
   const rejectMutation = useMutation({
@@ -418,6 +422,7 @@ export default function ValidationsPage() {
       setSelectedSellerId(null);
       showToast('Solicitud eliminada. El motivo fue enviado por correo al solicitante.');
     },
+    onError: (error) => showToast(mensajeDeError(error, 'No se pudo rechazar la solicitud.')),
   });
 
   const mutationInProgress = approveMutation.isPending || correctMutation.isPending || rejectMutation.isPending;
@@ -482,6 +487,8 @@ export default function ValidationsPage() {
           ?
         </button>
       </div>
+
+      {isErrorValidations && <QueryErrorNotice error={errorValidations} what="las validaciones" onRetry={refetchValidations} />}
 
       <div className="module-tabs">
         <button

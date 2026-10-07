@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { mensajeDeError } from '@/api/client';
+import QueryErrorNotice from '@/components/shared/QueryErrorNotice';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useMediations, useMediation, useInitMediation, useBlockAccount, useReactivateAccount, useAddMessage, useEditMessage, useDeleteMessage } from '@/hooks/useMediations';
 import { useSeller, useSellerDocuments, useSuspendSeller } from '@/hooks/useSellers';
@@ -218,9 +220,9 @@ export default function MediacionesPage() {
   // que tuviera ese numero, o fallaba. La tienda se suspende igual que desde Vendedores.
   const [suspendSellerId, setSuspendSellerId] = useState<number | null>(null);
   const suspendSellerMutation = useSuspendSeller();
-  const { data, isLoading } = useMediations(filter);
+  const { data, isLoading, isError, error, refetch } = useMediations(filter);
   const { data: mediationDetail } = useMediation(selectedId ?? 0);
-  const { data: resolvedCases, isLoading: isLoadingResolvedCases } = useQuery({
+  const { data: resolvedCases, isLoading: isLoadingResolvedCases, isError: isErrorResolvedCases, error: errorResolvedCases, refetch: refetchResolvedCases } = useQuery({
     queryKey: ['mediations', 'resolved-cases'],
     queryFn: async () => {
       const result = await mediationsApi.getMediations({ status: MediationStatus.RESUELTA, page: 0, size: 100 });
@@ -230,7 +232,7 @@ export default function MediacionesPage() {
     },
   });
 
-  const { data: blockedAccounts, isLoading: isLoadingBlockedAccounts } = useQuery<PageResponse<MediationResponse>>({
+  const { data: blockedAccounts, isLoading: isLoadingBlockedAccounts, isError: isErrorBlockedAccounts, error: errorBlockedAccounts, refetch: refetchBlockedAccounts } = useQuery<PageResponse<MediationResponse>>({
     queryKey: ['mediations', 'blocked-accounts'],
     queryFn: () => mediationsApi.getMediations({ blocked: true, page: 0, size: 100 }),
   });
@@ -419,7 +421,10 @@ export default function MediacionesPage() {
     if (!mediation) return;
     initMutation.mutate(
       { id, data: { sellerId: mediation.sellerId, title: mediation.title, reason: mediation.reason, orderId: mediation.orderId, amount: String(mediation.amount), message } },
-      { onSuccess: () => { setInitModalOpen(false); showToast('Mediación inicializada'); } },
+      {
+        onSuccess: () => { setInitModalOpen(false); showToast('Mediación inicializada'); },
+        onError: (error) => showToast(mensajeDeError(error, 'No se pudo inicializar la mediación.')),
+      },
     );
   };
 
@@ -432,6 +437,7 @@ export default function MediacionesPage() {
             setEditingNote(null);
             showToast('Nota actualizada');
           },
+          onError: (error) => showToast(mensajeDeError(error, 'No se pudo actualizar la nota.')),
         },
       );
     } else {
@@ -442,6 +448,7 @@ export default function MediacionesPage() {
             setEditingNote(null);
             showToast('Nota registrada');
           },
+          onError: (error) => showToast(mensajeDeError(error, 'No se pudo registrar la nota.')),
         },
       );
     }
@@ -461,7 +468,10 @@ export default function MediacionesPage() {
       if (messageId === undefined) return;
       deleteMessageMutation.mutate(
         { mediationId: id, messageId },
-        { onSuccess: () => showToast('Nota eliminada') },
+        {
+          onSuccess: () => showToast('Nota eliminada'),
+          onError: (error) => showToast(mensajeDeError(error, 'No se pudo eliminar la nota.')),
+        },
       );
     }
   };
@@ -469,7 +479,10 @@ export default function MediacionesPage() {
   const handleReactivate = (id: number, reason: string, file: File) => {
     reactivateMutation.mutate(
       { id, data: { resolutionReason: reason }, document: file },
-      { onSuccess: () => { setReactivateModalOpen(false); showToast('Cuenta reactivada'); } },
+      {
+        onSuccess: () => { setReactivateModalOpen(false); showToast('Cuenta reactivada'); },
+        onError: (error) => showToast(mensajeDeError(error, 'No se pudo reactivar la cuenta.')),
+      },
     );
   };
 
@@ -531,6 +544,9 @@ export default function MediacionesPage() {
         description="Intervención entre comprador y vendedor cuando existen reclamos o falta de respuesta."
         actions={<AreaHomeShortcut />}
       />
+      {isError && <QueryErrorNotice error={error} what="las mediaciones" onRetry={refetch} />}
+      {isErrorResolvedCases && <QueryErrorNotice error={errorResolvedCases} what="los casos resueltos" onRetry={refetchResolvedCases} />}
+      {isErrorBlockedAccounts && <QueryErrorNotice error={errorBlockedAccounts} what="las cuentas bloqueadas" onRetry={refetchBlockedAccounts} />}
 
       <section className="metric-grid compact mediation-metric-grid">
             <MetricCard

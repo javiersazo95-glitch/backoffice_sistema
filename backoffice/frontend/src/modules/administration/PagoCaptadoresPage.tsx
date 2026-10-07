@@ -1,4 +1,6 @@
 import { useMemo, useState } from 'react';
+import { mensajeDeError } from '@/api/client';
+import QueryErrorNotice from '@/components/shared/QueryErrorNotice';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as capturerApi from '@/api/capturers';
 import * as administrationApi from '@/api/administration';
@@ -65,7 +67,7 @@ export default function PagoCaptadoresPage() {
       refresh();
     },
     onError: (error: unknown) => {
-      alert(`No se pudo procesar el pago: ${error instanceof Error ? error.message : 'Error desconocido.'}`);
+      alert(`No se pudo procesar el pago: ${mensajeDeError(error, 'Error desconocido.')}`);
     },
   });
   const rejectMutation = useMutation({
@@ -74,6 +76,9 @@ export default function PagoCaptadoresPage() {
       setRejectionTarget(null);
       setRejectionReason('');
       refresh();
+    },
+    onError: (error: unknown) => {
+      alert(`No se pudo rechazar el retiro: ${mensajeDeError(error)}`);
     },
   });
 
@@ -158,6 +163,8 @@ export default function PagoCaptadoresPage() {
           )}
         </div>
       </header>
+      {withdrawalsQuery.isError && <QueryErrorNotice error={withdrawalsQuery.error} what="los retiros de captadores" onRetry={withdrawalsQuery.refetch} />}
+      {paymentConfigQuery.isError && <QueryErrorNotice error={paymentConfigQuery.error} what="la configuración de pagos" onRetry={paymentConfigQuery.refetch} />}
 
       <div className="module-tabs">
         <button className={activeTab === 'gestion' ? 'active' : ''} type="button" onClick={() => setActiveTab('gestion')}>

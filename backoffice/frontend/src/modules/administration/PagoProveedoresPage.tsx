@@ -1,4 +1,6 @@
 import { useState, useMemo } from 'react';
+import { mensajeDeError } from '@/api/client';
+import QueryErrorNotice from '@/components/shared/QueryErrorNotice';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
 import * as adminApi from '@/api/administration';
@@ -130,12 +132,12 @@ export default function PagoProveedoresPage() {
   const { start: cycleStart, end: cycleEnd } = useMemo(() => getCurrentCycleRange(), []);
 
   // Fetch all withdrawals
-  const { data: withdrawals = [], isLoading, refetch } = useQuery<RetiroAdminResponse[]>({
+  const { data: withdrawals = [], isLoading, isError: withdrawalsError, error: withdrawalsErrorDetail, refetch } = useQuery<RetiroAdminResponse[]>({
     queryKey: ['admin-withdrawals'],
     queryFn: adminApi.getWithdrawals,
   });
 
-  const { data: payments = [] } = useQuery<PagoProveedorResponse[]>({
+  const { data: payments = [], isError: paymentsError, error: paymentsErrorDetail, refetch: refetchPayments } = useQuery<PagoProveedorResponse[]>({
     queryKey: ['admin-withdrawal-payments'],
     queryFn: adminApi.getWithdrawalPayments,
   });
@@ -160,7 +162,7 @@ export default function PagoProveedoresPage() {
   // BO-SOCIOS-001: retiros de libre disposicion de los socios fundadores. Se muestran en
   // un bloque aparte porque no son proveedores (no emiten boleta) y su pago no entra a la
   // nomina BCI de vendedores (ver nota en el bloque "Socios" mas abajo).
-  const { data: partnerWithdrawals = [], refetch: refetchPartnerWithdrawals } = useQuery<Withdrawal[]>({
+  const { data: partnerWithdrawals = [], isError: partnerWithdrawalsError, error: partnerWithdrawalsErrorDetail, refetch: refetchPartnerWithdrawals } = useQuery<Withdrawal[]>({
     queryKey: ['admin-partner-withdrawals'],
     queryFn: adminApi.getPartnerWithdrawals,
   });
@@ -237,7 +239,7 @@ export default function PagoProveedoresPage() {
       } catch (err: unknown) {
         const message = isAxiosError(err) && typeof err.response?.data?.message === 'string'
           ? err.response.data.message
-          : err instanceof Error ? err.message : 'error desconocido.';
+          : mensajeDeError(err, 'error desconocido.');
         errores.push('Pago: ' + message);
       }
     }
@@ -340,7 +342,7 @@ export default function PagoProveedoresPage() {
       queryClient.invalidateQueries({ queryKey: ['admin-configuracion-pagos'] });
       setIsConfigModalOpen(false);
     } catch (err) {
-      setCuentaCargoError(err instanceof Error ? err.message : 'No se pudo guardar la cuenta de cargo.');
+      setCuentaCargoError(mensajeDeError(err, 'No se pudo guardar la cuenta de cargo.'));
     } finally {
       setSavingConfig(false);
     }
@@ -381,6 +383,9 @@ export default function PagoProveedoresPage() {
           )}
         </div>
       </header>
+      {withdrawalsError && <QueryErrorNotice error={withdrawalsErrorDetail} what="los retiros de vendedores" onRetry={refetch} />}
+      {paymentsError && <QueryErrorNotice error={paymentsErrorDetail} what="los pagos realizados" onRetry={refetchPayments} />}
+      {partnerWithdrawalsError && <QueryErrorNotice error={partnerWithdrawalsErrorDetail} what="los retiros de socios" onRetry={refetchPartnerWithdrawals} />}
 
       {/* Tabs */}
       <div className="module-tabs">
@@ -1095,7 +1100,7 @@ export default function PagoProveedoresPage() {
                 await refetchPartnerWithdrawals();
                 setPartnerDocModal(null);
               } catch (err) {
-                alert('No se pudo guardar el documento tributario: ' + (err instanceof Error ? err.message : 'error desconocido'));
+                alert('No se pudo guardar el documento tributario: ' + (mensajeDeError(err, 'error desconocido')));
               } finally {
                 setSavingPartnerDoc(false);
               }

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { avisarSesionCaducada } from '@/api/client';
 import { resolveProfileImageUrl } from '@/api/client';
 import { getAuthHeadersFor, getAuthToken, isBackendUrl } from '@/utils/documentUrls';
 
@@ -48,6 +49,7 @@ async function downloadAsObjectUrl(url: string): Promise<string> {
 
   const request = (async () => {
     const response = await fetch(url, { headers: getAuthHeadersFor(url) });
+    if (response.status === 401) avisarSesionCaducada();
     if (!response.ok) throw new Error(`Error ${response.status} al cargar la imagen.`);
 
     const blob = await response.blob();
