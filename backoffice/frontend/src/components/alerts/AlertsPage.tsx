@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { mensajeDeError } from '@/api/client';
 import QueryErrorNotice from '@/components/shared/QueryErrorNotice';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -30,6 +31,19 @@ export default function AlertsPage() {
   const [severity, setSeverity] = useState<AlertSeverity | undefined>(undefined);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const queryClient = useQueryClient();
+  const [searchParams] = useSearchParams();
+
+  // Enlaces profundos desde el resumen del area: ?severity=CRITICA abre la lista ya filtrada y
+  // ?alerta=<id> deja esa alerta seleccionada en el panel lateral.
+  useEffect(() => {
+    const severityParam = searchParams.get('severity');
+    if (severityParam && (Object.values(AlertSeverity) as string[]).includes(severityParam)) {
+      setSeverity(severityParam as AlertSeverity);
+      setPage(0);
+    }
+    const alertParam = Number(searchParams.get('alerta'));
+    if (Number.isFinite(alertParam) && alertParam > 0) setSelectedId(alertParam);
+  }, [searchParams]);
   const isMobile = useIsMobile();
 
   const { data, isLoading, isError, error, refetch } = useQuery({

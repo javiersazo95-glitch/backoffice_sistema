@@ -319,6 +319,12 @@ export default function MediacionesPage() {
     || (activeTab === 'resolved' && !!selectedResolvedCase)
   );
 
+  // Enlace profundo desde el resumen del area: ?tab=blocked|resolved abre esa pestana.
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab === 'blocked' || tab === 'resolved' || tab === 'mediations') setActiveTab(tab);
+  }, [searchParams]);
+
   useEffect(() => {
     const action = searchParams.get('action');
     if (!action) return;
