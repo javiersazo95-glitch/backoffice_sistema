@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { fetchAllPages } from '@/utils/pagination';
 import type { MediationDetailResponse } from '@/types/mediation';
 import UiIcon from '@/components/shared/UiIcon';
 import FounderSellerName from '@/components/shared/FounderSellerName';
@@ -49,7 +50,7 @@ export default function MediationNotesHistoryModal(props: MediationNotesHistoryM
 
   const { data: allReportsData } = useQuery({
     queryKey: ['all-reports-for-mediation'],
-    queryFn: () => getReports({ size: 1000 }),
+    queryFn: () => fetchAllPages((page, size) => getReports({ page, size })),
     enabled: !!item && isOpen,
   });
 

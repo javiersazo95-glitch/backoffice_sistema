@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as sellersApi from '@/api/sellers';
+import { fetchAllPages } from '@/utils/pagination';
 import type {
   SellerFilterRequest,
   SuspendSellerRequest,
@@ -9,6 +10,14 @@ export function useSellers(filter?: SellerFilterRequest) {
   return useQuery({
     queryKey: ['sellers', filter],
     queryFn: () => sellersApi.getSellers(filter),
+  });
+}
+
+/** Padron completo de tiendas, recorriendo todas las paginas del backend. */
+export function useAllSellers() {
+  return useQuery({
+    queryKey: ['sellers', 'all'],
+    queryFn: () => fetchAllPages((page, size) => sellersApi.getSellers({ page, size })),
   });
 }
 

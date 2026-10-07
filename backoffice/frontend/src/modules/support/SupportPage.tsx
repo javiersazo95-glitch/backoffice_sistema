@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { fetchAllPages } from '@/utils/pagination';
 import { mensajeDeError } from '@/api/client';
 import CapturerAvatar from '@/components/capturers/CapturerAvatar';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -11,7 +12,6 @@ import Badge from '@/components/shared/Badge';
 import FounderSellerName from '@/components/shared/FounderSellerName';
 import SupportTicketDetailModal, { getStatusLabel } from './SupportTicketDetailModal';
 import { showToast } from '@/components/layout/Toast';
-import { PAGE_SIZES } from '@/utils/constants';
 import { formatDate } from '@/utils/formatters';
 import type { TicketResponse, TicketStatus, TicketPriority, TicketCategory, ReporterType, TicketPlatform, TicketMessage } from '@/api/support';
 import { useAuth } from '@/context/AuthContext';
@@ -153,7 +153,7 @@ function SupportQaPage() {
   // Fetch bugs
   const { data: qaReportsData, isLoading } = useQuery({
     queryKey: ['qa-reports'],
-    queryFn: () => supportApi.getQaReports({ page: 0, size: 200 }),
+    queryFn: () => fetchAllPages((page, size) => supportApi.getQaReports({ page, size })),
   });
 
   const qaReports = qaReportsData?.content ?? [];
@@ -1008,14 +1008,14 @@ export default function SupportPage() {
   // Query de sellers para el selector del nuevo ticket
   const { data: sellersData } = useQuery({
     queryKey: ['support-sellers-lookup'],
-    queryFn: () => sellersApi.getSellers({ page: 0, size: PAGE_SIZES.MAX }),
+    queryFn: () => fetchAllPages((page, size) => sellersApi.getSellers({ page, size })),
     enabled: isSupportOperator,
   });
 
   // Query global para dashboard (distribuciones)
   const { data: globalTicketsData } = useQuery({
     queryKey: ['support-tickets-global'],
-    queryFn: () => supportApi.getTickets({ page: 0, size: 100 }),
+    queryFn: () => fetchAllPages((page, size) => supportApi.getTickets({ page, size })),
     enabled: isSupportOperator && activeTab === 'resumen',
   });
 

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { fetchAllPages } from '@/utils/pagination';
 import { mensajeDeError } from '@/api/client';
 import QueryErrorNotice from '@/components/shared/QueryErrorNotice';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -7,7 +8,7 @@ import * as validationsApi from '@/api/validations';
 import UiIcon from '@/components/shared/UiIcon';
 import FounderSellerName from '@/components/shared/FounderSellerName';
 import { showToast } from '@/components/layout/Toast';
-import { PAGE_SIZES, STATUS_LABELS } from '@/utils/constants';
+import { STATUS_LABELS } from '@/utils/constants';
 import { SellerStatus, type SellerResponse } from '@/types/seller';
 import { ValidationStatus, type ValidationResponse } from '@/types/validation';
 import { buildDocumentDownloadName, downloadDocument, previewDocument, resolveDocumentUrl } from '@/utils/documentUrls';
@@ -313,12 +314,12 @@ export default function ValidationsPage() {
 
   const { data: validationsData, isLoading: isLoadingValidations, isError: isErrorValidations, error: errorValidations, refetch: refetchValidations } = useQuery({
     queryKey: ['validations-workspace'],
-    queryFn: () => validationsApi.getValidations(0, PAGE_SIZES.MAX),
+    queryFn: () => fetchAllPages((page, size) => validationsApi.getValidations(page, size)),
   });
 
   const { data: sellersData } = useQuery({
     queryKey: ['validation-sellers-lookup'],
-    queryFn: () => sellersApi.getSellers({ page: 0, size: PAGE_SIZES.MAX }),
+    queryFn: () => fetchAllPages((page, size) => sellersApi.getSellers({ page, size })),
   });
 
   const validations = validationsData?.content ?? [];

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { fetchAllPages } from '@/utils/pagination';
 import { mensajeDeError } from '@/api/client';
 import QueryErrorNotice from '@/components/shared/QueryErrorNotice';
 import { useSearchParams, useNavigate } from 'react-router-dom';
@@ -225,7 +226,7 @@ export default function MediacionesPage() {
   const { data: resolvedCases, isLoading: isLoadingResolvedCases, isError: isErrorResolvedCases, error: errorResolvedCases, refetch: refetchResolvedCases } = useQuery({
     queryKey: ['mediations', 'resolved-cases'],
     queryFn: async () => {
-      const result = await mediationsApi.getMediations({ status: MediationStatus.RESUELTA, page: 0, size: 100 });
+      const result = await fetchAllPages((page, size) => mediationsApi.getMediations({ status: MediationStatus.RESUELTA, page, size }));
       // El listado devuelve MediacionRespuestaDTO, que no trae `mediationId` (solo `id`); los
       // modales de resueltos lo leen, asi que se completa aqui para que el historial cargue.
       return { ...result, content: result.content.map((item) => ({ ...item, mediationId: item.id })) } as any;
@@ -234,7 +235,7 @@ export default function MediacionesPage() {
 
   const { data: blockedAccounts, isLoading: isLoadingBlockedAccounts, isError: isErrorBlockedAccounts, error: errorBlockedAccounts, refetch: refetchBlockedAccounts } = useQuery<PageResponse<MediationResponse>>({
     queryKey: ['mediations', 'blocked-accounts'],
-    queryFn: () => mediationsApi.getMediations({ blocked: true, page: 0, size: 100 }),
+    queryFn: () => fetchAllPages((page, size) => mediationsApi.getMediations({ blocked: true, page, size })),
   });
 
   // H59 fase 0 (1-oct): el panel guarda una copia del bloqueo; al reactivar la cuenta la lista se
@@ -346,11 +347,11 @@ export default function MediacionesPage() {
         if (!targetId) {
           const sellerId = Number(searchParams.get('sellerId'));
           if (Number.isFinite(sellerId) && sellerId > 0) {
-            const waitingCases = await mediationsApi.getMediations({
+            const waitingCases = await fetchAllPages((page, size) => mediationsApi.getMediations({
               status: MediationStatus.EN_MEDIACION,
-              page: 0,
-              size: PAGE_SIZES.MAX,
-            });
+              page,
+              size,
+            }));
             targetId = waitingCases.content.find((item) => item.sellerId === sellerId)?.id ?? 0;
           }
         }

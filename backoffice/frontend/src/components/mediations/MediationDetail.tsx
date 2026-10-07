@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, useMemo, type ChangeEvent, type ReactNode } from 'react';
+import { fetchAllPages } from '@/utils/pagination';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -680,7 +681,7 @@ export default function MediationDetail({
 
   const { data: allReportsData } = useQuery({
     queryKey: ['all-reports-for-mediation-detail'],
-    queryFn: () => getReports({ size: 1000 }),
+    queryFn: () => fetchAllPages((page, size) => getReports({ page, size })),
     enabled: !!item && isViewOpen,
   });
 

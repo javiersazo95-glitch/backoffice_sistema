@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { fetchAllPages } from '@/utils/pagination';
 import QueryErrorNotice from '@/components/shared/QueryErrorNotice';
 import { useQueries, useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
@@ -18,7 +19,7 @@ import { useIsMobile } from '@/hooks/useIsMobile';
 import ReportsPanel from './ReportsPanel';
 import ImpactMediationsPanel from './ImpactMediationsPanel';
 import ResolvedCasesPanel from './ResolvedCasesPanel';
-import { useSellers, useSeller, useSellerDocuments, useSuspendSeller } from '@/hooks/useSellers';
+import { useAllSellers, useSeller, useSellerDocuments, useSuspendSeller } from '@/hooks/useSellers';
 import { PAGE_SIZES } from '@/utils/constants';
 import { SellerStatus, type NivelSuspension, type SellerResponse, type SellerFilterRequest, type SellerDetailResponse, type SellerDocumentResponse } from '@/types/seller';
 import type { RiskCase, ImpactMediation, ResolvedCase } from '@/types/cases';
@@ -225,20 +226,16 @@ export default function SellersPage() {
     applyFilter({ endDate: value || undefined });
   };
 
-  const sellerListFilter: SellerFilterRequest = {
-    page: 0,
-    size: PAGE_SIZES.MAX,
-  };
-
-  const { data, isLoading, isError, error, refetch } = useSellers(sellerListFilter);
-  const { data: allSellersData } = useSellers({ page: 0, size: PAGE_SIZES.MAX });
+  // Todas las tiendas: la lista filtra y pagina en memoria, asi que necesita el padron completo.
+  const { data, isLoading, isError, error, refetch } = useAllSellers();
+  const allSellersData = data;
   const { data: sellerDocs } = useSellerDocuments(selectedSellerId ?? 0);
   const { data: sellerDetail } = useSeller(selectedSellerId ?? 0);
   const suspendMutation = useSuspendSeller();
 
   const { data: activeMediationsData } = useQuery({
     queryKey: ['mediations', 'active-all'],
-    queryFn: () => mediationsApi.getMediations({ activeOnly: true, blocked: false, page: 0, size: PAGE_SIZES.MAX }),
+    queryFn: () => fetchAllPages((page, size) => mediationsApi.getMediations({ activeOnly: true, blocked: false, page, size })),
   });
 
   const { data: resolvedCasesData } = useQuery({
@@ -251,7 +248,7 @@ export default function SellersPage() {
 
   const { data: reportsData } = useQuery({
     queryKey: ['reports', 'seller-received'],
-    queryFn: () => reportsApi.getReports({ page: 0, size: PAGE_SIZES.MAX }),
+    queryFn: () => fetchAllPages((page, size) => reportsApi.getReports({ page, size })),
   });
 
   const allSellers = allSellersData?.content ?? [];

@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { fetchAllPages } from '@/utils/pagination';
 import QueryErrorNotice from '@/components/shared/QueryErrorNotice';
 import { useQuery } from '@tanstack/react-query';
 import * as reportsApi from '@/api/reports';
@@ -44,7 +45,7 @@ export default function ReportsPage() {
   // Consulta para obtener la totalidad de reportes y extraer la lista única de nombres
   const { data: allReportsData } = useQuery({
     queryKey: ['all-reports-names'],
-    queryFn: () => reportsApi.getReports({ size: 1000 }),
+    queryFn: () => fetchAllPages((page, size) => reportsApi.getReports({ page, size })),
   });
 
   const reportsList = allReportsData?.content ?? [];
