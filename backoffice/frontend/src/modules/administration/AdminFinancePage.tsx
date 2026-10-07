@@ -632,16 +632,17 @@ export default function AdminFinancePage() {
   const [cajaQuery, setCajaQuery] = useState('');
   const [advertisingQuery, setAdvertisingQuery] = useState('');
   /**
-   * Filtro de documento tributario del tab Publicidad. Arranca en 'sin' porque lo accionable
-   * es el pendiente: la lista completa no le sirve a nadie para emitir.
+   * Filtro de documento tributario del tab Publicidad. Arranca en 'todas': el tab es el registro
+   * de las compras de Monedas, y abrirlo solo con las pendientes de documento hacia que, con todo
+   * emitido, pareciera que nunca se habia comprado nada. El boton "Sin documento (N)" sigue
+   * mostrando cuantas faltan.
    */
-  const [advertisingDocFilter, setAdvertisingDocFilter] = useState<'todas' | 'sin' | 'con'>('sin');
+  const [advertisingDocFilter, setAdvertisingDocFilter] = useState<'todas' | 'sin' | 'con'>('todas');
 
   useEffect(() => {
     const tabParam = searchParams.get('tab');
     if (tabParam === 'publicidad') {
       setOrdersTab('publicidad');
-      setAdvertisingDocFilter('sin');
     } else if (tabParam === 'pedidos') {
       setOrdersTab('pedidos');
     }
@@ -687,25 +688,41 @@ export default function AdminFinancePage() {
   const [selectedOrderCriticality, setSelectedOrderCriticality] = useState<Order | null>(null);
   const [backendWorkspace, setBackendWorkspace] = useState<{ module: string; status: string; views: string[]; persistenceMode: string } | null>(null);
 
-  const { data: bootstrap } = useQuery({
+  const { data: bootstrap, isError: bootstrapError, refetch: refetchBootstrap } = useQuery({
     queryKey: ['administration-bootstrap'],
     queryFn: administrationApi.getBootstrap,
   });
-  const { data: adminWithdrawals = [] } = useQuery<RetiroAdminResponse[]>({
+  const { data: adminWithdrawals = [], isError: withdrawalsError, refetch: refetchWithdrawals } = useQuery<RetiroAdminResponse[]>({
     queryKey: ['admin-withdrawals'],
     queryFn: administrationApi.getWithdrawals,
   });
-  const { data: paidPayments = [] } = useQuery({ queryKey: ['withdrawal-payments'], queryFn: administrationApi.getWithdrawalPayments });
+  const { data: paidPayments = [], isError: paymentsError, refetch: refetchPayments } = useQuery({ queryKey: ['withdrawal-payments'], queryFn: administrationApi.getWithdrawalPayments });
   // Compras de fichas para publicidad: se muestran en su propio tab de Pedidos
   // para no mezclarlas con las ventas de repuestos.
-  const { data: advertising, refetch: refetchAdvertising } = useQuery({
+  const {
+    data: advertising,
+    isError: advertisingError,
+    error: advertisingErrorDetail,
+    refetch: refetchAdvertising,
+  } = useQuery({
     queryKey: ['advertising-orders'],
     queryFn: administrationApi.getAdvertisingOrders,
   });
-  const { data: socios = [], refetch: refetchSocios } = useQuery<Socio[]>({
+  const { data: socios = [], isError: sociosError, refetch: refetchSocios } = useQuery<Socio[]>({
     queryKey: ['administration-socios'],
     queryFn: administrationApi.getSocios,
   });
+
+  /**
+   * Un fallo de carga tiene que verse como fallo. Antes estas consultas no miraban `isError`,
+   * asi que un 403 o un 500 dejaba la pantalla en "sin datos", igual que si no hubiera nada que
+   * mostrar: el operador no tenia forma de distinguir una caja vacia de una caja que no cargo.
+   */
+  const queryErrors: Array<{ label: string; retry: () => unknown }> = [];
+  if (bootstrapError) queryErrors.push({ label: 'pedidos, liquidaciones y gastos', retry: refetchBootstrap });
+  if (withdrawalsError) queryErrors.push({ label: 'retiros de vendedores', retry: refetchWithdrawals });
+  if (paymentsError) queryErrors.push({ label: 'pagos realizados', retry: refetchPayments });
+  if (sociosError) queryErrors.push({ label: 'socios', retry: refetchSocios });
   const { data: paidPaymentDetails = [] } = useQuery<RetiroDetalleResponse[]>({
     queryKey: ['withdrawal-payment-details', selectedPaidPayment?.pagoId],
     queryFn: () => Promise.all((selectedPaidPayment?.retiros ?? []).map((retiro) => administrationApi.getWithdrawalDetails(retiro.retiroId))),
@@ -730,17 +747,21 @@ export default function AdminFinancePage() {
     setBackendWorkspace(bootstrap.workspace);
   }, [bootstrap]);
 
-  /** Compras de publicidad que calzan con la búsqueda del tab. */
-  const filteredAdvertisingOrders = useMemo(() => {
-    let rows = advertising?.compras ?? [];
-    if (advertisingDocFilter === 'sin') rows = rows.filter((row) => !row.documentoCargado);
-    else if (advertisingDocFilter === 'con') rows = rows.filter((row) => row.documentoCargado);
-
+  /** Compras de publicidad que calzan con la búsqueda del tab, sin mirar el filtro de documento. */
+  const searchedAdvertisingOrders = useMemo(() => {
+    const rows = advertising?.compras ?? [];
     const term = normalizeText(advertisingQuery);
     if (!term) return rows;
     return rows.filter((row) => [row.codigo, row.comprador, row.correo, row.pack, row.metodoPago]
       .some((value) => normalizeText(value ?? '').includes(term)));
-  }, [advertising, advertisingQuery, advertisingDocFilter]);
+  }, [advertising, advertisingQuery]);
+
+  /** Lo que muestra la tabla: la búsqueda más el filtro de documento tributario. */
+  const filteredAdvertisingOrders = useMemo(() => {
+    if (advertisingDocFilter === 'sin') return searchedAdvertisingOrders.filter((row) => !row.documentoCargado);
+    if (advertisingDocFilter === 'con') return searchedAdvertisingOrders.filter((row) => row.documentoCargado);
+    return searchedAdvertisingOrders;
+  }, [searchedAdvertisingOrders, advertisingDocFilter]);
 
   /** Cuantas recargas siguen sin su documento, sobre el total y no sobre lo filtrado. */
   const advertisingSinDocumento = useMemo(
@@ -749,11 +770,22 @@ export default function AdminFinancePage() {
   );
 
   /**
-   * Las tarjetas siguen a lo que se está viendo: si hay búsqueda se recalculan
-   * sobre lo filtrado, para que el monto de arriba cuadre con la tabla.
+   * Las tarjetas son el total de compras de Monedas. Sin búsqueda se usan los acumulados que ya
+   * calcula el backend; con búsqueda se recalculan sobre lo buscado para que cuadren con la tabla.
+   * El filtro de documento NO las afecta: antes si lo hacia y, con todas las recargas ya
+   * facturadas, el tab abria con "0 compras / $0" aunque hubiera ventas.
    */
   const advertisingMetrics = useMemo(() => {
-    const rows = filteredAdvertisingOrders;
+    if (!normalizeText(advertisingQuery) && advertising) {
+      return {
+        cantidad: advertising.cantidadPedidos ?? advertising.compras.length,
+        monto: advertising.montoAcumulado ?? 0,
+        ganancia: advertising.gananciaAcumulada ?? 0,
+        comision: advertising.comisionPasarelaAcumulada ?? 0,
+        fichas: advertising.fichasVendidas ?? 0,
+      };
+    }
+    const rows = searchedAdvertisingOrders;
     const sum = (pick: (row: AdvertisingOrder) => number) => rows.reduce((total, row) => total + (pick(row) || 0), 0);
     return {
       cantidad: rows.length,
@@ -762,7 +794,15 @@ export default function AdminFinancePage() {
       comision: sum((row) => row.comisionPasarela),
       fichas: sum((row) => row.cantidadFichas),
     };
-  }, [filteredAdvertisingOrders]);
+  }, [advertising, advertisingQuery, searchedAdvertisingOrders]);
+
+  /** Texto del estado vacío del tab Publicidad, según por qué quedó vacío. */
+  const advertisingEmptyText = useMemo(() => {
+    if (advertisingQuery) return 'No hay compras de publicidad que coincidan con la búsqueda.';
+    if (advertisingDocFilter === 'sin') return 'No hay recargas pendientes de documento. Mira "Todas" para ver el historial completo.';
+    if (advertisingDocFilter === 'con') return 'Ninguna recarga tiene todavía su boleta o factura emitida.';
+    return 'Todavía no se han registrado compras de Monedas para publicidad.';
+  }, [advertisingQuery, advertisingDocFilter]);
 
   const filteredOrders = useMemo(() => {
     const filter = filters.pedidos;
@@ -2181,6 +2221,15 @@ export default function AdminFinancePage() {
         </div>
       </div>
 
+      {queryErrors.length > 0 && (
+        <div className="notice notice-error" role="alert">
+          <p>
+            <UiIcon name="alert" /> No se pudieron cargar: {queryErrors.map((item) => item.label).join(', ')}. Los totales de esta pantalla pueden estar incompletos.
+          </p>
+          <button type="button" className="ghost-button" onClick={() => queryErrors.forEach((item) => void item.retry())}>Reintentar</button>
+        </div>
+      )}
+
       {activeView === 'resumen' && (
         <>
           <section className={`summary-hero tone-${healthTone}`}>
@@ -2326,6 +2375,17 @@ export default function AdminFinancePage() {
 
       {activeView === 'pedidos' && ordersTab === 'publicidad' && (
         <>
+          {advertisingError && (
+            <div className="notice notice-error" role="alert">
+              <p>
+                <UiIcon name="alert" /> No se pudieron cargar las compras de Monedas
+                {isAxiosError(advertisingErrorDetail) && advertisingErrorDetail.response?.status
+                  ? ` (HTTP ${advertisingErrorDetail.response.status})`
+                  : ''}. Lo que ves abajo puede estar incompleto.
+              </p>
+              <button type="button" className="ghost-button" onClick={() => void refetchAdvertising()}>Reintentar</button>
+            </div>
+          )}
           <div className="metric-grid compact publicidad-metric-grid">
             <MetricCard
               label="Compras de fichas"
@@ -2384,7 +2444,7 @@ export default function AdminFinancePage() {
               </div>
             </div>
             {isMobile ? (
-<RecordList ariaLabel="Compras de publicidad" empty={<EmptyState icon="megaphone" title="Sin compras de publicidad" description={advertisingQuery ? 'No hay compras que coincidan con la búsqueda.' : 'Todavía no se han registrado compras de fichas.'} />}>
+<RecordList ariaLabel="Compras de publicidad" empty={<EmptyState icon="megaphone" title={advertisingDocFilter === 'sin' && !advertisingQuery ? 'Sin recargas pendientes' : 'Sin compras de publicidad'} description={advertisingEmptyText} />}>
   {filteredAdvertisingOrders.map((row) => (
     <RecordCard
       key={row.id}
@@ -2495,9 +2555,7 @@ export default function AdminFinancePage() {
                   <tr>
                     <td colSpan={12}>
                       <div className="empty-state">
-                        {advertisingQuery
-                          ? 'No hay compras de publicidad que coincidan con la búsqueda.'
-                          : 'Todavía no se han registrado compras de fichas para publicidad.'}
+                        {advertisingEmptyText}
                       </div>
                     </td>
                   </tr>

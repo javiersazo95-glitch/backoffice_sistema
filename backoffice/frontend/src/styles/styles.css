@@ -20216,3 +20216,14 @@ main.feedback-page .feedback-page-header .area-home-shortcut-group { margin-left
     grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
   }
 }
+
+/* Aviso de error de carga: misma caja que .notice, en tono rojo, con boton de reintento. */
+.notice.notice-error {
+  color: #9f1239;
+  background: #fff1f2;
+  border-color: #fecdd3;
+}
+.notice.notice-error .ghost-button {
+  color: #9f1239;
+  white-space: nowrap;
+}
