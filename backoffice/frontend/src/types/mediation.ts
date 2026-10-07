@@ -187,6 +187,8 @@ export interface MediationFilterRequest {
   endDate?: string;
   page?: number;
   size?: number;
+  /** "createdAt,asc" | "createdAt,desc" (por defecto desc). */
+  sort?: string;
 }
 
 export type SuspensionDuration =

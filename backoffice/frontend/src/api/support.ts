@@ -33,6 +33,15 @@ export interface SupportWorkspaceResponse {
   accountingPlatformTickets: number;
   trustPlatformTickets: number;
   mobilePlatformTickets: number;
+  // Contadores de urgencia (backend nuevo); el resumen los calcula en el navegador si faltan.
+  unansweredTickets?: number;
+  unansweredOver24h?: number;
+  slaBreachedTickets?: number;
+  resolvedTickets?: number;
+  supportPlatformTickets?: number;
+  webPlatformTickets?: number;
+  noPlatformTickets?: number;
+  qaPendingTickets?: number;
 }
 
 export interface TicketResponse {

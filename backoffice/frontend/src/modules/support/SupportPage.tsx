@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
+import type { SupportWorkspaceResponse } from '@/api/support';
 import { KpiTile, ActionQueue, InsightList, MiniBars } from '@/components/dashboard/kit';
 import { summarizeTickets, PLATFORM_LABELS as DASH_PLATFORM_LABELS } from './support.metrics';
 import QueryErrorNotice from '@/components/shared/QueryErrorNotice';
@@ -932,7 +933,7 @@ export default function SupportPage() {
     totalTickets: 0, technicalFailureTickets: 0, helpRequestTickets: 0, inquiryTickets: 0,
     buyerReporterTickets: 0, sellerReporterTickets: 0, internalReporterTickets: 0,
     accountingPlatformTickets: 0, trustPlatformTickets: 0, mobilePlatformTickets: 0,
-  }, isLoading: workspaceLoading, isError: workspaceError, error: workspaceErrorDetail, refetch: refetchWorkspace } = useQuery({
+  } as SupportWorkspaceResponse, isLoading: workspaceLoading, isError: workspaceError, error: workspaceErrorDetail, refetch: refetchWorkspace } = useQuery({
     queryKey: ['support-workspace'],
     queryFn: supportApi.getWorkspace,
     enabled: isSupportOperator,
@@ -1259,12 +1260,12 @@ export default function SupportPage() {
           <section className="dash-kpi-row" aria-label="Pendientes de soporte">
             <KpiTile
               label="Sin responder"
-              value={globalTicketsData ? supportMetrics.unanswered.length : workspaceData.newTickets}
+              value={workspaceData.unansweredTickets ?? (globalTicketsData ? supportMetrics.unanswered.length : null)}
               tone="red"
               urgent
               iconName="message"
               to="/soporte/tickets?status=ABIERTO"
-              secondary={globalTicketsData ? `${supportMetrics.unansweredOver24h} con más de 24 horas` : undefined}
+              secondary={(workspaceData.unansweredOver24h ?? (globalTicketsData ? supportMetrics.unansweredOver24h : undefined)) !== undefined ? `${workspaceData.unansweredOver24h ?? supportMetrics.unansweredOver24h} con más de 24 horas` : undefined}
               loading={globalLoading && workspaceLoading}
               error={globalError && workspaceError ? globalErrorDetail : undefined}
               onRetry={() => { void refetchGlobal(); void refetchWorkspace(); }}
@@ -1272,7 +1273,7 @@ export default function SupportPage() {
             />
             <KpiTile
               label="Fuera de plazo"
-              value={globalTicketsData ? supportMetrics.slaBreached : null}
+              value={workspaceData.slaBreachedTickets ?? (globalTicketsData ? supportMetrics.slaBreached : null)}
               tone="red"
               urgent
               iconName="clock"
@@ -1309,7 +1310,7 @@ export default function SupportPage() {
             />
             <KpiTile
               label="Defectos QA pendientes"
-              value={qaAllData ? qaPending.length : null}
+              value={workspaceData.qaPendingTickets ?? (qaAllData ? qaPending.length : null)}
               tone="blue"
               iconName="shieldCheck"
               to="/soporte/qa-reports"

@@ -52,7 +52,7 @@ export default function AlertsPage() {
   });
 
   // Las tarjetas contaban solo la pagina visible (8 filas) y cambiaban al paginar.
-  const { data: summary } = useQuery({ queryKey: ['alerts', 'summary'], queryFn: alertsApi.getAlertsSummary });
+  const { data: summary } = useQuery({ queryKey: ['alerts', 'summary'], queryFn: () => alertsApi.getAlertsSummary() });
 
   const { data: receipts, isError: receiptsError, error: receiptsErrorDetail, refetch: refetchReceipts } = useQuery({
     queryKey: ['receipts'],

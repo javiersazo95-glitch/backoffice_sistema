@@ -58,7 +58,7 @@ export default function DashboardPage() {
   const mediations = useQuery({
     queryKey: ['dashboard', 'mediations-active'],
     queryFn: async () => {
-      const page = await fetchAllPages((p, s) => mediationsApi.getMediations({ activeOnly: true, blocked: false, page: p, size: s }));
+      const page = await fetchAllPages((p, s) => mediationsApi.getMediations({ activeOnly: true, blocked: false, sort: 'createdAt,asc', page: p, size: s }));
       return [...page.content].sort(byCreatedAtAsc);
     },
     staleTime: 60_000,
@@ -67,7 +67,7 @@ export default function DashboardPage() {
   const alerts = useQuery({
     queryKey: ['dashboard', 'alerts-unreviewed'],
     queryFn: async () => {
-      const page = await fetchAllPages((p, s) => alertsApi.getAlerts(undefined, undefined, p, s));
+      const page = await fetchAllPages((p, s) => alertsApi.getAlerts(undefined, undefined, p, s, false));
       return page.content.filter((alert) => !alert.reviewed).sort(byCreatedAtAsc);
     },
     staleTime: 60_000,
@@ -82,7 +82,7 @@ export default function DashboardPage() {
   const validations = useQuery({
     queryKey: ['dashboard', 'validations-pending'],
     queryFn: async () => {
-      const page = await fetchAllPages((p, s) => validationsApi.getValidations(p, s));
+      const page = await fetchAllPages((p, s) => validationsApi.getValidations(p, s, 'PENDIENTE'));
       // Una fila por documento: se cuenta una vez por tienda, con la fecha de subida mas antigua.
       const bySeller = new Map<number, string>();
       page.content

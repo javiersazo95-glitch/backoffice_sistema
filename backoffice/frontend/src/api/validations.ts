@@ -3,9 +3,10 @@ import type { PageResponse } from '@/types/common';
 import type { ValidationResponse } from '@/types/validation';
 import type { AdValidationItem } from '@/types/adValidation';
 
-export async function getValidations(page = 0, size = 8): Promise<PageResponse<ValidationResponse>> {
+/** `status` (PENDIENTE|APROBADA|RECHAZADA|POR_CORREGIR) pagina solo esas verificaciones. */
+export async function getValidations(page = 0, size = 8, status?: string): Promise<PageResponse<ValidationResponse>> {
   const response = await apiClient.get<PageResponse<ValidationResponse>>('/validations', {
-    params: { page, size },
+    params: { page, size, status },
   });
   return response.data;
 }
