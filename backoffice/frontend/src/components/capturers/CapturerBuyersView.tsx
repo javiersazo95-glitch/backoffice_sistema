@@ -1,4 +1,5 @@
 import { Fragment, useMemo, useState } from 'react';
+import { mesActualChile } from '@/utils/formatters';
 import { useQuery } from '@tanstack/react-query';
 import { getSocialMetricas } from '@/api/capturerSocial';
 import { formatCurrency } from '@/utils/formatters';
@@ -12,7 +13,7 @@ import CapturerAvatar from './CapturerAvatar';
  * captador gana un % de sus compras y, al completar la primera compra, suma puntos de nivel.
  */
 export default function CapturerBuyersView({ all }: { all: CapturerProfile[] }) {
-  const [periodo, setPeriodo] = useState(new Date().toISOString().slice(0, 7));
+  const [periodo, setPeriodo] = useState(mesActualChile());
   const [abierto, setAbierto] = useState<number | null>(null);
   const metricas = useQuery({ queryKey: ['trust-capturers-social-metrics', periodo], queryFn: () => getSocialMetricas(periodo) });
   const m = metricas.data;

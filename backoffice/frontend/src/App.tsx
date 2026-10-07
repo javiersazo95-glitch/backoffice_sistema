@@ -1,4 +1,5 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { estadoHttpDe } from '@/api/client';
 import { useQuery } from '@tanstack/react-query';
 import AppShell from '@/components/layout/AppShell';
 import { useAuth } from '@/context/AuthContext';
@@ -82,8 +83,30 @@ function RequireCapturer({ children }: { children: JSX.Element }) {
 
 // Portal del captador: solo accesible cuando la postulación fue aprobada.
 // Mientras esté pendiente o rechazada, se redirige a la vista de estado.
+/**
+ * Un captador con el acceso desactivado desde Permisos sigue pudiendo iniciar sesion, pero el
+ * JWT ya no lleva ROLE_CAPTADOR y todo /captadores/** responde 403. Sin esta pantalla se quedaba
+ * en "Preparando tus metricas…" para siempre.
+ */
+function CapturerAccessSuspended({ onLogout }: { onLogout: () => void }) {
+  return (
+    <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 24, color: '#1e293b', fontFamily: 'system-ui, sans-serif', textAlign: 'center' }}>
+      <div style={{ maxWidth: 420, display: 'grid', gap: 12 }}>
+        <h1 style={{ margin: 0, fontSize: 22 }}>Tu acceso de captador está desactivado</h1>
+        <p style={{ margin: 0, color: '#64748b' }}>
+          RepuesTop suspendió el acceso de tu cuenta al portal de captadores. Si crees que es un error,
+          escribe a soporte y te ayudamos a revisarlo.
+        </p>
+        <button type="button" onClick={onLogout} style={{ justifySelf: 'center', padding: '10px 18px', borderRadius: 8, border: 0, background: '#145be7', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>
+          Cerrar sesión
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function RequireApprovedCapturer({ children }: { children: JSX.Element }) {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, logout } = useAuth();
   const enabled = isAuthenticated && user?.role === Role.CAPTADOR;
   const statusQuery = useQuery({
     queryKey: ['capturer-status'],
@@ -99,6 +122,9 @@ function RequireApprovedCapturer({ children }: { children: JSX.Element }) {
         Cargando tu cuenta…
       </div>
     );
+  }
+  if (statusQuery.isError && estadoHttpDe(statusQuery.error) === 403) {
+    return <CapturerAccessSuspended onLogout={() => void logout()} />;
   }
   if (statusQuery.data && statusQuery.data.estado !== 'APROBADO') {
     return <Navigate to="/captador/estado" replace />;

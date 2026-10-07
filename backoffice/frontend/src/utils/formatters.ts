@@ -46,6 +46,15 @@ function parseForDisplay(value: string): Date {
   return new Date(value);
 }
 
+/**
+ * "YYYY-MM" del mes en curso en hora de Chile. `toISOString().slice(0, 7)` daba el mes en UTC:
+ * el ultimo dia de cada mes, entre las 20 y las 24 h de Chile, los filtros de "mes actual"
+ * consultaban el mes siguiente y salian vacios.
+ */
+export function mesActualChile(): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: CHILE_TIME_ZONE, year: 'numeric', month: '2-digit' }).format(new Date());
+}
+
 export function formatDate(date: string): string {
   if (!date) return '';
   const parsed = parseForDisplay(date);

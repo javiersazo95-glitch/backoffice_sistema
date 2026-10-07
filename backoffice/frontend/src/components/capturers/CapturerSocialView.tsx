@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { mesActualChile } from '@/utils/formatters';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getSocialMetricas, getVideoMetricas, listSocialAdmin, setSocialVisibilidad, socialMediaUrl } from '@/api/capturerSocial';
 import type { SocialContenidoAdmin, SocialNivelCodigo } from '@/types/capturerSocial';
@@ -18,7 +19,7 @@ function Persona({ alias, foto, size = 22 }: { alias: string; foto?: string | nu
 export default function CapturerSocialView({ all = [] }: { all?: CapturerProfile[] }) {
   const fotoPorId = new Map(all.map(c => [c.id, c.fotoPerfil]));
   const qc = useQueryClient();
-  const [periodo, setPeriodo] = useState(new Date().toISOString().slice(0, 7));
+  const [periodo, setPeriodo] = useState(mesActualChile());
   const [estado, setEstado] = useState('');
   const [tipo, setTipo] = useState('');
   const [q, setQ] = useState('');

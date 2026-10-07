@@ -872,7 +872,6 @@ export default function MediationDetail({
       targetRole: suspensionTarget,
       duration: suspensionDuration,
       reason: suspensionReason.trim(),
-      details: suspensionReason.trim(),
     });
   };
 

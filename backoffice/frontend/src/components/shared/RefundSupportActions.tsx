@@ -70,6 +70,9 @@ export default function RefundSupportActions({ refund, onDone }: RefundSupportAc
       if (result.status === 'REEMBOLSO_ERROR') {
         // O74 (pruebas de lanzamiento, 27-sep): REEMBOLSO_ERROR es un fallo al pedirlo, no un rechazo.
         showToast(`La solicitud a Flow volvió a fallar: ${result.errorDetail || 'sin detalle'}`);
+      } else if (result.status === 'REEMBOLSO_RECHAZADO') {
+        // Flow puede rechazarlo en el acto; antes esto se anunciaba como "solicitado nuevamente".
+        showToast(`Flow rechazó el reembolso: ${result.errorDetail || 'sin detalle'}`);
       } else {
         showToast('Reembolso solicitado nuevamente a Flow. El comprador recibirá el correo para aceptarlo.');
       }

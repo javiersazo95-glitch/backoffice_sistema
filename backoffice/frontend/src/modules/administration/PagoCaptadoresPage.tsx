@@ -14,7 +14,7 @@ import { BCI_NOMINA_MIME_TYPE } from './constants';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { RecordCard, RecordList, EmptyState } from '@/components/mobile';
 
-type Tab = 'gestion' | 'historial';
+type Tab = 'gestion' | 'historial' | 'rechazados';
 
 interface PaymentRound {
   key: string;
@@ -85,6 +85,8 @@ export default function PagoCaptadoresPage() {
   const withdrawals = withdrawalsQuery.data ?? [];
   const pending = useMemo(() => withdrawals.filter((withdrawal) => withdrawal.estado === 'PENDIENTE'), [withdrawals]);
   const paid = useMemo(() => withdrawals.filter((withdrawal) => withdrawal.estado === 'PAGADO'), [withdrawals]);
+  // Un retiro rechazado desaparecia de las dos pestanas y no quedaba historial de por que.
+  const rejected = useMemo(() => withdrawals.filter((withdrawal) => withdrawal.estado === 'RECHAZADO'), [withdrawals]);
   const pendingTotal = useMemo(() => pending.reduce((total, withdrawal) => total + withdrawal.monto, 0), [pending]);
   const paidTotal = useMemo(() => paid.reduce((total, withdrawal) => total + withdrawal.monto, 0), [paid]);
 
@@ -173,7 +175,38 @@ export default function PagoCaptadoresPage() {
         <button className={activeTab === 'historial' ? 'active' : ''} type="button" onClick={() => setActiveTab('historial')}>
           <UiIcon name="clock" /> Historial por rondas
         </button>
+        <button className={activeTab === 'rechazados' ? 'active' : ''} type="button" onClick={() => setActiveTab('rechazados')}>
+          <UiIcon name="close" /> Rechazados{rejected.length ? ` (${rejected.length})` : ''}
+        </button>
       </div>
+
+      {activeTab === 'rechazados' && (
+        <section className="table-shell">
+          <div className="table-toolbar"><strong>Retiros rechazados</strong></div>
+          {rejected.length === 0 ? (
+            <div className="empty-state">No hay retiros de captadores rechazados.</div>
+          ) : (
+            <div className="table-responsive">
+              <table className="wide-table">
+                <thead>
+                  <tr><th>Código</th><th>Captador</th><th>Monto</th><th>Solicitado</th><th>Motivo del rechazo</th></tr>
+                </thead>
+                <tbody>
+                  {rejected.map((withdrawal) => (
+                    <tr key={withdrawal.id}>
+                      <td>{withdrawal.codigo}</td>
+                      <td>{withdrawal.captador ?? withdrawal.alias ?? '—'}</td>
+                      <td>{formatCurrency(withdrawal.monto)}</td>
+                      <td>{withdrawal.fecha.slice(0, 10)}</td>
+                      <td>{withdrawal.motivoRechazo || '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      )}
 
       {activeTab === 'gestion' ? (
         <>
@@ -284,7 +317,7 @@ export default function PagoCaptadoresPage() {
             </div>
           </section>
         </>
-      ) : (
+      ) : activeTab === 'historial' ? (
         <>
           <div className="metric-grid compact" style={{ marginBottom: 20 }}>
             <MetricCard label="Total pagado" value={formatCurrency(paidTotal)} tone="green" description="Histórico de retiros procesados" iconName="wallet" />
@@ -368,7 +401,7 @@ export default function PagoCaptadoresPage() {
             </div>
           </section>
         </>
-      )}
+      ) : null}
 
       {isProcesarModalOpen && (
         <div className="modal-backdrop" role="presentation" onMouseDown={() => { if (!processMutation.isPending) setIsProcesarModalOpen(false); }}>
