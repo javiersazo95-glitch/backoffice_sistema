@@ -9,14 +9,16 @@ import type {
   StatusHistoryItem,
   Withdrawal,
 } from './types';
+import { getMonthRange } from './utils';
+import { mesActualChile } from '@/utils/formatters';
 
 
-const todayStr = new Date().toISOString().slice(0, 10);
 const firstDayOfMonthStr = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10);
 const lastDayOfMonthStr = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().slice(0, 10);
 
 export const initialFilters: DateFilters = {
-  resumen: { query: '', start: todayStr, end: todayStr },
+  // El Resumen abre en el mes actual: con solo "hoy" casi siempre se veia vacio.
+  resumen: { query: '', ...getMonthRange(mesActualChile()) },
   pedidos: { query: '', start: firstDayOfMonthStr, end: lastDayOfMonthStr },
   liquidaciones: { query: '', start: firstDayOfMonthStr, end: lastDayOfMonthStr },
   gastos: { query: '', start: firstDayOfMonthStr, end: lastDayOfMonthStr },

@@ -277,3 +277,19 @@ export function downloadFile(fileName: string, content: BlobPart, type: string):
   link.remove();
   URL.revokeObjectURL(url);
 }
+
+/**
+ * Ciclo semanal de pago a proveedores y socios: de jueves a miercoles. Los retiros solicitados
+ * dentro del ciclo se pagan el jueves siguiente con la nomina BCI.
+ */
+export function getCurrentCycleRange(today = new Date()): { start: Date; end: Date } {
+  const day = today.getDay(); // 0: domingo, 3: miercoles, 4: jueves
+  const start = new Date(today);
+  const diffToThursday = day >= 4 ? day - 4 : day + 3;
+  start.setDate(today.getDate() - diffToThursday);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  end.setHours(23, 59, 59, 999);
+  return { start, end };
+}

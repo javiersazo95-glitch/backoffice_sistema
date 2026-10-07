@@ -26,7 +26,6 @@ import {
   WITHDRAWAL_REASON_OPTIONS,
 } from './constants';
 import {
-  initialActivity,
   initialExpenses,
   initialFilters,
   initialImports,
@@ -36,7 +35,6 @@ import {
   initialWithdrawals,
 } from './data';
 import type {
-  ActivityLog,
   AdminView,
   AdvertisingOrder,
   CashIncomeEntry,
@@ -68,12 +66,10 @@ import {
   chileDay,
   formatMonthName,
   formatMoney,
-  getBarWidth,
   getCashAllocation,
   getExpenseTotal,
   getMonthRange,
   getPartnerBalances,
-  getPercent,
   getSettlements,
   isWithinRange,
   normalizeCsvDate,
@@ -85,6 +81,12 @@ import {
   validateReceipt,
 } from './utils';
 import { useIsMobile } from '@/hooks/useIsMobile';
+import { useAuth } from '@/context/AuthContext';
+import { Role } from '@/types/auth';
+import Badge from '@/components/shared/Badge';
+import { KpiTile, ActionQueue, InsightList, MiniBars, DashboardSection } from '@/components/dashboard/kit';
+import { buildCashEntries, summarizeCash } from './cash';
+import { buildAdminInsights } from './admin.insights';
 import { RecordCard, RecordList, EmptyState } from '@/components/mobile';
 
 type SelectableView = 'pedidos' | 'liquidaciones' | 'gastos';
@@ -603,6 +605,7 @@ export default function AdminFinancePage() {
   const isMobile = useIsMobile();
   const location = useLocation();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const orderImportRef = useRef<HTMLInputElement | null>(null);
   const receiptInputRef = useRef<HTMLInputElement | null>(null);
   const hydratedRef = useRef(false);
@@ -616,7 +619,6 @@ export default function AdminFinancePage() {
   const [expenses, setExpenses] = useState<Expense[]>(initialExpenses);
   const [withdrawals, setWithdrawals] = useState<Withdrawal[]>(initialWithdrawals);
   const [, setImports] = useState<ImportRecord[]>(initialImports);
-  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>(initialActivity);
   const [filters, setFilters] = useState(initialFilters);
   const [pagination, setPagination] = useState<Record<PageView, PaginationState>>(paginationDefaults);
   const [selectedRows, setSelectedRows] = useState<SelectedRows>(initialSelectedRows);
@@ -640,13 +642,24 @@ export default function AdminFinancePage() {
    */
   const [advertisingDocFilter, setAdvertisingDocFilter] = useState<'todas' | 'sin' | 'con'>('todas');
 
+  /** Filtro de criticidad de Pedidos (?criticidad=critical|warning), para aterrizar desde el Resumen. */
+  const [criticalityFilter, setCriticalityFilter] = useState<'critical' | 'warning' | ''>('');
+
+  // Enlaces profundos desde el Resumen: ?tab=publicidad|pedidos|gastos|caja, ?estado=<estado de
+  // pedido>, ?criticidad=critical|warning.
   useEffect(() => {
     const tabParam = searchParams.get('tab');
     if (tabParam === 'publicidad') {
       setOrdersTab('publicidad');
     } else if (tabParam === 'pedidos') {
       setOrdersTab('pedidos');
+    } else if (tabParam === 'gastos' || tabParam === 'caja') {
+      setCajaExpenseTab(tabParam);
     }
+    const estadoParam = searchParams.get('estado');
+    if (estadoParam && (ORDER_STATUS_OPTIONS as readonly string[]).includes(estadoParam)) setSelectedStatusFilter(estadoParam);
+    const criticidadParam = searchParams.get('criticidad');
+    if (criticidadParam === 'critical' || criticidadParam === 'warning') setCriticalityFilter(criticidadParam);
   }, [searchParams]);
   const [docRecargaDraft, setDocRecargaDraft] = useState<{
     compraId: number; codigo: string; comprador: string; tipo: string; folio: string;
@@ -720,11 +733,11 @@ export default function AdminFinancePage() {
   const [selectedOrderCriticality, setSelectedOrderCriticality] = useState<Order | null>(null);
   const [backendWorkspace, setBackendWorkspace] = useState<{ module: string; status: string; views: string[]; persistenceMode: string } | null>(null);
 
-  const { data: bootstrap, isError: bootstrapError, refetch: refetchBootstrap } = useQuery({
+  const { data: bootstrap, isLoading: bootstrapLoading, isError: bootstrapError, error: bootstrapErrorDetail, refetch: refetchBootstrap } = useQuery({
     queryKey: ['administration-bootstrap'],
     queryFn: administrationApi.getBootstrap,
   });
-  const { data: adminWithdrawals = [], isError: withdrawalsError, refetch: refetchWithdrawals } = useQuery<RetiroAdminResponse[]>({
+  const { data: adminWithdrawals = [], isLoading: withdrawalsLoading, isError: withdrawalsError, error: withdrawalsErrorDetail, refetch: refetchWithdrawals } = useQuery<RetiroAdminResponse[]>({
     queryKey: ['admin-withdrawals'],
     queryFn: administrationApi.getWithdrawals,
   });
@@ -733,6 +746,7 @@ export default function AdminFinancePage() {
   // para no mezclarlas con las ventas de repuestos.
   const {
     data: advertising,
+    isLoading: advertisingLoading,
     isError: advertisingError,
     error: advertisingErrorDetail,
     refetch: refetchAdvertising,
@@ -755,6 +769,7 @@ export default function AdminFinancePage() {
   if (withdrawalsError) queryErrors.push({ label: 'retiros de vendedores', retry: refetchWithdrawals });
   if (paymentsError) queryErrors.push({ label: 'pagos realizados', retry: refetchPayments });
   if (sociosError) queryErrors.push({ label: 'socios', retry: refetchSocios });
+  if (advertisingError) queryErrors.push({ label: 'compras de Monedas', retry: refetchAdvertising });
   const { data: paidPaymentDetails = [] } = useQuery<RetiroDetalleResponse[]>({
     queryKey: ['withdrawal-payment-details', selectedPaidPayment?.pagoId],
     queryFn: () => Promise.all((selectedPaidPayment?.retiros ?? []).map((retiro) => administrationApi.getWithdrawalDetails(retiro.retiroId))),
@@ -769,8 +784,8 @@ export default function AdminFinancePage() {
     setOrders(bootstrap.orders);
     setExpenses(bootstrap.expenses);
     setWithdrawals(bootstrap.withdrawals);
-    setActivityLogs(bootstrap.activityLogs);
-    setFilters(bootstrap.filters);
+    // El rango del Resumen lo decide el cliente (mes actual): el backend aun manda "hoy".
+    setFilters({ ...bootstrap.filters, resumen: initialFilters.resumen });
     setPagination((current) => ({ ...current, ...bootstrap.pagination }));
     setStatusHistory(bootstrap.statusHistory);
     setSettlementStatuses(bootstrap.settlementStatuses);
@@ -846,7 +861,11 @@ export default function AdminFinancePage() {
       // O72: el numero publico se busca con o sin espacios.
       const matchesQuery = !query || [orderNumberSearchText(order.id), order.buyer, order.seller, order.product].some((value) => normalizeText(value).includes(query));
       const matchesStatus = !selectedStatusFilter || order.status === selectedStatusFilter;
-      return matchesDate && matchesQuery && matchesStatus;
+      const matchesCriticality = !criticalityFilter || (() => {
+        const level = getOrderCriticality(order).level;
+        return criticalityFilter === 'critical' ? level === 'critical' : level === 'critical' || level === 'warning';
+      })();
+      return matchesDate && matchesQuery && matchesStatus && matchesCriticality;
     }).sort((first, second) => {
       const firstUpdatedAt = Date.parse(first.updatedAt);
       const secondUpdatedAt = Date.parse(second.updatedAt);
@@ -854,7 +873,7 @@ export default function AdminFinancePage() {
       const secondTime = Number.isNaN(secondUpdatedAt) ? 0 : secondUpdatedAt;
       return updatedAtOrder === 'asc' ? firstTime - secondTime : secondTime - firstTime;
     });
-  }, [filters.pedidos, orders, selectedStatusFilter, updatedAtOrder]);
+  }, [filters.pedidos, orders, selectedStatusFilter, criticalityFilter, updatedAtOrder]);
 
   const summaryOrders = useMemo(
     () => orders.filter((order) => isWithinRange(orderDate(order), filters.resumen.start, filters.resumen.end)),
@@ -881,106 +900,20 @@ export default function AdminFinancePage() {
     });
   }, [expenses, filters.gastos]);
 
-  /** Pedidos finalizados dentro del periodo de filtro de Caja y gastos. */
-  const cajaPeriodSettlements = useMemo(() => {
-    return settlements.filter((settlement) => isWithinRange(settlement.date, filters.gastos.start, filters.gastos.end));
-  }, [filters.gastos.start, filters.gastos.end, settlements]);
-
-  /** Compras de fichas para publicidad dentro del periodo de filtro de Caja y gastos. */
-  const cajaPeriodAds = useMemo(() => {
-    const rows = advertising?.compras ?? [];
-    // O77 (27-sep): el dia de la compra en hora de Chile, no el de la marca UTC.
-    return rows.filter((row) => isWithinRange(chileDay(row.fecha), filters.gastos.start, filters.gastos.end));
-  }, [advertising?.compras, filters.gastos.start, filters.gastos.end]);
-
   /**
    * Convergencia total de ingresos (pedidos y publicidad):
    * - Pedidos: ganancia neta (5% tarifa fundador o 10%/7%/5% normal menos pasarela/IVA) -> 70% a caja.
    * - Publicidad: venta sin IVA menos comisión Flow sin IVA (O16: el IVA débito no es ganancia y el
    *   IVA de Flow se recupera como crédito fiscal) -> 70% a caja. Lo calcula el backend (montoNeto).
    */
-  const cajaEntriesAll = useMemo<CashIncomeEntry[]>(() => {
-    const ordersMap = new Map<string, Order>(orders.map((o) => [o.id, o]));
-
-    const pedidosEntries: CashIncomeEntry[] = cajaPeriodSettlements.map((settlement) => {
-      const order = ordersMap.get(settlement.orderId) || ordersMap.get(settlement.id);
-      const commissionLabel = settlement.sellerFounder && Math.round(settlement.serviceCommissionRate * 100) === 5
-        ? 'Tarifa Fundador (5%)'
-        : `Comisión RepuesTop (${Math.round(settlement.serviceCommissionRate * 100)}%)`;
-      const netProfit = settlement.netSettlement;
-      const cashAmount = Math.round(netProfit * 0.7);
-
-      return {
-        id: settlement.orderId,
-        type: 'pedido',
-        date: settlement.date,
-        concept: order?.product ? `Repuesto: ${order.product}` : `Pedido ${formatOrderNumber(settlement.orderId)}`,
-        buyer: order?.buyer || 'Cliente',
-        sellerOrPack: settlement.seller,
-        sellerFounder: settlement.sellerFounder,
-        totalSale: settlement.saleTotal,
-        commissionOrDeduction: commissionLabel,
-        commissionAmount: settlement.commission,
-        netProfit,
-        cashAmount,
-        orderId: settlement.orderId,
-        originalOrder: order,
-        originalSettlement: settlement,
-      };
-    });
-
-    const publicidadEntries: CashIncomeEntry[] = cajaPeriodAds.map((ad) => {
-      const netProfit = ad.montoNeto;
-      const cashAmount = Math.round(netProfit * 0.7);
-
-      return {
-        id: ad.codigo,
-        type: 'publicidad',
-        date: ad.fecha,
-        concept: ad.pack ? `Fichas Mural: ${ad.pack} (${ad.cantidadFichas.toLocaleString('es-CL')} fichas)` : `Compra Fichas (${ad.cantidadFichas.toLocaleString('es-CL')})`,
-        buyer: ad.comprador ? `${ad.comprador}${ad.correo ? ` (${ad.correo})` : ''}` : (ad.correo || 'Avisador'),
-        sellerOrPack: ad.pack || 'Fichas Mural',
-        sellerFounder: false,
-        totalSale: ad.montoPagado,
-        commissionOrDeduction: `Comisión Flow (-${formatMoney(ad.comisionPasarela)})`,
-        commissionAmount: ad.comisionPasarela,
-        netProfit,
-        cashAmount,
-        originalAdvertising: ad,
-      };
-    });
-
-    return [...pedidosEntries, ...publicidadEntries].sort((a, b) => b.date.localeCompare(a.date));
-  }, [cajaPeriodSettlements, cajaPeriodAds, orders]);
+  /** Ingresos del periodo de Caja (pedidos finalizados + compras de Monedas), con cash.ts. */
+  const cajaEntriesAll = useMemo<CashIncomeEntry[]>(
+    () => buildCashEntries(settlements, advertising?.compras ?? [], orders, filters.gastos.start, filters.gastos.end),
+    [settlements, advertising?.compras, orders, filters.gastos.start, filters.gastos.end],
+  );
 
   /** Métricas de las 3 tarjetas superiores de la vista Caja. */
-  const cajaMetrics = useMemo(() => {
-    const pedidosEntries = cajaEntriesAll.filter((e) => e.type === 'pedido');
-    const publicidadEntries = cajaEntriesAll.filter((e) => e.type === 'publicidad');
-
-    const sum = (items: CashIncomeEntry[], pick: (item: CashIncomeEntry) => number) =>
-      items.reduce((total, item) => total + (pick(item) || 0), 0);
-
-    const pedidosProfit = sum(pedidosEntries, (e) => e.netProfit);
-    const pedidosCaja = sum(pedidosEntries, (e) => e.cashAmount);
-    const publicidadProfit = sum(publicidadEntries, (e) => e.netProfit);
-    const publicidadCaja = sum(publicidadEntries, (e) => e.cashAmount);
-
-    const totalProfit = pedidosProfit + publicidadProfit;
-    const totalCaja = pedidosCaja + publicidadCaja;
-
-    return {
-      totalProfit,
-      totalCaja,
-      totalCount: cajaEntriesAll.length,
-      pedidosProfit,
-      pedidosCaja,
-      pedidosCount: pedidosEntries.length,
-      publicidadProfit,
-      publicidadCaja,
-      publicidadCount: publicidadEntries.length,
-    };
-  }, [cajaEntriesAll]);
+  const cajaMetrics = useMemo(() => summarizeCash(cajaEntriesAll), [cajaEntriesAll]);
 
   /**
    * Abre el formulario del documento de una recarga. Si todavia no se emitio, precarga lo que
@@ -1332,10 +1265,6 @@ export default function AdminFinancePage() {
     [orderMonthsWithSales, selectedOrderYear],
   );
 
-  function pushActivity(iconName: string, title: string, description: string): void {
-    setActivityLogs((current) => [{ id: createId(), iconName, title, description, time: 'Ahora' }, ...current]);
-  }
-
   function updateFilter(view: AdminView, next: Partial<DateFilter>): void {
     setFilters((current) => ({ ...current, [view]: { ...current[view], ...next } }));
     if (view !== 'resumen') {
@@ -1475,7 +1404,6 @@ export default function AdminFinancePage() {
         ? await administrationApi.updateExpense(expenseDraft.id, requestPayload, file)
         : await administrationApi.createExpense(requestPayload, file);
       setExpenses((current) => exists ? current.map((expense) => (expense.id === saved.id ? saved : expense)) : [saved, ...current]);
-      pushActivity('wallet', exists ? 'Gasto actualizado' : 'Gasto registrado', `${saved.category} - ${saved.description}`);
       setExpenseDraft(null);
     } catch (err) {
       window.alert('No se pudo guardar el gasto: ' + (mensajeDeError(err, 'Error desconocido.')));
@@ -1516,7 +1444,6 @@ export default function AdminFinancePage() {
         note: 'Estado inicial registrado al crear el pedido.',
       }],
     }));
-    pushActivity('wallet', 'Pedido registrado', `Pedido ${nextOrder.id} agregado manualmente`);
     setOrderDraft(null);
     navigate('/administracion/pedidos');
   }
@@ -1727,7 +1654,6 @@ export default function AdminFinancePage() {
       }
       return w;
     }));
-    pushActivity('receipt', `${documentDraft.type} ${documentDraft.isEditing ? 'actualizada' : 'registrada'}`, `Documento ${documentDraft.orderId} enviado a ${documentDraft.email.trim()}`);
     setDocumentDraft(null);
   }
 
@@ -1882,7 +1808,6 @@ export default function AdminFinancePage() {
         email: socioBancoDraft.email.trim(),
       });
       await refetchSocios();
-      pushActivity('wallet', 'Datos bancarios actualizados', `Cuenta de ${socioBancoDraft.nombre} guardada`);
       setSocioBancoDraft(null);
     } catch (err) {
       setSocioBancoError('No se pudieron guardar los datos bancarios: ' + (mensajeDeError(err, 'error desconocido.')));
@@ -1939,7 +1864,6 @@ export default function AdminFinancePage() {
       const saved = await administrationApi.createPartnerWithdrawal(requestPayload);
       setWithdrawals((current) => [saved, ...current]);
       setPagination((current) => ({ ...current, retiros: { ...current.retiros, page: 1 } }));
-      pushActivity('wallet', 'Retiro registrado', `${saved.beneficiary} retiró ${formatMoney(saved.amount)}`);
       setWithdrawalDraft(null);
       setWithdrawalError('');
     } catch (err) {
@@ -1961,7 +1885,6 @@ export default function AdminFinancePage() {
         next.delete(expenseId);
         return { ...current, gastos: next };
       });
-      pushActivity('wallet', 'Gasto eliminado', 'Se eliminó un gasto registrado');
     } catch (err) {
       window.alert('No se pudo eliminar el gasto: ' + (mensajeDeError(err, 'Error desconocido.')));
     }
@@ -2097,7 +2020,6 @@ export default function AdminFinancePage() {
     setStatusHistory(nextHistory);
     setImports((current) => [importRecord, ...current]);
     includeImportedDates(importedDates);
-    pushActivity('upload', 'Importación de pedidos desde CSV', `Archivo: ${file.name} (${imported} nuevos, ${updated} actualizados, ${errors} con error)`);
     window.alert(`Importación finalizada\nProcesados: ${importRecord.processed}\nImportados: ${imported}\nActualizados: ${updated}\nCon error: ${errors}`);
   }
 
@@ -2153,57 +2075,59 @@ export default function AdminFinancePage() {
   // RepuesTop descontada y sin el IVA de la comisión (que se entera al SII).
   // Para los socios corresponde el 30% del total convergente (pedidos y publicidad).
   const partnerIncomeShare = partnerIncomeMetrics.totalShare;
-  const summarySettlements = getSettlements(summaryOrders, settlementStatuses);
+  // ---- Resumen: resultado del periodo (rango `filters.resumen`) ----
   const summaryExpenses = expenses
     .filter((expense) => isWithinRange(expense.date, filters.resumen.start, filters.resumen.end))
     .sort((first, second) => second.date.localeCompare(first.date));
-  const completedSummaryOrders = summaryOrders.filter((order) => order.status === 'Recibido');
-  const cancelledSummaryOrders = summaryOrders.filter((order) => order.status === 'Finalizado');
-  const pendingSummaryOrders = summaryOrders.filter((order) => !['Recibido', 'Finalizado'].includes(order.status));
   const totalCollected = summaryOrders.reduce((sum, order) => sum + order.total, 0);
-  const summaryCommission = summarySettlements.reduce((sum, settlement) => sum + settlement.commission, 0);
-  const { cashFund: summaryCashFund, withdrawalAvailable: summaryWithdrawalAvailable } = getCashAllocation(summaryCommission);
+  const avgTicket = summaryOrders.length ? Math.round(totalCollected / summaryOrders.length) : 0;
+  // Misma cuenta que la vista Caja: ganancia neta (sin IVA ni pasarela) de pedidos finalizados y
+  // compras de Monedas. Antes aqui se sumaba `commission` y el Resumen no cuadraba con Caja.
+  const summaryCash = summarizeCash(buildCashEntries(settlements, advertising?.compras ?? [], orders, filters.resumen.start, filters.resumen.end));
+  const summaryProfit = summaryCash.totalProfit;
+  const summaryCashFund = summaryCash.totalCaja;
+  const summaryPartnerFund = summaryProfit - summaryCashFund;
   const summaryExpenseTotal = getExpenseTotal(summaryExpenses);
   const summaryCashAvailable = summaryCashFund - summaryExpenseTotal;
-  const summaryPartnerWithdrawn = withdrawals
-    .filter((withdrawal) => withdrawal.type === 'partner' && isWithinRange(withdrawal.date, filters.resumen.start, filters.resumen.end))
-    .reduce((sum, withdrawal) => sum + withdrawal.amount, 0);
-  const summaryPartnerAvailable = summaryWithdrawalAvailable - summaryPartnerWithdrawn;
-  const summaryPartnerBalances = getPartnerBalances(withdrawals, summaryWithdrawalAvailable, filters.resumen.start, filters.resumen.end);
-  const summaryPartnerRows = PARTNERS
-    .map((partner) => ({ partner, balance: summaryPartnerBalances[partner] ?? 0 }))
-    .sort((first, second) => second.balance - first.balance);
-  const lowestPartner = summaryPartnerRows[summaryPartnerRows.length - 1] ?? { partner: 'Sin datos', balance: 0 };
-  const topSeller = [...summaryOrders.reduce((acc, order) => {
-    const current = acc.get(order.seller) ?? { seller: order.seller, sellerFounder: order.sellerFounder, total: 0, count: 0 };
-    current.total += order.total;
-    current.count += 1;
-    acc.set(order.seller, current);
-    return acc;
-  }, new Map<string, { seller: string; sellerFounder?: boolean; total: number; count: number }>()).values()]
-    .sort((first, second) => second.total - first.total)[0] ?? { seller: 'Sin ventas', total: 0, count: 0 };
-  const avgTicket = summaryOrders.length ? Math.round(totalCollected / summaryOrders.length) : 0;
-  const completionRate = getPercent(completedSummaryOrders.length, summaryOrders.length);
-  const commissionRate = getPercent(summaryCommission, totalCollected);
-  const flowMax = Math.max(summaryCashFund, summaryExpenseTotal, summaryWithdrawalAvailable, summaryPartnerWithdrawn, Math.abs(summaryCashAvailable), 1);
-  const cashCoverage = summaryExpenseTotal ? getPercent(summaryCashFund, summaryExpenseTotal) : summaryCashFund ? 100 : 0;
-  const healthScore = Math.max(0, Math.min(100, Math.round((completionRate * 0.45) + (Math.min(cashCoverage, 100) * 0.35) + ((pendingSummaryOrders.length ? 55 : 100) * 0.2))));
-  const healthTone = summaryCashAvailable < 0 ? 'red' : pendingSummaryOrders.length ? 'orange' : 'green';
-  const healthLabel = summaryCashAvailable < 0 ? 'Caja bajo presión' : pendingSummaryOrders.length ? 'Periodo activo' : 'Periodo sano';
+  const summaryPartnerWithdrawals = withdrawals.filter((withdrawal) => withdrawal.type === 'partner' && isWithinRange(withdrawal.date, filters.resumen.start, filters.resumen.end));
+  const summaryPartnerWithdrawn = summaryPartnerWithdrawals.reduce((sum, withdrawal) => sum + withdrawal.amount, 0);
+  const summaryPartnerPending = summaryPartnerWithdrawals.filter((withdrawal) => withdrawal.estado === 'PENDIENTE');
+  const summaryPartnerAvailable = summaryPartnerFund - summaryPartnerWithdrawn;
   const statusRows = ORDER_STATUS_OPTIONS
     .map((status) => ({ status, count: summaryOrders.filter((order) => order.status === status).length }))
     .filter((row) => row.count > 0);
-  const focusItems = [
-    summaryCashAvailable < 0
-      ? { title: 'Recuperar caja operacional', detail: `Faltan ${formatMoney(Math.abs(summaryCashAvailable))} para cubrir gastos del periodo.` }
-      : { title: 'Caja operativa protegida', detail: `Quedan ${formatMoney(summaryCashAvailable)} disponibles después de gastos.` },
-    pendingSummaryOrders.length
-      ? { title: 'Cerrar pedidos pendientes', detail: `${pendingSummaryOrders.length} pedidos siguen abiertos y pueden liberar comisión.` }
-      : { title: 'Pedidos del periodo cerrados', detail: 'No hay pedidos operativos pendientes en este rango.' },
-    lowestPartner.balance < 0
-      ? { title: 'Regularizar saldo de socios', detail: `${lowestPartner.partner} presenta ${formatMoney(Math.abs(lowestPartner.balance))} en negativo.` }
-      : { title: 'Socios al día', detail: `Saldo total de socios: ${formatMoney(summaryPartnerAvailable)}.` },
-  ];
+  const summaryPeriodLabel = `${formatDate(filters.resumen.start)} a ${formatDate(filters.resumen.end)}`;
+
+  // ---- Resumen: pendientes ahora (no dependen del rango) ----
+  const lateOrders = orders
+    .map((order) => ({ order, criticality: getOrderCriticality(order) }))
+    .filter(({ criticality }) => criticality.level === 'critical' || criticality.level === 'warning')
+    .sort((first, second) => (second.criticality.elapsedHours ?? 0) - (first.criticality.elapsedHours ?? 0));
+  const criticalOrdersCount = lateOrders.filter(({ criticality }) => criticality.level === 'critical').length;
+  const warningOrdersCount = lateOrders.length - criticalOrdersCount;
+  const pendingSettlements = settlements.filter((settlement) => settlement.liquidationStatus === 'PENDIENTE_LIQUIDACION');
+  const pendingSettlementsAmount = pendingSettlements.reduce((sum, settlement) => sum + settlement.sellerPayout, 0);
+  const withdrawalsToPayAmount = activeWithdrawals.reduce((sum, withdrawal) => sum + withdrawal.monto, 0);
+  const withdrawalsWithoutDocument = activeWithdrawals.filter((withdrawal) => !withdrawal.documentoLiquidacionCompleto).length;
+  const withdrawalsRetained = activeWithdrawals.filter((withdrawal) => withdrawal.fondosRetenidos).length;
+  const expensesWithoutReceipt = expenses.filter((expense) => !expense.receipt && !expense.receiptUrl).length;
+  const isSuperAdmin = user?.role === Role.SUPER_ADMIN;
+  const adminInsights = buildAdminInsights({
+    criticalOrders: criticalOrdersCount,
+    warningOrders: warningOrdersCount,
+    withdrawalsToPay: activeWithdrawals.length,
+    withdrawalsToPayAmount,
+    withdrawalsWithoutDocument,
+    withdrawalsRetained,
+    weekday: new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Santiago' })).getDay(),
+    pendingSettlements: pendingSettlements.length,
+    pendingSettlementsAmount,
+    rechargesWithoutDocument: advertisingSinDocumento,
+    expensesWithoutReceipt,
+    cashAvailable: summaryCashAvailable,
+    partnerWithdrawalsPending: withdrawals.filter((withdrawal) => withdrawal.estado === 'PENDIENTE').length,
+    isSuperAdmin,
+  });
   const totalGenerated = selectedSettlementRows.reduce((sum, settlement) => sum + settlement.saleTotal, 0);
   const totalCommission = selectedSettlementRows.reduce((sum, settlement) => sum + settlement.netSettlement, 0);
   const totalIvaAccumulated = selectedSettlementRows.reduce((sum, settlement) => sum + settlement.serviceCommissionIva, 0);
@@ -2264,119 +2188,193 @@ export default function AdminFinancePage() {
 
       {activeView === 'resumen' && (
         <>
-          <section className={`summary-hero tone-${healthTone}`}>
-            <div>
-              <div className="summary-status-line">
-                <span className="summary-eyebrow">{healthLabel}</span>
-                <button className="summary-focus-trigger" type="button" aria-label="Ver foco recomendado">
-                  <UiIcon name={summaryCashAvailable < 0 || lowestPartner.balance < 0 ? 'alert' : pendingSummaryOrders.length ? 'clock' : 'check'} />
-                  <span className="summary-focus-popover" role="tooltip">
-                    <strong>Foco recomendado</strong>
-                    {focusItems.map((item) => (
-                      <span key={item.title}>
-                        <b>{item.title}</b>
-                        <small>{item.detail}</small>
-                      </span>
-                    ))}
-                  </span>
-                </button>
-              </div>
-              <h2>{formatMoney(summaryCashAvailable)} de saldo operacional</h2>
-              <p>{summaryOrders.length} pedidos generados por el backend producen {formatMoney(summaryCommission)} de comisión. La caja cubre {cashCoverage}% de los gastos del periodo y deja {formatMoney(summaryPartnerAvailable)} de saldo total para socios.</p>
-            </div>
-            <div className="summary-health">
-              <span>Salud del periodo</span>
-              <strong>{healthScore}%</strong>
-              <div className="summary-health-track"><i style={{ width: `${healthScore}%` }} /></div>
-            </div>
-            <div className="summary-hero-actions">
-              <button className="secondary-button" type="button" onClick={() => navigate('/administracion/liquidaciones')}><UiIcon name="clipboard" />Liquidaciones</button>
-              <button className="secondary-button" type="button" onClick={() => navigate('/administracion/gastos')}><UiIcon name="wallet" />Caja y gastos</button>
-            </div>
+          <div className="dash-row-title"><h2>Pendientes ahora</h2><span>No dependen del rango de fechas</span></div>
+          <section className="dash-kpi-row" aria-label="Pendientes de administración">
+            <KpiTile
+              label="Pedidos atrasados"
+              value={bootstrap ? criticalOrdersCount : null}
+              tone="red"
+              urgent
+              iconName="clock"
+              to="/administracion/pedidos?criticidad=critical"
+              secondary={bootstrap ? `${warningOrdersCount} se acercan al límite de su etapa` : undefined}
+              loading={bootstrapLoading}
+              error={bootstrapError ? bootstrapErrorDetail : undefined}
+              onRetry={refetchBootstrap}
+              infoContent={<><strong>Qué hacer</strong><p>Pedidos pagados que llevan demasiado tiempo en la misma etapa (más de 48 h pendientes, 72 h preparando, 120 h enviados o 72 h recibidos sin finalizar). Abre el pedido, contacta al vendedor o registra la incidencia.</p></>}
+            />
+            <KpiTile
+              label="Retiros por pagar"
+              value={withdrawalsLoading ? null : activeWithdrawals.length}
+              tone="amber"
+              iconName="bank"
+              to="/administracion/pago-proveedores"
+              secondary={withdrawalsLoading ? undefined : `${formatMoney(withdrawalsToPayAmount)} · ${withdrawalsWithoutDocument} sin documento · ${withdrawalsRetained} con fondos retenidos`}
+              loading={withdrawalsLoading}
+              error={withdrawalsError ? withdrawalsErrorDetail : undefined}
+              onRetry={refetchWithdrawals}
+              infoContent={<><strong>Qué hacer</strong><p>Retiros que los vendedores solicitaron y se pagan el jueves con la nómina BCI. Antes de generar la nómina, cada uno necesita su boleta o factura de liquidación; los de tiendas suspendidas quedan retenidos.</p></>}
+            />
+            <KpiTile
+              label="Ventas por liquidar"
+              value={bootstrap ? pendingSettlements.length : null}
+              tone="blue"
+              iconName="clipboard"
+              to="/administracion/liquidaciones"
+              secondary={bootstrap ? `${formatMoney(pendingSettlementsAmount)} acumulados para vendedores` : undefined}
+              loading={bootstrapLoading}
+              error={bootstrapError ? bootstrapErrorDetail : undefined}
+              onRetry={refetchBootstrap}
+              infoContent={<><strong>Qué hacer</strong><p>Ventas finalizadas cuyo pago al vendedor todavía no se ha solicitado. No requieren acción inmediata: pasan a "En liquidación" cuando la tienda pide su retiro. Sirve para saber cuánto dinero de terceros está en custodia.</p></>}
+            />
+            <KpiTile
+              label="Recargas sin documento"
+              value={advertising ? advertisingSinDocumento : null}
+              tone="violet"
+              urgent
+              iconName="receipt"
+              to="/administracion/pedidos?tab=publicidad"
+              loading={advertisingLoading}
+              error={advertisingError ? advertisingErrorDetail : undefined}
+              onRetry={refetchAdvertising}
+              infoContent={<><strong>Qué hacer</strong><p>Compras de Monedas ya pagadas que aún no tienen boleta o factura. Emítela en el Portal MIPYME del SII con los datos que muestra la pantalla y súbela a la recarga; el comprador la recibe por correo.</p></>}
+            />
+            <KpiTile
+              label="Gastos sin comprobante"
+              value={bootstrap ? expensesWithoutReceipt : null}
+              tone="muted"
+              iconName="document"
+              to="/administracion/gastos?tab=gastos"
+              loading={bootstrapLoading}
+              error={bootstrapError ? bootstrapErrorDetail : undefined}
+              onRetry={refetchBootstrap}
+              infoContent={<><strong>Qué hacer</strong><p>Gastos registrados sin boleta o factura adjunta. Súbela desde Caja y gastos para que la contabilidad cuadre.</p></>}
+            />
           </section>
 
-          <section className="summary-kpi-grid">
-            <article className="summary-kpi tone-blue"><span><UiIcon name="wallet" />Ventas</span><strong>{formatMoney(totalCollected)}</strong><p>{summaryOrders.length} pedidos · promedio por pedido {formatMoney(avgTicket)}</p></article>
-            <article className="summary-kpi tone-green"><span><UiIcon name="percent" />Ganancias</span><strong>{formatMoney(summaryCommission)}</strong><p>{summarySettlements.length} liquidaciones · {commissionRate}% del vendido</p></article>
-            <article className={`summary-kpi tone-${summaryCashAvailable < 0 ? 'red' : 'cyan'}`}><span><UiIcon name="bank" />Caja</span><strong>{formatMoney(summaryCashAvailable)}</strong><p>{formatMoney(summaryCashFund)} base · {formatMoney(summaryExpenseTotal)} gastos</p></article>
-            <article className="summary-kpi tone-purple"><span><UiIcon name="wallet" />Socios</span><strong>{formatMoney(summaryPartnerAvailable)}</strong><p>Saldo total socios · retirado {formatMoney(summaryPartnerWithdrawn)}</p></article>
+          <InsightList items={adminInsights} loading={bootstrapLoading} />
+
+          <div className="dash-row-title"><h2>Resultado del periodo</h2><span>{summaryPeriodLabel} · cambia el rango arriba a la derecha</span></div>
+          <section className="dash-kpi-row" aria-label="Resultado del periodo">
+            <KpiTile
+              label="Ventas"
+              value={bootstrap ? formatMoney(totalCollected) : null}
+              tone="blue"
+              iconName="cart"
+              to="/administracion/pedidos"
+              secondary={bootstrap ? `${summaryOrders.length} pedidos · promedio ${formatMoney(avgTicket)}` : undefined}
+              loading={bootstrapLoading}
+              error={bootstrapError ? bootstrapErrorDetail : undefined}
+              onRetry={refetchBootstrap}
+              infoContent={<><strong>Cómo leerlo</strong><p>Total pagado por los compradores en los pedidos creados dentro del rango (incluye envío). No es ganancia: la mayor parte se liquida a los vendedores.</p></>}
+            />
+            <KpiTile
+              label="Ganancia neta"
+              value={bootstrap ? formatMoney(summaryProfit) : null}
+              tone="green"
+              iconName="percent"
+              to="/administracion/gastos?tab=caja"
+              secondary={bootstrap ? `${summaryCash.pedidosCount} pedidos finalizados · ${summaryCash.publicidadCount} recargas de Monedas` : undefined}
+              loading={bootstrapLoading}
+              error={bootstrapError ? bootstrapErrorDetail : undefined}
+              onRetry={refetchBootstrap}
+              infoContent={<><strong>Cómo leerlo</strong><p>Lo que realmente queda para RepuesTop: comisión de los pedidos finalizados y venta de Monedas, descontados el IVA y la comisión de Flow. Es la misma cifra que muestra Caja. De aquí, 70% va a caja operativa y 30% a socios.</p></>}
+            />
+            <KpiTile
+              label="Caja operativa"
+              value={bootstrap ? formatMoney(summaryCashAvailable) : null}
+              tone={summaryCashAvailable < 0 ? 'red' : 'green'}
+              iconName="wallet"
+              to="/administracion/gastos?tab=gastos"
+              secondary={bootstrap ? `70% de la ganancia ${formatMoney(summaryCashFund)} menos gastos ${formatMoney(summaryExpenseTotal)}` : undefined}
+              loading={bootstrapLoading}
+              error={bootstrapError ? bootstrapErrorDetail : undefined}
+              onRetry={refetchBootstrap}
+              infoContent={<><strong>Cómo leerlo</strong><p>El 70% de la ganancia neta del periodo menos los gastos registrados. Si queda en rojo, los gastos superaron lo que entró: frena los no esenciales.</p></>}
+            />
+            <KpiTile
+              label="Socios"
+              value={bootstrap ? formatMoney(summaryPartnerAvailable) : null}
+              tone="violet"
+              iconName="users"
+              to={isSuperAdmin ? '/retiros' : undefined}
+              secondary={bootstrap ? `30% ${formatMoney(summaryPartnerFund)} menos retirado ${formatMoney(summaryPartnerWithdrawn)} · ${summaryPartnerPending.length} retiros pendientes` : undefined}
+              loading={bootstrapLoading}
+              error={bootstrapError ? bootstrapErrorDetail : undefined}
+              onRetry={refetchBootstrap}
+              infoContent={<><strong>Cómo leerlo</strong><p>El 30% de la ganancia neta del periodo menos los retiros de socios registrados en el mismo rango (pagados y pendientes). Los retiros se gestionan en la pantalla de Retiros de socios.</p></>}
+            />
           </section>
 
-          <section className="summary-layout">
-            <section className="summary-panel summary-panel-wide">
-              <div className="panel-title"><h2>Flujo de caja del periodo</h2><span className="summary-panel-note">70% caja · 30% socios</span></div>
-              <div className="cash-flow-list">
-                <article><div><span>Ganancia neta</span><strong>{formatMoney(summaryCommission)}</strong></div><i><b style={{ width: `${getBarWidth(summaryCommission, Math.max(summaryCommission, flowMax))}%` }} /></i></article>
-                <article><div><span>Caja para operar</span><strong>{formatMoney(summaryCashFund)}</strong></div><i><b style={{ width: `${getBarWidth(summaryCashFund, flowMax)}%` }} /></i></article>
-                <article className="danger"><div><span>Gastos del periodo</span><strong>{formatMoney(summaryExpenseTotal)}</strong></div><i><b style={{ width: `${getBarWidth(summaryExpenseTotal, flowMax)}%` }} /></i></article>
-                <article className={summaryCashAvailable < 0 ? 'danger' : 'success'}><div><span>Saldo operacional</span><strong>{formatMoney(summaryCashAvailable)}</strong></div><i><b style={{ width: `${getBarWidth(Math.abs(summaryCashAvailable), flowMax)}%` }} /></i></article>
-              </div>
-            </section>
-
-            <section className="summary-panel">
-              <div className="panel-title"><h2>Operación</h2><span className="summary-panel-note">{completionRate}% completado</span></div>
-              <div className="operation-snapshot">
-                <div><strong>{completedSummaryOrders.length}</strong><span>Recibidos</span></div>
-                <div><strong>{pendingSummaryOrders.length}</strong><span>Pendientes</span></div>
-                <div><strong>{cancelledSummaryOrders.length}</strong><span>Finalizados</span></div>
-              </div>
-              <div className="status-stack">
-                {statusRows.length ? statusRows.map((row) => (
-                  <article key={row.status}><div><span>{row.status}</span><strong>{row.count}</strong></div><i><b style={{ width: `${getBarWidth(row.count, summaryOrders.length)}%` }} /></i></article>
-                )) : <div className="empty-state">No hay pedidos en este periodo.</div>}
-              </div>
-            </section>
-
-            <section className="summary-panel">
-              <div className="panel-title"><h2>Mejor frente comercial</h2><span className="summary-panel-note">{topSeller.count} pedidos</span></div>
-              <div className="seller-highlight"><span><UiIcon name="wallet" /></span><div><strong><FounderSellerName name={topSeller.seller} founder={topSeller.sellerFounder} /></strong><p>{formatMoney(topSeller.total)} vendido en el rango activo.</p></div></div>
-              <dl className="compact-info-list">
-                <div><dt>Promedio por pedido</dt><dd>{formatMoney(avgTicket)}</dd></div>
-                <div><dt>Pedidos activos</dt><dd>{pendingSummaryOrders.length}</dd></div>
-                <div><dt>Liquidaciones cerradas</dt><dd>{summarySettlements.length}</dd></div>
-              </dl>
-            </section>
-
-            <section className="summary-panel">
-              <div className="panel-title"><h2>Historial de gastos</h2><span className="summary-panel-note">Últimos 5</span></div>
+          <section className="dash-grid">
+            <ActionQueue
+              title="Pedidos que llevan más tiempo sin avanzar"
+              help={<><strong>Por dónde empezar</strong><p>Los cinco pedidos que más tiempo llevan en su etapa actual. "Crítico" ya superó el límite; "Atención" está cerca.</p></>}
+              items={lateOrders.slice(0, 5).map(({ order, criticality }) => ({
+                id: order.id,
+                title: `Pedido ${formatOrderNumber(order.id)} · ${order.status}`,
+                subtitle: `${order.seller} · ${order.product}`,
+                ageLabel: criticality.elapsedHours === null ? 'sin fecha' : `${formatElapsedHours(criticality.elapsedHours)} sin cambios`,
+                ageTone: criticality.level === 'critical' ? 'red' : 'amber',
+                badge: <Badge text={criticality.label} variant={criticality.level === 'critical' ? 'red' : 'amber'} />,
+                amount: formatMoney(order.total),
+                onOpen: () => setSelectedOrderCriticality(order),
+                openLabel: 'Ver alerta',
+              }))}
+              loading={bootstrapLoading}
+              error={bootstrapError ? bootstrapErrorDetail : undefined}
+              onRetry={refetchBootstrap}
+              what="los pedidos"
+              emptyText="Ningún pedido está atrasado."
+              seeAllTo="/administracion/pedidos?criticidad=warning"
+            />
+            <MiniBars
+              title="Flujo del periodo"
+              help={<p>De la ganancia neta, el 70% es caja operativa y el 30% es de los socios. El saldo operacional es la caja menos los gastos del periodo.</p>}
+              loading={bootstrapLoading}
+              format={formatMoney}
+              items={[
+                { key: 'ganancia', label: 'Ganancia neta', value: summaryProfit, tone: 'green', to: '/administracion/gastos?tab=caja' },
+                { key: 'caja', label: 'Caja operativa (70%)', value: summaryCashFund, tone: 'blue', to: '/administracion/gastos?tab=caja' },
+                { key: 'socios', label: 'Socios (30%)', value: summaryPartnerFund, tone: 'violet' },
+                { key: 'gastos', label: 'Gastos del periodo', value: summaryExpenseTotal, tone: 'red', to: '/administracion/gastos?tab=gastos' },
+                { key: 'saldo', label: summaryCashAvailable < 0 ? 'Saldo operacional (negativo)' : 'Saldo operacional', value: Math.abs(summaryCashAvailable), tone: summaryCashAvailable < 0 ? 'red' : 'green' },
+              ]}
+              emptyText="No hay ingresos ni gastos en este periodo."
+            />
+            <MiniBars
+              title="Pedidos del periodo por estado"
+              help={<p>Cuántos pedidos creados en el rango están en cada etapa. Haz clic en una barra para verlos.</p>}
+              loading={bootstrapLoading}
+              total={summaryOrders.length}
+              showPercent
+              items={statusRows.map((row) => ({
+                key: row.status,
+                label: row.status,
+                value: row.count,
+                tone: row.status === 'Finalizado' || row.status === 'Recibido' ? 'green' : row.status.startsWith('Cancelado') || row.status === 'En mediación' ? 'red' : 'amber',
+                to: `/administracion/pedidos?estado=${encodeURIComponent(row.status)}`,
+              }))}
+              emptyText="No hay pedidos en este periodo."
+            />
+            <DashboardSection
+              title="Últimos gastos del periodo"
+              what="los gastos"
+              loading={bootstrapLoading}
+              error={bootstrapError ? bootstrapErrorDetail : undefined}
+              onRetry={refetchBootstrap}
+              action={<button type="button" className="dash-link-button" onClick={() => navigate('/administracion/gastos?tab=gastos')}>Ver todos <UiIcon name="arrowRight" /></button>}
+            >
               <div className="premium-expense-list">
                 {summaryExpenses.slice(0, 5).length ? summaryExpenses.slice(0, 5).map((expense, index) => (
                   <article className="premium-expense-item" key={expense.id}>
                     <div className="premium-expense-rank">{index + 1}</div>
-                    <div><strong>{expense.category}</strong><p>{expense.description}</p></div>
+                    <div><strong>{expense.category}</strong><p>{expense.description}{!expense.receipt && !expense.receiptUrl ? ' · sin comprobante' : ''}</p></div>
                     <div className="premium-expense-meta"><span>{formatDate(expense.date)}</span><strong>{formatMoney(expense.amount)}</strong></div>
                   </article>
-                )) : <div className="empty-state">No hay gastos registrados en este periodo.</div>}
+                )) : <div className="dash-empty"><UiIcon name="check" /> No hay gastos registrados en este periodo.</div>}
               </div>
-              <dl className="compact-info-list expense-summary-strip">
-                <div><dt><UiIcon name="clipboard" />Gasto del periodo</dt><dd>{formatMoney(summaryExpenseTotal)}</dd></div>
-                <div><dt><UiIcon name="wallet" />Saldo operacional</dt><dd>{formatMoney(summaryCashAvailable)}</dd></div>
-              </dl>
-            </section>
-
-            <section className="summary-panel">
-              <div className="panel-title"><h2>Socios</h2><span className="summary-panel-note">{PARTNERS.length} partes</span></div>
-              <div className="partner-pool"><strong>{formatMoney(summaryPartnerAvailable)}</strong><span>Saldo total de socios después de retiros</span></div>
-              <div className="partner-share-list">
-                {summaryPartnerRows.map(({ partner, balance }) => (
-                  <article key={partner} className={balance < 0 ? 'balance-negative' : ''}><span>{partner}</span><strong>{formatMoney(balance)}</strong></article>
-                ))}
-              </div>
-              <div className="empty-state compact-empty">Los saldos pueden ser positivos o negativos según los retiros registrados de cada socio.</div>
-            </section>
-
-            <section className="summary-panel summary-panel-wide">
-              <div className="panel-title"><h2>Actividad reciente</h2></div>
-              <div className="activity-list compact compact-activity-list">
-                {activityLogs.slice(0, 4).map((item) => (
-                  <article className="activity-item" key={item.id}>
-                    <span className="activity-icon"><UiIcon name={item.iconName} /></span>
-                    <div><strong>{item.title}</strong><p>{item.description}</p></div>
-                    <time>{item.time}</time>
-                  </article>
-                ))}
-              </div>
-            </section>
+            </DashboardSection>
           </section>
         </>
       )}

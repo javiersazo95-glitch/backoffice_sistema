@@ -10,27 +10,11 @@ import UiIcon from '@/components/shared/UiIcon';
 import MetricCard from '@/components/shared/MetricCard';
 import FounderSellerName from '@/components/shared/FounderSellerName';
 import SellerListTooltip from '@/components/shared/SellerListTooltip';
-import { downloadFile } from './utils';
+import { downloadFile, getCurrentCycleRange } from './utils';
 import type { RetiroAdminResponse, RetiroDetalleResponse, PagoProveedorResponse, ConfiguracionPagos, Withdrawal } from './types';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { RecordCard, RecordList, EmptyState } from '@/components/mobile';
 
-// Helper to calculate Thursday-to-Wednesday cycle range
-function getCurrentCycleRange() {
-  const today = new Date();
-  const day = today.getDay(); // 0: Sunday, 3: Wednesday, 4: Thursday
-
-  const start = new Date(today);
-  const diffToThursday = day >= 4 ? day - 4 : day + 3;
-  start.setDate(today.getDate() - diffToThursday);
-  start.setHours(0, 0, 0, 0);
-
-  const end = new Date(start);
-  end.setDate(start.getDate() + 6);
-  end.setHours(23, 59, 59, 999);
-
-  return { start, end };
-}
 
 /**
  * Una fecha sin hora ("2026-09-23", como llega la de un retiro de socio) se lee como dia LOCAL.
