@@ -5,7 +5,6 @@ import * as mediationsApi from '@/api/mediations';
 import * as reportsApi from '@/api/reports';
 import * as validationsApi from '@/api/validations';
 import * as alertsApi from '@/api/alerts';
-import * as receiptsApi from '@/api/receipts';
 import * as sellersApi from '@/api/sellers';
 import { useDashboardSummary } from '@/hooks/useDashboard';
 import Badge from '@/components/shared/Badge';
@@ -73,12 +72,6 @@ export default function DashboardPage() {
     staleTime: 60_000,
   });
 
-  const receipts = useQuery({
-    queryKey: ['dashboard', 'receipts-pending'],
-    queryFn: () => receiptsApi.getReceipts(0, 50),
-    staleTime: 60_000,
-  });
-
   const validations = useQuery({
     queryKey: ['dashboard', 'validations-pending'],
     queryFn: async () => {
@@ -128,10 +121,6 @@ export default function DashboardPage() {
   const validationsOver3 = data?.validationsPendingOver3Days
     ?? (validations.data ? validations.data.filter((v) => (daysSince(v.uploadedAt) ?? 0) >= VALIDATION_WARN_DAYS).length : null);
 
-  const receiptRows = receipts.data?.content ?? [];
-  const receiptsPending = data?.receiptFollowups ?? (receipts.data ? receipts.data.totalElements : null);
-  const receiptsOverdue = data?.receiptsOverdue ?? (receipts.data ? receiptRows.filter((r) => r.dueAt && Date.parse(r.dueAt) < Date.now()).length : null);
-
   const reportsTodayCount = data?.reportsToday ?? reportsToday.data ?? null;
   const suspendedCount = data?.suspendedSellers ?? suspended.data ?? null;
 
@@ -145,10 +134,9 @@ export default function DashboardPage() {
     altaUnreviewed: alta ?? 0,
     validationsOver3Days: validationsOver3 ?? 0,
     validationsPending: validationsPending ?? 0,
-    receiptsOverdue: receiptsOverdue ?? 0,
     reportsToday: reportsTodayCount ?? 0,
     suspended: suspendedCount ?? 0,
-  }), [over5, between2And5, critical, alta, validationsOver3, validationsPending, receiptsOverdue, reportsTodayCount, suspendedCount]);
+  }), [over5, between2And5, critical, alta, validationsOver3, validationsPending, reportsTodayCount, suspendedCount]);
 
   const loadingAny = summary.isLoading || mediations.isLoading || alerts.isLoading;
 
@@ -246,18 +234,6 @@ export default function DashboardPage() {
           infoContent={<><strong>Qué hacer</strong><p>Tiendas nuevas que subieron sus documentos (RUT, cédula, inicio de actividades) y no pueden vender hasta que las apruebes. Revisa cada documento y aprueba, pide corrección o rechaza.</p></>}
         />
         <KpiTile
-          label="Boletas de venta por vencer"
-          value={receiptsPending}
-          tone={receiptsOverdue ? 'red' : 'amber'}
-          iconName="receipt"
-          to="/confianza/alertas"
-          secondary={receiptsOverdue !== null ? `${receiptsOverdue} ya vencidas` : undefined}
-          loading={summary.isLoading && receipts.isLoading}
-          error={summary.isError && receipts.isError ? receipts.error : undefined}
-          onRetry={() => { void summary.refetch(); void receipts.refetch(); }}
-          infoContent={<><strong>Qué hacer</strong><p>Ventas finalizadas cuya boleta el vendedor todavía no sube. Antes del vencimiento, pídesela por el canal de la tienda; cuando llegue, marca el seguimiento como resuelto en el panel de Alertas.</p></>}
-        />
-        <KpiTile
           label="Reportes de usuarios hoy"
           value={reportsTodayCount}
           tone="violet"
@@ -341,15 +317,6 @@ export default function DashboardPage() {
             { key: 'aprobadas', label: 'Aprobadas', value: data?.validationsApproved ?? 0, tone: 'green', to: '/confianza/sellers' },
           ]}
           emptyText="Sin solicitudes de registro."
-        />
-        <MiniBars
-          title="Boletas en seguimiento"
-          loading={receipts.isLoading}
-          items={[
-            { key: 'vencidas', label: 'Vencidas', value: receiptsOverdue ?? 0, tone: 'red', to: '/confianza/alertas' },
-            { key: 'porvencer', label: 'Dentro de plazo', value: Math.max(0, (receiptsPending ?? 0) - (receiptsOverdue ?? 0)), tone: 'amber', to: '/confianza/alertas' },
-          ]}
-          emptyText="No hay boletas pendientes."
         />
       </section>
     </>

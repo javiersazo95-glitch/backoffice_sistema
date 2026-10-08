@@ -47,7 +47,6 @@ export const navSections: NavSection[] = [
       { path: '/administracion/gastos', label: 'Caja y gastos', badge: 0, icon: 'receipt' },
       { path: '/administracion/pago-proveedores', label: 'Pago a proveedores', badge: 0, icon: 'wallet' },
       { path: '/administracion/pago-captadores', label: 'Pago a captadores', badge: 0, icon: 'users' },
-      { path: '/administracion/boletas', label: 'Boletas de venta', badge: 0, icon: 'fileCheck' },
     ],
   },
   {

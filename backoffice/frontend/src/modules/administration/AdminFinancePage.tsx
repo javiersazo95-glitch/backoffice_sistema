@@ -676,7 +676,6 @@ export default function AdminFinancePage() {
   const [selectedAdvertisingOrder, setSelectedAdvertisingOrder] = useState<AdvertisingOrder | null>(null);
   const [partnerTab, setPartnerTab] = useState<PartnerTab>('ingresos');
   const [partnerIncomeFilter, setPartnerIncomeFilter] = useState<'todos' | 'pedidos' | 'publicidad'>('todos');
-  const [expandedLiquidationSellers, setExpandedLiquidationSellers] = useState<Set<string>>(new Set());
   const [selectedLiquidationSeller, setSelectedLiquidationSeller] = useState<LiquidationSellerGroup | null>(null);
   const [selectedPaidPeriod, setSelectedPaidPeriod] = useState<string>('');
   const [selectedPaidPayment, setSelectedPaidPayment] = useState<PagoProveedorResponse | null>(null);
@@ -1446,31 +1445,6 @@ export default function AdminFinancePage() {
     }));
     setOrderDraft(null);
     navigate('/administracion/pedidos');
-  }
-
-  function openDocument(order: Order, isEditing = false): void {
-    const existing = issuedDocuments[order.id];
-    if (existing && isIssuedDocumentComplete(existing) && !isEditing) {
-      setRegisteredDocumentPreview({ orderId: order.id, document: existing });
-      return;
-    }
-    setDocumentDraft({
-      orderId: order.id,
-      orderIds: [order.id],
-      retiroId: findActiveWithdrawalId(order.seller, order.sellerTaxId, order.sellerEmail),
-      isEditing: Boolean(existing),
-      type: existing?.type ?? 'Boleta',
-      rut: existing?.rut ?? order.sellerTaxId ?? '',
-      name: existing?.name ?? order.sellerLegalName ?? order.seller,
-      email: existing?.email ?? order.sellerEmail ?? '',
-      detail: existing?.detail ?? `Comisión de servicio RepuesTop del pedido ${order.id}`,
-      ivaLiquidado: existing?.ivaLiquidado ?? String(order.ivaComisionServicio ?? 0),
-      ivaLoCalculaElServidor: true,
-      tipoRetiro: 'PROVEEDOR',
-      pdfName: existing?.pdfName ?? '',
-      pdfUrl: existing?.pdfUrl,
-      originalPdfName: existing?.pdfName,
-    });
   }
 
   function getGroupDocument(group: LiquidationSellerGroup): RegisteredDocumentPreview | null {
@@ -2626,19 +2600,7 @@ export default function AdminFinancePage() {
                 {orderYearOptions.map((year) => <option key={year} value={year}>{year}</option>)}
               </select>
             </div>
-            {false ? (
-              <table className="wide-table">
-                <thead><tr><th>Vendedor</th><th>RUT</th><th>Razón social / Nombre</th><th>Correo</th><th>Cantidad liquidaciones</th><th>Monto total acumulado</th><th>Acciones</th></tr></thead>
-                <tbody>
-                  {enLiquidationGroups.length ? enLiquidationGroups.map((group) => (
-                    <>
-                      <tr key={group.key}><td><FounderSellerName name={group.seller} founder={group.sellerFounder} /></td><td>{group.rut}</td><td>{group.legalName}</td><td>{group.email}</td><td>{group.settlements.length}</td><td>{formatMoney(group.total)}</td><td><button className="action-button neutral" type="button" onClick={() => setExpandedLiquidationSellers((current) => { const next = new Set(current); next.has(group.key) ? next.delete(group.key) : next.add(group.key); return next; })} title="Ver liquidaciones"><UiIcon name="chevronDown" /></button></td></tr>
-                      {expandedLiquidationSellers.has(group.key) && <tr key={`${group.key}-details`}><td colSpan={7}><table className="wide-table"><thead><tr><th>ID liquidación</th><th>Pedido</th><th>Venta total</th><th>Descuentos al vendedor</th><th>Ganancia neta RepuesTop</th><th>Acciones</th></tr></thead><tbody>{group.settlements.map((settlement) => <tr key={settlement.id}><td>{settlement.id}</td><td>{settlement.orderId}</td><td>{formatMoney(settlement.saleTotal)}</td><td>{formatMoney(settlement.commission)}</td><td>{formatMoney(settlement.netSettlement)}</td><td><div className="action-cell"><button className="action-button neutral" type="button" onClick={() => showSettlementDetail(settlement)} title="Ver detalle"><UiIcon name="eye" /></button>{(() => { const order = orders.find((candidate) => candidate.id === settlement.orderId); const documentComplete = order ? isIssuedDocumentComplete(issuedDocuments[order.id]) : false; return order ? <button className={`action-button ${documentComplete ? 'success' : 'issue'}`} type="button" onClick={() => openDocument(order)} title="Emitir boleta o factura"><UiIcon name={documentComplete ? 'check' : 'receipt'} /></button> : null; })()}</div></td></tr>)}</tbody></table></td></tr>}
-                    </>
-                  )) : <tr><td colSpan={7}><div className="empty-state">No hay liquidaciones en curso para el rango seleccionado.</div></td></tr>}
-                </tbody>
-              </table>
-            ) : (liquidationTab as string) === 'LIQUIDADO' ? (
+            {(liquidationTab as string) === 'LIQUIDADO' ? (
               <table className="wide-table">
                 <thead><tr><th>Código de pago</th><th>Fecha de pago</th><th>Vendedores</th><th>Cantidad de liquidaciones</th><th>Fecha de liquidación</th><th>Acciones</th></tr></thead>
                 <tbody>{paidPaymentsForPeriod.length ? paidPaymentsForPeriod.map((payment) => <tr key={payment.pagoId}><td>PAG-{String(payment.pagoId).padStart(6, '0')}</td><td>{formatDate(payment.fechaPago)}</td><td><FounderSellerList sellers={payment.retiros.map((retiro) => ({ name: retiro.nombreTienda, founder: retiro.sellerFounder }))} /></td><td>{payment.retiros.length}</td><td>{formatDate(payment.periodoInicio ?? payment.fechaPago)} - {formatDate(payment.periodoFin ?? payment.fechaPago)}</td><td><div className="action-cell"><button className="action-button neutral" type="button" onClick={() => { setSelectedPaidPayment(payment); setPaidDetailQuery(''); setPaidDetailSeller(''); }} title="Ver liquidaciones del pago"><UiIcon name="eye" /></button><button className="action-button issue" type="button" onClick={() => setPaidDocumentsPayment(payment)} title="Historial de boletas"><UiIcon name="receipt" /></button></div></td></tr>) : <tr><td colSpan={6}><div className="empty-state">No hay liquidaciones pagadas para el período seleccionado.</div></td></tr>}</tbody>
@@ -4599,18 +4561,6 @@ export default function AdminFinancePage() {
                 style={{ marginRight: 'auto', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
               >
                 <UiIcon name="clock" style={{ width: '15px', height: '15px' }} /> Ver Historial
-              </button>
-              <button
-                className="secondary-button"
-                type="button"
-                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-                onClick={() => {
-                  const order = selectedDetailOrder;
-                  setSelectedDetailOrder(null);
-                  openDocument(order);
-                }}
-              >
-                <UiIcon name={isIssuedDocumentComplete(issuedDocuments[selectedDetailOrder.id]) ? 'check' : 'receipt'} style={{ width: '15px', height: '15px' }} /> {isIssuedDocumentComplete(issuedDocuments[selectedDetailOrder.id]) ? 'Boleta Emitida' : 'Emitir Boleta'}
               </button>
               <button className="primary-button" type="button" onClick={() => setSelectedDetailOrder(null)}>
                 Cerrar

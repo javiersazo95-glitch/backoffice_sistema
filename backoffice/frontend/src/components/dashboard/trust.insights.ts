@@ -7,7 +7,6 @@ export interface TrustInsightInput {
   altaUnreviewed: number;
   validationsOver3Days: number;
   validationsPending: number;
-  receiptsOverdue: number;
   reportsToday: number;
   suspended: number;
 }
@@ -76,16 +75,6 @@ export function buildTrustInsights(input: TrustInsightInput): Insight[] {
     });
   }
 
-  if (input.receiptsOverdue > 0) {
-    items.push({
-      id: 'boletas-vencidas',
-      tone: 'alert',
-      text: `${input.receiptsOverdue} ${plural(input.receiptsOverdue, 'boleta de venta ya venció', 'boletas de venta ya vencieron')} sin que el vendedor la suba. Exígela por el canal de la tienda y marca el seguimiento al recibirla.`,
-      actionLabel: 'Ver seguimiento',
-      to: '/confianza/alertas',
-    });
-  }
-
   if (input.reportsToday >= 3) {
     items.push({
       id: 'reportes-hoy',
@@ -107,7 +96,7 @@ export function buildTrustInsights(input: TrustInsightInput): Insight[] {
   }
 
   if (items.length === 0) {
-    items.push({ id: 'ok', tone: 'ok', text: 'No hay nada urgente: sin mediaciones viejas, alertas críticas ni boletas vencidas. Buen momento para revisar validaciones pendientes y reportes.' });
+    items.push({ id: 'ok', tone: 'ok', text: 'No hay nada urgente: sin mediaciones viejas ni alertas críticas. Buen momento para revisar validaciones pendientes y reportes.' });
   }
 
   return items.slice(0, 4);

@@ -18,8 +18,6 @@ export interface DashboardSummaryResponse {
   validationsApproved: number;
   validationsRejected: number;
   validationsCorrection: number;
-  /** Boletas de venta en seguimiento PENDIENTE. */
-  receiptFollowups: number;
   trustScore: number;
   trustLevel: TrustLevel;
   // Claves de urgencia: las agrega el backend nuevo; mientras no lleguen se calculan en el navegador.
@@ -29,6 +27,5 @@ export interface DashboardSummaryResponse {
   alertsUnreviewedCritica?: number;
   alertsUnreviewedAlta?: number;
   alertsUnreviewedMedia?: number;
-  receiptsOverdue?: number;
   reportsToday?: number;
 }

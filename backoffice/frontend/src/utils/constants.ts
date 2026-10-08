@@ -45,10 +45,6 @@ export const API_URLS = {
     LIST: '/audits',
     DETAIL: (id: number) => `/audits/${id}`,
   },
-  RECEIPTS: {
-    LIST: '/receipts',
-    RESOLVE: (id: number) => `/receipts/${id}/resolve`,
-  },
 } as const;
 
 export const PAGE_SIZES = {
@@ -57,7 +53,6 @@ export const PAGE_SIZES = {
   VALIDATIONS: 8,
   ALERTS: 8,
   AUDITS: 6,
-  RECEIPTS: 8,
   MESSAGES: 4,
   DEFAULT: 8,
   MAX: 100,
@@ -99,6 +94,5 @@ export const ROUTES = {
   MEDIATION_DETAIL: (id: number) => `/mediations/${id}`,
   VALIDATIONS: '/validations',
   ALERTS: '/alerts',
-  RECEIPTS: '/receipts',
   AUDITS: '/audits',
 } as const;

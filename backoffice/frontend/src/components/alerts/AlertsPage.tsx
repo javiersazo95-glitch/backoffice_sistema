@@ -4,7 +4,6 @@ import { mensajeDeError } from '@/api/client';
 import QueryErrorNotice from '@/components/shared/QueryErrorNotice';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as alertsApi from '@/api/alerts';
-import * as receiptsApi from '@/api/receipts';
 import MetricCard from '@/components/shared/MetricCard';
 import Badge from '@/components/shared/Badge';
 import Pagination from '@/components/shared/Pagination';
@@ -53,20 +52,6 @@ export default function AlertsPage() {
 
   // Las tarjetas contaban solo la pagina visible (8 filas) y cambiaban al paginar.
   const { data: summary } = useQuery({ queryKey: ['alerts', 'summary'], queryFn: () => alertsApi.getAlertsSummary() });
-
-  const { data: receipts, isError: receiptsError, error: receiptsErrorDetail, refetch: refetchReceipts } = useQuery({
-    queryKey: ['receipts'],
-    queryFn: () => receiptsApi.getReceipts(0, PAGE_SIZES.RECEIPTS),
-  });
-
-  const resolveReceiptMutation = useMutation({
-    mutationFn: (id: number) => receiptsApi.resolveReceipt(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['receipts'] });
-      showToast('Boleta resuelta');
-    },
-    onError: (error) => showToast(mensajeDeError(error, 'No se pudo resolver la boleta.')),
-  });
 
   const reviewMutation = useMutation({
     mutationFn: (id: number) => alertsApi.markAsReviewed(id),
@@ -177,7 +162,6 @@ export default function AlertsPage() {
         </div>
       </div>
       {isError && <QueryErrorNotice error={error} what="las alertas" onRetry={refetch} />}
-      {receiptsError && <QueryErrorNotice error={receiptsErrorDetail} what="los comprobantes en seguimiento" onRetry={refetchReceipts} />}
 
       <div className="metric-grid compact">
         <MetricCard label="Críticas" value={summary?.critica ?? pendingAlerts.filter((a) => a.severity === AlertSeverity.CRITICA).length} tone="red" description="Total registradas" />
@@ -303,37 +287,6 @@ export default function AlertsPage() {
         )}
       </div>
 
-      <div className="panel panel-spaced">
-        <div className="panel-header">
-          <h2>Seguimiento de Boletas</h2>
-          <span className="panel-count">{receipts?.totalElements ?? 0}</span>
-        </div>
-        <div className="panel-body">
-          {receipts?.content && receipts.content.length > 0 ? (
-            <div className="receipt-list">
-              {receipts.content.map((r) => (
-                <div key={r.id} className="receipt-item">
-                  <div>
-                    <strong><FounderSellerName name={r.sellerName} founder={r.sellerFounder} /></strong>
-                    <span>Orden {r.orderId} · {r.dueInformation}</span>
-                    {r.detail && <p>{r.detail}</p>}
-                  </div>
-                  <div style={{ display: 'grid', gap: 6, alignItems: 'center' }}>
-                    <Badge text={r.status} variant={r.status} />
-                    {r.status !== 'RESUELTO' && (
-                      <button className="secondary-button" style={{ fontSize: 11 }} onClick={() => resolveReceiptMutation.mutate(r.id)}>
-                        Resolver
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p style={{ color: 'var(--muted)' }}>Sin boletas pendientes.</p>
-          )}
-        </div>
-      </div>
     </>
   );
 }
