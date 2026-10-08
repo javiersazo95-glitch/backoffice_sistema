@@ -210,7 +210,12 @@ export interface IssuedDocument {
   email: string;
   detail: string;
   ivaLiquidado?: string;
+  /** Cuando se registro en el backoffice. */
   sentAt: string;
+  /** Folio del DTE segun el SII. Solo documentos de tienda; el de un socio no es DTE. */
+  folio?: string;
+  /** Fecha de emision del DTE, "YYYY-MM-DD". */
+  issuedAt?: string;
   pdfName?: string;
   pdfUrl?: string;
 }
@@ -269,6 +274,12 @@ export interface RetiroAdminResponse {
   documentoLiquidacionEmail?: string;
   documentoLiquidacionDetalle?: string;
   documentoLiquidacionIva?: number;
+  /** Folio y fecha de emision del DTE segun el SII: concilian con el Registro de Compras y Ventas. */
+  documentoLiquidacionFolio?: string | null;
+  /** "YYYY-MM-DD". Define el periodo tributario del documento en el F29. */
+  documentoLiquidacionFechaEmision?: string | null;
+  /** Cuando se registro en el backoffice; no es la fecha tributaria. */
+  documentoLiquidacionRegistradoAt?: string | null;
   documentoLiquidacionCompleto?: boolean;
 }
 
@@ -340,6 +351,8 @@ export interface AdvertisingOrder {
   documentoDescargable: boolean;
   documentoTipo: string | null;
   documentoFolio: string | null;
+  /** Fecha de emision del DTE segun el SII, "YYYY-MM-DD". */
+  documentoFechaEmision?: string | null;
   documentoSubidoAt: string | null;
 }
 

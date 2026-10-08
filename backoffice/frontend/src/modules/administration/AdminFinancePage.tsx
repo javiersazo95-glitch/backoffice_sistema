@@ -225,6 +225,19 @@ interface DocumentDraft {
   pdfUrl?: string;
   pdfFile?: File;
   originalPdfName?: string;
+  /**
+   * Folio y fecha de emision ("YYYY-MM-DD") que asigno el SII. Solo para retiros de PROVEEDOR: sin
+   * ellos el documento no se concilia con el Registro de Compras y Ventas y el retiro no se paga.
+   */
+  folio: string;
+  fechaEmision: string;
+  /** Fecha del retiro, para advertir si el documento se emite en otro mes (art. 55 DL 825). */
+  retiroFecha?: string;
+}
+
+/** Hoy en Chile, "YYYY-MM-DD": el valor por defecto de la fecha de emision de un DTE. */
+function todayChile(): string {
+  return chileDay(new Date().toISOString());
 }
 
 interface RegisteredDocumentPreview {
@@ -237,8 +250,14 @@ interface PaidDocumentPreview {
   fileUrl: string;
 }
 
-function isIssuedDocumentComplete(document?: IssuedDocument): boolean {
+/**
+ * Mismo criterio que la puerta de pago del backend (documentoLiquidacionCompleto). El documento de
+ * una tienda ademas exige folio y fecha de emision: sin ellos no se concilia con el SII y el
+ * servidor no deja pagar el retiro, asi que la pantalla no puede mostrarlo como completo.
+ */
+function isIssuedDocumentComplete(document?: IssuedDocument, esDeTienda = false): boolean {
   if (!document) return false;
+  if (esDeTienda && (!document.folio?.trim() || !document.issuedAt)) return false;
   return Boolean(
     document.type.trim()
     && document.rut.trim()
@@ -663,6 +682,8 @@ export default function AdminFinancePage() {
   }, [searchParams]);
   const [docRecargaDraft, setDocRecargaDraft] = useState<{
     compraId: number; codigo: string; comprador: string; tipo: string; folio: string;
+    /** Fecha de emision del DTE, "YYYY-MM-DD": define el mes del F29. */
+    fechaEmision: string;
     rut: string; razonSocial: string; archivo: File | null; yaCargado: boolean;
     // Lo que hay que tipear en el Portal MIPYME, para no ir a buscarlo a otra pantalla.
     email: string; giro: string; direccion: string; detalle: string;
@@ -692,6 +713,9 @@ export default function AdminFinancePage() {
 
   const [documentDraft, setDocumentDraft] = useState<DocumentDraft | null>(null);
   const [registeredDocumentPreview, setRegisteredDocumentPreview] = useState<RegisteredDocumentPreview | null>(null);
+  /** Mes ("YYYY-MM") del export de documentos emitidos, para cuadrar el F29. */
+  const [issuedDocumentsMonth, setIssuedDocumentsMonth] = useState(() => todayChile().slice(0, 7));
+  const [issuedDocumentsBusy, setIssuedDocumentsBusy] = useState(false);
   const [paidDocumentPreview, setPaidDocumentPreview] = useState<PaidDocumentPreview | null>(null);
   const [receiptExpense, setReceiptExpense] = useState<Expense | null>(null);
   /**
@@ -951,6 +975,7 @@ export default function AdminFinancePage() {
       comprador: row.comprador ?? sugerencia.email ?? 'Sin registrar',
       tipo: row.documentoTipo ?? sugerencia.tipo,
       folio: row.documentoFolio ?? '',
+      fechaEmision: row.documentoFechaEmision ?? todayChile(),
       rut: sugerencia.rut,
       razonSocial: sugerencia.razonSocial,
       archivo: null,
@@ -973,6 +998,11 @@ export default function AdminFinancePage() {
       setDocRecargaError('Adjunta el PDF del documento emitido.');
       return;
     }
+    // Sin folio ni fecha el documento no se concilia con el Registro de Compras y Ventas del SII.
+    if (!docRecargaDraft.folio.trim() || !docRecargaDraft.fechaEmision) {
+      setDocRecargaError('Ingresa el folio y la fecha de emisión que asignó el SII.');
+      return;
+    }
     setDocRecargaBusy(true);
     setDocRecargaError('');
     try {
@@ -980,6 +1010,7 @@ export default function AdminFinancePage() {
       form.append('archivo', docRecargaDraft.archivo);
       form.append('tipo', docRecargaDraft.tipo);
       if (docRecargaDraft.folio.trim()) form.append('folio', docRecargaDraft.folio.trim());
+      form.append('fechaEmision', docRecargaDraft.fechaEmision);
       if (docRecargaDraft.rut.trim()) form.append('rut', docRecargaDraft.rut.trim());
       if (docRecargaDraft.razonSocial.trim()) form.append('razonSocial', docRecargaDraft.razonSocial.trim());
       await administrationApi.registrarDocumentoRecarga(docRecargaDraft.compraId, form);
@@ -1471,7 +1502,10 @@ export default function AdminFinancePage() {
           email: withdrawal.documentoLiquidacionEmail ?? '',
           detail: withdrawal.documentoLiquidacionDetalle ?? '',
           ivaLiquidado: withdrawal.documentoLiquidacionIva != null ? String(withdrawal.documentoLiquidacionIva) : '',
-          sentAt: withdrawal.fecha,
+          // Documentos anteriores al registro de la fecha de carga muestran la del retiro.
+          sentAt: withdrawal.documentoLiquidacionRegistradoAt ?? withdrawal.fecha,
+          folio: withdrawal.documentoLiquidacionFolio ?? undefined,
+          issuedAt: withdrawal.documentoLiquidacionFechaEmision ?? undefined,
           pdfName: withdrawal.documentoLiquidacionNombre,
         },
       };
@@ -1482,7 +1516,7 @@ export default function AdminFinancePage() {
   async function openGroupDocument(group: LiquidationSellerGroup, isEditing = false): Promise<void> {
     const orderId = group.settlements[0]?.orderId ?? '';
     const existing = getGroupDocument(group)?.document;
-    if (existing && isIssuedDocumentComplete(existing) && !isEditing) {
+    if (existing && isIssuedDocumentComplete(existing, true) && !isEditing) {
       let document = existing;
       if (!document.pdfUrl && group.retiroId !== null) {
         try {
@@ -1513,6 +1547,9 @@ export default function AdminFinancePage() {
       pdfName: existing?.pdfName ?? '',
       pdfUrl: existing?.pdfUrl,
       originalPdfName: existing?.pdfName,
+      folio: existing?.folio ?? '',
+      fechaEmision: existing?.issuedAt ?? todayChile(),
+      retiroFecha: activeWithdrawals.find((candidate) => candidate.retiroId === group.retiroId)?.fecha,
     });
   }
 
@@ -1563,6 +1600,9 @@ export default function AdminFinancePage() {
       pdfName: existingDoc?.pdfName ?? '',
       pdfUrl: undefined,
       originalPdfName: existingDoc?.pdfName,
+      // El respaldo de un retiro de socio no es un DTE: no lleva folio ni fecha del SII.
+      folio: '',
+      fechaEmision: '',
     });
   }
 
@@ -1577,6 +1617,11 @@ export default function AdminFinancePage() {
       && documentDraft.pdfName?.trim();
     if (!documentDraft.orderId || (!documentDraft.isEditing && !hasRequiredData)) {
       window.alert('Completa los datos y adjunta el nombre del archivo de la boleta o factura.');
+      return;
+    }
+    const esDocumentoDeTienda = documentDraft.tipoRetiro === 'PROVEEDOR';
+    if (esDocumentoDeTienda && (!documentDraft.folio.trim() || !documentDraft.fechaEmision)) {
+      window.alert('Ingresa el folio y la fecha de emisión que asignó el SII. Sin ellos el documento no se puede conciliar ni pagar el retiro.');
       return;
     }
     if (documentDraft.retiroId === null) {
@@ -1594,6 +1639,8 @@ export default function AdminFinancePage() {
         detalle: documentDraft.detail.trim(),
         ivaLiquidado: documentDraft.ivaLiquidado.trim() ? Number(documentDraft.ivaLiquidado) : null,
         eliminarDocumento: Boolean(documentDraft.originalPdfName && !documentDraft.pdfName),
+        folio: esDocumentoDeTienda ? documentDraft.folio.trim() : null,
+        fechaEmision: esDocumentoDeTienda ? documentDraft.fechaEmision : null,
       }, documentDraft.pdfFile);
     } catch (error) {
       window.alert(mensajeDeError(error, 'No se pudo registrar la boleta o factura.'));
@@ -1606,7 +1653,9 @@ export default function AdminFinancePage() {
       email: documentDraft.email.trim(),
       detail: documentDraft.detail.trim(),
       ivaLiquidado: documentDraft.ivaLiquidado,
-      sentAt: 'Ahora',
+      sentAt: new Date().toISOString(),
+      folio: esDocumentoDeTienda ? documentDraft.folio.trim() : undefined,
+      issuedAt: esDocumentoDeTienda ? documentDraft.fechaEmision : undefined,
       pdfName: documentDraft.pdfName,
       pdfUrl: documentDraft.pdfUrl,
     };
@@ -1636,6 +1685,9 @@ export default function AdminFinancePage() {
       }
       return w;
     }));
+    // Los retiros de tienda vienen del servidor: se recargan para traer folio, fecha y si el
+    // documento quedo completo segun la puerta de pago, en vez de suponerlo aca.
+    if (esDocumentoDeTienda) void refetchWithdrawals();
     setDocumentDraft(null);
   }
 
@@ -2033,6 +2085,48 @@ export default function AdminFinancePage() {
   const cajaPage = getPage(filteredCajaEntries, pagination.caja);
   const withdrawalPage = getPage(filteredWithdrawals, pagination.retiros);
   const partnerIncomePage = getPage(filteredPartnerIncomes, pagination.ingresos);
+
+  /**
+   * Pendiente C (revision contable 2026-10-08): los DTE que emitio RepuesTop en el mes, por fecha
+   * de emision, para que el contador los cuadre contra el Registro de Compras y Ventas del SII y
+   * arme el debito del F29. Neto e IVA vienen calculados del servidor. Los documentos sin folio o
+   * sin fecha van al final con su observacion y no suman al total, porque no tienen periodo.
+   */
+  async function exportIssuedDocumentsCsv(): Promise<void> {
+    if (issuedDocumentsBusy || !issuedDocumentsMonth) return;
+    setIssuedDocumentsBusy(true);
+    try {
+      const rows = await administrationApi.getIssuedDocuments(issuedDocumentsMonth);
+      if (rows.length === 0) {
+        window.alert(`No hay documentos emitidos en ${formatMonthName(issuedDocumentsMonth)} ${issuedDocumentsMonth.slice(0, 4)}.`);
+        return;
+      }
+      const header = ['Fecha de emisión', 'Tipo', 'Código SII', 'Folio', 'RUT receptor', 'Razón social', 'Neto', 'IVA', 'Total', 'Origen', 'Referencia', 'Observación'];
+      const body = rows.map((row) => [
+        row.fechaEmision ? formatDate(row.fechaEmision) : '',
+        row.tipoDocumento ?? '',
+        row.codigoSii ?? '',
+        row.folio ?? '',
+        row.rutReceptor ?? '',
+        row.razonSocialReceptor ?? '',
+        row.neto,
+        row.iva,
+        row.total,
+        row.origen === 'COMISION_SERVICIO' ? 'Comisión de servicio' : 'Recarga de Monedas',
+        row.referencia,
+        row.observacion,
+      ]);
+      const conPeriodo = rows.filter((row) => row.fechaEmision);
+      const suma = (pick: (row: administrationApi.IssuedDocumentRow) => number) => conPeriodo.reduce((acc, row) => acc + pick(row), 0);
+      const totals = ['Total del mes', '', '', '', '', '', suma((row) => row.neto), suma((row) => row.iva), suma((row) => row.total), '', `${conPeriodo.length} documentos`, ''];
+      const csv = [header, ...body, totals].map((row) => row.map(csvCell).join(',')).join('\r\n');
+      downloadFile(`documentos-emitidos-repuestop-${issuedDocumentsMonth}.csv`, `\uFEFF${csv}`, 'text/csv;charset=utf-8');
+    } catch (error) {
+      window.alert(mensajeDeError(error, 'No se pudieron obtener los documentos emitidos del mes.'));
+    } finally {
+      setIssuedDocumentsBusy(false);
+    }
+  }
 
   function exportCajaCsv(): void {
     const rows = [
@@ -2745,6 +2839,23 @@ export default function AdminFinancePage() {
             {activeLiquidationPeriod && <span className="liquidation-period">Periodo de liquidación: <strong>{activeLiquidationPeriod}</strong></span>}
             {liquidationTab === 'LIQUIDADO' && <select className="input paid-period-select" value={activePaidPeriod} onChange={(event) => setSelectedPaidPeriod(event.target.value)}>{paidPeriods.map((period) => <option key={period.key} value={period.key}>Periodo pagado: {formatDate(period.start)} - {formatDate(period.end)}</option>)}</select>}
           </div>
+          {/* Export para el contador: los DTE emitidos en el mes (comisiones y recargas) por fecha
+              de emision, para cuadrarlos con el Registro de Compras y Ventas y armar el F29. */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, margin: '8px 0' }}>
+            <label htmlFor="issued-documents-month" style={{ fontSize: 13, color: '#475569' }}>Documentos emitidos del mes</label>
+            <input
+              id="issued-documents-month"
+              className="input"
+              type="month"
+              style={{ width: 'auto' }}
+              max={todayChile().slice(0, 7)}
+              value={issuedDocumentsMonth}
+              onChange={(event) => setIssuedDocumentsMonth(event.target.value)}
+            />
+            <button className="secondary-button" type="button" onClick={exportIssuedDocumentsCsv} disabled={issuedDocumentsBusy || !issuedDocumentsMonth}>
+              <UiIcon name="download" />{issuedDocumentsBusy ? 'Generando…' : 'Descargar CSV'}
+            </button>
+          </div>
           <div className="metric-grid compact liquidacion-metric-grid">
             <MetricCard
               label={
@@ -2814,7 +2925,7 @@ export default function AdminFinancePage() {
 <RecordList ariaLabel="Liquidaciones en curso" empty={<EmptyState icon="clipboard" title="Sin liquidaciones en curso" description="No hay liquidaciones en curso para el rango seleccionado." />}>
   {enLiquidationGroups.map((group) => {
     const registeredDocument = getGroupDocument(group);
-    const documentComplete = Boolean(registeredDocument && isIssuedDocumentComplete(registeredDocument.document));
+    const documentComplete = Boolean(registeredDocument && isIssuedDocumentComplete(registeredDocument.document, true));
     return (
       <RecordCard
         key={group.key}
@@ -2845,7 +2956,7 @@ export default function AdminFinancePage() {
                 <thead><tr><th>Vendedor</th><th>RUT</th><th>Razón social / Nombre</th><th>Correo</th><th>Cantidad liquidaciones</th><th>IVA acumulado</th><th>Acciones</th></tr></thead>
                 <tbody>{enLiquidationGroups.length ? enLiquidationGroups.map((group) => {
                   const registeredDocument = getGroupDocument(group);
-                  const documentComplete = Boolean(registeredDocument && isIssuedDocumentComplete(registeredDocument.document));
+                  const documentComplete = Boolean(registeredDocument && isIssuedDocumentComplete(registeredDocument.document, true));
                   return <tr key={group.key}><td><FounderSellerName name={group.seller} founder={group.sellerFounder} /></td><td>{group.rut}</td><td>{group.legalName}</td><td>{group.email}</td><td>{group.settlements.length}</td><td>{formatMoney(group.iva)}</td><td><div className="action-cell"><button className="action-button neutral" type="button" onClick={() => setSelectedLiquidationSeller(group)} title="Vista previa de liquidaciones"><UiIcon name="eye" /></button><button className={`action-button ${documentComplete ? 'success' : 'issue'}`} type="button" onClick={() => openGroupDocument(group)} title={documentComplete ? 'Ver boleta o factura registrada' : registeredDocument ? 'Completar boleta o factura' : 'Emitir boleta o factura'}><UiIcon name={documentComplete ? 'fileCheck' : 'receipt'} /></button>{documentComplete && <button className="action-button neutral" type="button" onClick={() => openGroupDocument(group, true)} title="Editar boleta o factura registrada"><UiIcon name="edit" /></button>}</div></td></tr>;
                 }) : <tr><td colSpan={7}><div className="empty-state">No hay liquidaciones en curso para el rango seleccionado.</div></td></tr>}</tbody>
               </table>
@@ -3992,6 +4103,42 @@ export default function AdminFinancePage() {
               </select>
             </FieldLabel>
             <FieldLabel label="RUT receptor"><input className="input" type="text" value={documentDraft.rut} onChange={(event) => setDocumentDraft({ ...documentDraft, rut: event.target.value })} required={!documentDraft.isEditing} /></FieldLabel>
+            {documentDraft.tipoRetiro === 'PROVEEDOR' && (
+              <>
+                {/* Folio y fecha concilian el documento con el Registro de Compras y Ventas del
+                    SII. La fecha de emision define el mes en que el IVA va al F29. */}
+                <FieldLabel label="Folio (número que asignó el SII al emitir)">
+                  <input
+                    className="input"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]+"
+                    title="Solo dígitos: el número del documento emitido"
+                    value={documentDraft.folio}
+                    onChange={(event) => setDocumentDraft({ ...documentDraft, folio: event.target.value })}
+                    placeholder="Ej: 1024 (aparece en el documento ya emitido)"
+                    required
+                  />
+                </FieldLabel>
+                <FieldLabel label="Fecha de emisión">
+                  <input
+                    className="input"
+                    type="date"
+                    max={todayChile()}
+                    value={documentDraft.fechaEmision}
+                    onChange={(event) => setDocumentDraft({ ...documentDraft, fechaEmision: event.target.value })}
+                    required
+                  />
+                  {documentDraft.retiroFecha && documentDraft.fechaEmision
+                    && chileDay(documentDraft.retiroFecha).slice(0, 7) !== documentDraft.fechaEmision.slice(0, 7) && (
+                    <small style={{ color: '#b45309', fontSize: 12 }}>
+                      Se emite en un mes distinto al del retiro ({formatDate(documentDraft.retiroFecha)}). La factura por un
+                      servicio va en el período en que se percibe la comisión (art. 55 DL 825): confírmalo con el contador.
+                    </small>
+                  )}
+                </FieldLabel>
+              </>
+            )}
 
             <FieldLabel label="Razón social / Nombre"><input className="input" type="text" value={documentDraft.name} onChange={(event) => setDocumentDraft({ ...documentDraft, name: event.target.value })} required={!documentDraft.isEditing} /></FieldLabel>
             <FieldLabel label="Correo de envío"><input className="input" type="email" value={documentDraft.email} onChange={(event) => setDocumentDraft({ ...documentDraft, email: event.target.value })} required={!documentDraft.isEditing} /></FieldLabel>
@@ -4067,13 +4214,15 @@ export default function AdminFinancePage() {
             <div className="notice success"><UiIcon name="fileCheck" />El envío fue registrado correctamente.</div>
             <dl className="registered-document-data">
               <dt>Tipo de documento</dt><dd>{registeredDocumentPreview.document.type}</dd>
+              {registeredDocumentPreview.document.folio && <><dt>Folio</dt><dd>{registeredDocumentPreview.document.folio}</dd></>}
+              {registeredDocumentPreview.document.issuedAt && <><dt>Fecha de emisión</dt><dd>{formatDate(registeredDocumentPreview.document.issuedAt)}</dd></>}
               <dt>RUT receptor</dt><dd>{registeredDocumentPreview.document.rut}</dd>
               <dt>Razón social / Nombre</dt><dd>{registeredDocumentPreview.document.name}</dd>
               <dt>Correo de envío</dt><dd>{registeredDocumentPreview.document.email}</dd>
               <dt>Detalle</dt><dd>{registeredDocumentPreview.document.detail}</dd>
               <dt>IVA liquidado</dt><dd>{formatMoney(Number(registeredDocumentPreview.document.ivaLiquidado ?? 0))}</dd>
               <dt>Documento</dt><dd><strong>{registeredDocumentPreview.document.pdfName ?? 'Sin archivo registrado'}</strong></dd>
-              <dt>Registrado</dt><dd>{registeredDocumentPreview.document.sentAt}</dd>
+              <dt>Registrado</dt><dd>{formatDateTimeLocal(registeredDocumentPreview.document.sentAt)}</dd>
             </dl>
             {registeredDocumentPreview.document.pdfUrl && (
               <div className="receipt-viewer registered-document-pdf">
@@ -4282,6 +4431,19 @@ export default function AdminFinancePage() {
                 value={docRecargaDraft.folio}
                 onChange={(event) => setDocRecargaDraft({ ...docRecargaDraft, folio: event.target.value })}
                 placeholder="Ej: 1024 — aparece en el documento ya emitido"
+                inputMode="numeric"
+                required
+              />
+            </FieldLabel>
+
+            <FieldLabel label="Fecha de emisión">
+              <input
+                className="input"
+                type="date"
+                max={todayChile()}
+                value={docRecargaDraft.fechaEmision}
+                onChange={(event) => setDocRecargaDraft({ ...docRecargaDraft, fechaEmision: event.target.value })}
+                required
               />
             </FieldLabel>
 

@@ -202,6 +202,36 @@ export interface LiquidationDocumentPayload {
   detalle: string;
   ivaLiquidado: number | null;
   eliminarDocumento: boolean;
+  /** Folio y fecha de emision ("YYYY-MM-DD") del DTE. Obligatorios para retiros de PROVEEDOR. */
+  folio?: string | null;
+  fechaEmision?: string | null;
+}
+
+/**
+ * Un DTE emitido por RepuesTop en el mes: factura o boleta por la comision de servicio, o por una
+ * recarga de Monedas. Neto e IVA los calcula el servidor.
+ */
+export interface IssuedDocumentRow {
+  fechaEmision: string | null;
+  tipoDocumento: string | null;
+  /** 33 factura electronica, 39 boleta electronica. */
+  codigoSii: number | null;
+  folio: string | null;
+  rutReceptor: string | null;
+  razonSocialReceptor: string | null;
+  neto: number;
+  iva: number;
+  total: number;
+  origen: 'COMISION_SERVICIO' | 'RECARGA_MONEDAS';
+  referencia: string;
+  /** Lo que hay que revisar antes de cuadrar; vacio si la fila esta completa. */
+  observacion: string;
+}
+
+/** DTE emitidos en un mes ("YYYY-MM"), por fecha de emision, para cuadrar el F29. */
+export async function getIssuedDocuments(mes: string): Promise<IssuedDocumentRow[]> {
+  const response = await apiClient.get<IssuedDocumentRow[]>('/administration/issued-documents', { params: { mes } });
+  return response.data;
 }
 
 export async function saveLiquidationDocument(payload: LiquidationDocumentPayload, documento?: File): Promise<void> {

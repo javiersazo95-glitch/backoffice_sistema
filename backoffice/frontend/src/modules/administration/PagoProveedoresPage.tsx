@@ -503,7 +503,7 @@ export default function PagoProveedoresPage() {
             onClick={() => setPartnerDocModal({
               retiroId: Number(w.id),
               beneficiary: w.beneficiary,
-              type: w.documentoLiquidacionTipo || 'Boleta de Honorarios',
+              type: w.documentoLiquidacionTipo || 'Comprobante de retiro',
               rut: w.documentoLiquidacionRut || w.rut || '',
               razonSocial: w.documentoLiquidacionRazonSocial || w.titular || w.beneficiary,
               email: w.documentoLiquidacionEmail || w.email || '',
@@ -598,7 +598,7 @@ export default function PagoProveedoresPage() {
                                   onClick={() => setPartnerDocModal({
                                     retiroId: Number(w.id),
                                     beneficiary: w.beneficiary,
-                                    type: w.documentoLiquidacionTipo || 'Boleta de Honorarios',
+                                    type: w.documentoLiquidacionTipo || 'Comprobante de retiro',
                                     rut: w.documentoLiquidacionRut || w.rut || '',
                                     razonSocial: w.documentoLiquidacionRazonSocial || w.titular || w.beneficiary,
                                     email: w.documentoLiquidacionEmail || w.email || '',
@@ -1177,10 +1177,13 @@ export default function PagoProveedoresPage() {
                     onChange={(e) => setPartnerDocModal({ ...partnerDocModal, type: e.target.value })}
                     style={{ width: '100%', padding: '8px 12px', borderRadius: 6, border: '1px solid #cddde9' }}
                   >
-                    <option value="Boleta de Honorarios">Boleta de Honorarios</option>
-                    <option value="Boleta">Boleta</option>
-                    <option value="Factura">Factura</option>
-                    <option value="Documento Tributario">Documento Tributario</option>
+                    {/* Un retiro de socio no es una prestacion de servicios: no lleva boleta de
+                        honorarios. Mismas opciones que el modal de Administracion Contable; el tipo
+                        ya registrado se agrega siempre para que ningun documento historico quede
+                        sin su opcion (O18). */}
+                    {Array.from(new Set([
+                      'Comprobante de retiro', 'Liquidación de sueldo', 'Documento Tributario', partnerDocModal.type,
+                    ].filter(Boolean))).map((tipo) => <option key={tipo} value={tipo}>{tipo}</option>)}
                   </select>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
