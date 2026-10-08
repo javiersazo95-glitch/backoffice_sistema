@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import QueryErrorNotice from '@/components/shared/QueryErrorNotice';
 import type { ReactNode } from "react";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import * as api from "@/api/capturers";
@@ -199,6 +200,8 @@ export default function CapturersPage() {
           contacto.
         </p>
       </header>
+
+      {q.isError && <QueryErrorNotice error={q.error} what="los captadores" onRetry={q.refetch} />}
 
       <nav className="cps-viewtabs" aria-label="Vistas de captadores">
         <button

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { suspensionNivelLabel } from './BlockedAccountsTable';
 import type { MediationResponse } from '@/types/mediation';
 import UiIcon from '@/components/shared/UiIcon';
 import FounderSellerName from '@/components/shared/FounderSellerName';
@@ -92,6 +93,7 @@ export function BlockedAccountsCardList({
               meta={[
                 { label: 'Pedido', value: item.orderId },
                 { label: 'Etapa', value: item.stage || item.status },
+                ...(item.suspensionNivel ? [{ label: 'Nivel', value: suspensionNivelLabel(item.suspensionNivel) }] : []),
                 { label: 'Responsable', value: blockedTarget.fullTargetLabel },
                 { label: 'Mediador', value: item.owner || 'No informado' },
                 { label: 'Motivo del bloqueo', value: item.escalationReason || item.reason || 'Motivo no informado', wide: true },

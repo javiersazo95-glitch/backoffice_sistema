@@ -12,10 +12,13 @@ export interface ReceiptFollowupResponse {
   sellerName: string;
   sellerFounder?: boolean;
   orderId: string;
-  amount: string;
+  amount: number;
   status: string;
   priority: TicketPriority;
-  dueInfo: string;
+  /** Texto de vencimiento que arma el backend ("Vence en 2 dias"). Se llama asi en el DTO. */
+  dueInformation: string;
+  /** Fecha de vencimiento real (el backend ordena por ella). */
+  dueAt?: string | null;
   detail: string;
   createdAt: string;
   updatedAt: string;

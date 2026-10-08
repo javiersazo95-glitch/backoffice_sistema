@@ -81,7 +81,8 @@ export default function SellerDetailCard({
     return 'red';
   };
 
-  const isBlocked = seller.bankStatus === 'BLOQUEADA';
+  // El backend no manda `bankStatus`; la tienda bloqueada es la que esta SUSPENDIDO.
+  const isBlocked = seller.status === 'SUSPENDIDO';
   const blockReason = blockedMediation?.escalationReason || blockedMediation?.reason || 'No hay motivo registrado para el bloqueo.';
   const latestReport = sellerReports[0];
   const latestReportLabel = isLoadingReports

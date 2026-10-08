@@ -40,6 +40,8 @@ export interface MediationResponse {
   montoReembolso?: number | null;
   estadoReembolso?: string | null;
   suspensionTarget?: 'COMPRADOR' | 'VENDEDOR' | null;
+  /** TEMPORAL, DEFINITIVA o FRAUDE en las filas de bloqueo de tienda. */
+  suspensionNivel?: 'TEMPORAL' | 'DEFINITIVA' | 'FRAUDE' | null;
   suspensionDuracion?: string | null;
   suspensionFechaFin?: string | null;
   suspensionPuedeApelar?: boolean | null;
@@ -177,13 +179,16 @@ export interface MediationVerdictFields {
 
 export interface MediationFilterRequest {
   search?: string;
-  status?: MediationStatus;
+  /** Un estado o varios separados por coma ("RESUELTA,CERRADA"). */
+  status?: MediationStatus | string;
   blocked?: boolean;
   activeOnly?: boolean;
   startDate?: string;
   endDate?: string;
   page?: number;
   size?: number;
+  /** "createdAt,asc" | "createdAt,desc" (por defecto desc). */
+  sort?: string;
 }
 
 export type SuspensionDuration =

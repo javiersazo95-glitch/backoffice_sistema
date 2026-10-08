@@ -1,4 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { mensajeDeError } from '@/api/client';
+import QueryErrorNotice from '@/components/shared/QueryErrorNotice';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as alertsApi from '@/api/alerts';
 import * as receiptsApi from '@/api/receipts';
@@ -28,14 +31,30 @@ export default function AlertsPage() {
   const [severity, setSeverity] = useState<AlertSeverity | undefined>(undefined);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const queryClient = useQueryClient();
+  const [searchParams] = useSearchParams();
+
+  // Enlaces profundos desde el resumen del area: ?severity=CRITICA abre la lista ya filtrada y
+  // ?alerta=<id> deja esa alerta seleccionada en el panel lateral.
+  useEffect(() => {
+    const severityParam = searchParams.get('severity');
+    if (severityParam && (Object.values(AlertSeverity) as string[]).includes(severityParam)) {
+      setSeverity(severityParam as AlertSeverity);
+      setPage(0);
+    }
+    const alertParam = Number(searchParams.get('alerta'));
+    if (Number.isFinite(alertParam) && alertParam > 0) setSelectedId(alertParam);
+  }, [searchParams]);
   const isMobile = useIsMobile();
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['alerts', search, severity, page],
     queryFn: () => alertsApi.getAlerts(search || undefined, severity, page, PAGE_SIZES.ALERTS),
   });
 
-  const { data: receipts } = useQuery({
+  // Las tarjetas contaban solo la pagina visible (8 filas) y cambiaban al paginar.
+  const { data: summary } = useQuery({ queryKey: ['alerts', 'summary'], queryFn: () => alertsApi.getAlertsSummary() });
+
+  const { data: receipts, isError: receiptsError, error: receiptsErrorDetail, refetch: refetchReceipts } = useQuery({
     queryKey: ['receipts'],
     queryFn: () => receiptsApi.getReceipts(0, PAGE_SIZES.RECEIPTS),
   });
@@ -46,6 +65,7 @@ export default function AlertsPage() {
       queryClient.invalidateQueries({ queryKey: ['receipts'] });
       showToast('Boleta resuelta');
     },
+    onError: (error) => showToast(mensajeDeError(error, 'No se pudo resolver la boleta.')),
   });
 
   const reviewMutation = useMutation({
@@ -54,6 +74,7 @@ export default function AlertsPage() {
       queryClient.invalidateQueries({ queryKey: ['alerts'] });
       showToast('Alerta revisada');
     },
+    onError: (error) => showToast(mensajeDeError(error, 'No se pudo marcar la alerta como revisada.')),
   });
 
   const escalateMutation = useMutation({
@@ -62,6 +83,7 @@ export default function AlertsPage() {
       queryClient.invalidateQueries({ queryKey: ['alerts'] });
       showToast('Escalado a mediación');
     },
+    onError: (error) => showToast(mensajeDeError(error, 'No se pudo escalar la alerta a mediación.')),
   });
 
   const alerts = data?.content ?? [];
@@ -154,11 +176,13 @@ export default function AlertsPage() {
           <AreaHomeShortcut />
         </div>
       </div>
+      {isError && <QueryErrorNotice error={error} what="las alertas" onRetry={refetch} />}
+      {receiptsError && <QueryErrorNotice error={receiptsErrorDetail} what="los comprobantes en seguimiento" onRetry={refetchReceipts} />}
 
       <div className="metric-grid compact">
-        <MetricCard label="Críticas" value={pendingAlerts.filter((a) => a.severity === AlertSeverity.CRITICA).length} tone="red" />
-        <MetricCard label="Alta" value={pendingAlerts.filter((a) => a.severity === AlertSeverity.ALTA).length} tone="amber" />
-        <MetricCard label="Media" value={pendingAlerts.filter((a) => a.severity === AlertSeverity.MEDIA).length} tone="blue" />
+        <MetricCard label="Críticas" value={summary?.critica ?? pendingAlerts.filter((a) => a.severity === AlertSeverity.CRITICA).length} tone="red" description="Total registradas" />
+        <MetricCard label="Alta" value={summary?.alta ?? pendingAlerts.filter((a) => a.severity === AlertSeverity.ALTA).length} tone="amber" description="Total registradas" />
+        <MetricCard label="Media" value={summary?.media ?? pendingAlerts.filter((a) => a.severity === AlertSeverity.MEDIA).length} tone="blue" description="Total registradas" />
       </div>
 
       <div className="alert-layout">
@@ -291,7 +315,7 @@ export default function AlertsPage() {
                 <div key={r.id} className="receipt-item">
                   <div>
                     <strong><FounderSellerName name={r.sellerName} founder={r.sellerFounder} /></strong>
-                    <span>Orden {r.orderId} · {r.dueInfo}</span>
+                    <span>Orden {r.orderId} · {r.dueInformation}</span>
                     {r.detail && <p>{r.detail}</p>}
                   </div>
                   <div style={{ display: 'grid', gap: 6, alignItems: 'center' }}>

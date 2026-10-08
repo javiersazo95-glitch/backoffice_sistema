@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import QueryErrorNotice from '@/components/shared/QueryErrorNotice';
 import { useQuery } from '@tanstack/react-query';
 import * as auditsApi from '@/api/audits';
 import MetricCard from '@/components/shared/MetricCard';
@@ -33,7 +34,7 @@ export default function AuditPage() {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const isMobile = useIsMobile();
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['audits', filter],
     queryFn: () => auditsApi.getAuditLogs(filter),
   });
@@ -51,6 +52,7 @@ export default function AuditPage() {
     VALIDACIONES: 'en-proceso',
     MEDIACIONES: 'en-mediacion',
     ALERTAS: 'pendiente',
+    CAPTADORES: 'aprobado',
   };
 
   const renderState = (state: Record<string, string> | undefined, label: string) => {
@@ -144,6 +146,7 @@ export default function AuditPage() {
           <AreaHomeShortcut />
         </div>
       </div>
+      {isError && <QueryErrorNotice error={error} what="los registros de auditoría" onRetry={refetch} />}
 
       <div className="metric-grid compact audit-metric-grid">
         <MetricCard label="Total Registros" value={data?.totalElements ?? 0} tone="blue" />
@@ -151,6 +154,7 @@ export default function AuditPage() {
         <MetricCard label="Validaciones" value={logs.filter((l) => l.module === AuditModule.VALIDACIONES).length} tone="amber" />
         <MetricCard label="Mediaciones" value={logs.filter((l) => l.module === AuditModule.MEDIACIONES).length} tone="violet" />
         <MetricCard label="Alertas" value={logs.filter((l) => l.module === AuditModule.ALERTAS).length} tone="red" />
+        <MetricCard label="Captadores" value={logs.filter((l) => l.module === AuditModule.CAPTADORES).length} tone="blue" />
       </div>
 
       <div className="panel">
@@ -186,6 +190,7 @@ export default function AuditPage() {
                   <option value="VALIDACIONES">Validaciones</option>
                   <option value="MEDIACIONES">Mediaciones</option>
                   <option value="ALERTAS">Alertas</option>
+                  <option value="CAPTADORES">Captadores</option>
                 </select>
               </label>
               <div className="mb-filter-field">
@@ -245,6 +250,7 @@ export default function AuditPage() {
             <option value="VALIDACIONES">Validaciones</option>
             <option value="MEDIACIONES">Mediaciones</option>
             <option value="ALERTAS">Alertas</option>
+            <option value="CAPTADORES">Captadores</option>
           </select>
           <input
             type="date"

@@ -22,6 +22,14 @@ const STATUS_OPTIONS = [
   { value: 'SOLICITUD_REVISION', label: 'Solicitud de revisión' },
 ] as const;
 
+/** Nivel H59 de la suspension vigente, como lo manda el backend. */
+export function suspensionNivelLabel(nivel: string): string {
+  if (nivel === 'TEMPORAL') return 'Suspensión temporal';
+  if (nivel === 'DEFINITIVA') return 'Suspensión definitiva';
+  if (nivel === 'FRAUDE') return 'Suspensión por fraude';
+  return nivel;
+}
+
 function getBlockedStatusLabel(status?: string, isBuyer = false): string {
   const target = isBuyer ? 'Comprador' : 'Tienda';
   if (status === 'SOLICITUD_REVISION') return `Revisión (${target})`;
@@ -112,6 +120,7 @@ export default function BlockedAccountsTable({
                     </td>
                     <td>
                       <Badge text={getBlockedStatusLabel(item.blockedAccountStatus, blockedTarget.isBuyer)} variant={getBlockedStatusVariant(item.blockedAccountStatus)} />
+                      {item.suspensionNivel && <span className="row-sub">{suspensionNivelLabel(item.suspensionNivel)}</span>}
                     </td>
                     <td><FounderSellerName name={item.sellerName} founder={item.sellerFounder} /></td>
                     <td>{item.orderId}</td>

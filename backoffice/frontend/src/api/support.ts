@@ -33,6 +33,15 @@ export interface SupportWorkspaceResponse {
   accountingPlatformTickets: number;
   trustPlatformTickets: number;
   mobilePlatformTickets: number;
+  // Contadores de urgencia (backend nuevo); el resumen los calcula en el navegador si faltan.
+  unansweredTickets?: number;
+  unansweredOver24h?: number;
+  slaBreachedTickets?: number;
+  resolvedTickets?: number;
+  supportPlatformTickets?: number;
+  webPlatformTickets?: number;
+  noPlatformTickets?: number;
+  qaPendingTickets?: number;
 }
 
 export interface TicketResponse {
@@ -202,5 +211,23 @@ export interface SupportAssignee {
  */
 export async function listSupportAssignees(): Promise<SupportAssignee[]> {
   const response = await apiClient.get<SupportAssignee[]>('/support/assignees');
+  return response.data;
+}
+
+/** Tienda tal como la devuelve `GET /support/tiendas`, para el selector del ticket nuevo. */
+export interface SupportStore {
+  id: number;
+  nombreTienda: string;
+  rut: string | null;
+  email: string | null;
+  estado: string;
+}
+
+/**
+ * Busqueda de tiendas bajo /support/**: un operador que solo tiene Soporte recibia 403 en
+ * /sellers (que exige Mediacion y Confianza) y el selector "Tienda asociada" salia vacio.
+ */
+export async function getSupportStores(q?: string, size = 50): Promise<SupportStore[]> {
+  const response = await apiClient.get<SupportStore[]>('/support/tiendas', { params: { q: q || undefined, size } });
   return response.data;
 }

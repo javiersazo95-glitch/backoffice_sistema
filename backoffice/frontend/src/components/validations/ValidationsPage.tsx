@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { fetchAllPages } from '@/utils/pagination';
+import { mensajeDeError } from '@/api/client';
+import QueryErrorNotice from '@/components/shared/QueryErrorNotice';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as sellersApi from '@/api/sellers';
 import * as validationsApi from '@/api/validations';
 import UiIcon from '@/components/shared/UiIcon';
 import FounderSellerName from '@/components/shared/FounderSellerName';
 import { showToast } from '@/components/layout/Toast';
-import { PAGE_SIZES, STATUS_LABELS } from '@/utils/constants';
+import { STATUS_LABELS } from '@/utils/constants';
 import { SellerStatus, type SellerResponse } from '@/types/seller';
 import { ValidationStatus, type ValidationResponse } from '@/types/validation';
 import { buildDocumentDownloadName, downloadDocument, previewDocument, resolveDocumentUrl } from '@/utils/documentUrls';
@@ -309,14 +312,14 @@ export default function ValidationsPage() {
   const [approvalFeedbackOpen, setApprovalFeedbackOpen] = useState(false);
   const queryClient = useQueryClient();
 
-  const { data: validationsData, isLoading: isLoadingValidations } = useQuery({
+  const { data: validationsData, isLoading: isLoadingValidations, isError: isErrorValidations, error: errorValidations, refetch: refetchValidations } = useQuery({
     queryKey: ['validations-workspace'],
-    queryFn: () => validationsApi.getValidations(0, PAGE_SIZES.MAX),
+    queryFn: () => fetchAllPages((page, size) => validationsApi.getValidations(page, size)),
   });
 
   const { data: sellersData } = useQuery({
     queryKey: ['validation-sellers-lookup'],
-    queryFn: () => sellersApi.getSellers({ page: 0, size: PAGE_SIZES.MAX }),
+    queryFn: () => fetchAllPages((page, size) => sellersApi.getSellers({ page, size })),
   });
 
   const validations = validationsData?.content ?? [];
@@ -386,6 +389,7 @@ export default function ValidationsPage() {
       setSelectedSellerId(null);
       setApprovalFeedbackOpen(true);
     },
+    onError: (error) => showToast(mensajeDeError(error, 'No se pudo aprobar la validación.')),
   });
 
   const correctMutation = useMutation({
@@ -399,6 +403,7 @@ export default function ValidationsPage() {
       setDecisionNotes('');
       showToast('Corrección solicitada');
     },
+    onError: (error) => showToast(mensajeDeError(error, 'No se pudo solicitar la corrección.')),
   });
 
   const rejectMutation = useMutation({
@@ -418,6 +423,7 @@ export default function ValidationsPage() {
       setSelectedSellerId(null);
       showToast('Solicitud eliminada. El motivo fue enviado por correo al solicitante.');
     },
+    onError: (error) => showToast(mensajeDeError(error, 'No se pudo rechazar la solicitud.')),
   });
 
   const mutationInProgress = approveMutation.isPending || correctMutation.isPending || rejectMutation.isPending;
@@ -448,15 +454,24 @@ export default function ValidationsPage() {
     }
   }
 
+  /**
+   * Ids de verificacion a enviar al backend. El `id` de cada documento es sintetico
+   * (verificacion*10+sub) y antes se mandaba tal cual: con 11 o mas verificaciones, los ids
+   * 11..16 de la tienda 1 caian sobre las verificaciones 11..16 de otras tiendas. Se usa
+   * `verificationId` (uno por grupo, sin repetir) y, si un backend viejo no lo manda, el id.
+   */
+  const verificationIdsOf = (documents: ValidationResponse[]) =>
+    Array.from(new Set(documents.map((document) => document.verificationId ?? document.id)));
+
   function approveSelectedRequest() {
     if (pendingDocuments.length === 0) return;
-    approveMutation.mutate(pendingDocuments.map((document) => document.id));
+    approveMutation.mutate(verificationIdsOf(pendingDocuments));
   }
 
   function requestSelectedCorrection() {
     if (pendingDocuments.length === 0 || !decisionNotes.trim()) return;
     correctMutation.mutate({
-      ids: pendingDocuments.map((document) => document.id),
+      ids: verificationIdsOf(pendingDocuments),
       notes: decisionNotes.trim(),
     });
   }
@@ -482,6 +497,8 @@ export default function ValidationsPage() {
           ?
         </button>
       </div>
+
+      {isErrorValidations && <QueryErrorNotice error={errorValidations} what="las validaciones" onRetry={refetchValidations} />}
 
       <div className="module-tabs">
         <button

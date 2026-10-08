@@ -73,7 +73,9 @@ export function getVisibleSections(user: UserSummaryResponse | null, pathname: s
   const isAdmin = pathname.startsWith('/administracion');
   const isSupport = pathname.startsWith('/soporte');
 
-  const isAdminOrSuper = user?.role === Role.ADMIN || user?.role === Role.SUPER_ADMIN;
+  // Solo SUPER_ADMIN ve todo. El rol ADMIN existe apenas en el seed de desarrollo y el backend
+  // no le da ninguna autoridad: mostrarle las areas lo mandaba a pantallas que responden 403.
+  const isAdminOrSuper = user?.role === Role.SUPER_ADMIN;
   const canAdmin = isAdminOrSuper || hasBackofficePermission(user, 'ADMINISTRACION_CONTABLE');
   const canConfianza = isAdminOrSuper || hasBackofficePermission(user, 'MEDIACION_CONFIANZA');
   const canSoporte = isAdminOrSuper || hasBackofficePermission(user, 'SOPORTE');

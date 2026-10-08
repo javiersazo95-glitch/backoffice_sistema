@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { avisarSesionCaducada } from '@/api/client';
 import UiIcon from './UiIcon';
 import { resolveDocumentUrl, previewDocument, getAuthHeadersFor, esTipoMostrable } from '@/utils/documentUrls';
 
@@ -133,6 +134,7 @@ export default function DocumentPreview({
 
     fetch(resolvedDocumentUrl, { headers: getAuthHeadersFor(resolvedDocumentUrl) })
       .then((res) => {
+        if (res.status === 401) avisarSesionCaducada();
         if (!res.ok) throw new Error('Error al cargar documento');
         return res.blob();
       })

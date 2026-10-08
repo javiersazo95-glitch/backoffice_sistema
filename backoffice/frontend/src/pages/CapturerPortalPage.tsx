@@ -1,4 +1,5 @@
 import { useEffect,useMemo,useRef,useState } from 'react';
+import { mesActualChile } from '@/utils/formatters';
 import { formatRut, validateRut } from '@/utils/rut';
 import type { ReactNode } from 'react';
 import { Navigate,useLocation,useNavigate } from 'react-router-dom';
@@ -50,7 +51,7 @@ export default function CapturerPortalPage(){
  const qc=useQueryClient(); const navigate=useNavigate(); const {pathname}=useLocation();
  const section=pathname.startsWith('/captador/comisiones')?'COMISIONES':pathname.startsWith('/captador/ranking')?'RANKING':pathname.startsWith('/captador/retiros')?'FINANZAS':'RESUMEN';
  const [mode,setMode]=useState<'REGIONAL'|'GLOBAL'>('GLOBAL');
- const [period,setPeriod]=useState(new Date().toISOString().slice(0,7));
+ const [period,setPeriod]=useState(mesActualChile());
  const [estadoFiltro,setEstadoFiltro]=useState('TODOS');
  const [bank,setBank]=useState<BankForm>(emptyBank); const bankHydrated=useRef(false);
  const [amount,setAmount]=useState(''); const [receipt,setReceipt]=useState<File|null>(null);

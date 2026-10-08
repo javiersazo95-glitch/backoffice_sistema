@@ -1,16 +1,22 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import type { SupportWorkspaceResponse } from '@/api/support';
+import { KpiTile, ActionQueue, InsightList, MiniBars } from '@/components/dashboard/kit';
+import { summarizeTickets, PLATFORM_LABELS as DASH_PLATFORM_LABELS } from './support.metrics';
+import QueryErrorNotice from '@/components/shared/QueryErrorNotice';
+import { buildSupportInsights } from './support.insights';
+import { formatAge, hoursSince, ageTone } from '@/utils/age';
+import { fetchAllPages } from '@/utils/pagination';
+import { mensajeDeError } from '@/api/client';
 import CapturerAvatar from '@/components/capturers/CapturerAvatar';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as supportApi from '@/api/support';
-import * as sellersApi from '@/api/sellers';
 import UiIcon from '@/components/shared/UiIcon';
 import AreaHomeShortcut from '@/components/shared/AreaHomeShortcut';
 import Badge from '@/components/shared/Badge';
 import FounderSellerName from '@/components/shared/FounderSellerName';
 import SupportTicketDetailModal, { getStatusLabel } from './SupportTicketDetailModal';
 import { showToast } from '@/components/layout/Toast';
-import { PAGE_SIZES } from '@/utils/constants';
 import { formatDate } from '@/utils/formatters';
 import type { TicketResponse, TicketStatus, TicketPriority, TicketCategory, ReporterType, TicketPlatform, TicketMessage } from '@/api/support';
 import { useAuth } from '@/context/AuthContext';
@@ -125,14 +131,6 @@ function normalizeMessageText(value?: string | null) {
   return (value ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
 }
 
-function isTicketSelected(ticket: TicketResponse | null): ticket is TicketResponse {
-  return ticket !== null;
-}
-
-function showLegacyTicketModal() {
-  return false;
-}
-
 
 
 function SupportQaPage() {
@@ -160,7 +158,7 @@ function SupportQaPage() {
   // Fetch bugs
   const { data: qaReportsData, isLoading } = useQuery({
     queryKey: ['qa-reports'],
-    queryFn: () => supportApi.getQaReports({ page: 0, size: 200 }),
+    queryFn: () => fetchAllPages((page, size) => supportApi.getQaReports({ page, size })),
   });
 
   const qaReports = qaReportsData?.content ?? [];
@@ -179,7 +177,7 @@ function SupportQaPage() {
       queryClient.invalidateQueries({ queryKey: ['qa-reports'] });
       showToast('Defecto registrado con éxito');
     },
-    onError: (error: any) => showToast(error.message || 'No se pudo registrar el defecto'),
+    onError: (error: any) => showToast(mensajeDeError(error, 'No se pudo registrar el defecto')),
   });
 
   const updateMutation = useMutation({
@@ -209,7 +207,7 @@ function SupportQaPage() {
       setReviewFile(null);
       showToast(variables.nextAction ? 'Revisión registrada con éxito' : 'Documento adjuntado con éxito');
     },
-    onError: (error: any) => showToast(error.message || 'No se pudo registrar la revisión'),
+    onError: (error: any) => showToast(mensajeDeError(error, 'No se pudo registrar la revisión')),
   });
 
   // Client-side filtering & search
@@ -750,7 +748,7 @@ function SupportQaPage() {
                   });
                 } catch (error: any) {
                   if (!didStartCreate) {
-                    showToast(error.message || 'Error al registrar el defecto');
+                    showToast(mensajeDeError(error, 'Error al registrar el defecto'));
                   }
                 } finally {
                   setIsCreatingDefect(false);
@@ -935,7 +933,7 @@ export default function SupportPage() {
     totalTickets: 0, technicalFailureTickets: 0, helpRequestTickets: 0, inquiryTickets: 0,
     buyerReporterTickets: 0, sellerReporterTickets: 0, internalReporterTickets: 0,
     accountingPlatformTickets: 0, trustPlatformTickets: 0, mobilePlatformTickets: 0,
-  } } = useQuery({
+  } as SupportWorkspaceResponse, isLoading: workspaceLoading, isError: workspaceError, error: workspaceErrorDetail, refetch: refetchWorkspace } = useQuery({
     queryKey: ['support-workspace'],
     queryFn: supportApi.getWorkspace,
     enabled: isSupportOperator,
@@ -943,14 +941,8 @@ export default function SupportPage() {
   });
 
   // Contador del tab "Soporte carga de inventario" (conversaciones abiertas y mensajes sin leer).
-  const { data: cargaResumen } = useResumenCargaInventario(isSupportOperator);
+  const { data: cargaResumen, isLoading: cargaLoading, isError: cargaError, error: cargaErrorDetail, refetch: refetchCarga } = useResumenCargaInventario(isSupportOperator);
 
-  const resolutionRate = useMemo(() => {
-    const total = workspaceData.openTickets + workspaceData.expiredSlaTickets;
-    if (!total) return 0;
-    return Math.round((workspaceData.expiredSlaTickets / total) * 100);
-  }, [workspaceData.openTickets, workspaceData.expiredSlaTickets]);
-  
   // Filtros de Tickets
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('All');
@@ -960,6 +952,20 @@ export default function SupportPage() {
   const [page, setPage] = useState(0);
   const isMobile = useIsMobile();
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [searchParams] = useSearchParams();
+
+  // Enlaces profundos desde el resumen: /soporte/tickets?status=ABIERTO&priority=CRITICA llega
+  // con la bandeja ya filtrada. Los valores son los mismos de los selectores.
+  useEffect(() => {
+    const status = searchParams.get('status');
+    const priority = searchParams.get('priority');
+    const platform = searchParams.get('platform');
+    if (!status && !priority && !platform) return;
+    setStatusFilter(status ?? 'All');
+    setPriorityFilter(priority ?? 'All');
+    setPlatformFilter((platform as TicketPlatform | null) ?? 'All');
+    setPage(0);
+  }, [searchParams]);
 
   // Modales
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -1014,20 +1020,46 @@ export default function SupportPage() {
 
   // Query de sellers para el selector del nuevo ticket
   const { data: sellersData } = useQuery({
-    queryKey: ['support-sellers-lookup'],
-    queryFn: () => sellersApi.getSellers({ page: 0, size: PAGE_SIZES.MAX }),
+    queryKey: ['support-stores-lookup'],
+    queryFn: () => supportApi.getSupportStores(),
     enabled: isSupportOperator,
   });
 
   // Query global para dashboard (distribuciones)
-  const { data: globalTicketsData } = useQuery({
+  const { data: globalTicketsData, isLoading: globalLoading, isError: globalError, error: globalErrorDetail, refetch: refetchGlobal } = useQuery({
     queryKey: ['support-tickets-global'],
-    queryFn: () => supportApi.getTickets({ page: 0, size: 100 }),
+    queryFn: () => fetchAllPages((page, size) => supportApi.getTickets({ page, size })),
     enabled: isSupportOperator && activeTab === 'resumen',
+    staleTime: 60_000,
   });
 
-  const sellers = sellersData?.content ?? [];
+  // Defectos de QA completos, para contar los pendientes y los criticos en el resumen.
+  const { data: qaAllData, isLoading: qaAllLoading, isError: qaAllError, error: qaAllErrorDetail, refetch: refetchQaAll } = useQuery({
+    queryKey: ['support-qa-reports-all'],
+    queryFn: () => fetchAllPages((page, size) => supportApi.getQaReports({ page, size })),
+    enabled: isSupportOperator && activeTab === 'resumen',
+    staleTime: 60_000,
+  });
+
+  const sellers = sellersData ?? [];
   const globalTickets = globalTicketsData?.content ?? [];
+
+  const supportMetrics = useMemo(() => summarizeTickets(globalTickets), [globalTickets]);
+  const qaAll = qaAllData?.content ?? [];
+  const qaPending = qaAll.filter((t) => t.status !== 'RESUELTO' && t.status !== 'CERRADO' && t.status !== 'CANCELADO');
+  const qaCritical = qaPending.filter((t) => t.priority === 'CRITICA').length;
+  const cargaEsperando = cargaResumen?.porEstado?.ESPERANDO_SOPORTE ?? 0;
+  const supportInsights = useMemo(() => buildSupportInsights({
+    unanswered: supportMetrics.unanswered.length,
+    unansweredOver24h: supportMetrics.unansweredOver24h,
+    slaBreached: supportMetrics.slaBreached,
+    slaBreachedByCategory: supportMetrics.slaBreachedByCategory,
+    criticalUnanswered: supportMetrics.criticalUnanswered,
+    cargaEsperando,
+    cargaNoLeidos: cargaResumen?.noLeidos ?? 0,
+    qaPending: qaPending.length,
+    qaCritical,
+  }), [supportMetrics, cargaEsperando, cargaResumen?.noLeidos, qaPending.length, qaCritical]);
 
   const reportStats = useMemo(() => {
     const count = (predicate: (ticket: TicketResponse) => boolean) => globalTickets.filter(predicate).length;
@@ -1067,7 +1099,7 @@ export default function SupportPage() {
       showToast('Ticket creado exitosamente');
     },
     onError: (err: any) => {
-      showToast(err.message || 'Error al crear ticket');
+      showToast(mensajeDeError(err, 'Error al crear ticket'));
     },
   });
 
@@ -1092,7 +1124,7 @@ export default function SupportPage() {
       showToast(variables.file ? 'Documento adjuntado con éxito' : 'Estado del ticket actualizado');
     },
     onError: (err: any) => {
-      showToast(err.message || 'Error al actualizar ticket');
+      showToast(mensajeDeError(err, 'Error al actualizar ticket'));
     },
   });
 
@@ -1134,15 +1166,6 @@ export default function SupportPage() {
     setPlatformFilter('All');
     setPage(0);
   }
-
-  // Cálculos estadísticas del Dashboard
-  const stats = useMemo(() => {
-    const criticalTickets = [...globalTickets]
-      .filter(t => t.status !== 'RESUELTO' && t.status !== 'CERRADO' && (t.priority === 'CRITICA' || t.priority === 'ALTA'))
-      .slice(0, 5);
-
-    return { criticalTickets };
-  }, [globalTickets]);
 
   if (isSupportQa && !isSupportOperator) {
     return <SupportQaPage />;
@@ -1209,145 +1232,192 @@ export default function SupportPage() {
       {activeTab === 'resumen' ? (
         /* VISTA: RESUMEN / DASHBOARD */
         <div style={{ marginTop: '24px' }}>
-          {/* Hero de Comando de Soporte */}
+          {workspaceError && <QueryErrorNotice error={workspaceErrorDetail} what="los contadores de soporte" onRetry={refetchWorkspace} />}
+
           <section className="trust-command-hero" style={{ '--tone': 'var(--blue)', '--tone-soft': '#eef5ff', marginBottom: '24px' } as React.CSSProperties}>
             <div className="trust-command-copy">
-              <span className="trust-hero-eyebrow">
-                <UiIcon name="message" />
-                Mesa de Operaciones
-              </span>
-              <h1>Control de Soporte</h1>
-              <p>Monitoreo en tiempo real de fallas técnicas de la aplicación, dudas operativas y consultas generales de usuarios.</p>
-              <div className="trust-hero-kpis" aria-label="Indicadores principales">
-                <div className="trust-hero-kpi">
-                  <span className="trust-hero-kpi-icon" style={{ color: 'var(--blue)', background: '#eef5ff' }}><UiIcon name="message" /></span>
-                  <div><span>Por responder</span><strong>{workspaceData.newTickets}</strong></div>
-                </div>
-                <div className="trust-hero-kpi">
-                  <span className="trust-hero-kpi-icon" style={{ color: 'var(--amber)', background: '#fff6e8' }}><UiIcon name="clock" /></span>
-                  <div><span>Bandeja activa</span><strong>{workspaceData.openTickets}</strong></div>
-                </div>
-                <div className="trust-hero-kpi">
-                  <span className="trust-hero-kpi-icon" style={{ color: 'var(--red)', background: '#fff0ef' }}><UiIcon name="alert" /></span>
-                  <div><span>SLA crítico</span><strong>{workspaceData.urgentTickets}</strong></div>
-                </div>
-              </div>
+              <span className="trust-hero-eyebrow"><UiIcon name="headset" /> Mesa de Soporte</span>
+              <h1>Qué atender hoy</h1>
+              <p>Cada número es un caso que espera a alguien de soporte. Haz clic para ir a la bandeja ya filtrada; el icono <UiIcon name="info" /> explica qué hacer con él.</p>
             </div>
-
             <div className="trust-command-actions">
               <AreaHomeShortcut />
-              <div className="trust-command-score" aria-label={`Tasa de resolución ${resolutionRate}%`}>
-                <div className="trust-score-orbit" style={{ background: `conic-gradient(var(--blue) 0 ${resolutionRate}%, rgba(37,99,235,.08) ${resolutionRate}% 100%)` }}>
-                  <div className="trust-score-core">
-                    <strong>{resolutionRate}%</strong>
-                  </div>
+              <div className="trust-command-score" aria-label="Respondidos a tiempo en 30 días">
+                <div className="trust-score-orbit" style={{ background: `conic-gradient(var(--blue) 0 ${supportMetrics.onTime.rate ?? 0}%, rgba(37,99,235,.08) ${supportMetrics.onTime.rate ?? 0}% 100%)` }}>
+                  <div className="trust-score-core"><strong>{globalLoading ? '…' : supportMetrics.onTime.rate === null ? '—' : `${supportMetrics.onTime.rate}%`}</strong></div>
                 </div>
                 <div className="trust-score-summary">
                   <span className="trust-score-summary-icon" style={{ background: 'var(--blue)' }}><UiIcon name="check" /></span>
-                  <strong>Tasa de Resolución</strong>
-                  <Badge text={resolutionRate >= 80 ? 'Excelente' : resolutionRate >= 50 ? 'Estable' : 'Crítico'} variant={resolutionRate >= 80 ? 'green' : resolutionRate >= 50 ? 'amber' : 'red'} />
+                  <strong>Respondidos a tiempo</strong>
+                  <span className="metric-info-tooltip" tabIndex={0}><UiIcon name="info" /><span className="metric-info-tooltip-content"><strong>Últimos 30 días</strong><p>De los tickets creados en los últimos 30 días que ya tienen respuesta o vencieron, qué porcentaje recibió su primera respuesta dentro del plazo de su categoría: 24 h fallas técnicas, 48 h solicitudes de ayuda, 72 h consultas.</p><div className="metric-info-tooltip-row"><span>A tiempo</span><b>{supportMetrics.onTime.ok}</b></div><div className="metric-info-tooltip-row"><span>Tarde o vencidos</span><b>{supportMetrics.onTime.late}</b></div></span></span>
+                  {supportMetrics.onTime.rate !== null && <Badge text={supportMetrics.onTime.rate >= 90 ? 'Excelente' : supportMetrics.onTime.rate >= 70 ? 'Aceptable' : 'Mejorar'} variant={supportMetrics.onTime.rate >= 90 ? 'green' : supportMetrics.onTime.rate >= 70 ? 'amber' : 'red'} />}
                 </div>
               </div>
             </div>
           </section>
 
-          {/* Layout de Distribuciones y Feed Crítico */}
-          <div className="module-layout wide-main">
-            <div className="validation-detail-stack" style={{ display: 'grid', gap: '16px' }}>
-              <section className="support-report-metrics" aria-label="Estadísticas de reportes">
-                <ReportMetricCard
-                  icon="dashboard"
-                  title="Por categoría"
-                  total={reportStats.total}
-                  tooltipTitle="Clasificación del motivo"
-                  tooltipText="Agrupa los tickets según el tipo de necesidad reportada. Permite al encargado de soporte distinguir fallas técnicas que requieren diagnóstico, solicitudes de ayuda operativa y consultas generales de funcionamiento."
-                >
-                  <ReportMetricRow icon="alert" label="Fallas técnicas" detail="Errores / Bugs" value={reportStats.technicalFailures} total={reportStats.total} tone="red" />
-                  <ReportMetricRow icon="help" label="Solicitudes de ayuda" detail="Asistencia operativa" value={reportStats.helpRequests} total={reportStats.total} tone="amber" />
-                  <ReportMetricRow icon="message" label="Consultas" detail="Funcionamiento" value={reportStats.inquiries} total={reportStats.total} tone="blue" />
-                </ReportMetricCard>
+          <div className="dash-row-title"><h2>Pendientes ahora</h2><span>Ordenados por urgencia</span></div>
+          <section className="dash-kpi-row" aria-label="Pendientes de soporte">
+            <KpiTile
+              label="Sin responder"
+              value={workspaceData.unansweredTickets ?? (globalTicketsData ? supportMetrics.unanswered.length : null)}
+              tone="red"
+              urgent
+              iconName="message"
+              to="/soporte/tickets?status=ABIERTO"
+              secondary={(workspaceData.unansweredOver24h ?? (globalTicketsData ? supportMetrics.unansweredOver24h : undefined)) !== undefined ? `${workspaceData.unansweredOver24h ?? supportMetrics.unansweredOver24h} con más de 24 horas` : undefined}
+              loading={globalLoading && workspaceLoading}
+              error={globalError && workspaceError ? globalErrorDetail : undefined}
+              onRetry={() => { void refetchGlobal(); void refetchWorkspace(); }}
+              infoContent={<><strong>Qué hacer</strong><p>Tickets que nunca han recibido una respuesta de soporte. Abre el más antiguo (lista de abajo), lee el motivo y responde por el chat; al responder pasa automáticamente a "En proceso".</p></>}
+            />
+            <KpiTile
+              label="Fuera de plazo"
+              value={workspaceData.slaBreachedTickets ?? (globalTicketsData ? supportMetrics.slaBreached : null)}
+              tone="red"
+              urgent
+              iconName="clock"
+              to="/soporte/tickets?status=ABIERTO"
+              loading={globalLoading}
+              error={globalError ? globalErrorDetail : undefined}
+              onRetry={refetchGlobal}
+              infoContent={<><strong>Qué hacer</strong><p>Sin respuesta y ya pasó el plazo de su categoría: 24 horas una falla técnica, 48 una solicitud de ayuda, 72 una consulta. Son los que más molestan al usuario: respóndelos aunque sea para decir que lo estás revisando.</p></>}
+            />
+            <KpiTile
+              label="Urgentes activos"
+              value={workspaceData.urgentTickets}
+              tone="amber"
+              iconName="alert"
+              to="/soporte/tickets?priority=CRITICA"
+              secondary={globalTicketsData ? `${supportMetrics.criticalUnanswered} críticos sin responder` : undefined}
+              loading={workspaceLoading}
+              error={workspaceError ? workspaceErrorDetail : undefined}
+              onRetry={refetchWorkspace}
+              infoContent={<><strong>Qué hacer</strong><p>Tickets abiertos con prioridad crítica o alta. Si describen un problema de pago, de acceso o de pedidos que no llegan, avisa de inmediato al canal de infraestructura además de responder.</p></>}
+            />
+            <KpiTile
+              label="Chats de carga esperando"
+              value={cargaResumen ? cargaEsperando : null}
+              tone="violet"
+              urgent
+              iconName="upload"
+              to="/soporte/carga-inventario"
+              secondary={cargaResumen ? `${cargaResumen.noLeidos} mensajes sin leer · ${cargaResumen.abiertos} chats abiertos` : undefined}
+              loading={cargaLoading}
+              error={cargaError ? cargaErrorDetail : undefined}
+              onRetry={refetchCarga}
+              infoContent={<><strong>Qué hacer</strong><p>Vendedores que pidieron ayuda para subir su inventario y están esperando a soporte. Responde en el chat; si el vendedor no contesta en 24 horas tras tu respuesta, el chat se cierra solo.</p></>}
+            />
+            <KpiTile
+              label="Defectos QA pendientes"
+              value={workspaceData.qaPendingTickets ?? (qaAllData ? qaPending.length : null)}
+              tone="blue"
+              iconName="shieldCheck"
+              to="/soporte/qa-reports"
+              secondary={qaAllData ? `${qaCritical} críticos` : undefined}
+              loading={qaAllLoading}
+              error={qaAllError ? qaAllErrorDetail : undefined}
+              onRetry={refetchQaAll}
+              infoContent={<><strong>Qué hacer</strong><p>Fallas que el equipo de QA encontró probando la aplicación. Los críticos pueden estar afectando a usuarios reales: confírmalo y márcalos "Listo para revisión" cuando el equipo los corrija.</p></>}
+            />
+            <KpiTile
+              label="Resueltos por cerrar"
+              value={globalTicketsData ? supportMetrics.resolvedPendingClose : null}
+              tone="green"
+              iconName="check"
+              to="/soporte/tickets?status=RESUELTO"
+              secondary={globalTicketsData ? `${supportMetrics.autoCloseToday} se cierran solos hoy` : undefined}
+              loading={globalLoading}
+              error={globalError ? globalErrorDetail : undefined}
+              onRetry={refetchGlobal}
+              infoContent={<><strong>Qué hacer</strong><p>Nada, salvo que el usuario vuelva a escribir (entonces se reabre). Un ticket resuelto se cierra solo a los 7 días sin respuesta del usuario.</p></>}
+            />
+          </section>
 
-                <ReportMetricCard
-                  icon="users"
-                  title="Por tipo de reportante"
-                  total={reportStats.total}
-                  tone="violet"
-                  tooltipTitle="Origen del solicitante"
-                  tooltipText="Muestra quién generó los tickets: compradores de la aplicación, vendedores o tiendas, y personal interno. Ayuda a priorizar la atención y adaptar la respuesta al perfil del usuario afectado."
-                >
-                  <ReportMetricRow icon="users" label="Compradores" detail="Usuarios" value={reportStats.buyers} total={reportStats.total} tone="blue" />
-                  <ReportMetricRow icon="cart" label="Vendedores" detail="Tiendas" value={reportStats.sellers} total={reportStats.total} tone="green" />
-                  <ReportMetricRow icon="shield" label="Interno" detail="Staff / Monitores" value={reportStats.internal} total={reportStats.total} tone="violet" />
-                </ReportMetricCard>
+          <InsightList items={supportInsights} loading={globalLoading} />
 
-                <ReportMetricCard
-                  icon="monitor"
-                  title="Por plataforma"
-                  total={reportStats.total}
-                  tooltipTitle="Área del sistema afectada"
-                  tooltipText="Distribuye los tickets por el área donde ocurrió el problema: Administración Contable para operaciones financieras, Mediación y Confianza para disputas y validaciones, y App Mobile para la experiencia de compradores y vendedores."
-                >
-                  <ReportMetricRow icon="barChart" label="Administración" detail="Contable" value={reportStats.accounting} total={reportStats.total} tone="blue" />
-                  <ReportMetricRow icon="handshake" label="Mediación y" detail="Confianza" value={reportStats.trust} total={reportStats.total} tone="violet" />
-                  <ReportMetricRow icon="smartphone" label="App Mobile" detail="RepuesTop" value={reportStats.mobile} total={reportStats.total} tone="green" />
-                </ReportMetricCard>
-              </section>
+          <section className="dash-grid">
+            <ActionQueue
+              title="Más antiguos sin respuesta"
+              help={<><strong>Por dónde empezar</strong><p>Los cinco tickets sin ninguna respuesta de soporte que llevan más tiempo esperando. El color indica si ya se acerca o pasó su plazo.</p></>}
+              items={supportMetrics.unanswered.slice(0, 5).map((ticket) => {
+                const hours = hoursSince(ticket.createdAt) ?? 0;
+                const sla = ticket.sla ? Number.parseInt(ticket.sla, 10) || 48 : 48;
+                return {
+                  id: ticket.id,
+                  title: `${ticket.externalId} · ${ticket.reason}`,
+                  subtitle: `${ticket.reporterName}${ticket.sellerName ? ` · ${ticket.sellerName}` : ''}`,
+                  ageLabel: formatAge(ticket.createdAt),
+                  ageTone: ageTone(hours, sla * 0.75, sla),
+                  badge: <Badge text={PRIORITY_LABELS[ticket.priority] ?? ticket.priority} variant={PRIORITY_TONES[ticket.priority] ?? 'amber'} />,
+                  onOpen: () => setSelectedTicket(ticket),
+                  openLabel: 'Atender',
+                };
+              })}
+              loading={globalLoading}
+              error={globalError ? globalErrorDetail : undefined}
+              onRetry={refetchGlobal}
+              what="los tickets"
+              emptyText="Todos los tickets tienen al menos una respuesta."
+              seeAllTo="/soporte/tickets?status=ABIERTO"
+            />
+            <MiniBars
+              title="Bandeja activa por prioridad"
+              help={<p>Tickets abiertos (sin resolver ni cerrar) según su prioridad. Haz clic en una barra para ver esos tickets.</p>}
+              loading={globalLoading}
+              items={(['CRITICA', 'ALTA', 'MEDIA', 'BAJA'] as const).map((priority) => ({
+                key: priority,
+                label: PRIORITY_LABELS[priority],
+                value: supportMetrics.openByPriority[priority] ?? 0,
+                tone: priority === 'CRITICA' || priority === 'ALTA' ? 'red' : priority === 'MEDIA' ? 'amber' : 'green',
+                to: `/soporte/tickets?priority=${priority}`,
+              }))}
+              emptyText="No hay tickets abiertos."
+            />
+          </section>
 
-              <div className="trust-pulse-note" style={{ color: '#0369a1', borderColor: '#bae6fd', background: '#f0f9ff' }}>
-                <UiIcon name="alert" />
-                <span><strong>Flujo Operativo de Soporte:</strong> Las fallas técnicas de prioridad crítica tienen un SLA de 2 horas. Si un ticket reporta problemas con pasarelas de pago o autenticación, notifica de inmediato al canal #infraestructura.</span>
-              </div>
-            </div>
+          <section className="dash-grid">
+            <MiniBars
+              title="Bandeja activa por plataforma"
+              help={<p>Desde qué parte del sistema vienen los tickets abiertos. Si una plataforma concentra muchos, suele ser una falla común y no casos aislados.</p>}
+              loading={globalLoading}
+              items={Object.entries(supportMetrics.openByPlatform)
+                .sort(([, a], [, b]) => b - a)
+                .map(([platform, value]) => ({ key: platform, label: DASH_PLATFORM_LABELS[platform] ?? platform, value, tone: 'blue' as const, to: platform === 'SIN_PLATAFORMA' ? '/soporte/tickets' : `/soporte/tickets?platform=${platform}` }))}
+              emptyText="No hay tickets abiertos."
+            />
+            <MiniBars
+              title="Tickets creados por día (14 días)"
+              help={<p>Cuántos tickets entraron cada día, de hace 14 días a hoy. Un salto brusco suele coincidir con una falla general.</p>}
+              loading={globalLoading}
+              items={supportMetrics.createdByDay.map((day) => ({ key: day.key, label: day.label, value: day.value, tone: 'blue' as const }))}
+              emptyText="No entraron tickets en las últimas dos semanas."
+            />
+          </section>
 
-            <aside className="side-panel" style={{ padding: '0', background: 'transparent', border: 'none', boxShadow: 'none' }}>
-              <article className="trust-panel" style={{ height: '100%' }}>
-                <div className="trust-panel-head">
-                  <div>
-                    <span>Bandeja Crítica</span>
-                    <h2>Tickets Urgentes Activos</h2>
-                  </div>
-                  <Badge text={`${stats.criticalTickets.length} críticos`} variant="red" />
-                </div>
-                <div className="trust-feed" style={{ maxHeight: '420px', overflowY: 'auto' }}>
-                  {stats.criticalTickets.length === 0 ? (
-                    <div className="trust-empty-state" style={{ padding: '32px' }}>
-                      <UiIcon name="check" />
-                      <span>No hay tickets críticos o urgentes activos.</span>
-                    </div>
-                  ) : (
-                    stats.criticalTickets.map((ticket) => (
-                      <div className="trust-feed-item" key={ticket.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: '8px', padding: '12px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                            <span className={`trust-feed-icon ${ticket.priority === 'CRITICA' ? 'red' : 'amber'}`} style={{ width: '28px', height: '28px', borderRadius: '50%', display: 'grid', placeItems: 'center' }}>
-                              <UiIcon name="alert" />
-                            </span>
-                            <strong>{ticket.externalId}</strong>
-                          </div>
-                          <Badge text={getStatusLabel(ticket.status, ticket.origin === 'QA')} variant={STATUS_TONES[ticket.status]} />
-                        </div>
-                        
-                        <span style={{ fontSize: '13px', fontWeight: '500', color: 'var(--ink)' }}>{ticket.reason}</span>
-                        
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', color: 'var(--muted)', marginTop: '4px' }}>
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, minWidth: 0 }}>Por: <CapturerAvatar nombre={ticket.reporterName} fotoPerfil={ticket.reporterPhoto} size={18} /><FounderSellerName name={ticket.reporterName} founder={ticket.reporterType === 'VENDEDOR' && ticket.sellerFounder} /></span>
-                          <span>SLA: {ticket.sla}</span>
-                        </div>
-                        
-                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '6px', paddingTop: '8px', borderTop: '1px solid var(--soft-line)' }}>
-                          <Badge text={PRIORITY_LABELS[ticket.priority]} variant={PRIORITY_TONES[ticket.priority]} />
-                          <button className="primary-button" type="button" onClick={() => setSelectedTicket(ticket)} style={{ minHeight: '28px', height: '28px', padding: '0 10px', fontSize: '11px', borderRadius: '4px' }}>
-                            <UiIcon name="arrowRight" />
-                            Atender
-                          </button>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </article>
-            </aside>
-          </div>
+          <section className="dash-grid">
+            <ReportMetricCard
+              icon="dashboard"
+              title="Por categoría"
+              total={reportStats.total}
+              tooltipTitle="Clasificación del motivo"
+              tooltipText="Agrupa todos los tickets según el tipo de necesidad: fallas técnicas (plazo 24 h), solicitudes de ayuda (48 h) y consultas (72 h)."
+            >
+              <ReportMetricRow icon="alert" label="Fallas técnicas" detail="Plazo 24 h" value={reportStats.technicalFailures} total={reportStats.total} tone="red" />
+              <ReportMetricRow icon="help" label="Solicitudes de ayuda" detail="Plazo 48 h" value={reportStats.helpRequests} total={reportStats.total} tone="amber" />
+              <ReportMetricRow icon="message" label="Consultas" detail="Plazo 72 h" value={reportStats.inquiries} total={reportStats.total} tone="blue" />
+            </ReportMetricCard>
+            <MiniBars
+              title="Chats de carga de inventario por estado"
+              loading={cargaLoading}
+              items={[
+                { key: 'esperando', label: 'Esperando soporte', value: cargaResumen?.porEstado?.ESPERANDO_SOPORTE ?? 0, tone: 'amber', to: '/soporte/carga-inventario' },
+                { key: 'atencion', label: 'En atención', value: cargaResumen?.porEstado?.EN_ATENCION ?? 0, tone: 'blue', to: '/soporte/carga-inventario' },
+                { key: 'vendedor', label: 'Esperando al vendedor', value: cargaResumen?.porEstado?.ESPERANDO_VENDEDOR ?? 0, tone: 'violet', to: '/soporte/carga-inventario' },
+              ]}
+              emptyText="No hay chats de carga abiertos."
+            />
+          </section>
         </div>
       ) : activeTab === 'carga-inventario' ? (
         <div style={{ marginTop: '24px' }}>
@@ -1816,129 +1886,6 @@ export default function SupportPage() {
         />
       )}
 
-      {isTicketSelected(selectedTicket) && showLegacyTicketModal() && (
-        <div className="case-modal-backdrop" onClick={() => setSelectedTicket(null)}>
-          <div className="case-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '640px' }}>
-            <div className="case-modal-header" style={{ paddingBottom: '16px', borderBottom: '1px solid var(--line)' }}>
-              <div className="case-modal-icon blue" style={{ width: '48px', height: '48px', borderRadius: '12px' }}>
-                <UiIcon name="message" />
-              </div>
-              <div className="case-modal-title">
-                <span className="case-modal-kicker">Detalle del reporte · {selectedTicket.externalId}</span>
-                <h2>{selectedTicket.reason}</h2>
-              </div>
-              <button className="ghost-button" type="button" onClick={() => setSelectedTicket(null)}>Cerrar</button>
-            </div>
-
-            <div className="case-modal-body" style={{ padding: '24px 0' }}>
-              <div className="case-modal-grid" style={{ marginBottom: '24px' }}>
-                <div className="modal-field wide">
-                  <span>Reportante</span>
-                  <strong style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><CapturerAvatar nombre={selectedTicket.reporterName} fotoPerfil={selectedTicket.reporterPhoto} size={30} /><FounderSellerName name={selectedTicket.reporterName} founder={selectedTicket.reporterType === 'VENDEDOR' && selectedTicket.sellerFounder} /></strong>
-                </div>
-                <div className="modal-field">
-                  <span>Tipo de Usuario</span>
-                  <strong>{selectedTicket.platform === 'SITIO_WEB' ? 'Consulta web' : REPORTER_LABELS[selectedTicket.reporterType]}</strong>
-                </div>
-                <div className="modal-field">
-                  <span>Fecha de Creación</span>
-                  <strong>{formatDate(selectedTicket.createdAt)}</strong>
-                </div>
-                <div className="modal-field">
-                  <span>Categoría</span>
-                  <Badge text={CATEGORY_LABELS[selectedTicket.category]} variant={CATEGORY_TONES[selectedTicket.category]} />
-                </div>
-                <div className="modal-field">
-                  <span>Prioridad</span>
-                  <Badge text={PRIORITY_LABELS[selectedTicket.priority]} variant={PRIORITY_TONES[selectedTicket.priority]} />
-                </div>
-                <div className="modal-field">
-                  <span>Estado actual</span>
-                  <Badge text={STATUS_LABELS[selectedTicket.status]} variant={STATUS_TONES[selectedTicket.status]} />
-                </div>
-                <div className="modal-field">
-                  <span>SLA / Tiempo Restante</span>
-                  <strong>{selectedTicket.sla || 'No especificado'}</strong>
-                </div>
-                <div className="modal-field">
-                  <span>Plataforma Origen</span>
-                  <strong>{selectedTicket.platform ? PLATFORM_LABELS[selectedTicket.platform] : 'App Mobile / General'}</strong>
-                </div>
-              </div>
-
-              <div style={{ marginBottom: '24px' }}>
-                <span style={{ display: 'block', fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: '8px' }}>Descripción de la Falla / Consulta</span>
-                <div style={{ padding: '16px', background: 'var(--soft)', borderRadius: '12px', border: '1px solid var(--line)', fontSize: '13px', lineHeight: '1.5', whiteSpace: 'pre-wrap' }}>
-                  {selectedTicket.lastMessage}
-                </div>
-              </div>
-
-              {selectedTicket.nextAction && (
-                <div style={{ marginBottom: '24px' }}>
-                  <span style={{ display: 'block', fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: '8px' }}>Nota / Acción de Resolución Interna</span>
-                  <div style={{ padding: '16px', background: '#dff5e9', border: '1px solid #159447', borderRadius: '12px', color: '#116630', fontSize: '13px', lineHeight: '1.5' }}>
-                    {selectedTicket.nextAction}
-                  </div>
-                </div>
-              )}
-
-              {/* Formulario nota resolución */}
-              {selectedTicket.status !== 'RESUELTO' && selectedTicket.status !== 'CERRADO' && (
-                <div className="form-group" style={{ marginBottom: '24px' }}>
-                  <label htmlFor="nextActionNotes" style={{ display: 'block', fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: '8px' }}>Notas Técnicas de Solución (Opcional)</label>
-                  <textarea
-                    id="nextActionNotes"
-                    value={nextActionNotes}
-                    onChange={(e) => setNextActionNotes(e.target.value)}
-                    placeholder="Describe los pasos de resolución, respuesta entregada o siguientes acciones..."
-                    rows={3}
-                    style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--line)', fontSize: '13px', resize: 'vertical' }}
-                  />
-                </div>
-              )}
-
-              {/* Botones de acción */}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', paddingTop: '16px', borderTop: '1px solid var(--line)' }}>
-                {selectedTicket.status === 'ABIERTO' && (
-                  <button
-                    className="validation-action-button approve"
-                    type="button"
-                    onClick={() => updateStatusMutation.mutate({ id: selectedTicket.id, status: 'EN_PROCESO', nextAction: nextActionNotes })}
-                    disabled={updateStatusMutation.isPending}
-                    style={{ background: 'var(--blue)', color: '#fff' }}
-                  >
-                    <UiIcon name="clock" />
-                    Atender e iniciar proceso
-                  </button>
-                )}
-                {selectedTicket.status !== 'RESUELTO' && selectedTicket.status !== 'CERRADO' && (
-                  <button
-                    className="validation-action-button approve"
-                    type="button"
-                    onClick={() => updateStatusMutation.mutate({ id: selectedTicket.id, status: 'RESUELTO', nextAction: nextActionNotes })}
-                    disabled={updateStatusMutation.isPending}
-                    style={{ background: '#159447', color: '#fff' }}
-                  >
-                    <UiIcon name="check" />
-                    Resolver ticket
-                  </button>
-                )}
-                {selectedTicket.status !== 'CERRADO' && (
-                  <button
-                    className="validation-action-button reject"
-                    type="button"
-                    onClick={() => updateStatusMutation.mutate({ id: selectedTicket.id, status: 'CERRADO', nextAction: nextActionNotes })}
-                    disabled={updateStatusMutation.isPending}
-                  >
-                    <UiIcon name="close" />
-                    Cerrar ticket
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* MODAL: CREAR TICKET */}
       {createModalOpen && (
@@ -1995,7 +1942,7 @@ export default function SupportPage() {
                     <select value={newSellerId ?? ''} onChange={(e) => setNewSellerId(e.target.value ? Number(e.target.value) : null)}>
                       <option value="">Seleccionar tienda...</option>
                       {sellers.map((s) => (
-                        <option key={s.id} value={s.id}>{s.storeName} (RUT: {s.rut})</option>
+                        <option key={s.id} value={s.id}>{s.nombreTienda}{s.rut ? ` (RUT: ${s.rut})` : ''}</option>
                       ))}
                     </select>
                   </label>

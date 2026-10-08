@@ -1,4 +1,6 @@
 import { useState, useMemo } from 'react';
+import { fetchAllPages } from '@/utils/pagination';
+import QueryErrorNotice from '@/components/shared/QueryErrorNotice';
 import { useQuery } from '@tanstack/react-query';
 import * as reportsApi from '@/api/reports';
 import MetricCard from '@/components/shared/MetricCard';
@@ -43,7 +45,7 @@ export default function ReportsPage() {
   // Consulta para obtener la totalidad de reportes y extraer la lista única de nombres
   const { data: allReportsData } = useQuery({
     queryKey: ['all-reports-names'],
-    queryFn: () => reportsApi.getReports({ size: 1000 }),
+    queryFn: () => fetchAllPages((page, size) => reportsApi.getReports({ page, size })),
   });
 
   const reportsList = allReportsData?.content ?? [];
@@ -94,7 +96,7 @@ export default function ReportsPage() {
     return search || undefined;
   }, [responsibleFilter, search]);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['reports', searchParam, reporterTypeParam, objectTypeFilter, page],
     queryFn: () =>
       reportsApi.getReports({
@@ -206,6 +208,7 @@ export default function ReportsPage() {
           <AreaHomeShortcut />
         </div>
       </div>
+      {isError && <QueryErrorNotice error={error} what="los reportes" onRetry={refetch} />}
 
       <section className="metric-grid compact reports-metric-grid" style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))' }}>
         <MetricCard

@@ -21,21 +21,7 @@ export interface UserSummaryResponse {
   initials: string;
   role: Role;
   permissions?: BackofficePermission[];
+  /** Solo captadores: false cuando Permisos le desactivo el acceso al portal. */
+  capturerAccessActive?: boolean | null;
 }
 
-export interface AuthResponse {
-  accessToken: string;
-  refreshToken: string;
-  tokenType: string;
-  expiresIn: number;
-  user: UserSummaryResponse;
-}
-
-export interface LoginRequest {
-  username: string;
-  password: string;
-}
-
-export interface RefreshTokenRequest {
-  refreshToken: string;
-}

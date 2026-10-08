@@ -12,7 +12,3 @@ export async function getReportsSummary(): Promise<ReportsSummaryResponse> {
   return response.data;
 }
 
-export async function getReportsBySellerId(sellerId: number): Promise<ReportResponse[]> {
-  const response = await apiClient.get<ReportResponse[]>(`/reports/seller/${sellerId}`);
-  return response.data;
-}
