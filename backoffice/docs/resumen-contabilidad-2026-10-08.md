@@ -244,6 +244,24 @@ Dónde quedó cada cosa:
   abiertas al límite, notas registradas y el modal para registrar folio, fecha, monto y PDF.
 - El PDF de la nota se valida por su contenido real, no por el `Content-Type`.
 
+### Prueba en local (backend y backoffice levantados)
+
+- Migraciones `V2026100901` y `V2026100902` aplicadas sin error; la app arranca.
+- **Error encontrado y corregido:** `(:corte is null or fecha >= :corte)` hace fallar a Postgres
+  ("no se pudo determinar el tipo del parámetro"). Rompía `GET /credit-notes` con 503 y, desde
+  antes, el `AlertaCumplimientoTributarioJob` de las 08:00: la alerta de recargas sin documento
+  **nunca había corrido** (log del 18/09). `contarSubordenesSinBoletaAntiguas` tiene el mismo
+  patrón, pero no se usa.
+- **Brecha encontrada y corregida:** el documento de liquidación aceptaba una factura con RUT
+  inválido. Ahora la factura exige RUT válido, como las recargas.
+- Probado en pantalla: export del mes, modal con folio y fecha, rechazo de folio repetido entre
+  retiro y recarga, vista previa con fecha real de registro, Cumplimiento SII con un caso real
+  (reembolso por mediación del pedido 2579737244), rechazos del registro de nota (PDF falso,
+  fecha futura, folio no numérico, emisor sin factura, duplicado) y descarga del PDF.
+- Datos de prueba que quedaron: nota de crédito folio 555 sobre el reembolso 13, factura folio
+  2001 en el retiro `RTP-1-RET-000002`, y sus PDF de prueba en R2
+  (`nota_credito/Pedido_4/` y `Boleta_Factura/Retiro_2/`).
+
 ### Pendiente de esta sesión
 
 1. **Correo de Administración Contable** para recibir las notas de las tiendas. Sin él, el job no
