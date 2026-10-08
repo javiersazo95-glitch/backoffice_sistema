@@ -77,6 +77,7 @@ La Resolución Ex. SII N° 99 de 2025 (vigente desde el 1 de octubre de 2025) fi
   - **Condiciones:** uso exclusivo para el art. 68 inciso 12°, reserva de la información y Ley 19.628; el SII puede revocar el acceso si no se usa para ese fin.
   - **Riesgo de rechazo:** el SII aprobó a Transbank, Mercado Pago, Getnet, Welcu y Flycrew, entre otros (Res. 133 de 2025), pero **rechazó a Uber** (Res. 204 de 2025) por considerarlo plataforma de transporte sin calidad de operador de medios de pago. La solicitud de RepuesTop debe dejar claro que es un marketplace de compraventa de bienes entre terceros **que además recauda los pagos**.
   - **La consulta web individual sigue siendo válida** (Res. 99), así que la API es una optimización, no un requisito para cumplir.
+  - Lo que conlleva pedirla (datos del formulario, IP fija en Railway, texto propuesto, obligaciones) está en [solicitud-api-sii-inicio-actividades.md](solicitud-api-sii-inicio-actividades.md).
 - Si la tienda registra término de giro, se exige un nuevo inicio de actividades posterior a esa fecha.
 - Si el usuario declara estar expresamente liberado por el SII, la plataforma queda exenta de exigirlo, pero debe guardar esa declaración.
 
