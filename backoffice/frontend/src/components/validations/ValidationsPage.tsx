@@ -69,6 +69,15 @@ const REQUIRED_DOCUMENTS: RequiredDocumentDefinition[] = [
     tone: 'amber',
   },
   {
+    // Res. SII 168 de 2025: la plataforma lo exige al contratar. Nombre del backend:
+    // ValidacionBackofficeService.CERTIFICADO_CUMPLIMIENTO.
+    key: 'certificado-cumplimiento',
+    label: 'Certificado de cumplimiento tributario (SII)',
+    aliases: ['Certificado de Cumplimiento Tributario (SII)', 'certificado de cumplimiento tributario', 'certificado de cumplimiento'],
+    icon: 'shieldCheck',
+    tone: 'violet',
+  },
+  {
     key: 'declaracion-representante',
     label: 'Declaración de representante legal',
     aliases: ['declaracion de representante legal', 'declaracion representante legal', 'declaracion representante', 'representative document', 'Cédula Identidad Representante', 'cedula identidad representante', 'cedula representante'],
@@ -76,6 +85,14 @@ const REQUIRED_DOCUMENTS: RequiredDocumentDefinition[] = [
     tone: 'blue',
   },
 ];
+
+const RESULTADO_SII_TEXTO: Record<string, string> = {
+  CUMPLE: 'cumple',
+  NO_CUMPLE: 'no cumple (puede vender)',
+  SIN_INICIO_ACTIVIDADES: 'sin inicio de actividades',
+  TERMINO_GIRO: 'término de giro',
+  SUBSISTENCIA: 'Registro de Subsistencia',
+};
 
 const STATUS_OPTIONS = [
   { value: 'ACTIVOS', label: 'Pendiente y Por corregir' },
@@ -376,7 +393,17 @@ export default function ValidationsPage() {
     .map((document) => document.document as ValidationResponse);
   const hasMissingRequiredDocuments = requiredDocuments.some((document) => !document.document);
   const canResolveRequest = !hasMissingRequiredDocuments && pendingDocuments.length > 0;
-  const canApproveRequest = canResolveRequest && !requiredDocuments.some((document) => document.document?.status === ValidationStatus.RECHAZADA);
+  // Pendiente A: declaracion de IVA, certificado y verificacion del SII. El backend rechaza la
+  // aprobacion sin ellos; aca se muestra antes, con la razon, en vez de un error al presionar.
+  const taxStatusQuery = useQuery({
+    queryKey: ['validation-tax-status', selectedGroup?.sellerId],
+    queryFn: () => validationsApi.getSellerTaxStatus(Number(selectedGroup?.sellerId)),
+    enabled: Boolean(selectedGroup?.sellerId),
+  });
+  const faltantesTributarios = taxStatusQuery.data?.exigido ? taxStatusQuery.data.faltantes : [];
+  const canApproveRequest = canResolveRequest
+    && !requiredDocuments.some((document) => document.document?.status === ValidationStatus.RECHAZADA)
+    && faltantesTributarios.length === 0;
 
   const approveMutation = useMutation({
     mutationFn: (ids: number[]) => Promise.all(ids.map((id) => validationsApi.approveValidation(id))),
@@ -914,6 +941,58 @@ export default function ValidationsPage() {
                 )}
               </section>
 
+              <section className="validation-panel">
+                <PanelTitle icon="shieldCheck" title="Situación tributaria (SII)" />
+                {taxStatusQuery.isError ? (
+                  <QueryErrorNotice error={taxStatusQuery.error} what="la situación tributaria de la tienda" onRetry={() => taxStatusQuery.refetch()} />
+                ) : !taxStatusQuery.data ? (
+                  <p className="validation-decision-hint">Cargando…</p>
+                ) : (
+                  <div>
+                    {(() => {
+                      const estado = taxStatusQuery.data;
+                      const resultado = estado.ultimaVerificacion?.resultado ?? '';
+                      const verificadaEsteSemestre = estado.ultimaVerificacion?.semestre === estado.semestreActual;
+                      const filas: { ok: boolean; titulo: string; detalle: string }[] = [
+                        {
+                          ok: Boolean(estado.declaracionIvaAt),
+                          titulo: 'Declaración de contribuyente de IVA',
+                          detalle: estado.declaracionIvaAt
+                            ? `Declarada el ${new Date(estado.declaracionIvaAt).toLocaleDateString('es-CL')}.`
+                            : 'La hace la tienda al enviar sus documentos. Si falta, solicita una corrección.',
+                        },
+                        {
+                          ok: estado.tieneCertificado,
+                          titulo: 'Certificado de cumplimiento tributario',
+                          detalle: estado.tieneCertificado
+                            ? 'Cargado: está en Documentos requeridos.'
+                            : 'La tienda debe subirlo. Si falta, solicita una corrección.',
+                        },
+                        {
+                          ok: verificadaEsteSemestre && (resultado === 'CUMPLE' || resultado === 'NO_CUMPLE'),
+                          titulo: `Verificación en el SII (semestre ${estado.semestreActual})`,
+                          detalle: verificadaEsteSemestre
+                            ? `Resultado: ${RESULTADO_SII_TEXTO[resultado] ?? resultado}.`
+                            : 'La registra Administración Contable en Cumplimiento SII → Situación tributaria, consultando el RUT en sii.cl.',
+                        },
+                      ];
+                      return filas.map((fila) => (
+                        <div key={fila.titulo} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '8px 0' }}>
+                          <span className={`status-pill ${fila.ok ? 'tone-green' : 'tone-amber'}`}>{fila.ok ? 'Listo' : 'Falta'}</span>
+                          <div>
+                            <strong>{fila.titulo}</strong>
+                            <div style={{ fontSize: 13, color: '#64748b' }}>{fila.detalle}</div>
+                          </div>
+                        </div>
+                      ));
+                    })()}
+                    {!taxStatusQuery.data.exigido && (
+                      <p className="validation-decision-hint">La exigencia está desactivada en este ambiente: se puede aprobar igual.</p>
+                    )}
+                  </div>
+                )}
+              </section>
+
               <section className="validation-panel validation-decision-panel">
                 <div>
                   <PanelTitle icon="scale" title="Decisión" />
@@ -964,7 +1043,13 @@ export default function ValidationsPage() {
 
                 {hasMissingRequiredDocuments && (
                   <p className="validation-decision-hint">
-                    Completa la carga de los 4 documentos de registro obligatorios para habilitar la decisión de la solicitud.
+                    Completa la carga de los {REQUIRED_DOCUMENTS.length} documentos de registro obligatorios para habilitar la decisión de la solicitud.
+                  </p>
+                )}
+                {!hasMissingRequiredDocuments && faltantesTributarios.length > 0 && (
+                  <p className="validation-decision-hint">
+                    Para aprobar falta: {faltantesTributarios.join('; ')}. Puedes solicitar una corrección o esperar a que
+                    Administración Contable registre la verificación del SII.
                   </p>
                 )}
               </section>

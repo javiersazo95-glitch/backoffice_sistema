@@ -1101,13 +1101,19 @@ export default function MediationDetail({
                         Se aplica sobre el subtotal de la compra en la tienda (líneas + envío). El monto exacto lo
                         calcula el sistema.
                       </p>
+                      {/* Texto numerico y no type="number": ese acepta "1e5", decimales y cualquier
+                          largo, y el resumen mostraba "0%" con un valor imposible. Solo digitos,
+                          hasta 3, y lo que pase de 100 queda en 100. El backend valida 1-100. */}
                       <input
                         className="input"
-                        type="number"
-                        min={1}
-                        max={100}
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={3}
                         value={refundPercentage}
-                        onChange={(event) => setRefundPercentage(event.target.value)}
+                        onChange={(event) => {
+                          const digitos = event.target.value.replace(/\D/g, '').slice(0, 3);
+                          setRefundPercentage(digitos && Number(digitos) > 100 ? '100' : digitos);
+                        }}
                         placeholder="Ej: 50"
                       />
                       {!percentageValid && refundPercentage ? (

@@ -11,6 +11,29 @@ export async function getValidations(page = 0, size = 8, status?: string): Promi
   return response.data;
 }
 
+/**
+ * Pendiente A (revision contable): lo que le falta a una tienda para aprobarla. El backend exige
+ * declaracion de IVA, certificado de cumplimiento y verificacion del SII del semestre.
+ */
+export interface SellerTaxStatusForApproval {
+  declaracionIvaAt: string | null;
+  tieneCertificado: boolean;
+  ultimaVerificacion: {
+    verificadaEn: string;
+    resultado: string;
+    semestre: string;
+  } | null;
+  semestreActual: string;
+  faltantes: string[];
+  /** false solo si la exigencia esta desactivada (ambiente de pruebas). */
+  exigido: boolean;
+}
+
+export async function getSellerTaxStatus(sellerId: number): Promise<SellerTaxStatusForApproval> {
+  const response = await apiClient.get<SellerTaxStatusForApproval>(`/validations/sellers/${sellerId}/tax-status`);
+  return response.data;
+}
+
 export async function approveValidation(id: number): Promise<ValidationResponse> {
   const response = await apiClient.patch<ValidationResponse>(`/validations/${id}/approve`);
   return response.data;
