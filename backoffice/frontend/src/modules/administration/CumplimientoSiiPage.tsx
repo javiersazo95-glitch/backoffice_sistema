@@ -1,4 +1,6 @@
 import { useState, type FormEvent } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import SituacionTributariaPanel from './SituacionTributariaPanel';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as administrationApi from '@/api/administration';
 import type { CreditNotePending, EmisorNotaCredito, NivelNotaCredito } from '@/api/administration';
@@ -47,7 +49,7 @@ function pedidoLabel(codigo: string | null, id: number | null): string {
   return codigo ? formatOrderNumber(codigo) : id != null ? `#${id}` : '—';
 }
 
-export default function CumplimientoSiiPage() {
+function NotasCreditoPanel() {
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState<CreditNoteDraft | null>(null);
   const [saving, setSaving] = useState(false);
@@ -110,19 +112,7 @@ export default function CumplimientoSiiPage() {
   }
 
   return (
-    <div className="admin-finance-page">
-      <header className="page-header">
-        <div className="header-title">
-          <h1>Cumplimiento SII</h1>
-          <p>Obligaciones tributarias de RepuesTop como plataforma: notas de crédito de ventas deshechas.</p>
-        </div>
-        <div className="header-actions">
-          <button className="secondary-button" type="button" onClick={() => void panelQuery.refetch()} title="Actualizar datos">
-            <UiIcon name="refresh" /> Actualizar
-          </button>
-        </div>
-      </header>
-
+    <>
       {panelQuery.isError && (
         <QueryErrorNotice error={panelQuery.error} what="las notas de crédito" onRetry={() => panelQuery.refetch()} />
       )}
@@ -306,6 +296,52 @@ export default function CumplimientoSiiPage() {
           </form>
         )}
       </Modal>
+    </>
+  );
+}
+
+type CumplimientoTab = 'situacion' | 'notas';
+
+/**
+ * Cumplimiento SII: las obligaciones de RepuesTop ante el SII como operador de plataforma.
+ * Las alertas diarias enlazan a cada pestana con ?tab=situacion o ?tab=notas.
+ */
+export default function CumplimientoSiiPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const queryClient = useQueryClient();
+  const tab: CumplimientoTab = searchParams.get('tab') === 'notas' ? 'notas' : 'situacion';
+
+  function selectTab(next: CumplimientoTab): void {
+    setSearchParams(next === 'situacion' ? {} : { tab: next }, { replace: true });
+  }
+
+  return (
+    <div className="admin-finance-page">
+      <header className="page-header">
+        <div className="header-title">
+          <h1>Cumplimiento SII</h1>
+          <p>Obligaciones tributarias de RepuesTop como plataforma: situación tributaria de las tiendas y notas de crédito.</p>
+        </div>
+        <div className="header-actions">
+          <button className="secondary-button" type="button" title="Actualizar datos"
+            onClick={() => void queryClient.invalidateQueries({ queryKey: [tab === 'notas' ? 'admin-credit-notes' : 'admin-tax-status'] })}>
+            <UiIcon name="refresh" /> Actualizar
+          </button>
+        </div>
+      </header>
+
+      <div className="module-tabs" role="tablist" aria-label="Cumplimiento SII">
+        <button type="button" role="tab" aria-selected={tab === 'situacion'} className={tab === 'situacion' ? 'active' : undefined}
+          onClick={() => selectTab('situacion')}>
+          Situación tributaria
+        </button>
+        <button type="button" role="tab" aria-selected={tab === 'notas'} className={tab === 'notas' ? 'active' : undefined}
+          onClick={() => selectTab('notas')}>
+          Notas de crédito
+        </button>
+      </div>
+
+      {tab === 'situacion' ? <SituacionTributariaPanel /> : <NotasCreditoPanel />}
     </div>
   );
 }

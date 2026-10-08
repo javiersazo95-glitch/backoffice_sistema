@@ -428,3 +428,94 @@ export async function getCreditNoteUrl(id: number): Promise<string> {
   const response = await apiClient.get<{ url: string }>(`/administration/credit-notes/${id}/url`);
   return response.data.url;
 }
+
+// Pendientes A y B (revision contable 2026-10-08): situacion tributaria de las tiendas.
+
+export type ViaVerificacionSii = 'CONSULTA_WEB' | 'CERTIFICADO' | 'API';
+export type ResultadoVerificacionSii = 'CUMPLE' | 'NO_CUMPLE' | 'SIN_INICIO_ACTIVIDADES' | 'TERMINO_GIRO' | 'SUBSISTENCIA';
+export type EstadoSemestreSii = 'AL_DIA' | 'PENDIENTE' | 'SIN_VERIFICAR';
+
+export interface VerificacionSii {
+  id: number;
+  verificadaEn: string;
+  via: ViaVerificacionSii;
+  resultado: ResultadoVerificacionSii;
+  /** p. ej. "2026-S2". */
+  semestre: string;
+  /** Fin del semestre: la marca de incumplimiento dura hasta ahi (Res. 168, resolutivo 5°). */
+  vigenteHasta: string;
+  inicioActividadesFecha: string | null;
+  observaciones: string | null;
+  tieneEvidencia: boolean;
+  evidenciaNombre: string | null;
+  registradaPor: string | null;
+  registradaAt: string;
+}
+
+export interface TiendaSituacionSii {
+  proveedorId: number;
+  nombreTienda: string | null;
+  rut: string | null;
+  estadoTienda: 'APROBADA' | 'PENDIENTE' | 'SUSPENDIDA' | 'OTRO';
+  declaracionIvaAt: string | null;
+  tieneCertificado: boolean;
+  ultimaVerificacion: VerificacionSii | null;
+  estadoSemestre: EstadoSemestreSii;
+  /** Lo que le falta para que se pueda aprobar. Vacio si cumple todo. */
+  faltantesParaAprobar: string[];
+}
+
+export interface PanelSituacionSii {
+  semestreActual: string;
+  finSemestre: string;
+  /** Enero y julio: los meses en que la Res. 168 exige reverificar. */
+  mesDeReverificacion: boolean;
+  tiendas: TiendaSituacionSii[];
+}
+
+export async function getTaxStatus(): Promise<PanelSituacionSii> {
+  const response = await apiClient.get<PanelSituacionSii>('/administration/tax-status');
+  return response.data;
+}
+
+export async function getTaxStatusHistory(proveedorId: number): Promise<VerificacionSii[]> {
+  const response = await apiClient.get<VerificacionSii[]>(`/administration/tax-status/${proveedorId}/history`);
+  return response.data;
+}
+
+export interface RegisterTaxStatusPayload {
+  /** "YYYY-MM-DD". */
+  verificadaEn: string;
+  via: ViaVerificacionSii;
+  resultado: ResultadoVerificacionSii;
+  inicioActividadesFecha: string | null;
+  observaciones: string | null;
+}
+
+/** Registra una verificacion ante el SII, con evidencia opcional (PDF o imagen). */
+export async function registerTaxStatus(proveedorId: number, payload: RegisterTaxStatusPayload, evidencia?: File | null): Promise<VerificacionSii> {
+  const formData = new FormData();
+  formData.append('data', new Blob([JSON.stringify(payload)], { type: 'application/json' }));
+  if (evidencia) formData.append('evidencia', evidencia);
+  const response = await apiClient.post<VerificacionSii>(`/administration/tax-status/${proveedorId}`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return response.data;
+}
+
+export async function getTaxStatusEvidenceUrl(verificacionId: number): Promise<string> {
+  const response = await apiClient.get<{ url: string }>(`/administration/tax-status/verifications/${verificacionId}/evidence-url`);
+  return response.data.url;
+}
+
+/** Nomina RUT;DV de las tiendas vigentes (Res. 168, resolutivo 4°), como texto. */
+export async function getTaxStatusNomina(): Promise<string> {
+  const response = await apiClient.get<string>('/administration/tax-status/nomina', { responseType: 'text' });
+  return response.data;
+}
+
+/** Enlace de un solo uso al certificado de cumplimiento que subio la tienda. */
+export async function getTaxStatusCertificateUrl(proveedorId: number): Promise<string> {
+  const response = await apiClient.get<{ url: string }>(`/administration/tax-status/${proveedorId}/certificate-url`);
+  return response.data.url;
+}

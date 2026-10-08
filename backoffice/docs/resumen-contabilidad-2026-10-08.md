@@ -273,3 +273,45 @@ Dónde quedó cada cosa:
 3. `createMediation` y `abrirDesdeAlerta` no revisan el plazo de 10 días ni si el retiro ya se
    pagó: un reembolso sobre un ítem liquidado no tiene cómo recuperar la plata de la tienda. No es
    tributario, pero es caja.
+
+## 9. Sesión del 9 de octubre (tarde): pendientes A y B
+
+Verificado en el texto oficial de la [Resolución Ex. SII N° 168 de 2025](https://www.sii.cl/normativa_legislacion/resoluciones/2025/reso168.pdf):
+
+- **Al contratar** (resolutivo 2°), la plataforma debe exigir el **certificado de cumplimiento
+  tributario**, que la tienda descarga de su sitio personal en sii.cl.
+- **En enero y julio** (resolutivo 1°), debe reverificar a todas las tiendas vigentes. Sin la API,
+  por consulta individual del RUT (resolutivo 3° letra a).
+- **Corrección importante:** la nómina `RUT;DV` de junio y diciembre (resolutivo 4°) la suben solo
+  las entidades **autorizadas a la API** de la Res. 117. Sin la API, RepuesTop no tiene que subirla.
+- La marca de incumplimiento dura hasta fin de semestre (5°). La sanción por no verificar es el
+  art. 109 del Código Tributario (9°).
+
+### Qué se construyó
+
+| Dónde | Qué |
+|---|---|
+| Backend, migración `V2026100903` | Declaración de IVA en `rt_proveedor` (fecha, IP, navegador y versión del texto), certificado en `rt_verificacion_proveedor`, y la tabla `rt_situacion_tributaria_proveedor` (historial de verificaciones: fecha, vía, resultado, semestre, vigente hasta, evidencia) |
+| Backend, `SituacionTributariaService` | Panel, historial, registro con evidencia validada por contenido, nómina `RUT;DV`, y la **exigencia al aprobar**: declaración de IVA + certificado + verificación del semestre con inicio de actividades vigente. Se aplica en las tres rutas que aprueban (Validaciones, Vendedores y la API externa). Un incumplidor (`NO_CUMPLE`) sí se puede aprobar; término de giro, sin inicio de actividades o Subsistencia, no |
+| Backend, `ReverificacionSemestralJob` | Diario a las 08:10: avisa a Administración Contable mientras haya tiendas vigentes sin verificar este semestre o aprobadas sin declaración de IVA |
+| Backend, contrato de adhesión | Cláusula 7 nueva: declaración de IVA, entrega del certificado y autorización para verificar en enero y julio (también en la copia de la app) |
+| App y web market | El paso de documentos pide el **certificado** y la **casilla de declaración de IVA**. Las tiendas ya aprobadas sin declaración ven un aviso para hacerla (después del contrato) |
+| Backoffice | **Cumplimiento SII** ahora tiene dos pestañas. "Situación tributaria": métricas, estado de cada tienda en el semestre, registrar verificación con evidencia, historial, ver certificado y descargar la nómina |
+
+### Decisiones de diseño
+
+- La declaración y el certificado **no son obligatorios al subir documentos** en el backend, sino
+  **al aprobar**: así una app antigua no deja de funcionar, y la tienda que no los entregó recibe
+  una petición de corrección.
+- La exigencia se puede apagar con `REPUESTOP_EXIGIR_SITUACION_TRIBUTARIA=false`, **solo en
+  pruebas**.
+- La web market pedía la boleta de ejemplo como opcional, pero el backend la exige al crear la
+  verificación: quedó obligatoria también en la web.
+
+### Pendiente
+
+- La resolución del resolutivo 7° de la Res. 168 (anticipo de IVA por tiendas incumplidoras): aún
+  no dictada. Cuando salga, las tiendas marcadas `NO_CUMPLE` cambian su liquidación.
+- Informe anual de la Res. 99 (usuarios que declararon no requerir inicio de actividades y
+  usuarios registrados): no construido. Hoy no aplica porque el registro exige inicio de
+  actividades a todas las tiendas.
