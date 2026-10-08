@@ -1499,7 +1499,10 @@ export default function AdminFinancePage() {
       orderIds: group.settlements.map((settlement) => settlement.orderId),
       retiroId: group.retiroId,
       isEditing: Boolean(existing),
-      type: existing?.type ?? 'Boleta',
+      // La comision de servicio es un servicio gravado que RepuesTop le presta a la tienda. Con
+      // factura la tienda usa el IVA como credito fiscal; con boleta afecta lo pierde y acaba
+      // pagando un 19% de mas. Boleta queda para el receptor sin RUT, que no tiene giro.
+      type: existing?.type ?? (group.rut && group.rut !== 'Sin RUT' ? 'Factura' : 'Boleta'),
       rut: existing?.rut ?? (group.rut === 'Sin RUT' ? '' : group.rut),
       name: existing?.name ?? group.legalName,
       email: existing?.email ?? (group.email === 'Sin correo' ? '' : group.email),
@@ -1544,7 +1547,12 @@ export default function AdminFinancePage() {
       orderIds: [withdrawal.codigoRetiro || `SOCIO-${withdrawal.id}`],
       retiroId: Number(withdrawal.id),
       isEditing: Boolean(existingDoc),
-      type: existingDoc?.type ?? 'Boleta de Honorarios',
+      // Un retiro de utilidades no es una prestacion de servicios: no lleva boleta de honorarios.
+      // Documentarlo asi deduce un gasto que el SII rechaza (art. 21 LIR, impuesto unico de 40%) y
+      // le cobra al socio retencion por algo que es utilidad. La naturaleza tributaria del
+      // movimiento ya se declara al registrar el retiro (SEC-BACKEND-121); aqui solo se adjunta el
+      // respaldo interno.
+      type: existingDoc?.type ?? 'Comprobante de retiro',
       rut: existingDoc?.rut ?? (socio?.rut ?? ''),
       name: existingDoc?.name ?? (socio?.titular ?? withdrawal.beneficiary),
       email: existingDoc?.email ?? (socio?.email ?? withdrawal.email ?? ''),
@@ -3968,12 +3976,19 @@ export default function AdminFinancePage() {
             <FieldLabel label="Tipo de documento">
               {/* O18: el documento de un socio tambien se carga desde Pago a proveedores, que ofrece
                   Boleta de Honorarios y Documento Tributario. Con solo Boleta/Factura aca, uno de esos
-                  se mostraba como "Boleta" y no se podia volver a elegir. */}
+                  se mostraba como "Boleta" y no se podia volver a elegir. Por eso el tipo ya
+                  registrado se agrega siempre a la lista: ningun documento historico queda sin su
+                  opcion, aunque el tipo ya no se ofrezca para los nuevos. */}
               <select className="select" value={documentDraft.type} onChange={(event) => setDocumentDraft({ ...documentDraft, type: event.target.value })}>
-                {(documentDraft.tipoRetiro === 'SOCIO'
-                  ? ['Boleta de Honorarios', 'Boleta', 'Factura', 'Documento Tributario']
-                  : ['Boleta', 'Factura']
-                ).map((tipo) => <option key={tipo} value={tipo}>{tipo}</option>)}
+                {Array.from(new Set([
+                  ...(documentDraft.tipoRetiro === 'SOCIO'
+                    // "Boleta de Honorarios" ya no se ofrece: un retiro no es un servicio prestado.
+                    // Si el socio alguna vez cobra por trabajo efectivo, el retiro se registra con
+                    // naturaleza REMUNERACION y su respaldo es una liquidacion de sueldo.
+                    ? ['Comprobante de retiro', 'Liquidación de sueldo', 'Documento Tributario']
+                    : ['Factura', 'Boleta']),
+                  documentDraft.type,
+                ].filter(Boolean))).map((tipo) => <option key={tipo} value={tipo}>{tipo}</option>)}
               </select>
             </FieldLabel>
             <FieldLabel label="RUT receptor"><input className="input" type="text" value={documentDraft.rut} onChange={(event) => setDocumentDraft({ ...documentDraft, rut: event.target.value })} required={!documentDraft.isEditing} /></FieldLabel>
