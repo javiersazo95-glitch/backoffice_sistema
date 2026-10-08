@@ -140,9 +140,12 @@ export default function CumplimientoSiiPage() {
 
       <div className="notice">
         <UiIcon name="info" />
-        Una venta deshecha solo rebaja el IVA si la nota de crédito se emite dentro de 6 meses desde la entrega
-        (art. 21 N° 2 y art. 70 DL 825). La nota de la <strong>tienda</strong> anula su boleta de venta; la de
-        {' '}<strong>RepuesTop</strong> anula la factura de comisión cuando el reembolso llegó después de liquidar el retiro.
+        {/* Un solo bloque de texto: .notice es flex y cada <strong> suelto quedaba como columna. */}
+        <span>
+          Una venta deshecha solo rebaja el IVA si la nota de crédito se emite dentro de 6 meses desde la entrega
+          (art. 21 N° 2 y art. 70 DL 825). La nota de la <strong>tienda</strong> anula su boleta de venta; la de
+          {' '}<strong>RepuesTop</strong> anula la factura de comisión cuando el reembolso llegó después de liquidar el retiro.
+        </span>
       </div>
 
       <section className="table-shell">
