@@ -70,7 +70,13 @@ El inciso decimosegundo del artículo 68 del Código Tributario (incorporado por
 La Resolución Ex. SII N° 99 de 2025 (vigente desde el 1 de octubre de 2025) fija cómo verificarlo:
 
 - Consulta individual del RUT en sii.cl → Servicios online → Situación tributaria → "Consultar situación tributaria de terceros".
-- **API de consulta automatizada**, previa solicitud según la Resolución Ex. SII N° 117 de 2025. Es la vía que corresponde a un marketplace con volumen.
+- **API de consulta automatizada** ("API Inicio de Actividades"), previa solicitud según la Resolución Ex. SII N° 117 de 2025. Revisada el 9 de octubre de 2026 en el texto oficial:
+  - **Qué entrega:** nombre o razón social, RUT, si tiene inicio de actividades y su fecha, si está en el régimen de Ferias Libres (art. 35 J LIVS) y **si cumple o no sus obligaciones tributarias**.
+  - **Cómo se pide:** el representante legal, con su Clave Tributaria, entra a la **Oficina de Partes Virtual** de sii.cl y presenta un documento tipo **"Solicitud API Ley 21.713"** con: RUT y nombre de la empresa, contacto administrativo y técnico (nombre, correo, teléfono), nombre y descripción de la aplicación, **IP pública fija** desde donde se consultará, transacciones esperadas por segundo (normal y peak) y fechas de peak. El SII responde por resolución.
+  - **Costo:** la resolución no establece ningún cobro.
+  - **Condiciones:** uso exclusivo para el art. 68 inciso 12°, reserva de la información y Ley 19.628; el SII puede revocar el acceso si no se usa para ese fin.
+  - **Riesgo de rechazo:** el SII aprobó a Transbank, Mercado Pago, Getnet, Welcu y Flycrew, entre otros (Res. 133 de 2025), pero **rechazó a Uber** (Res. 204 de 2025) por considerarlo plataforma de transporte sin calidad de operador de medios de pago. La solicitud de RepuesTop debe dejar claro que es un marketplace de compraventa de bienes entre terceros **que además recauda los pagos**.
+  - **La consulta web individual sigue siendo válida** (Res. 99), así que la API es una optimización, no un requisito para cumplir.
 - Si la tienda registra término de giro, se exige un nuevo inicio de actividades posterior a esa fecha.
 - Si el usuario declara estar expresamente liberado por el SII, la plataforma queda exenta de exigirlo, pero debe guardar esa declaración.
 

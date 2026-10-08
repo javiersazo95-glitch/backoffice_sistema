@@ -168,7 +168,7 @@ respaldo que se pide dependa de ella.
 
 1. **Régimen tributario y tipo societario.** Se ve en la cartola tributaria de Mi SII. Define tasas
    y plazos, y cuál declaración jurada corresponde.
-2. **¿Se solicitó la API de situación tributaria de terceros** (Resolución Ex. SII N° 117 de 2025)?
+2. ~~¿Se solicitó la API de situación tributaria de terceros?~~ **No se ha solicitado** (9 de octubre). Qué es, cómo se pide y el riesgo de rechazo quedaron en la sección 3.1 de la guía. Los pendientes A y B **no dependen de ella**: parten con consulta web manual y la API se conecta después.
    Es el habilitador técnico de los pendientes A y B.
 3. **¿Cómo quedaron registradas las transferencias que los socios le hicieron a la empresa**:
    aporte de capital o préstamo? De eso depende si recuperarlas es libre de impuesto, y conviene
