@@ -1,4 +1,4 @@
-import { type SellerResponse } from '@/types/seller';
+import { type SellerResponse, type SellerCancellationRate } from '@/types/seller';
 import type { ImpactMediation } from '@/types/cases';
 import Badge from '@/components/shared/Badge';
 import UiIcon from '@/components/shared/UiIcon';
@@ -20,6 +20,8 @@ interface SellerCardListProps {
   expandedId?: number | null;
   onToggleExpand?: (id: number) => void;
   mediations?: Record<number, ImpactMediation[]>;
+  /** Cancelaciones por tienda, indexadas por `proveedorId` (= `seller.id`). */
+  cancellationRates?: Record<number, SellerCancellationRate>;
   blockedMediations?: Record<number, ImpactMediation[]>;
   selectedSellerId?: number | null;
 }
@@ -38,6 +40,7 @@ export function SellerCardList({
   mediations,
   blockedMediations,
   selectedSellerId,
+  cancellationRates,
 }: SellerCardListProps) {
   const expandedSeller = expandedId ? sellers.find((seller) => seller.id === expandedId) ?? null : null;
 
@@ -49,6 +52,8 @@ export function SellerCardList({
       >
         {sellers.map((seller) => {
           const sellerMediations = mediations?.[seller.id] || [];
+          // Sin ventas en la ventana la tienda no viene en el resumen: es "sin datos", no un 0%.
+          const cancellation = cancellationRates?.[seller.id];
           const status = getSellerOperationalStatus(seller);
           const photo = seller.userProfileUrl ? resolveProfileImageUrl(seller.userProfileUrl) : null;
           return (
@@ -63,6 +68,10 @@ export function SellerCardList({
                 { label: 'Mediaciones', value: sellerMediations.length },
                 { label: 'Ingreso', value: seller.lastActivityAt ? formatDate(seller.lastActivityAt) : 'Sin fecha' },
                 { label: 'Ventas', value: seller.salesCount ?? 0 },
+                {
+                  label: 'Cancela 90d',
+                  value: cancellation ? `${cancellation.tasa.toFixed(1)}%${cancellation.superaUmbral ? ' ⚠' : ''}` : 'Sin ventas',
+                },
               ]}
               selected={selectedSellerId === seller.id || expandedId === seller.id}
               onPress={() => onToggleExpand?.(seller.id)}

@@ -58,7 +58,7 @@ export function SellerExpandedContent({
 export default function SellerExpandedRow(props: SellerExpandedRowProps) {
   return (
     <tr className="seller-expanded-row">
-      <td colSpan={8}>
+      <td colSpan={9}>
         <SellerExpandedContent {...props} />
       </td>
     </tr>

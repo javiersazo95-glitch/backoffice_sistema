@@ -11,6 +11,7 @@ import type {
   SellerBlockHistoryResponse,
   SellerRetiroResponse,
   SellerSaleResponse,
+  SellerCancellationRate,
 } from '@/types/seller';
 import type { TicketResponse } from '@/types/ticket';
 import type { ValidationResponse } from '@/types/validation';
@@ -96,6 +97,20 @@ function mergeSellerDocuments(
   });
 
   return Array.from(merged.values());
+}
+
+/**
+ * Cuanto cancela cada tienda en los ultimos N dias (el backend usa 90 si no se le dice).
+ *
+ * Trae una fila por tienda CON VENTAS en la ventana, no una por vendedor registrado: las que no
+ * vendieron nada no aparecen, y por eso se cruza contra el listado por `proveedorId` en vez de
+ * esperar que las dos listas calcen.
+ */
+export async function getSellerCancellationRates(dias?: number): Promise<SellerCancellationRate[]> {
+  const response = await apiClient.get<SellerCancellationRate[]>('/sellers/cancellation-rates', {
+    params: dias ? { dias } : undefined,
+  });
+  return response.data;
 }
 
 export async function getSellers(params?: SellerFilterRequest): Promise<PageResponse<SellerResponse>> {

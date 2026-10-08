@@ -4,9 +4,10 @@ interface SellerMetricGridProps {
   activeSellers: number;
   activeMediations: number;
   receivedReports: number;
+  highCancellation: number;
 }
 
-export default function SellerMetricGrid({ activeSellers, activeMediations, receivedReports }: SellerMetricGridProps) {
+export default function SellerMetricGrid({ activeSellers, activeMediations, receivedReports, highCancellation }: SellerMetricGridProps) {
   return (
     <section className="metric-grid compact seller-metric-grid">
       <MetricCard
@@ -29,6 +30,13 @@ export default function SellerMetricGrid({ activeSellers, activeMediations, rece
         tone="red"
         iconName="flag"
         description="Reportes registrados contra vendedores activos."
+      />
+      <MetricCard
+        label="Cancelan demasiado"
+        value={highCancellation}
+        tone="amber"
+        iconName="alert"
+        description="Tiendas sobre el umbral de ventas canceladas por ellas mismas en los ultimos 90 dias. Solo para revisar: no se suspende a nadie por esto."
       />
     </section>
   );

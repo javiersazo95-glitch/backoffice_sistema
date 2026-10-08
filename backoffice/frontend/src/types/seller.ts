@@ -153,3 +153,21 @@ export interface SuspendSellerRequest {
   /** H59 fase 6: obligatoria en FRAUDE (solo SUPER_ADMIN). Interna. */
   evidencia?: string;
 }
+
+/**
+ * Cuanto cancela una tienda, de `GET /sellers/cancellation-rates`.
+ *
+ * Cancelar le sale gratis al vendedor: el comprador recibe el 100% -- como debe ser -- pero la
+ * nota publica se arma con las calificaciones de compras FINALIZADAS, asi que una venta cancelada
+ * ni siquiera entra en el promedio. Esta metrica existe para verlo; no castiga a nadie.
+ */
+export interface SellerCancellationRate {
+  proveedorId: number;
+  tienda: string;
+  ventas: number;
+  canceladas: number;
+  /** Porcentaje con un decimal. */
+  tasa: number;
+  /** Pasa el umbral Y tiene ventas suficientes para que el numero signifique algo. */
+  superaUmbral: boolean;
+}

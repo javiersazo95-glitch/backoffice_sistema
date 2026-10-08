@@ -253,6 +253,21 @@ export default function SellersPage() {
     queryFn: () => reportsApi.getReports({ page: 0, size: PAGE_SIZES.MAX }),
   });
 
+  /**
+   * Cuanto cancela cada tienda. Es una lista corta -- una fila por tienda CON ventas en la
+   * ventana -- y se cruza con el listado por `proveedorId`, que es el mismo `seller.id` que
+   * devuelve `/sellers`.
+   */
+  const { data: cancellationRatesData } = useQuery({
+    queryKey: ['sellers', 'cancellation-rates'],
+    queryFn: () => sellersApi.getSellerCancellationRates(),
+  });
+
+  const cancellationRates = useMemo(
+    () => Object.fromEntries((cancellationRatesData ?? []).map((fila) => [fila.proveedorId, fila])),
+    [cancellationRatesData],
+  );
+
   const allSellers = allSellersData?.content ?? [];
   const listedSellers = data?.content ?? [];
   const activeMediationsSource = activeMediationsData?.content ?? [];
@@ -473,6 +488,7 @@ export default function SellersPage() {
     receivedReports: allSellers
       .filter((seller) => seller.status === SellerStatus.APROBADO)
       .reduce((total, seller) => total + seller.pendingReceipts, 0),
+    highCancellation: (cancellationRatesData ?? []).filter((fila) => fila.superaUmbral).length,
   };
 
   const sellerDetailView = useMemo<SellerDetailResponse | null>(() => {
@@ -620,6 +636,7 @@ export default function SellersPage() {
         activeSellers={sellerMetricCounts.active}
         activeMediations={sellerMetricCounts.activeMediations}
         receivedReports={sellerMetricCounts.receivedReports}
+        highCancellation={sellerMetricCounts.highCancellation}
       />
 
       <Notice>
@@ -658,6 +675,7 @@ export default function SellersPage() {
                   onToggleExpand={handleToggleExpand}
                   mediations={mediationsBySeller}
                   blockedMediations={blockedMediationsBySeller}
+                  cancellationRates={cancellationRates}
                   onReviewMediation={handleReviewMediation}
                   onOpenMediation={handleOpenSellerMediations}
                   onOpenReports={handleOpenSellerReports}
@@ -673,6 +691,7 @@ export default function SellersPage() {
                 onToggleExpand={handleToggleExpand}
                 mediations={mediationsBySeller}
                 blockedMediations={blockedMediationsBySeller}
+                cancellationRates={cancellationRates}
                 onReviewMediation={handleReviewMediation}
                 onOpenMediation={handleOpenSellerMediations}
                 onOpenReports={handleOpenSellerReports}

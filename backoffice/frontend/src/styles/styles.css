@@ -3239,6 +3239,23 @@ tr.is-active {
   min-width: 150px;
 }
 
+/* Cuanto cancela la tienda. El realce se reserva a las que pasan el umbral CON ventas
+   suficientes: una tienda nueva que cancela su unica venta marca 100% y no significa nada. */
+.seller-cancellation-rate {
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+}
+.seller-cancellation-rate.is-high {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--red-soft);
+  color: var(--red);
+}
+.seller-cancellation-rate.is-empty {
+  color: var(--muted);
+  font-weight: 500;
+}
+
 .row-action {
   width: 31px;
   height: 31px;

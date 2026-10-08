@@ -1,5 +1,5 @@
 import { Fragment } from 'react';
-import { type SellerResponse } from '@/types/seller';
+import { type SellerResponse, type SellerCancellationRate } from '@/types/seller';
 import type { ImpactMediation } from '@/types/cases';
 import Badge from '@/components/shared/Badge';
 import UiIcon from '@/components/shared/UiIcon';
@@ -22,6 +22,8 @@ interface SellerTableProps {
   mediations?: Record<number, ImpactMediation[]>;
   blockedMediations?: Record<number, ImpactMediation[]>;
   selectedSellerId?: number | null;
+  /** Cancelaciones por tienda, indexadas por `proveedorId` (= `seller.id`). */
+  cancellationRates?: Record<number, SellerCancellationRate>;
 }
 
 function getLogoClass(index: number): string {
@@ -42,6 +44,7 @@ export default function SellerTable({
   mediations,
   blockedMediations,
   selectedSellerId,
+  cancellationRates,
 }: SellerTableProps) {
   return (
     <>
@@ -56,6 +59,7 @@ export default function SellerTable({
               <th>Reportes</th>
               <th>Fecha de ingreso</th>
               <th>Mediaciones</th>
+              <th>Cancelaciones 90d</th>
               <th>Acciones</th>
             </tr>
           </thead>
@@ -66,6 +70,8 @@ export default function SellerTable({
                 const isSelected = selectedSellerId === seller.id;
                 const sellerMediations = mediations?.[seller.id] || [];
                 const sellerBlockedMediations = blockedMediations?.[seller.id] || [];
+                // Sin ventas en la ventana la tienda no viene en el resumen: es "sin datos", no un 0%.
+                const cancellation = cancellationRates?.[seller.id];
                 
                 return (
                   <Fragment key={seller.id}>
@@ -93,6 +99,18 @@ export default function SellerTable({
                       <td>{seller.pendingReceipts}</td>
                       <td>{seller.lastActivityAt ? formatDate(seller.lastActivityAt) : 'Sin fecha'}</td>
                       <td>{sellerMediations.length}</td>
+                      <td>
+                        {cancellation ? (
+                          <span
+                            className={cancellation.superaUmbral ? 'seller-cancellation-rate is-high' : 'seller-cancellation-rate'}
+                            title={`${cancellation.canceladas} de ${cancellation.ventas} ventas canceladas por la tienda`}
+                          >
+                            {cancellation.tasa.toFixed(1)}%
+                          </span>
+                        ) : (
+                          <span className="seller-cancellation-rate is-empty">Sin ventas</span>
+                        )}
+                      </td>
                       <td>
                         <div className="seller-actions" aria-label={`Acciones de ${seller.storeName}`}>
                           <button
@@ -164,7 +182,7 @@ export default function SellerTable({
               })
             ) : (
               <tr>
-                <td colSpan={8}>
+                <td colSpan={9}>
                   <span className="row-sub">No hay vendedores que coincidan con la busqueda.</span>
                 </td>
               </tr>
