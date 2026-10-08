@@ -20843,3 +20843,15 @@ main.feedback-page .feedback-page-header .area-home-shortcut-group { margin-left
   color: #6b7a90;
   font-size: 11.5px;
 }
+
+/* Redes sociales de la tienda en la revisión de la verificación. */
+.validation-social-list { display: grid; gap: 10px; }
+.validation-social-row { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid #e2e9f3; border-radius: 8px; background: #fff; }
+.validation-social-icon { display: inline-grid; place-items: center; width: 36px; height: 36px; flex: none; border-radius: 50%; background: #f5f8fc; }
+.validation-social-copy { display: grid; gap: 2px; min-width: 0; flex: 1; }
+.validation-social-copy strong { font-size: 14px; color: #12213a; }
+.validation-social-copy span { font-size: 13px; color: #52627a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.validation-social-invalid { font-size: 12px; color: #c0392b; font-weight: 600; }
+.validation-social-open { flex: none; padding: 7px 12px; border: 1px solid #c9d8ee; border-radius: 8px; color: #0b5ed7; font-size: 13px; font-weight: 700; text-decoration: none; background: #f5f9ff; }
+.validation-social-open:hover, .validation-social-open:focus-visible { background: #e8f1ff; }
+.validation-social-empty { margin: 0; font-size: 13px; color: #6b7a90; }

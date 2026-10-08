@@ -13,6 +13,10 @@ export interface ValidationResponse {
   sellerId: number;
   sellerName: string;
   sellerFounder?: boolean;
+  /** Redes sociales que declaró la tienda; se revisan antes de aprobar. */
+  instagramUrl?: string | null;
+  facebookUrl?: string | null;
+  tiktokUrl?: string | null;
   documentType: string;
   documentUrl?: string;
   uploadedAt: string;
