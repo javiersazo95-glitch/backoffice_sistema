@@ -252,6 +252,10 @@ export interface RetiroAdminResponse {
   email: string;
   fecha: string;
   estado: string;
+  /** Solo con estado RECHAZADO: por que reboto el deposito, cuando y quien lo marco. */
+  motivoRechazo?: string | null;
+  rechazadoAt?: string | null;
+  rechazadoPor?: string | null;
   fechaEfectiva: string;
   // H59 fase 4: la tienda esta suspendida y sus fondos retenidos (temporal, reserva de cierre o
   // fraude). El backend rechaza pagarlos y la nomina los deja fuera.

@@ -83,11 +83,20 @@ export interface SellerBlockHistoryResponse {
 
 export interface SellerRetiroResponse {
   retiroId: number;
+  codigoExterno?: string | null;
   fechaSolicitud: string;
   cantidadPedidos: number;
   montoTotal: number;
   estado: string;
   fechaEfectiva: string;
+  /** Solo con estado RECHAZADO: por que reboto el deposito, cuando y quien lo marco. */
+  motivoRechazo?: string | null;
+  rechazadoAt?: string | null;
+  rechazadoPor?: string | null;
+  /** Retiro con que el vendedor volvio a cobrar tras el rechazo; null si aun no lo pide. */
+  reintentoCodigo?: string | null;
+  reintentoFecha?: string | null;
+  montoReembolsoMediacion?: number | null;
 }
 
 export interface SellerDocumentResponse {

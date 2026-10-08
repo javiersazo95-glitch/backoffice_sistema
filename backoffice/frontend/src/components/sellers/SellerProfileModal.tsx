@@ -34,11 +34,46 @@ function formatCLP(value: number) {
 }
 
 function retiroEstadoLabel(estado: string) {
-  return estado?.toUpperCase() === 'PAGADO' ? 'Depositado' : 'Solicitado';
+  const valor = estado?.toUpperCase();
+  if (valor === 'RECHAZADO') return 'Rechazado';
+  return valor === 'PAGADO' ? 'Depositado' : 'Solicitado';
 }
 
 function retiroEstadoVariant(estado: string) {
-  return estado?.toUpperCase() === 'PAGADO' ? 'green' : 'amber';
+  const valor = estado?.toUpperCase();
+  if (valor === 'RECHAZADO') return 'red';
+  return valor === 'PAGADO' ? 'green' : 'amber';
+}
+
+const RETIRO_ICON_STYLE: Record<string, { backgroundColor: string; color: string }> = {
+  green: { backgroundColor: '#e6f4ea', color: '#137333' },
+  amber: { backgroundColor: '#fef3c7', color: '#d97706' },
+  red: { backgroundColor: '#fde8e8', color: '#c53030' },
+};
+
+/**
+ * Trazabilidad del pago rebotado: motivo, cuando y quien lo marco en Administracion Contable,
+ * y si el vendedor ya volvio a solicitar el retiro con sus datos corregidos.
+ */
+function RetiroRechazoDetalle({ retiro }: { retiro: SellerRetiroResponse }) {
+  if (retiro.estado?.toUpperCase() !== 'RECHAZADO') return null;
+  return (
+    <div className="seller-retiro-rejection">
+      <strong>Motivo: {retiro.motivoRechazo || 'sin motivo registrado'}</strong>
+      <span>
+        {retiro.rechazadoAt ? `Rechazado el ${formatDate(retiro.rechazadoAt)}` : 'Rechazado'}
+        {retiro.rechazadoPor ? ` por ${retiro.rechazadoPor}` : ''}
+      </span>
+      {retiro.reintentoCodigo ? (
+        <span className="is-resolved">
+          Corregido: volvió a solicitarlo con {retiro.reintentoCodigo}
+          {retiro.reintentoFecha ? ` el ${formatDate(retiro.reintentoFecha)}` : ''}
+        </span>
+      ) : (
+        <span className="is-pending">Pendiente: el vendedor aún no vuelve a solicitar el retiro</span>
+      )}
+    </div>
+  );
 }
 
 function SectionHeader({
@@ -187,19 +222,19 @@ function SalesTable({ sales, isLoading }: { sales: SellerSaleResponse[]; isLoadi
 }
 
 function RetiroCard({ retiro }: { retiro: SellerRetiroResponse }) {
-  const isPagado = retiro.estado?.toUpperCase() === 'PAGADO';
   return (
     <div className="seller-profile-case-card">
       <div
         className="seller-profile-case-icon"
-        style={isPagado ? { backgroundColor: '#e6f4ea', color: '#137333' } : { backgroundColor: '#fef3c7', color: '#d97706' }}
+        style={RETIRO_ICON_STYLE[retiroEstadoVariant(retiro.estado)]}
       >
         <UiIcon name="bank" />
       </div>
       <div className="seller-profile-case-copy">
-        <strong>{formatCLP(retiro.montoTotal)}</strong>
+        <strong>{formatCLP(retiro.montoTotal)}{retiro.codigoExterno ? ` · ${retiro.codigoExterno}` : ''}</strong>
         <span>{retiro.cantidadPedidos} pedido{retiro.cantidadPedidos === 1 ? '' : 's'} · Solicitado el {formatDate(retiro.fechaSolicitud)}</span>
         <small>Pago estimado: {formatDate(retiro.fechaEfectiva)}</small>
+        <RetiroRechazoDetalle retiro={retiro} />
       </div>
       <Badge text={retiroEstadoLabel(retiro.estado)} variant={retiroEstadoVariant(retiro.estado)} />
     </div>
@@ -512,6 +547,7 @@ function SellerRetirosModal({ isOpen, onClose, seller, retiros, isLoading }: Sel
               <table className="wide-table seller-profile-table">
                 <thead>
                   <tr>
+                    <th>Código</th>
                     <th>Fecha de solicitud</th>
                     <th>Pedidos</th>
                     <th>Monto</th>
@@ -522,11 +558,13 @@ function SellerRetirosModal({ isOpen, onClose, seller, retiros, isLoading }: Sel
                 <tbody>
                   {retiros.map((retiro) => (
                     <tr key={retiro.retiroId}>
+                      <td style={{ whiteSpace: 'nowrap' }}><strong>{retiro.codigoExterno || '—'}</strong></td>
                       <td style={{ whiteSpace: 'nowrap' }}>{formatDate(retiro.fechaSolicitud)}</td>
                       <td>{retiro.cantidadPedidos}</td>
                       <td><strong>{formatCLP(retiro.montoTotal)}</strong></td>
                       <td>
                         <Badge text={retiroEstadoLabel(retiro.estado)} variant={retiroEstadoVariant(retiro.estado)} />
+                        <RetiroRechazoDetalle retiro={retiro} />
                       </td>
                       <td style={{ whiteSpace: 'nowrap' }}>{formatDate(retiro.fechaEfectiva)}</td>
                     </tr>
