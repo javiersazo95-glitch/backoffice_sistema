@@ -15,6 +15,7 @@ import { buildDocumentDownloadName, downloadDocument, previewDocument, resolveDo
 import AdValidationTab from './AdValidationTab';
 import CapturerValidationTab from './CapturerValidationTab';
 import ServiceValidationTab from './ServiceValidationTab';
+import SocialLinksReview, { type StoreSocialLinks } from './SocialLinksReview';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { DetailHost, FilterSheet, FilterTrigger } from '@/components/mobile';
 import { countActiveFilters } from '@/utils/filters';
@@ -44,6 +45,7 @@ type ValidationRequestGroup = {
   requiredDocuments: RequiredDocumentState[];
   status: RequiredDocumentStatus;
   uploadedAt: string;
+  socialLinks: StoreSocialLinks;
 };
 
 const REQUIRED_DOCUMENTS: RequiredDocumentDefinition[] = [
@@ -185,6 +187,12 @@ function buildValidationGroups(validations: ValidationResponse[]): ValidationReq
         requiredDocuments,
         status: getRequiredDocumentsStatus(requiredDocuments),
         uploadedAt: firstDocument?.uploadedAt ?? '',
+        // Son de la tienda, no del documento: todas las filas traen las mismas.
+        socialLinks: {
+          instagramUrl: firstDocument?.instagramUrl ?? null,
+          facebookUrl: firstDocument?.facebookUrl ?? null,
+          tiktokUrl: firstDocument?.tiktokUrl ?? null,
+        },
       };
     })
     .sort((a, b) => new Date(a.uploadedAt).getTime() - new Date(b.uploadedAt).getTime());
@@ -674,6 +682,11 @@ export default function ValidationsPage() {
                         <InfoRow label="Teléfono" value={sellerMeta.phone} />
                       </div>
                     </div>
+                  </section>
+
+                  <section className="validation-panel">
+                    <PanelTitle icon="users" title="Redes sociales" />
+                    <SocialLinksReview links={selectedGroup.socialLinks} />
                   </section>
 
                   <section className="validation-panel">
