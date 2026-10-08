@@ -214,7 +214,7 @@ export interface LiquidationDocumentPayload {
 export interface IssuedDocumentRow {
   fechaEmision: string | null;
   tipoDocumento: string | null;
-  /** 33 factura electronica, 39 boleta electronica. */
+  /** 33 factura, 39 boleta, 61 nota de credito electronica. */
   codigoSii: number | null;
   folio: string | null;
   rutReceptor: string | null;
@@ -222,7 +222,8 @@ export interface IssuedDocumentRow {
   neto: number;
   iva: number;
   total: number;
-  origen: 'COMISION_SERVICIO' | 'RECARGA_MONEDAS';
+  /** NOTA_CREDITO_COMISION: nota de RepuesTop que anula comision ya facturada; montos negativos. */
+  origen: 'COMISION_SERVICIO' | 'RECARGA_MONEDAS' | 'NOTA_CREDITO_COMISION';
   referencia: string;
   /** Lo que hay que revisar antes de cuadrar; vacio si la fila esta completa. */
   observacion: string;
@@ -331,4 +332,99 @@ export async function getSocios(): Promise<Socio[]> {
 export async function saveSocio(nombre: string, payload: SocioRequest): Promise<Socio> {
   const response = await apiClient.put<Socio>(`/administration/socios/${encodeURIComponent(nombre)}`, payload);
   return response.data;
+}
+
+// Pendiente D (revision contable 2026-10-08): notas de credito y plazo de 6 meses.
+
+/** Nivel del plazo de 6 meses (art. 21 N° 2 y art. 70 DL 825) de una venta deshecha sin nota. */
+export type NivelNotaCredito = 'AL_DIA' | 'AVISO' | 'CRITICO' | 'VENCIDA';
+/** TIENDA anula su boleta de venta; REPUESTOP anula su factura de comision de un item ya liquidado. */
+export type EmisorNotaCredito = 'TIENDA' | 'REPUESTOP';
+
+export interface CreditNotePending {
+  pagoReembolsoId: number;
+  emisor: EmisorNotaCredito;
+  pedidoId: number;
+  codigoPedido: string | null;
+  proveedorId: number | null;
+  nombreTienda: string | null;
+  origen: string;
+  montoReembolso: number | null;
+  fechaReembolso: string | null;
+  /** Desde donde corren los 6 meses. */
+  fechaBase: string;
+  tipoFechaBase: 'ENTREGA' | 'BOLETA' | 'FACTURA_COMISION';
+  venceEl: string;
+  diasRestantes: number;
+  nivel: NivelNotaCredito;
+  /** La devolucion misma ocurrio despues de los 6 meses: el IVA ya no se recupera. */
+  devolucionFueraDePlazo: boolean;
+  documentoAnulado: string;
+  codigoRetiro: string | null;
+}
+
+export interface CreditNoteRegistered {
+  id: number;
+  emisor: EmisorNotaCredito;
+  pagoReembolsoId: number | null;
+  pedidoId: number | null;
+  codigoPedido: string | null;
+  nombreTienda: string | null;
+  folio: string;
+  fechaEmision: string;
+  monto: number | null;
+  archivoNombre: string | null;
+  tieneArchivo: boolean;
+  registradaPor: string | null;
+  registradaAt: string;
+  /** Se emitio despues de los 6 meses: quedo como respaldo, pero no rebajo el IVA. */
+  emitidaFueraDePlazo: boolean;
+}
+
+export interface MediationNearDeadline {
+  mediacionId: number;
+  pedidoId: number;
+  codigoPedido: string | null;
+  nombreTienda: string | null;
+  fechaEntrega: string;
+  venceEl: string;
+  diasRestantes: number;
+}
+
+export interface CreditNotesPanel {
+  pendientes: CreditNotePending[];
+  registradas: CreditNoteRegistered[];
+  mediacionesPorVencer: MediationNearDeadline[];
+}
+
+export async function getCreditNotes(): Promise<CreditNotesPanel> {
+  const response = await apiClient.get<CreditNotesPanel>('/administration/credit-notes');
+  return response.data;
+}
+
+export interface RegisterCreditNotePayload {
+  pagoReembolsoId: number;
+  emisor: EmisorNotaCredito;
+  folio: string;
+  /** "YYYY-MM-DD". */
+  fechaEmision: string;
+  /** Sin monto, el servidor usa el del reembolso. */
+  monto: number | null;
+}
+
+/** Registra la nota de credito con su PDF. Mismo cuidado con el Content-Type que el resto de las subidas. */
+export async function registerCreditNote(payload: RegisterCreditNotePayload, archivo: File): Promise<CreditNoteRegistered> {
+  const formData = new FormData();
+  formData.append('data', new Blob([JSON.stringify(payload)], { type: 'application/json' }));
+  formData.append('archivo', archivo);
+  const response = await apiClient.post<CreditNoteRegistered>('/administration/credit-notes', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return response.data;
+}
+
+/** URL de descarga de un solo uso del PDF de la nota. */
+export async function getCreditNoteUrl(id: number): Promise<string> {
+  const response = await apiClient.get<{ url: string }>(`/administration/credit-notes/${id}/url`);
+  return response.data.url;
 }

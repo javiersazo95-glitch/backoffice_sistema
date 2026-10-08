@@ -2112,7 +2112,7 @@ export default function AdminFinancePage() {
         row.neto,
         row.iva,
         row.total,
-        row.origen === 'COMISION_SERVICIO' ? 'Comisión de servicio' : 'Recarga de Monedas',
+        { COMISION_SERVICIO: 'Comisión de servicio', RECARGA_MONEDAS: 'Recarga de Monedas', NOTA_CREDITO_COMISION: 'Nota de crédito por comisión' }[row.origen] ?? row.origen,
         row.referencia,
         row.observacion,
       ]);

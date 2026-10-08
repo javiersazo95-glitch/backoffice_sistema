@@ -108,6 +108,8 @@ veces al año.
 
 ### Acordado, requiere migración de esquema
 
+> **C y D implementados el 9 de octubre de 2026.** Detalle en la sección 8.
+
 **C. Folio y fecha de emisión del documento de liquidación.** `DocumentoLiquidacionRequestDTO` no
 los tiene y en el frontend `sentAt` queda en `'Ahora'`. Sin folio y fecha no se concilia con el
 Registro de Compras y Ventas del SII. El patrón ya existe: `CompraFichaAdminDTO.documentoFolio`.
@@ -186,3 +188,70 @@ El trabajo está sin commitear: `AdminFinancePage.tsx` modificado y estos dos do
 El siguiente paso natural son los pendientes **C** y **D**, que están acordados y solo esperaban
 luz verde para tocar el backend. Los pendientes **A** y **B** son los de mayor valor antes del
 lanzamiento, y la pregunta 2 los desbloquea.
+
+## 8. Sesión del 9 de octubre: pendientes C y D
+
+Commits sin push, rama `dev` en los dos repos:
+
+| Repo | Commit | Contenido |
+|---|---|---|
+| backoffice | `c7ad1e2` | Cambios de la sesión del 8 (factura por comisión, comprobante de retiro) y estos documentos |
+| backend | `6adc2428` | C: folio y fecha de emisión, export del mes (migración `V2026100901`) |
+| backoffice | `c20cd85` | C: modal, export CSV, recargas, y `PagoProveedoresPage` sin "Boleta de Honorarios" |
+| backend y backoffice | siguiente commit | D: notas de crédito, job de alerta y vista **Cumplimiento SII** (migración `V2026100902`) |
+
+### C. Folio y fecha de emisión
+
+- `rt_retiro` guarda folio, fecha de emisión y fecha de registro; `rt_compra_ficha`, la fecha de
+  emisión. El folio se valida como número y **no puede repetirse para el mismo tipo de DTE entre
+  retiros y recargas**, porque comparten la numeración de RepuesTop.
+- La puerta de pago (`documentoLiquidacionCompleto`) exige folio y fecha. Los retiros de prueba
+  con documento quedan incompletos hasta agregárselos.
+- Export **"Documentos emitidos del mes"** en Liquidaciones: CSV por fecha de emisión con
+  comisiones, recargas y notas de crédito de RepuesTop (en negativo). Neto e IVA los calcula el
+  servidor; si el IVA guardado difiere del recalculado, la fila lo advierte.
+- El modal avisa si la factura se emite en un mes distinto al del retiro: por el art. 55 del DL 825
+  la factura de un servicio va en el período en que se percibe la remuneración (Oficio SII 2147 de
+  2016). **Cuál es ese mes para la comisión —el de la venta, el de la liberación de fondos o el del
+  retiro— lo tiene que definir el contador.**
+
+### D. Notas de crédito y plazo de 6 meses
+
+Verificado en la [pregunta frecuente SII 001.130.1212](https://www.sii.cl/preguntas_frecuentes/impuestos_mensuales/001_130_1212.htm)
+(actualizada al 10/06/2025): una nota de crédito emitida después de 6 meses no rebaja el débito.
+Y en la [001.380.5352](https://www.sii.cl/preguntas_frecuentes/bol_electr_vtas_serv/001_380_5352.htm)
+(14/07/2026): una boleta electrónica se anula con nota de crédito electrónica.
+
+Lo que se encontró en el backend y cambió el diseño:
+
+- **La fecha de entrega se perdía.** `cerrarSubordenesEnMediacion` sobrescribe `entregadoAt` con
+  la resolución. Nueva columna `primera_entrega_at`, que fija el propio setter la primera vez y no
+  cambia más. El respaldo histórico toma la fecha más temprana disponible.
+- **Las cancelaciones también necesitan nota**: la tienda emite su boleta antes de `EN_PREPARACION`.
+- **RepuesTop casi nunca emite nota propia**: la comisión se calcula sin lo reembolsado. Solo si el
+  reembolso llega después de liquidar el retiro.
+- La alerta de 150 días casi no se dispara porque la mediación se pide en 10 días; el riesgo real
+  era el reembolso sin nota. Por eso hay tres niveles: **atrasada** (7 días sin nota),
+  **crítica** (150 días desde la entrega) y **vencida**.
+
+Dónde quedó cada cosa:
+
+- Tabla `bo_nota_credito` (una nota por reembolso y emisor), `NotaCreditoBackofficeService` y
+  endpoints `/administration/credit-notes`.
+- `AlertaNotaCreditoJob`, diario a las 08:05, avisa a Administración Contable y, si está
+  configurado `repuestop.contabilidad.email-documentos`, le pide la nota a la tienda.
+- Vista **Administración Contable → Cumplimiento SII**: pendientes con su vencimiento, mediaciones
+  abiertas al límite, notas registradas y el modal para registrar folio, fecha, monto y PDF.
+- El PDF de la nota se valida por su contenido real, no por el `Content-Type`.
+
+### Pendiente de esta sesión
+
+1. **Correo de Administración Contable** para recibir las notas de las tiendas. Sin él, el job no
+   les pide nada (fase 1). La fase 2 es que la tienda la suba desde la app **y desde la web
+   market**, con el mismo patrón de la boleta de venta.
+2. **Probar en la interfaz.** El frontend apunta a la API de producción y los tests de integración
+   del backend necesitan Postgres; la migración y las consultas JPQL nuevas no se ejecutaron contra
+   una base. Hay que levantarlo local con `application-local.properties` antes del deploy.
+3. `createMediation` y `abrirDesdeAlerta` no revisan el plazo de 10 días ni si el retiro ya se
+   pagó: un reembolso sobre un ítem liquidado no tiene cómo recuperar la plata de la tienda. No es
+   tributario, pero es caja.

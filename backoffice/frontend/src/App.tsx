@@ -8,6 +8,7 @@ import AreaSelectorPage from '@/pages/AreaSelectorPage';
 import LoginPage from '@/pages/LoginPage';
 import AdminFinancePage from '@/modules/administration/AdminFinancePage';
 import PagoProveedoresPage from '@/modules/administration/PagoProveedoresPage';
+import CumplimientoSiiPage from '@/modules/administration/CumplimientoSiiPage';
 import PagoCaptadoresPage from '@/modules/administration/PagoCaptadoresPage';
 import SupportPage from '@/modules/support/SupportPage';
 import DashboardPage from '@/components/dashboard/DashboardPage';
@@ -159,6 +160,7 @@ export default function App() {
         <Route path="gastos" element={<AdminFinancePage />} />
         <Route path="pago-proveedores" element={<PagoProveedoresPage />} />
         <Route path="pago-captadores" element={<PagoCaptadoresPage />} />
+        <Route path="cumplimiento" element={<CumplimientoSiiPage />} />
       </Route>
       <Route path="/soporte/*" element={<RequireArea area="SOPORTE"><AppShell noSidebar><SupportPage /></AppShell></RequireArea>} />
       <Route path="/confianza/*" element={
