@@ -122,9 +122,19 @@ export interface SellerSaleResponse {
   numeroPedidoFormato?: string;
   numeroPedido?: string;
   codigoSoporte?: string;
+  /** Solo en ventas canceladas: código del motivo, quién canceló (VENDEDOR, COMPRADOR, SISTEMA) y cuándo. */
+  motivoCancelacion?: string | null;
+  canceladoPor?: string | null;
+  detalleCancelacion?: string | null;
+  canceladoEn?: string | null;
   items: Array<{
     name: string;
     codigoVendedor?: string;
+    /** ACTIVO, CANCELADO_VENDEDOR, CANCELADO_COMPRADOR... En un carrito mixto el motivo vive aquí. */
+    estado?: string;
+    motivoCancelacionCodigo?: string | null;
+    detalleCancelacion?: string | null;
+    cancelledAt?: string | null;
   }>;
 }
 
@@ -165,4 +175,24 @@ export interface SellerCancellationRate {
   tasa: number;
   /** Pasa el umbral Y tiene ventas suficientes para que el numero signifique algo. */
   superaUmbral: boolean;
+  /** Umbral configurado en el backend (%), piso de ventas para marcar y ventana medida en días. */
+  umbralPorcentaje?: number;
+  minimoVentas?: number;
+  dias?: number;
+}
+
+/** Una venta que la tienda canceló, con el motivo que eligió (GET /sellers/cancellation-rates/{id}/cancelaciones). */
+export interface SellerCancellationDetail {
+  pedidoId: number;
+  numeroPedido: string | null;
+  fechaPedido: string;
+  canceladoEn: string | null;
+  /** Código de MotivoCancelacionPedido (SIN_STOCK, ERROR_PRECIO, OTRO...). */
+  motivoCodigo: string | null;
+  motivoEtiqueta: string;
+  /** Texto libre del vendedor; solo con motivo OTRO. */
+  detalle: string | null;
+  monto: number;
+  productos: string | null;
+  comprador: string | null;
 }

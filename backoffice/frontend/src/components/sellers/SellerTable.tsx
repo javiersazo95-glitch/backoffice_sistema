@@ -5,6 +5,7 @@ import Badge from '@/components/shared/Badge';
 import UiIcon from '@/components/shared/UiIcon';
 import FounderSellerName from '@/components/shared/FounderSellerName';
 import SellerExpandedRow from './SellerExpandedRow';
+import CancellationRateCell from './CancellationRateCell';
 import { getSellerOperationalStatus, getSellerStatusLabel, getSellerStatusTone } from './status';
 import { formatDate } from '@/utils/formatters';
 import { resolveProfileImageUrl } from '@/api/client';
@@ -100,16 +101,12 @@ export default function SellerTable({
                       <td>{seller.lastActivityAt ? formatDate(seller.lastActivityAt) : 'Sin fecha'}</td>
                       <td>{sellerMediations.length}</td>
                       <td>
-                        {cancellation ? (
-                          <span
-                            className={cancellation.superaUmbral ? 'seller-cancellation-rate is-high' : 'seller-cancellation-rate'}
-                            title={`${cancellation.canceladas} de ${cancellation.ventas} ventas canceladas por la tienda`}
-                          >
-                            {cancellation.tasa.toFixed(1)}%
-                          </span>
-                        ) : (
-                          <span className="seller-cancellation-rate is-empty">Sin ventas</span>
-                        )}
+                        <CancellationRateCell
+                          sellerId={seller.id}
+                          storeName={seller.storeName}
+                          rate={cancellation}
+                          onViewProfile={onViewSeller ? () => onViewSeller(seller) : undefined}
+                        />
                       </td>
                       <td>
                         <div className="seller-actions" aria-label={`Acciones de ${seller.storeName}`}>

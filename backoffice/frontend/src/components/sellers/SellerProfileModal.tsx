@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { getSellerBlockHistory, getSellerReports, getSellerRetiros, getSellerSales } from '@/api/sellers';
+import { getSellerBlockHistory, getSellerCancellationRates, getSellerReports, getSellerRetiros, getSellerSales } from '@/api/sellers';
+import { cancelacionDeVenta } from './cancellationReasons';
+import SellerCancellationsModal from './SellerCancellationsModal';
 import type { SellerBlockHistoryResponse, SellerDetailResponse, SellerRetiroResponse, SellerSaleResponse } from '@/types/seller';
 import type { ReportResponse } from '@/types/report';
 import Badge from '@/components/shared/Badge';
@@ -181,9 +183,11 @@ function DocumentTable({ documents }: { documents: SellerDetailResponse['documen
   );
 }
 
-function SalesTable({ sales, isLoading }: { sales: SellerSaleResponse[]; isLoading: boolean }) {
+function SalesTable({ sales, isLoading, onlyCancelled }: { sales: SellerSaleResponse[]; isLoading: boolean; onlyCancelled?: boolean }) {
   if (isLoading) return <p className="row-sub">Cargando ventas...</p>;
-  if (!sales.length) return <p className="row-sub">La tienda aún no registra ventas.</p>;
+  if (!sales.length) {
+    return <p className="row-sub">{onlyCancelled ? 'La tienda no tiene ventas canceladas.' : 'La tienda aún no registra ventas.'}</p>;
+  }
 
   return (
     <div className="table-wrap seller-profile-sales-wrap">
@@ -204,6 +208,7 @@ function SalesTable({ sales, isLoading }: { sales: SellerSaleResponse[]; isLoadi
             // O72: el numero publico del pedido (con el sufijo de la tienda si hay varias); ni el codigo de venta ni la PK.
             const saleId = sale.numeroPedidoFormato || sale.codigoSoporte || '—';
             const amount = sale.totalSeller ?? sale.total ?? 0;
+            const cancelacion = cancelacionDeVenta(sale);
             return (
               <tr key={sale.id}>
                 <td><strong>{saleId}</strong></td>
@@ -211,7 +216,19 @@ function SalesTable({ sales, isLoading }: { sales: SellerSaleResponse[]; isLoadi
                 <td>{sale.buyerName || 'No informado'}</td>
                 <td>{formatCLP(amount)}</td>
                 <td>{formatDate(sale.createdAt)}</td>
-                <td><Badge text={sale.status} variant={sale.status} /></td>
+                <td>
+                  <Badge text={sale.status} variant={sale.status} />
+                  {cancelacion && (
+                    <div className="seller-sale-cancellation">
+                      <strong>{cancelacion.motivo}</strong>
+                      {cancelacion.detalle && <span>“{cancelacion.detalle}”</span>}
+                      <small>
+                        {cancelacion.origen ? `Canceló ${cancelacion.origen}` : 'Cancelada'}
+                        {cancelacion.fecha ? ` el ${formatDate(cancelacion.fecha)}` : ''}
+                      </small>
+                    </div>
+                  )}
+                </td>
               </tr>
             );
           })}
@@ -597,10 +614,13 @@ export default function SellerProfileModal({
   const [isReportsModalOpen, setIsReportsModalOpen] = useState(false);
   const [isRetirosModalOpen, setIsRetirosModalOpen] = useState(false);
   const [salesPage, setSalesPage] = useState(0);
+  const [salesFilter, setSalesFilter] = useState<'' | 'CANCELADO'>('');
+  const [isCancellationsOpen, setIsCancellationsOpen] = useState(false);
   const [activityPage, setActivityPage] = useState(0);
 
   useEffect(() => {
     setSalesPage(0);
+    setSalesFilter('');
     setActivityPage(0);
   }, [seller?.id, isOpen]);
 
@@ -623,10 +643,18 @@ export default function SellerProfileModal({
   });
 
   const { data: sellerSales, isLoading: isSellerSalesLoading } = useQuery({
-    queryKey: ['seller-sales', seller?.id, salesPage],
-    queryFn: () => getSellerSales(seller!.id, salesPage, 5),
+    queryKey: ['seller-sales', seller?.id, salesPage, salesFilter],
+    queryFn: () => getSellerSales(seller!.id, salesPage, 5, salesFilter || undefined),
     enabled: isOpen && !!seller,
   });
+
+  // Misma consulta (y cache) que la columna de cancelaciones del listado de vendedores.
+  const { data: cancellationRates } = useQuery({
+    queryKey: ['sellers', 'cancellation-rates'],
+    queryFn: () => getSellerCancellationRates(),
+    enabled: isOpen && !!seller,
+  });
+  const cancellationRate = cancellationRates?.find((fila) => fila.proveedorId === seller?.id);
 
   if (!isOpen || !seller) return null;
 
@@ -813,8 +841,31 @@ export default function SellerProfileModal({
                 </div>
 
                 <div className="seller-profile-panel sales-panel">
-                  <SectionHeader icon="cart" title="Ventas realizadas" count={`${sellerSales?.totalElements ?? 0}`} tone="green" />
-                  <SalesTable sales={sellerSales?.content ?? []} isLoading={isSellerSalesLoading} />
+                  <div className="seller-sales-header">
+                    <SectionHeader
+                      icon="cart"
+                      title={salesFilter === 'CANCELADO' ? 'Ventas canceladas' : 'Ventas realizadas'}
+                      count={`${sellerSales?.totalElements ?? 0}`}
+                      tone={salesFilter === 'CANCELADO' ? 'red' : 'green'}
+                    />
+                    <select
+                      className="select seller-sales-filter"
+                      value={salesFilter}
+                      onChange={(event) => { setSalesFilter(event.target.value as '' | 'CANCELADO'); setSalesPage(0); }}
+                      aria-label="Filtrar ventas por estado"
+                    >
+                      <option value="">Todas las ventas</option>
+                      <option value="CANCELADO">Solo canceladas</option>
+                    </select>
+                  </div>
+                  {salesFilter === 'CANCELADO' && cancellationRate && cancellationRate.canceladas > 0 && (
+                    <button type="button" className="seller-sales-reasons-link" onClick={() => setIsCancellationsOpen(true)}>
+                      <UiIcon name="info" />
+                      La tienda canceló {cancellationRate.canceladas} de {cancellationRate.ventas} ventas en {cancellationRate.dias ?? 90} días.
+                      Ver resumen de motivos
+                    </button>
+                  )}
+                  <SalesTable sales={sellerSales?.content ?? []} isLoading={isSellerSalesLoading} onlyCancelled={salesFilter === 'CANCELADO'} />
                   <ProfilePagination page={salesPage} totalPages={sellerSales?.totalPages ?? 0} onPageChange={setSalesPage} />
                 </div>
 
@@ -860,6 +911,15 @@ export default function SellerProfileModal({
         reports={sellerReports}
         isLoading={isSellerReportsLoading}
       />
+
+      {isCancellationsOpen && cancellationRate && (
+        <SellerCancellationsModal
+          sellerId={seller.id}
+          storeName={seller.storeName}
+          rate={cancellationRate}
+          onClose={() => setIsCancellationsOpen(false)}
+        />
+      )}
 
       <SellerRetirosModal
         isOpen={isRetirosModalOpen}

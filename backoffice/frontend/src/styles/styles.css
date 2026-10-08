@@ -1449,7 +1449,7 @@ svg {
 }
 
 .metric-grid.compact.seller-metric-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .metric-grid.compact.pedidos-metric-grid {
@@ -11321,9 +11321,9 @@ tr.is-active {
   font-weight: 450;
 }
 
-/* Seller Metric Grid */
+/* Seller Metric Grid: las cuatro métricas de Vendedores van en una sola fila. */
 .metric-grid.compact.seller-metric-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   width: 100%;
   min-width: 0;
   align-items: stretch;
@@ -20545,4 +20545,301 @@ main.feedback-page .feedback-page-header .area-home-shortcut-group { margin-left
 .seller-retiro-rejection .is-pending {
   color: #b45309;
   font-weight: 600;
+}
+
+/* Vendedores: columna de cancelaciones con su "i" de alerta y el popup de motivos */
+.seller-cancellation-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.seller-cancellation-info {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid #d7e2f2;
+  border-radius: 50%;
+  background: #fff;
+  color: #6b7a90;
+  cursor: pointer;
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+.seller-cancellation-info .ui-icon {
+  width: 15px;
+  height: 15px;
+}
+
+.seller-cancellation-info:hover,
+.seller-cancellation-info:focus-visible {
+  transform: scale(1.08);
+  box-shadow: 0 0 0 3px rgba(18, 100, 192, 0.12);
+  outline: none;
+}
+
+.seller-cancellation-info.is-warn {
+  border-color: #f4cf8a;
+  background: var(--amber-soft);
+  color: var(--amber);
+}
+
+.seller-cancellation-info.is-high {
+  border-color: #f3a39b;
+  background: var(--red-soft);
+  color: var(--red);
+  animation: seller-cancellation-pulse 2.2s ease-in-out infinite;
+}
+
+.seller-cancellation-info.is-high::after {
+  content: '';
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--red);
+  box-shadow: 0 0 0 2px #fff;
+}
+
+@keyframes seller-cancellation-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(217, 45, 32, 0); }
+  50% { box-shadow: 0 0 0 4px rgba(217, 45, 32, 0.18); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .seller-cancellation-info.is-high { animation: none; }
+}
+
+.seller-cancellation-tooltip {
+  position: fixed;
+  z-index: 3000;
+  width: 290px;
+  padding: 11px 13px;
+  border: 1px solid #dbe5f4;
+  border-top: 3px solid #6b7a90;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 14px 34px rgba(7, 18, 32, 0.16);
+  transform: translate(-50%, -100%);
+  pointer-events: none;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #34495e;
+}
+
+.seller-cancellation-tooltip.is-warn { border-top-color: var(--amber); }
+.seller-cancellation-tooltip.is-high { border-top-color: var(--red); }
+
+.seller-cancellation-tooltip strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 12.5px;
+  color: var(--ink);
+}
+
+.seller-cancellation-tooltip.is-high strong { color: var(--red); }
+.seller-cancellation-tooltip.is-warn strong { color: var(--amber); }
+
+.seller-cancellation-tooltip p {
+  margin: 0 0 6px;
+}
+
+.seller-cancellation-tooltip em {
+  font-style: normal;
+  font-weight: 650;
+  color: var(--blue);
+}
+
+.seller-cancellations-modal {
+  width: min(980px, calc(100vw - 28px));
+}
+
+.seller-cancellations-icon.is-high { background: var(--red-soft); color: var(--red); }
+.seller-cancellations-icon.is-warn { background: var(--amber-soft); color: var(--amber); }
+.seller-cancellations-icon.is-none { background: #eef2f7; color: #6b7a90; }
+
+.seller-cancellations-body {
+  display: grid;
+  gap: 14px;
+  padding: 20px;
+}
+
+.seller-cancellations-summary {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 14px 16px;
+  border: 1px solid #e2e8f0;
+  border-left: 4px solid #6b7a90;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.seller-cancellations-summary.is-high { border-left-color: var(--red); background: #fff6f5; }
+.seller-cancellations-summary.is-warn { border-left-color: var(--amber); background: #fffaf0; }
+
+.seller-cancellations-summary > div {
+  display: grid;
+  gap: 2px;
+  flex: 0 0 auto;
+}
+
+.seller-cancellations-summary strong {
+  font-size: 24px;
+  line-height: 1;
+  color: var(--ink);
+}
+
+.seller-cancellations-summary.is-high strong { color: var(--red); }
+
+.seller-cancellations-summary span {
+  font-size: 12px;
+  color: #6b7a90;
+}
+
+.seller-cancellations-summary p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #34495e;
+}
+
+.seller-cancellations-reasons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.seller-cancellations-reasons span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  background: #fff;
+  font-size: 12px;
+  color: #34495e;
+}
+
+.seller-cancellations-reasons strong {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--red-soft);
+  color: var(--red);
+  font-size: 11px;
+}
+
+.seller-cancellations-empty {
+  padding: 28px 0;
+  text-align: center;
+}
+
+.seller-cancellation-reason {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--red-soft);
+  color: #9b2c2c;
+  font-size: 12px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.seller-cancellation-detail {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #6b7a90;
+}
+
+@media (max-width: 640px) {
+  .seller-cancellations-summary {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .seller-cancellations-body {
+    padding: 14px;
+  }
+}
+
+/* Perfil del vendedor: filtro de ventas y motivo de las canceladas */
+.seller-sales-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.seller-sales-header .seller-profile-section-header {
+  margin-bottom: 0;
+}
+
+.seller-sales-filter {
+  min-height: 34px;
+  width: auto;
+  padding: 0 10px;
+  font-size: 12.5px;
+}
+
+.seller-sales-reasons-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 10px 0 2px;
+  padding: 7px 11px;
+  border: 1px solid #f3c6c1;
+  border-radius: 8px;
+  background: #fff6f5;
+  color: #9b2c2c;
+  font-size: 12.5px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.seller-sales-reasons-link .ui-icon {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 15px;
+}
+
+.seller-sales-reasons-link:hover {
+  background: #ffecea;
+}
+
+.seller-sale-cancellation {
+  display: grid;
+  gap: 2px;
+  margin-top: 6px;
+  max-width: 240px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.seller-sale-cancellation strong {
+  color: #9b2c2c;
+  font-weight: 650;
+}
+
+.seller-sale-cancellation span {
+  color: #4a5568;
+}
+
+.seller-sale-cancellation small {
+  color: #6b7a90;
+  font-size: 11.5px;
 }

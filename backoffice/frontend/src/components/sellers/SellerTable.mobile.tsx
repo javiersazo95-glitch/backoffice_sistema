@@ -1,4 +1,5 @@
 import { type SellerResponse, type SellerCancellationRate } from '@/types/seller';
+import CancellationRateCell from './CancellationRateCell';
 import type { ImpactMediation } from '@/types/cases';
 import Badge from '@/components/shared/Badge';
 import UiIcon from '@/components/shared/UiIcon';
@@ -70,7 +71,14 @@ export function SellerCardList({
                 { label: 'Ventas', value: seller.salesCount ?? 0 },
                 {
                   label: 'Cancela 90d',
-                  value: cancellation ? `${cancellation.tasa.toFixed(1)}%${cancellation.superaUmbral ? ' ⚠' : ''}` : 'Sin ventas',
+                  value: (
+                    <CancellationRateCell
+                      sellerId={seller.id}
+                      storeName={seller.storeName}
+                      rate={cancellation}
+                      onViewProfile={onViewSeller ? () => onViewSeller(seller) : undefined}
+                    />
+                  ),
                 },
               ]}
               selected={selectedSellerId === seller.id || expandedId === seller.id}

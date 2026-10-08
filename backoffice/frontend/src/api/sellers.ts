@@ -10,6 +10,7 @@ import type {
   SellerRetiroResponse,
   SellerSaleResponse,
   SellerCancellationRate,
+  SellerCancellationDetail,
 } from '@/types/seller';
 import type { TicketResponse } from '@/types/ticket';
 import type { ValidationResponse } from '@/types/validation';
@@ -119,9 +120,18 @@ export async function getSellerRetiros(id: number): Promise<SellerRetiroResponse
   return response.data;
 }
 
-export async function getSellerSales(id: number, page = 0, size = 5): Promise<PageResponse<SellerSaleResponse>> {
+/** `estado` filtra por el estado de la suborden de la tienda (p. ej. CANCELADO); sin él, todas. */
+export async function getSellerSales(id: number, page = 0, size = 5, estado?: string): Promise<PageResponse<SellerSaleResponse>> {
   const response = await apiClient.get<PageResponse<SellerSaleResponse>>(`/sellers/${id}/sales`, {
-    params: { page, size },
+    params: { page, size, ...(estado ? { estado } : {}) },
+  });
+  return response.data;
+}
+
+/** Las ventas que la tienda canceló en la ventana de la tasa, con motivo y fecha. */
+export async function getSellerCancellations(id: number, dias?: number): Promise<SellerCancellationDetail[]> {
+  const response = await apiClient.get<SellerCancellationDetail[]>(`/sellers/cancellation-rates/${id}/cancelaciones`, {
+    params: dias ? { dias } : undefined,
   });
   return response.data;
 }
