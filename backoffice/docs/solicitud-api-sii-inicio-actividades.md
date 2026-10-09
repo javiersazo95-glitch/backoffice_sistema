@@ -23,8 +23,9 @@ resolutivo 1° de la Res. 117 entrega:
 - otros criterios que el SII agregue a futuro.
 
 Con eso se automatiza la verificación al alta de cada tienda y la reverificación semestral (Res.
-168 de 2025). **No reemplaza** la nómina semestral `RUT;DV` que hay que subir al SII en junio y
-diciembre: esa obligación es aparte.
+168 de 2025). **Ojo:** tener la API trae una obligación nueva. El resolutivo 4° de la Res. 168 exige
+subir la nómina semestral `RUT;DV` (5 al 15 de junio y de diciembre) solo a las entidades
+autorizadas a la API. Sin la API, RepuesTop no la sube.
 
 ## 2. Costo
 
@@ -115,8 +116,9 @@ Según el resolutivo 2° de la Res. 117 y el considerando 2° de la Res. 133:
 
 ## 7. Qué cambia en el sistema cuando se apruebe
 
-La verificación manual que se construya ahora (pendiente A) debe registrar la **vía** de cada
-consulta (`CONSULTA_WEB`, `API`, `CERTIFICADO`). Al aprobarse la API:
+La verificación manual ya registra la **vía** de cada consulta (`CONSULTA_WEB`, `CERTIFICADO`, y
+`API` desactivada) y la nómina `RUT;DV` ya se descarga desde Cumplimiento SII
+([contabilidad-tributaria.md](contabilidad-tributaria.md), §8.3). Al aprobarse la API:
 
 1. Activar las IP fijas en el servicio de producción (si no se hizo antes de solicitarla).
 2. Guardar las credenciales que entregue el SII como variables de entorno en Railway, nunca en el

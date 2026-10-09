@@ -10,6 +10,8 @@ Reglas comunes:
   falso por un error de conexión.
 - Las tarjetas en **rojo** son las que perjudican a alguien que ya pagó o que está esperando.
 
+El uso de cada pantalla, paso a paso, está en [manual-backoffice.md](manual-backoffice.md).
+
 ---
 
 ## Mediación y Confianza (`/confianza`)
@@ -19,7 +21,6 @@ Reglas comunes:
 | Mediaciones con más de 5 días | Casos en mediación (tienda no bloqueada) abiertos hace 5 días o más | Resolver a favor de uno o bloquear la tienda si no responde |
 | Alertas críticas sin revisar | Señales de riesgo de severidad crítica que nadie marcó como revisadas | Leer la evidencia, marcar revisada y, si amerita, escalar a mediación |
 | Validaciones pendientes | Tiendas nuevas con documentos sin revisar (se indica cuántas llevan más de 3 días) | Aprobar, pedir corrección o rechazar |
-| Boletas de venta por vencer | Ventas finalizadas cuya boleta el vendedor no ha subido (se indica cuántas ya vencieron) | Pedirla a la tienda y marcar el seguimiento al recibirla |
 | Reportes de usuarios hoy | Reportes enviados hoy (hora de Chile) sobre anuncios, productos, tiendas o chats | Si varios apuntan a la misma tienda, abrir alerta o mediación |
 | Tiendas suspendidas | Tiendas que hoy no pueden vender | Revisar apelaciones y fecha de fin en Mediaciones, pestaña Bloqueos |
 
