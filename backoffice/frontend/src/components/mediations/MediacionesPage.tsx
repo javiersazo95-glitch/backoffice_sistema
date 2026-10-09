@@ -496,7 +496,7 @@ export default function MediacionesPage() {
   const handleBlockAccount = (id: number, payload?: MediationSuspendPayload) => {
     const targetText = payload?.targetRole === 'COMPRADOR' ? 'la cuenta del comprador' : 'la cuenta de la tienda';
     const confirmMsg = payload
-      ? `¿Estás seguro de suspender ${targetText}?`
+      ? `¿Suspender ${targetText} y resolver el caso? Si el veredicto incluye reembolso, se solicita en el acto.`
       : '¿Estás seguro de suspender esta cuenta?';
 
     if (confirm(confirmMsg)) {
@@ -505,7 +505,7 @@ export default function MediacionesPage() {
         {
           onSuccess: () => {
             navigate('/confianza/mediations');
-            showToast('Cuenta suspendida con éxito');
+            showToast('Cuenta suspendida y caso resuelto');
           },
           onError: (error: any) => {
             showToast(error?.response?.data?.message || 'No se pudo suspender la cuenta');

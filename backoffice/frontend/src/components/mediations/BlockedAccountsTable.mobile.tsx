@@ -91,7 +91,9 @@ export function BlockedAccountsCardList({
               badge={<Badge text={blockedStatusLabel(item.blockedAccountStatus, blockedTarget.isBuyer)} variant={hasAppeal ? 'appeal' : 'cuenta-bloqueada'} />}
               tone={hasAppeal ? 'warning' : 'danger'}
               meta={[
+                ...(item.buyer ? [{ label: 'Comprador', value: item.buyer }] : []),
                 { label: 'Pedido', value: item.orderId },
+                ...(item.originMediationExternalId ? [{ label: 'Caso de origen', value: item.originMediationExternalId }] : []),
                 { label: 'Etapa', value: item.stage || item.status },
                 ...(item.suspensionNivel ? [{ label: 'Nivel', value: suspensionNivelLabel(item.suspensionNivel) }] : []),
                 { label: 'Responsable', value: blockedTarget.fullTargetLabel },

@@ -31,6 +31,11 @@ export interface MediationResponse {
   canBlockAccount: boolean;
   blockingMediationId?: number | null;
   blockingMediationExternalId?: string | null;
+  /** Parte ya suspendida desde este caso: solo se sanciona a una por caso. */
+  suspendedPartyInCase?: 'COMPRADOR' | 'VENDEDOR' | null;
+  /** Si la fila es el bloqueo de una tienda suspendida desde un caso: ese caso. */
+  originMediationId?: number | null;
+  originMediationExternalId?: string | null;
   createdAt: string;
   updatedAt: string;
   buyer?: string;
@@ -204,5 +209,9 @@ export interface MediationSuspendPayload {
   duration: SuspensionDuration;
   reason: string;
   details?: string;
+  /** La suspension resuelve el caso: veredicto obligatorio (tienda suspendida = a favor del comprador). */
+  favor: 'COMPRADOR' | 'VENDEDOR';
+  resolutionOption: string;
+  refundPercentage?: number;
 }
 

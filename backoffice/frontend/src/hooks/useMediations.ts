@@ -104,6 +104,19 @@ export function useResolveCase() {
   });
 }
 
+export function useConfirmRefund() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => mediationsApi.confirmRefund(id),
+    onSuccess: (data, id) => {
+      invalidateMediationQueries(queryClient);
+      queryClient.invalidateQueries({ queryKey: ['mediation', id] });
+      queryClient.invalidateQueries({ queryKey: ['seller', data.sellerId] });
+      queryClient.invalidateQueries({ queryKey: ['audits'] });
+    },
+  });
+}
+
 export function useReactivateAccount() {
   const queryClient = useQueryClient();
   return useMutation({

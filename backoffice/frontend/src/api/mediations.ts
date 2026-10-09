@@ -42,6 +42,12 @@ export async function resolveCase(id: number, data: ResolveCaseRequest): Promise
   return response.data;
 }
 
+/** Confirma el reembolso que dejo registrado el cierre de un caso por suspension de la tienda. */
+export async function confirmRefund(id: number): Promise<ResolvedCaseResponse> {
+  const response = await apiClient.post<ResolvedCaseResponse>(`/mediations/${id}/confirm-refund`);
+  return response.data;
+}
+
 export async function reactivateAccount(id: number, data: ResolveCaseRequest, document: File): Promise<ResolvedCaseResponse> {
   const formData = new FormData();
   formData.append('request', new Blob([JSON.stringify(data)], { type: 'application/json' }));
