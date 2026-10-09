@@ -514,6 +514,16 @@ export default function ValidationsPage() {
 
   function rejectSelectedRequest() {
     if (pendingDocuments.length === 0) return;
+    // A2 (8-oct): rechazar borra la postulacion y la cuenta, y no se puede deshacer. Antes bastaba
+    // un clic.
+    const tienda = selectedGroup?.sellerName ?? 'esta tienda';
+    const confirmado = window.confirm(
+      `¿Rechazar y eliminar la solicitud de ${tienda}?\n\n`
+      + 'Se borra la postulación y la cuenta, y se le envía el motivo por correo. No se puede deshacer: '
+      + 'para volver a vender tendrá que postular desde cero.\n\n'
+      + 'Si algo se puede corregir, usa "Solicitar corrección".',
+    );
+    if (!confirmado) return;
     rejectMutation.mutate({
       ids: pendingDocuments.map((document) => document.id),
       notes: decisionNotes.trim(),
@@ -1067,7 +1077,7 @@ export default function ValidationsPage() {
                     onClick={rejectSelectedRequest}
                   >
                     <UiIcon name="close" />
-                    Eliminar solicitud
+                    Rechazar y eliminar
                   </button>
                 </div>
 
