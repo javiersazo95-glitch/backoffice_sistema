@@ -840,20 +840,24 @@ hasta que se aprueba.
    - Si **Declaración de contribuyente de IVA** dice **Falta**, la tienda no marcó la declaración:
      pedir corrección (F2).
    - Si **Certificado de cumplimiento tributario** dice **Falta**, pedir corrección.
-5. **Registrar la verificación del alta**, en el bloque **Registrar verificación del alta**:
-   1. **Lo que dice el certificado:** pulsar **Cumple** o **No cumple** y escribir la **Fecha del
-      certificado**.
-      - Si sale el aviso rojo "Ese certificado es de otro semestre", **no sigas**: pide uno nuevo con
-        una corrección (F2).
+5. **Registrar la verificación del alta**, en el bloque **Registrar la verificación del alta**, que
+   tiene tres pasos:
+   1. **Certificado de cumplimiento:** pulsar **Abrir certificado**, revisar que el RUT y el nombre
+      sean los de la tienda, marcar lo que dice (**Cumple** o **No cumple**) y escribir su **Fecha**.
+      - Si sale el aviso rojo "Es de otro semestre", **no sigas**: pide uno nuevo con una corrección
+        (F2).
       - Un certificado de más de 30 días sirve, pero conviene uno reciente.
-   2. **El inicio de actividades**, porque el certificado no dice si sigue vigente:
-      - pulsar **Copiar** para copiar el RUT y abrir el enlace a sii.cl;
-      - entrar a **Consultar situación tributaria de terceros** y pegar el RUT;
-      - según lo que muestre el SII, pulsar **Inicio de actividades vigente**, **Término de giro** o
-        **Sin inicio de actividades**.
-   3. Si hace falta, escribir una observación.
-   4. Pulsar **Registrar verificación**. No sale mensaje de éxito: la fila **Verificación en el SII**
-      pasa a **Listo**.
+   2. **Inicio de actividades en sii.cl**, porque el certificado no dice si sigue vigente:
+      - pulsar **Copiar RUT** y **Abrir sii.cl**, que abre la consulta de situación tributaria de
+        terceros del SII (no pide clave);
+      - pegar el RUT y, según lo que muestre el SII, marcar **Vigente**, **Término de giro** o **Sin
+        inicio de actividades**.
+   3. **Revisa y registra:** leer el resumen, que dice lo que se va a guardar y si con eso se podrá
+      aprobar la tienda. Si hace falta, **Agregar observación**. Pulsar **Registrar verificación**.
+
+   Aparece el aviso "Verificación registrada. Ya puedes aprobar la tienda", la pantalla baja a
+   **Decisión** y el botón **Aprobar solicitud** queda destacado. Registrar la verificación **no**
+   aprueba la tienda.
 6. **Aprobar.** Pulsar **Aprobar solicitud**. Sale **Solicitud aprobada**, la tienda pasa a
    Vendedores y recibe un correo. Si quedan cupos, queda como Fundador.
 

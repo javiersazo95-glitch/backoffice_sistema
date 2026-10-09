@@ -28,7 +28,7 @@ import { chileDay, downloadFile, formatDate, formatDateTimeLocal } from './utils
  */
 
 // Guia oficial del SII para consultar la situacion tributaria de terceros (verificada el 2026-10-09).
-const SII_CONSULTA_TERCEROS = 'https://www.sii.cl/como_se_hace_para/situacion_trib_terceros.html';
+const SII_CONSULTA_TERCEROS = 'https://www2.sii.cl/stc/noauthz';
 
 const RESULTADO_LABEL: Record<ResultadoVerificacionSii, { text: string; tone: string }> = {
   CUMPLE: { text: 'Cumple', tone: 'tone-green' },

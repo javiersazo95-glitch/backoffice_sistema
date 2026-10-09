@@ -5504,10 +5504,44 @@ tr.is-active {
   font-weight: 760;
 }
 
+/* Una fila por documento: con 4 columnas el quinto (certificado de cumplimiento, 8-oct) quedaba
+   solo en una segunda fila. Nombre a la izquierda, estado y acciones a la derecha. */
 .validation-documents-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+}
+
+.validation-documents-grid .validation-document-row {
+  align-items: center;
+  padding: 10px 12px;
+  box-shadow: none;
+}
+
+.validation-documents-grid .validation-document-card-body {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.validation-documents-grid .validation-document-card-head {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.validation-documents-grid .validation-document-card-footer {
+  justify-content: flex-end;
+}
+
+@media (max-width: 820px) {
+  .validation-documents-grid .validation-document-card-body,
+  .validation-documents-grid .validation-document-card-head {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .validation-documents-grid .validation-document-card-footer {
+    justify-content: flex-start;
+  }
 }
 
 .validation-documents-summary {

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { fetchAllPages } from '@/utils/pagination';
 import { mensajeDeError } from '@/api/client';
 import QueryErrorNotice from '@/components/shared/QueryErrorNotice';
@@ -404,6 +404,12 @@ export default function ValidationsPage() {
   const canResolveRequest = !hasMissingRequiredDocuments && pendingDocuments.length > 0;
   // Pendiente A: declaracion de IVA, certificado y verificacion del SII. El backend rechaza la
   // aprobacion sin ellos; aca se muestra antes, con la razon, en vez de un error al presionar.
+  // Al registrar la verificacion del alta, se lleva la vista a la decision y se destaca "Aprobar".
+  const decisionPanelRef = useRef<HTMLElement | null>(null);
+  const [destacarAprobar, setDestacarAprobar] = useState(false);
+  const certificadoCumplimiento = (selectedGroup?.requiredDocuments ?? [])
+    .find((requiredDocument) => requiredDocument.key === 'certificado-cumplimiento')?.document;
+
   const taxStatusQuery = useQuery({
     queryKey: ['validation-tax-status', selectedGroup?.sellerId],
     queryFn: () => validationsApi.getSellerTaxStatus(Number(selectedGroup?.sellerId)),
@@ -989,7 +995,7 @@ export default function ValidationsPage() {
                           ok: estado.tieneCertificado,
                           titulo: 'Certificado de cumplimiento tributario',
                           detalle: estado.tieneCertificado
-                            ? 'Cargado: está en Documentos requeridos.'
+                            ? 'Cargado: se abre en el paso 1 de abajo y en Documentos requeridos.'
                             : 'La tienda debe subirlo. Si falta, solicita una corrección.',
                         },
                         {
@@ -997,7 +1003,9 @@ export default function ValidationsPage() {
                           titulo: `Verificación en el SII (semestre ${estado.semestreActual})`,
                           detalle: verificadaEsteSemestre
                             ? `Resultado: ${RESULTADO_SII_TEXTO[resultado] ?? resultado}.`
-                            : 'La registra Administración Contable en Cumplimiento SII → Situación tributaria, consultando el RUT en sii.cl.',
+                            : estado.tieneCertificado
+                              ? 'Regístrala abajo: lo que dice el certificado y el inicio de actividades consultado en sii.cl.'
+                              : 'Se registra cuando la tienda suba su certificado. Mientras tanto, solicita una corrección.',
                         },
                       ];
                       return filas.map((fila) => (
@@ -1023,6 +1031,17 @@ export default function ValidationsPage() {
                           sellerId={Number(selectedGroup.sellerId)}
                           rut={sellerMeta.rut}
                           semestreActual={estado.semestreActual}
+                          onAbrirCertificado={certificadoCumplimiento ? () => openDocument(certificadoCumplimiento) : undefined}
+                          onRegistered={(aprobable) => {
+                            showToast(aprobable
+                              ? 'Verificación registrada. Ya puedes aprobar la tienda.'
+                              : 'Verificación registrada. Con este resultado la tienda no se puede aprobar.');
+                            if (aprobable) {
+                              setDestacarAprobar(true);
+                              window.setTimeout(() => setDestacarAprobar(false), 6000);
+                              decisionPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            }
+                          }}
                         />
                       );
                     })()}
@@ -1033,7 +1052,7 @@ export default function ValidationsPage() {
                 )}
               </section>
 
-              <section className="validation-panel validation-decision-panel">
+              <section className="validation-panel validation-decision-panel" ref={decisionPanelRef}>
                 <div>
                   <PanelTitle icon="scale" title="Decisión" />
                   <label className="validation-notes-label" htmlFor="validation-decision-notes">
@@ -1054,6 +1073,7 @@ export default function ValidationsPage() {
                 <div className="validation-decision-actions">
                   <button
                     className="validation-action-button approve"
+                    style={destacarAprobar ? { boxShadow: '0 0 0 3px #bbf7d0', borderColor: '#16a34a' } : undefined}
                     type="button"
                     disabled={!canApproveRequest || mutationInProgress}
                     onClick={approveSelectedRequest}
@@ -1088,8 +1108,8 @@ export default function ValidationsPage() {
                 )}
                 {!hasMissingRequiredDocuments && faltantesTributarios.length > 0 && (
                   <p className="validation-decision-hint">
-                    Para aprobar falta: {faltantesTributarios.join('; ')}. Puedes solicitar una corrección o esperar a que
-                    Administración Contable registre la verificación del SII.
+                    Para aprobar falta: {faltantesTributarios.join('; ')}. Si es la verificación, regístrala en Situación
+                    tributaria (SII); si es un documento o la declaración, solicita una corrección.
                   </p>
                 )}
               </section>
