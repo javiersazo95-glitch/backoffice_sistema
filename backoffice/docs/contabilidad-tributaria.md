@@ -429,8 +429,8 @@ Si se retoma el esquema a honorarios para captadores ocasionales:
 | Jueves | Pago del ciclo de retiros (jueves a miércoles) a tiendas y socios | Pago a proveedores |
 | Todos los días | Alertas de recargas sin documento, notas de crédito y situación tributaria (§8.5) | Campana del backoffice |
 | 2 y 20 de enero y julio | El sistema pide el certificado de cumplimiento a las tiendas | Automático |
-| Enero y julio | Reverificación semestral de todas las tiendas vigentes | Cumplimiento SII → Situación tributaria |
-| 5 al 15 de junio y de diciembre | Nómina `RUT;DV` al SII, **solo con la API autorizada** | Cumplimiento SII → "Nómina RUT;DV" |
+| Enero y julio | Reverificación semestral de todas las tiendas vigentes | Confianza → Cumplimiento tributario |
+| 5 al 15 de junio y de diciembre | Nómina `RUT;DV` al SII, **solo con la API autorizada** | Confianza → Cumplimiento tributario → "Nómina RUT;DV" |
 | 1 de marzo | DJ 1966, solo si hay tiendas que declararon no requerir inicio de actividades (§3.6) | — |
 | 29 de marzo de 2027 | DJ 1879 (honorarios), DJ 1887 (sueldos) y DJ 1948 (retiros de socios personas naturales), año tributario 2027 (Res. 135 de 2026) | Contador |
 | Abril | F22, renta anual | Contador |
@@ -589,13 +589,17 @@ petición de corrección.
    y por correo, a cada tienda vigente que no esté al día ni tenga uno en revisión.
 2. La tienda lo sube en **Mi tienda** (app y web). Queda en revisión **sin que la tienda vuelva a
    revisión**: sigue vendiendo.
-3. Administración Contable lo revisa en **Cumplimiento SII → Situación tributaria → "Certificados por
-   revisar"**:
+3. Confianza lo revisa en **Confianza → Cumplimiento tributario → "Certificados por revisar"**:
    - Cumple o No cumple crean la verificación del semestre, con el PDF como evidencia;
    - Rechazar le pide otro a la tienda, con el motivo;
    - un certificado de otro semestre no se acepta.
 4. Las tiendas que no suben certificado se verifican a mano: consulta del RUT en sii.cl y registro
-   con evidencia, desde la misma pestaña.
+   con evidencia, desde la misma pantalla o desde el perfil de la tienda (Confianza → Vendedores).
+
+**Quién lo hace (9-oct):** la situación tributaria pasó de Administración Contable a Confianza, que
+aprueba las tiendas. La bandeja semestral está en Confianza → Cumplimiento tributario, cada perfil de
+tienda muestra su situación y permite verificarla, y la alerta de las 08:10 llega a Confianza. Las
+notas de crédito siguen en Administración Contable → Cumplimiento SII.
 
 **Para cuando exista la API:** la pestaña ya permite descargar la nómina `RUT;DV` y la vía `API` ya
 existe en el modelo, desactivada.
@@ -610,15 +614,15 @@ existe en el modelo, desactivada.
 
 ### 8.5 Alertas automáticas
 
-**Destinatarios:** todos los super administradores y quienes tienen permiso de Administración
-Contable. **Canal:** la campana del backoffice, y push solo si la persona usa la app móvil con la
+**Destinatarios:** todos los super administradores y quienes tienen permiso del área que atiende
+cada alerta: Administración Contable las de las 08:00 y 08:05, Confianza la de las 08:10. **Canal:** la campana del backoffice, y push solo si la persona usa la app móvil con la
 misma cuenta. Ninguna llega por correo al equipo. Sale una por persona y por día.
 
 | Job | Hora (Chile) | Qué revisa | Lleva a |
 |---|---|---|---|
 | `AlertaCumplimientoTributarioJob` | 08:00 | Recargas de Monedas con más de 48 h sin documento | Pedidos → Publicidad |
-| `AlertaNotaCreditoJob` | 08:05 | Notas de crédito atrasadas, críticas o vencidas, y mediaciones al límite. A la tienda: "Emite la nota de crédito del pedido…" | Cumplimiento SII → Notas de crédito |
-| `ReverificacionSemestralJob` | 08:10 | Tiendas vigentes sin verificar este semestre o sin declaración de IVA. Los días 2 y 20 de enero y julio, además, pide el certificado a las tiendas | Cumplimiento SII → Situación tributaria |
+| `AlertaNotaCreditoJob` | 08:05 | Notas de crédito atrasadas, críticas o vencidas, y mediaciones al límite. A la tienda: "Emite la nota de crédito del pedido…" | Administración Contable → Cumplimiento SII |
+| `ReverificacionSemestralJob` | 08:10 | Tiendas vigentes sin verificar este semestre o sin declaración de IVA. Los días 2 y 20 de enero y julio, además, pide el certificado a las tiendas | Confianza → Cumplimiento tributario |
 
 **La zona horaria:** el servidor de Railway corre en UTC (confirmado con `date` en la consola: "Fri
 Oct 9 01:50:46 UTC 2026"), y hasta el 8 de octubre los `@Scheduled` no fijaban zona, así que las
@@ -808,6 +812,18 @@ y bcn.cl cambiaron siete puntos:
 | M | backend / backoffice | Comprobante obligatorio en los gastos, validado por contenido; categoría de la lista |
 | M11 | backoffice | Completar el documento de una tienda exige todos los datos y el PDF |
 | A2 | backoffice | "Rechazar y eliminar" pide confirmación |
+
+**9 de octubre: ajustes tras la prueba en dev y traslado a Confianza** (subidos a `dev`):
+
+- Validaciones: verificación del SII del alta en una sección propia, con formulario compacto; los
+  documentos vuelven a la grilla de 4 y el historial va antes de la decisión.
+- Liquidaciones: los datos de la factura van en una tabla; la tarjeta de IVA se llama "IVA de la
+  comisión".
+- Pagos: el aviso final dice qué se pagó y qué quedó pendiente. El correo de pago muestra el IVA en
+  pesos, el folio y la fecha de emisión.
+- La situación tributaria de las tiendas pasa a Confianza (bandeja "Cumplimiento tributario" y bloque
+  en el perfil de la tienda), con acceso del permiso de Confianza a `/administration/tax-status/**`
+  y la alerta de las 08:10 dirigida a Confianza.
 
 **Pruebas:** C y D se probaron en local con backend y backoffice levantados. Hay que re-probar todo
 en `dev` con el plan R1 a R16 (`repuestop/docs/planes/plan_prueba_completa_app_dev_oct.md`). Datos de

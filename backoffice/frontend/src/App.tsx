@@ -21,6 +21,7 @@ import AlertsPage from '@/components/alerts/AlertsPage';
 import AuditPage from '@/components/audit/AuditPage';
 import ReportsPage from '@/components/reports/ReportsPage';
 import FeedbackPage from '@/components/feedback/FeedbackPage';
+import CumplimientoTributarioPage from '@/components/cumplimiento/CumplimientoTributarioPage';
 import PermissionsConfigPage from '@/pages/PermissionsConfigPage';
 import CapturerRegisterPage from '@/pages/CapturerRegisterPage';
 import CapturerPortalPage from '@/pages/CapturerPortalPage';
@@ -177,6 +178,7 @@ export default function App() {
               <Route path="bitacora" element={<AuditPage />} />
               <Route path="reports" element={<ReportsPage />} />
               <Route path="feedback" element={<FeedbackPage />} />
+              <Route path="cumplimiento-tributario" element={<CumplimientoTributarioPage />} />
             </Routes>
           </AppShell>
         </RequireArea>

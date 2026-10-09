@@ -5,7 +5,7 @@ import type { CertificadoPendiente, ReviewCertificatePayload } from '@/api/admin
 import { mensajeDeError } from '@/api/client';
 import Modal from '@/components/shared/Modal';
 import UiIcon from '@/components/shared/UiIcon';
-import { chileDay, formatDateTimeLocal } from './utils';
+import { chileDay, formatDateTimeLocal } from '@/modules/administration/utils';
 
 /**
  * Paso 2 del plan de situacion tributaria: la cola de certificados que las tiendas suben desde
