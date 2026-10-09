@@ -94,6 +94,7 @@ export default function BlockedAccountsTable({
               <th>Registro</th>
               <th>Estado</th>
               <th>Tienda</th>
+              <th>Comprador</th>
               <th>Pedido</th>
               <th>Motivo del bloqueo</th>
               <th>Etapa</th>
@@ -104,7 +105,7 @@ export default function BlockedAccountsTable({
           <tbody>
             {isLoading ? (
               <tr>
-                <td colSpan={8}>
+                <td colSpan={9}>
                   <span className="row-sub">Cargando cuentas bloqueadas...</span>
                 </td>
               </tr>
@@ -117,12 +118,14 @@ export default function BlockedAccountsTable({
                     <td>
                       <strong className="blue-link">{item.externalId}</strong>
                       <span className="row-sub">{mediationStatusDisplay(item.status, item.accountBlocked)}</span>
+                      {item.originMediationExternalId && <span className="row-sub">Caso de origen: {item.originMediationExternalId}</span>}
                     </td>
                     <td>
                       <Badge text={getBlockedStatusLabel(item.blockedAccountStatus, blockedTarget.isBuyer)} variant={getBlockedStatusVariant(item.blockedAccountStatus)} />
                       {item.suspensionNivel && <span className="row-sub">{suspensionNivelLabel(item.suspensionNivel)}</span>}
                     </td>
                     <td><FounderSellerName name={item.sellerName} founder={item.sellerFounder} /></td>
+                    <td>{item.buyer || '—'}</td>
                     <td>{item.orderId}</td>
                     <td className="resolved-table-summary">
                       <strong>{item.escalationReason || item.reason || 'Motivo no informado'}</strong>
@@ -177,7 +180,7 @@ export default function BlockedAccountsTable({
               })
             ) : (
               <tr>
-                <td colSpan={8}>
+                <td colSpan={9}>
                   <span className="row-sub">No hay cuentas bloqueadas activas.</span>
                 </td>
               </tr>

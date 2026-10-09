@@ -93,13 +93,45 @@ export const MEDIATION_RESOLUTION_OPTIONS: MediationResolutionOption[] = [
   },
 ];
 
+/**
+ * Figuras que aplica solo el sistema al suspender una cuenta (pruebas en dev, 2026-10-09; espejo de
+ * `ResolucionMediacionCatalogo` del backend). No se ofrecen al mediador: solo se rotulan.
+ */
+export const AUTOMATIC_RESOLUTION_OPTIONS: MediationResolutionOption[] = [
+  {
+    key: 'REEMBOLSO_POR_SUSPENSION_TIENDA',
+    favor: 'COMPRADOR',
+    label: 'Reembolso íntegro por suspensión de la tienda',
+    fundamentoLegal:
+      'Términos y condiciones de RepuesTop (suspensión de cuenta) y artículo 3 letra e) de la Ley N° 19.496 (derecho a la reparación adecuada y oportuna)',
+    motivo: 'La tienda fue suspendida y no puede continuar la mediación, por lo que RepuesTop protege la compra.',
+    requiresPercentage: false,
+    appliesRefund: true,
+  },
+  {
+    key: 'CIERRE_POR_SUSPENSION_CUENTA',
+    favor: 'VENDEDOR',
+    label: 'Cierre por suspensión de la cuenta del comprador',
+    fundamentoLegal:
+      'Términos y condiciones de RepuesTop (suspensión de cuenta); sin pronunciamiento sobre los artículos 19 a 21 de la Ley N° 19.496',
+    motivo:
+      'La cuenta del comprador fue suspendida por otro caso y la mediación no puede continuar. No hay pronunciamiento sobre el producto.',
+    requiresPercentage: false,
+    appliesRefund: false,
+  },
+];
+
+/** Reembolso registrado al cerrar un caso por suspension de la tienda, pendiente de que el mediador lo confirme. */
+export const REFUND_PENDING_CONFIRMATION = 'PENDIENTE_CONFIRMACION';
+
 export function resolutionOptionsFor(favor: MediationFavor): MediationResolutionOption[] {
   return MEDIATION_RESOLUTION_OPTIONS.filter((option) => option.favor === favor);
 }
 
 export function findResolutionOption(key: string | undefined | null): MediationResolutionOption | undefined {
   if (!key) return undefined;
-  return MEDIATION_RESOLUTION_OPTIONS.find((option) => option.key === key);
+  return MEDIATION_RESOLUTION_OPTIONS.find((option) => option.key === key)
+    ?? AUTOMATIC_RESOLUTION_OPTIONS.find((option) => option.key === key);
 }
 
 export function resolutionOptionLabel(key: string | undefined | null): string {
@@ -116,6 +148,8 @@ export function refundStatusView(estado: string | undefined | null): RefundStatu
   switch ((estado ?? '').toUpperCase()) {
     case 'REEMBOLSADO':
       return { label: 'Reembolso acreditado', tone: 'success' };
+    case REFUND_PENDING_CONFIRMATION:
+      return { label: 'Pendiente de tu confirmación', tone: 'warning' };
     case 'REEMBOLSO_SOLICITADO':
       return { label: 'Solicitado a la pasarela (Flow)', tone: 'info' };
     // O57: el comprador acepto el correo de Flow; falta que Flow ejecute la devolucion.
@@ -147,6 +181,13 @@ export function refundStatusView(estado: string | undefined | null): RefundStatu
 export function buildRefundSteps(params: { percentage?: number | null; monto?: string; orderId?: string; estado?: string | null }): string[] {
   const { percentage, monto, orderId } = params;
   const estado = (params.estado ?? '').toUpperCase();
+  if (estado === REFUND_PENDING_CONFIRMATION) {
+    return [
+      'El caso se cerró al suspender la tienda: el reembolso íntegro quedó registrado, pero todavía no se pidió a la pasarela.',
+      'Revisa el caso y confirma el reembolso para solicitarlo a Flow. Mientras tanto, la venta de esa tienda queda retenida.',
+      `El comprador ve el caso resuelto y el reembolso pendiente en RepuesTop → "Mis pedidos" → detalle del pedido${orderId ? ` ${orderId}` : ''}.`,
+    ];
+  }
   const pctTxt = percentage ? `${percentage}%` : '';
   const montoTxt = monto ? ` (${monto})` : '';
   const reembolsoTxt = `El reembolso ${pctTxt ? `del ${pctTxt} ` : ''}del subtotal de la compra en la tienda${montoTxt}`;

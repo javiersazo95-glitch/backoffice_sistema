@@ -11,7 +11,7 @@ import {
   type MediationSuspendPayload,
   type SuspensionDuration,
 } from '@/types/mediation';
-import { useMediation, useResolveCase, useBlockAccount, useAddMessage } from '@/hooks/useMediations';
+import { useMediation, useResolveCase, useBlockAccount, useAddMessage, useConfirmRefund } from '@/hooks/useMediations';
 import { showToast } from '@/components/layout/Toast';
 import Badge from '@/components/shared/Badge';
 import UiIcon from '@/components/shared/UiIcon';
@@ -23,6 +23,7 @@ import {
   buildVeredictoPreview,
   findResolutionOption,
   refundStatusView,
+  REFUND_PENDING_CONFIRMATION,
   resolutionOptionsFor,
   resolutionOptionLabel,
   type MediationFavor,
@@ -551,7 +552,26 @@ function RefundStepsPanel({ item }: { item: MediationModalItem }) {
       {/* Pruebas de lanzamiento, 25-sep: con el reembolso en error o rechazado, soporte puede
           reintentarlo en Flow o registrar que lo devolvio por fuera. */}
       {refundPayment ? <RefundSupportActions refund={refundPayment} /> : null}
+      {item.estadoReembolso === REFUND_PENDING_CONFIRMATION && item.id ? <ConfirmRefundAction mediationId={item.id} /> : null}
     </div>
+  );
+}
+
+/** El caso se cerro al suspender la tienda: el mediador confirma el reembolso antes de pedirlo a Flow. */
+function ConfirmRefundAction({ mediationId }: { mediationId: number }) {
+  const confirmRefund = useConfirmRefund();
+  const handleConfirm = () => {
+    if (!confirm('¿Confirmar el reembolso? Se solicitará a la pasarela de pagos (Flow) en el acto y no se puede deshacer.')) return;
+    confirmRefund.mutate(mediationId, {
+      onSuccess: () => showToast('Reembolso confirmado y solicitado a la pasarela'),
+      onError: (error: any) => showToast(error?.response?.data?.message || 'No se pudo confirmar el reembolso'),
+    });
+  };
+  return (
+    <button className="primary-button" type="button" onClick={handleConfirm} disabled={confirmRefund.isPending}>
+      <UiIcon name="wallet" />
+      <span>{confirmRefund.isPending ? 'Confirmando…' : 'Confirmar reembolso'}</span>
+    </button>
   );
 }
 
@@ -632,7 +652,7 @@ export default function MediationDetail({
     } else {
       const targetText = payload?.targetRole === 'COMPRADOR' ? 'la cuenta del comprador' : 'la cuenta de la tienda';
       const confirmMsg = payload
-        ? `¿Estás seguro de suspender ${targetText}?`
+        ? `¿Suspender ${targetText} y resolver el caso? Si el veredicto incluye reembolso, se solicita en el acto.`
         : '¿Estás seguro de suspender esta cuenta?';
 
       if (confirm(confirmMsg)) {
@@ -640,7 +660,7 @@ export default function MediationDetail({
           { id, data: payload },
           {
             onSuccess: () => {
-              showToast('Cuenta suspendida con éxito');
+              showToast('Cuenta suspendida y caso resuelto');
               navigate('/confianza/mediations');
             },
             onError: (error: any) => {
@@ -707,7 +727,10 @@ export default function MediationDetail({
     item.userProfileUrl,
     item.avatarUrl,
   ) : null;
-  const canBlockSeller = item?.canBlockAccount !== false && !item?.accountBlocked;
+  // Una sola parte sancionada por caso (el backend responde 409 si se intenta la segunda).
+  const sanctionedParty = item?.suspendedPartyInCase ?? null;
+  const canBlockBuyer = !sanctionedParty;
+  const canBlockSeller = item?.canBlockAccount !== false && !item?.accountBlocked && !sanctionedParty;
   const blockingCode = item?.blockingMediationExternalId || (item?.blockingMediationId ? `MED-${item.blockingMediationId}` : '');
 
   const unifiedHistory = useMemo(
@@ -814,6 +837,82 @@ export default function MediationDetail({
     ? Math.round((Number(item.amount) * confirmRefundPercentage) / 100)
     : 0;
 
+  // El mismo veredicto sirve para resolver y para suspender: la suspension tambien resuelve el caso.
+  const renderVerdictFields = () => (
+    <>
+      {favor ? (
+        <label className="mediation-action-field">
+          <span>Opción de resolución (Ley 19.496) *</span>
+          <select
+            className="select"
+            value={resolutionOption}
+            onChange={(event) => {
+              setResolutionOption(event.target.value);
+              setRefundPercentage('');
+            }}
+          >
+            <option value="">Selecciona una figura legal…</option>
+            {favorOptions.map((option) => (
+              <option key={option.key} value={option.key}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          {selectedOption ? (
+            <small style={{ color: '#64748b' }}>{selectedOption.fundamentoLegal}.</small>
+          ) : null}
+        </label>
+      ) : null}
+
+      {selectedOption?.requiresPercentage ? (
+        <label className="mediation-action-field">
+          <span>Porcentaje de reembolso *</span>
+          <p style={{ fontSize: '12px', color: '#64748b', margin: '2px 0 6px' }}>
+            Se aplica sobre el subtotal de la compra en la tienda (líneas + envío). El monto exacto lo
+            calcula el sistema.
+          </p>
+          {/* Texto numerico y no type="number": ese acepta "1e5", decimales y cualquier
+              largo, y el resumen mostraba "0%" con un valor imposible. Solo digitos,
+              hasta 3, y lo que pase de 100 queda en 100. El backend valida 1-100. */}
+          <input
+            className="input"
+            type="text"
+            inputMode="numeric"
+            maxLength={3}
+            value={refundPercentage}
+            onChange={(event) => {
+              const digitos = event.target.value.replace(/\D/g, '').slice(0, 3);
+              setRefundPercentage(digitos && Number(digitos) > 100 ? '100' : digitos);
+            }}
+            placeholder="Ej: 50"
+          />
+          {!percentageValid && refundPercentage ? (
+            <small style={{ color: '#dc2626' }}>Ingresa un porcentaje entre 1 y 100.</small>
+          ) : null}
+        </label>
+      ) : selectedOption?.appliesRefund ? (
+        <div className="mediation-actions-note">
+          <UiIcon name="info" />
+          <p>Reembolso íntegro: se devolverá el 100% del subtotal de la compra en la tienda.</p>
+        </div>
+      ) : null}
+
+      {selectedOption ? (
+        <div className="mediation-blocking-warning" style={{ background: '#f8fafc', borderColor: 'rgba(15,23,42,0.08)' }}>
+          <UiIcon name="scale" />
+          <p style={{ whiteSpace: 'pre-line' }}>
+            {buildVeredictoPreview({
+              favor: favor as MediationFavor,
+              option: selectedOption,
+              refundPercentage: percentageValid ? parsedPercentage : undefined,
+              externalId: item.externalId,
+            })}
+          </p>
+        </div>
+      ) : null}
+    </>
+  );
+
   const requestResolve = () => {
     if (decision !== 'resolve' || !resolveReady || !favor || !selectedOption || !item) return;
     setConfirmResolveOpen(true);
@@ -831,6 +930,10 @@ export default function MediationDetail({
 
   const handleTargetChange = (nextTarget: 'COMPRADOR' | 'VENDEDOR') => {
     setSuspensionTarget(nextTarget);
+    // Suspender a la tienda resuelve a favor del comprador, y al reves (el backend lo exige).
+    setFavor(nextTarget === 'VENDEDOR' ? 'COMPRADOR' : 'VENDEDOR');
+    setResolutionOption('');
+    setRefundPercentage('');
     setSuspensionReasonKey('');
     setSuspensionReason('');
   };
@@ -856,22 +959,27 @@ export default function MediationDetail({
   };
 
   const selectedDuration = SUSPENSION_DURATIONS.find((d) => d.key === suspensionDuration);
-  const isSellerDisabled = suspensionTarget === 'VENDEDOR' && !canBlockSeller;
+  const isSellerDisabled = (suspensionTarget === 'VENDEDOR' && !canBlockSeller)
+    || (suspensionTarget === 'COMPRADOR' && !canBlockBuyer);
   const suspendReady = Boolean(
     decision === 'block' &&
     suspensionTarget &&
     suspensionDuration &&
     suspensionReasonKey &&
     suspensionReason.trim().length >= 5 &&
+    veredictoReady &&
     !isSellerDisabled
   );
 
   const handleSuspend = () => {
-    if (!suspendReady || !item || !suspensionTarget || !suspensionDuration) return;
+    if (!suspendReady || !item || !suspensionTarget || !suspensionDuration || !favor || !selectedOption) return;
     handleInternalBlockAccount(item.id, {
       targetRole: suspensionTarget,
       duration: suspensionDuration,
       reason: suspensionReason.trim(),
+      favor,
+      resolutionOption: selectedOption.key,
+      refundPercentage: selectedOption.requiresPercentage ? parsedPercentage : undefined,
     });
   };
 
@@ -984,7 +1092,8 @@ export default function MediationDetail({
               onSend={(value) => item?.id && handleSendMessage(item.id, value, 'COMPRADOR')}
               disabled={item.status === MediationStatus.RESUELTA || item.accountBlocked || item.buyerMessages?.some((m) => m.closed)}
               banner={
-                item.resolucionFavor === 'COMPRADOR' && (item.montoReembolso ?? 0) > 0
+                item.resolucionFavor === 'COMPRADOR'
+                  && ((item.montoReembolso ?? 0) > 0 || item.estadoReembolso === REFUND_PENDING_CONFIRMATION)
                   ? <RefundStepsPanel item={item} />
                   : null
               }
@@ -1070,76 +1179,7 @@ export default function MediationDetail({
                     </div>
                   </div>
 
-                  {favor ? (
-                    <label className="mediation-action-field">
-                      <span>Opción de resolución (Ley 19.496) *</span>
-                      <select
-                        className="select"
-                        value={resolutionOption}
-                        onChange={(event) => {
-                          setResolutionOption(event.target.value);
-                          setRefundPercentage('');
-                        }}
-                      >
-                        <option value="">Selecciona una figura legal…</option>
-                        {favorOptions.map((option) => (
-                          <option key={option.key} value={option.key}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                      {selectedOption ? (
-                        <small style={{ color: '#64748b' }}>{selectedOption.fundamentoLegal}.</small>
-                      ) : null}
-                    </label>
-                  ) : null}
-
-                  {selectedOption?.requiresPercentage ? (
-                    <label className="mediation-action-field">
-                      <span>Porcentaje de reembolso *</span>
-                      <p style={{ fontSize: '12px', color: '#64748b', margin: '2px 0 6px' }}>
-                        Se aplica sobre el subtotal de la compra en la tienda (líneas + envío). El monto exacto lo
-                        calcula el sistema.
-                      </p>
-                      {/* Texto numerico y no type="number": ese acepta "1e5", decimales y cualquier
-                          largo, y el resumen mostraba "0%" con un valor imposible. Solo digitos,
-                          hasta 3, y lo que pase de 100 queda en 100. El backend valida 1-100. */}
-                      <input
-                        className="input"
-                        type="text"
-                        inputMode="numeric"
-                        maxLength={3}
-                        value={refundPercentage}
-                        onChange={(event) => {
-                          const digitos = event.target.value.replace(/\D/g, '').slice(0, 3);
-                          setRefundPercentage(digitos && Number(digitos) > 100 ? '100' : digitos);
-                        }}
-                        placeholder="Ej: 50"
-                      />
-                      {!percentageValid && refundPercentage ? (
-                        <small style={{ color: '#dc2626' }}>Ingresa un porcentaje entre 1 y 100.</small>
-                      ) : null}
-                    </label>
-                  ) : selectedOption?.appliesRefund ? (
-                    <div className="mediation-actions-note">
-                      <UiIcon name="info" />
-                      <p>Reembolso íntegro: se devolverá el 100% del subtotal de la compra en la tienda.</p>
-                    </div>
-                  ) : null}
-
-                  {selectedOption ? (
-                    <div className="mediation-blocking-warning" style={{ background: '#f8fafc', borderColor: 'rgba(15,23,42,0.08)' }}>
-                      <UiIcon name="scale" />
-                      <p style={{ whiteSpace: 'pre-line' }}>
-                        {buildVeredictoPreview({
-                          favor: favor as MediationFavor,
-                          option: selectedOption,
-                          refundPercentage: percentageValid ? parsedPercentage : undefined,
-                          externalId: item.externalId,
-                        })}
-                      </p>
-                    </div>
-                  ) : null}
+                  {renderVerdictFields()}
                 </div>
               ) : null}
 
@@ -1154,8 +1194,11 @@ export default function MediationDetail({
                       <button
                         type="button"
                         className={`mediation-choice ${suspensionTarget === 'COMPRADOR' ? 'selected' : ''}`}
-                        style={{ flex: 1 }}
-                        onClick={() => handleTargetChange('COMPRADOR')}
+                        style={{ flex: 1, opacity: !canBlockBuyer ? 0.6 : 1 }}
+                        onClick={() => {
+                          if (canBlockBuyer) handleTargetChange('COMPRADOR');
+                        }}
+                        disabled={!canBlockBuyer}
                       >
                         <span className="mediation-choice-radio" />
                         <div>
@@ -1183,11 +1226,21 @@ export default function MediationDetail({
                     </div>
                   </div>
 
-                  {!canBlockSeller && blockingCode && (
+                  {sanctionedParty && (
                     <div className="mediation-blocking-warning">
                       <UiIcon name="lock" />
                       <p>
-                        La cuenta de la tienda ya fue bloqueada por la mediación <strong>{blockingCode}</strong>. No es posible volver a suspender la tienda desde este caso.
+                        Ya se suspendió {sanctionedParty === 'COMPRADOR' ? 'al comprador' : 'a la tienda'} desde este caso. Solo se puede sancionar a una parte por caso.
+                      </p>
+                    </div>
+                  )}
+
+                  {!sanctionedParty && canBlockSeller && blockingCode && suspensionTarget === 'VENDEDOR' && (
+                    <div className="mediation-blocking-warning">
+                      <UiIcon name="info" />
+                      <p>
+                        La tienda tiene otro caso abierto (<strong>{blockingCode}</strong>). Al suspenderla, sus casos abiertos con
+                        otros compradores se cierran a favor de ellos, con el reembolso pendiente de tu confirmación.
                       </p>
                     </div>
                   )}
@@ -1261,6 +1314,16 @@ export default function MediationDetail({
                         </label>
                       ) : null}
 
+                      <div>
+                        <span className="mediation-init-reason-kicker">Veredicto del caso *</span>
+                        <p style={{ fontSize: '12px', color: '#64748b', margin: '2px 0 8px' }}>
+                          La suspensión resuelve la mediación{' '}
+                          {suspensionTarget === 'VENDEDOR' ? 'a favor del comprador' : 'a favor de la tienda'}. Indica la
+                          figura legal; si incluye reembolso, se solicita a la pasarela en el acto.
+                        </p>
+                        {renderVerdictFields()}
+                      </div>
+
                       {suspensionDuration ? (
                         <div className="mediation-blocking-warning" style={{ background: '#fef2f2', borderColor: '#fecaca' }}>
                           <UiIcon name="shieldX" />
@@ -1275,6 +1338,11 @@ export default function MediationDetail({
                               <li>
                                 <strong>Plazo seleccionado:</strong> {selectedDuration?.label}
                               </li>
+                              {selectedOption ? (
+                                <li>
+                                  <strong>Resolución del caso:</strong> {selectedOption.label}
+                                </li>
+                              ) : null}
                               <li>
                                 <strong>Desbloqueo programado:</strong> {formatUnlockDate(suspensionDuration)}
                               </li>
@@ -1306,7 +1374,7 @@ export default function MediationDetail({
                 <p>
                   {decision === 'resolve'
                     ? 'Al resolver, el fundamento legal y el mensaje cordial a ambas partes (chat, plataforma, correo y app) se generan automáticamente según la Ley N° 19.496. Si aplica reembolso, se solicita a la pasarela de pagos.'
-                    : 'Al suspender, la cuenta quedará inhabilitada temporal o indefinidamente según el plazo seleccionado y se le notificará por correo la decisión tomada por el mediador.'}
+                    : 'Al suspender, la cuenta quedará inhabilitada temporal o indefinidamente según el plazo seleccionado, el caso queda resuelto con el veredicto indicado y ambas partes lo verán como mediación resuelta en su compra.'}
                 </p>
               </div>
             </section>
