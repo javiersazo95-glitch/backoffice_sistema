@@ -16,6 +16,7 @@ import AdValidationTab from './AdValidationTab';
 import CapturerValidationTab from './CapturerValidationTab';
 import ServiceValidationTab from './ServiceValidationTab';
 import SocialLinksReview, { type StoreSocialLinks } from './SocialLinksReview';
+import VerificacionAltaSii from './VerificacionAltaSii';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { DetailHost, FilterSheet, FilterTrigger } from '@/components/mobile';
 import { countActiveFilters } from '@/utils/filters';
@@ -998,6 +999,22 @@ export default function ValidationsPage() {
                           </div>
                         </div>
                       ));
+                    })()}
+                    {(() => {
+                      // Se registra aca mismo, donde se aprueba. Solo hace falta si la tienda ya subio su
+                      // certificado y todavia no hay una verificacion de este semestre con la que pueda vender.
+                      const estado = taxStatusQuery.data;
+                      const resultado = estado.ultimaVerificacion?.resultado ?? '';
+                      const verificacionOk = estado.ultimaVerificacion?.semestre === estado.semestreActual
+                        && (resultado === 'CUMPLE' || resultado === 'NO_CUMPLE');
+                      if (!estado.tieneCertificado || verificacionOk || !selectedGroup) return null;
+                      return (
+                        <VerificacionAltaSii
+                          sellerId={Number(selectedGroup.sellerId)}
+                          rut={sellerMeta.rut}
+                          semestreActual={estado.semestreActual}
+                        />
+                      );
                     })()}
                     {!taxStatusQuery.data.exigido && (
                       <p className="validation-decision-hint">La exigencia está desactivada en este ambiente: se puede aprobar igual.</p>

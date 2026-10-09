@@ -82,3 +82,20 @@ export async function rejectAdValidation(id: string | number, reason: string): P
   const response = await apiClient.patch<AdValidationItem>(`/validations/anuncios/${adId(id)}/reject`, { notes: reason, reason });
   return response.data;
 }
+
+/**
+ * Verificacion del alta desde Validaciones: lo que dice el certificado de cumplimiento que subio
+ * la tienda (Res. SII 168, resolutivo 2°) y si el inicio de actividades esta vigente en sii.cl.
+ */
+export interface RegisterSellerTaxStatusPayload {
+  certificadoEstado: 'CUMPLE' | 'NO_CUMPLE';
+  /** "YYYY-MM-DD": la fecha de los datos que muestra el certificado. */
+  certificadoFecha: string;
+  inicioActividades: 'VIGENTE' | 'TERMINO_GIRO' | 'SIN_INICIO';
+  inicioActividadesFecha: string | null;
+  observaciones: string | null;
+}
+
+export async function registerSellerTaxStatus(sellerId: number, payload: RegisterSellerTaxStatusPayload): Promise<void> {
+  await apiClient.post(`/validations/sellers/${sellerId}/tax-status`, payload);
+}
