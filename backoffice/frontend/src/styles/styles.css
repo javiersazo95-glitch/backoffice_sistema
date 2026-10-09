@@ -20915,6 +20915,8 @@ main.feedback-page .feedback-page-header .area-home-shortcut-group { margin-left
 /* Liquidaciones, "Datos para emitir en el SII": lineas de la factura de la tienda (9-oct). */
 .factura-sii-tabla {
   width: 100%;
+  /* La regla global `table` pide 780px de ancho minimo; el modal es mas angosto. */
+  min-width: 0;
   border-collapse: collapse;
   font-size: 13px;
   border: 1px solid #e2e8f0;
