@@ -89,6 +89,9 @@ const REQUIRED_DOCUMENTS: RequiredDocumentDefinition[] = [
   },
 ];
 
+/** El certificado de cumplimiento se muestra aparte de la grilla, junto a su verificacion. */
+const CLAVE_CERTIFICADO = 'certificado-cumplimiento';
+
 const RESULTADO_SII_TEXTO: Record<string, string> = {
   CUMPLE: 'cumple',
   NO_CUMPLE: 'no cumple (puede vender)',
@@ -396,7 +399,6 @@ export default function ValidationsPage() {
   const selectedSeller = selectedGroup ? sellerById.get(selectedGroup.sellerId) : undefined;
   const sellerMeta = getSellerMeta(selectedSeller);
   const requiredDocuments = selectedGroup?.requiredDocuments ?? [];
-  const uploadedRequiredDocuments = requiredDocuments.filter((document) => Boolean(document.document));
   const pendingDocuments = requiredDocuments
     .filter((document) => document.document?.status === ValidationStatus.PENDIENTE)
     .map((document) => document.document as ValidationResponse);
@@ -407,8 +409,6 @@ export default function ValidationsPage() {
   // Al registrar la verificacion del alta, se lleva la vista a la decision y se destaca "Aprobar".
   const decisionPanelRef = useRef<HTMLElement | null>(null);
   const [destacarAprobar, setDestacarAprobar] = useState(false);
-  const certificadoCumplimiento = (selectedGroup?.requiredDocuments ?? [])
-    .find((requiredDocument) => requiredDocument.key === 'certificado-cumplimiento')?.document;
 
   const taxStatusQuery = useQuery({
     queryKey: ['validation-tax-status', selectedGroup?.sellerId],
@@ -535,6 +535,74 @@ export default function ValidationsPage() {
       notes: decisionNotes.trim(),
     });
   }
+
+  // Tarjeta de un documento requerido: la grilla muestra los 4 de siempre y el certificado de
+  // cumplimiento va aparte, en Situacion tributaria (SII), junto a su verificacion (9-oct).
+  const renderRequiredDocument = (requiredDocument: RequiredDocumentState) => {
+    const document = requiredDocument.document;
+    return (
+                          <div
+                            className={`validation-document-row${document ? ' loaded' : ' missing'}`}
+                            key={requiredDocument.key}
+                          >
+                            <div className={`validation-document-icon tone-${requiredDocument.tone}`}>
+                              <UiIcon name={requiredDocument.icon} />
+                            </div>
+
+                            <div className="validation-document-card-body">
+                              <div className="validation-document-card-head">
+                                <div className="validation-document-copy">
+                                  <strong>{requiredDocument.label}</strong>
+                                  <span>
+                                    {document
+                                      ? `Cargado como: ${document.documentType}`
+                                      : 'Aún no ha sido cargado por el vendedor'}
+                                  </span>
+                                </div>
+
+                                <StatusPill status={requiredDocument.status} isLoaded={Boolean(document)} />
+                              </div>
+
+                              <div className="validation-document-card-footer">
+                                {document ? (
+                                  <div className="validation-history-doc-actions" style={{ gap: '6px' }}>
+                                    <button
+                                      type="button"
+                                      onClick={() => openDocument(document)}
+                                      title="Previsualizar"
+                                      className="validation-doc-action-btn preview"
+                                    >
+                                      <UiIcon name="eye" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const url = resolveDocumentUrl(document.documentUrl);
+                                        if (url) {
+                                          void downloadDocument(
+                                            url,
+                                            buildDocumentDownloadName(document.documentType, url),
+                                          );
+                                        } else {
+                                          showToast("No se pudo iniciar la descarga: URL no disponible.");
+                                        }
+                                      }}
+                                      title="Descargar"
+                                      className="validation-doc-action-btn download"
+                                    >
+                                      <UiIcon name="download" />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <span className="validation-document-placeholder">Pendiente de carga</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+    );
+  };
+  const documentosGrilla = requiredDocuments.filter((requiredDocument) => requiredDocument.key !== CLAVE_CERTIFICADO);
+  const certificadoRequerido = requiredDocuments.find((requiredDocument) => requiredDocument.key === CLAVE_CERTIFICADO);
 
   return (
     <section className="validation-workspace">
@@ -737,81 +805,168 @@ export default function ValidationsPage() {
                     <PanelTitle icon="document" title="Documentos requeridos" />
 
                     <div className="validation-documents-summary">
-                      <strong>{uploadedRequiredDocuments.length} de {REQUIRED_DOCUMENTS.length} documentos cargados</strong>
+                      <strong>{documentosGrilla.filter((requiredDocument) => requiredDocument.document).length} de {documentosGrilla.length} documentos cargados</strong>
                       <span>
-                        {hasMissingRequiredDocuments
-                          ? `Faltan ${requiredDocuments.filter((document) => !document.document).length} por cargar.`
-                          : `Los ${REQUIRED_DOCUMENTS.length} documentos requeridos ya fueron cargados.`}
+                        {documentosGrilla.some((requiredDocument) => !requiredDocument.document)
+                          ? `Faltan ${documentosGrilla.filter((requiredDocument) => !requiredDocument.document).length} por cargar.`
+                          : 'Están todos. El certificado de cumplimiento se revisa en Situación tributaria (SII).'}
                       </span>
                     </div>
 
                     <div className="validation-documents-grid">
-                      {requiredDocuments.map((requiredDocument) => {
-                        const document = requiredDocument.document;
-
-                        return (
-                          <div
-                            className={`validation-document-row${document ? ' loaded' : ' missing'}`}
-                            key={requiredDocument.key}
-                          >
-                            <div className={`validation-document-icon tone-${requiredDocument.tone}`}>
-                              <UiIcon name={requiredDocument.icon} />
-                            </div>
-
-                            <div className="validation-document-card-body">
-                              <div className="validation-document-card-head">
-                                <div className="validation-document-copy">
-                                  <strong>{requiredDocument.label}</strong>
-                                  <span>
-                                    {document
-                                      ? `Cargado como: ${document.documentType}`
-                                      : 'Aún no ha sido cargado por el vendedor'}
-                                  </span>
-                                </div>
-
-                                <StatusPill status={requiredDocument.status} isLoaded={Boolean(document)} />
-                              </div>
-
-                              <div className="validation-document-card-footer">
-                                {document ? (
-                                  <div className="validation-history-doc-actions" style={{ gap: '6px' }}>
-                                    <button
-                                      type="button"
-                                      onClick={() => openDocument(document)}
-                                      title="Previsualizar"
-                                      className="validation-doc-action-btn preview"
-                                    >
-                                      <UiIcon name="eye" />
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        const url = resolveDocumentUrl(document.documentUrl);
-                                        if (url) {
-                                          void downloadDocument(
-                                            url,
-                                            buildDocumentDownloadName(document.documentType, url),
-                                          );
-                                        } else {
-                                          showToast("No se pudo iniciar la descarga: URL no disponible.");
-                                        }
-                                      }}
-                                      title="Descargar"
-                                      className="validation-doc-action-btn download"
-                                    >
-                                      <UiIcon name="download" />
-                                    </button>
-                                  </div>
-                                ) : (
-                                  <span className="validation-document-placeholder">Pendiente de carga</span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
+                      {documentosGrilla.map((requiredDocument) => renderRequiredDocument(requiredDocument))}
                     </div>
                   </section>
+
+              <section className="validation-panel">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <PanelTitle icon="shieldCheck" title={`Situación tributaria (SII)${taxStatusQuery.data ? ` · ${taxStatusQuery.data.semestreActual}` : ''}`} />
+                  {taxStatusQuery.data && (() => {
+                    const estado = taxStatusQuery.data;
+                    const resultado = estado.ultimaVerificacion?.resultado ?? '';
+                    const verificacionOk = estado.ultimaVerificacion?.semestre === estado.semestreActual
+                      && (resultado === 'CUMPLE' || resultado === 'NO_CUMPLE');
+                    const chips = [
+                      { ok: Boolean(estado.declaracionIvaAt), texto: 'Declaración IVA' },
+                      { ok: estado.tieneCertificado, texto: 'Certificado' },
+                      { ok: verificacionOk, texto: verificacionOk ? `Verificación: ${RESULTADO_SII_TEXTO[resultado] ?? resultado}` : 'Verificación: falta' },
+                    ];
+                    return (
+                      <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                        {chips.map((chip) => (
+                          <span key={chip.texto} className={`status-pill ${chip.ok ? 'tone-green' : 'tone-amber'}`}>{chip.texto}</span>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                </div>
+                {taxStatusQuery.isError ? (
+                  <QueryErrorNotice error={taxStatusQuery.error} what="la situación tributaria de la tienda" onRetry={() => taxStatusQuery.refetch()} />
+                ) : !taxStatusQuery.data ? (
+                  <p className="validation-decision-hint">Cargando…</p>
+                ) : (
+                  <div style={{ display: 'grid', gap: 12 }}>
+                    {(() => {
+                      const estado = taxStatusQuery.data;
+                      const resultado = estado.ultimaVerificacion?.resultado ?? '';
+                      const verificadaEsteSemestre = estado.ultimaVerificacion?.semestre === estado.semestreActual;
+                      const verificacionOk = verificadaEsteSemestre && (resultado === 'CUMPLE' || resultado === 'NO_CUMPLE');
+                      const avisos: string[] = [];
+                      if (!estado.declaracionIvaAt) {
+                        avisos.push('La tienda no ha declarado ser contribuyente de IVA (lo hace al enviar sus documentos): solicita una corrección.');
+                      }
+                      if (!estado.tieneCertificado) {
+                        avisos.push('Falta el certificado de cumplimiento tributario: solicita una corrección.');
+                      }
+                      if (verificadaEsteSemestre && !verificacionOk) {
+                        avisos.push(`La verificación del SII dio ${RESULTADO_SII_TEXTO[resultado] ?? resultado}: la tienda no se puede aprobar.`);
+                      }
+                      return (
+                        <>
+                          {avisos.map((aviso) => (
+                            <p key={aviso} className="validation-decision-hint" style={{ margin: 0 }}>{aviso}</p>
+                          ))}
+                          {verificacionOk && estado.ultimaVerificacion && (
+                            <p className="validation-decision-hint" style={{ margin: 0 }}>
+                              Verificada con el certificado del {new Date(`${estado.ultimaVerificacion.verificadaEn}T12:00:00`).toLocaleDateString('es-CL')}:{' '}
+                              {RESULTADO_SII_TEXTO[resultado] ?? resultado}.
+                              {estado.declaracionIvaAt && ` Declaración de IVA del ${new Date(estado.declaracionIvaAt).toLocaleDateString('es-CL')}.`}
+                            </p>
+                          )}
+                          {certificadoRequerido && (
+                            <div className="validation-documents-grid validation-certificate-slot">
+                              {renderRequiredDocument(certificadoRequerido)}
+                            </div>
+                          )}
+                          {estado.tieneCertificado && !verificacionOk && selectedGroup && (
+                            // Se registra aca mismo, donde se aprueba; registrar no aprueba la tienda.
+                            <VerificacionAltaSii
+                              sellerId={Number(selectedGroup.sellerId)}
+                              rut={sellerMeta.rut}
+                              semestreActual={estado.semestreActual}
+                              onRegistered={(aprobable) => {
+                                showToast(aprobable
+                                  ? 'Verificación registrada. Ya puedes aprobar la tienda.'
+                                  : 'Verificación registrada. Con este resultado la tienda no se puede aprobar.');
+                                if (aprobable) {
+                                  setDestacarAprobar(true);
+                                  window.setTimeout(() => setDestacarAprobar(false), 6000);
+                                  decisionPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                }
+                              }}
+                            />
+                          )}
+                        </>
+                      );
+                    })()}
+                    {!taxStatusQuery.data.exigido && (
+                      <p className="validation-decision-hint">La exigencia está desactivada en este ambiente: se puede aprobar igual.</p>
+                    )}
+                  </div>
+                )}
+              </section>
+
+              <section className="validation-panel validation-decision-panel" ref={decisionPanelRef}>
+                <div>
+                  <PanelTitle icon="scale" title="Decisión" />
+                  <label className="validation-notes-label" htmlFor="validation-decision-notes">
+                    Motivo del rechazo o solicitud de corrección
+                  </label>
+                  <div className="validation-notes-box">
+                    <textarea
+                      id="validation-decision-notes"
+                      maxLength={500}
+                      value={decisionNotes}
+                      onChange={(event) => setDecisionNotes(event.target.value)}
+                      placeholder="Indica el motivo que recibirá el solicitante si rechazas la solicitud..."
+                    />
+                    <span>{decisionNotes.length} / 500</span>
+                  </div>
+                </div>
+
+                <div className="validation-decision-actions">
+                  <button
+                    className="validation-action-button approve"
+                    style={destacarAprobar ? { boxShadow: '0 0 0 3px #bbf7d0', borderColor: '#16a34a' } : undefined}
+                    type="button"
+                    disabled={!canApproveRequest || mutationInProgress}
+                    onClick={approveSelectedRequest}
+                  >
+                    <UiIcon name="check" />
+                    Aprobar solicitud
+                  </button>
+                  <button
+                    className="validation-action-button correction"
+                    type="button"
+                    disabled={!canResolveRequest || !decisionNotes.trim() || mutationInProgress}
+                    onClick={requestSelectedCorrection}
+                  >
+                    <UiIcon name="refresh" />
+                    Solicitar corrección
+                  </button>
+                  <button
+                    className="validation-action-button reject"
+                    type="button"
+                    disabled={!canResolveRequest || !decisionNotes.trim() || mutationInProgress}
+                    onClick={rejectSelectedRequest}
+                  >
+                    <UiIcon name="close" />
+                    Rechazar y eliminar
+                  </button>
+                </div>
+
+                {hasMissingRequiredDocuments && (
+                  <p className="validation-decision-hint">
+                    Completa la carga de los {REQUIRED_DOCUMENTS.length} documentos de registro obligatorios para habilitar la decisión de la solicitud.
+                  </p>
+                )}
+                {!hasMissingRequiredDocuments && faltantesTributarios.length > 0 && (
+                  <p className="validation-decision-hint">
+                    Para aprobar falta: {faltantesTributarios.join('; ')}. Si es la verificación, regístrala en Situación
+                    tributaria (SII); si es un documento o la declaración, solicita una corrección.
+                  </p>
+                )}
+              </section>
 
               <section className="validation-panel validation-history-panel">
                 <div
@@ -968,149 +1123,6 @@ export default function ValidationsPage() {
                       });
                     })()}
                   </div>
-                )}
-              </section>
-
-              <section className="validation-panel">
-                <PanelTitle icon="shieldCheck" title="Situación tributaria (SII)" />
-                {taxStatusQuery.isError ? (
-                  <QueryErrorNotice error={taxStatusQuery.error} what="la situación tributaria de la tienda" onRetry={() => taxStatusQuery.refetch()} />
-                ) : !taxStatusQuery.data ? (
-                  <p className="validation-decision-hint">Cargando…</p>
-                ) : (
-                  <div>
-                    {(() => {
-                      const estado = taxStatusQuery.data;
-                      const resultado = estado.ultimaVerificacion?.resultado ?? '';
-                      const verificadaEsteSemestre = estado.ultimaVerificacion?.semestre === estado.semestreActual;
-                      const filas: { ok: boolean; titulo: string; detalle: string }[] = [
-                        {
-                          ok: Boolean(estado.declaracionIvaAt),
-                          titulo: 'Declaración de contribuyente de IVA',
-                          detalle: estado.declaracionIvaAt
-                            ? `Declarada el ${new Date(estado.declaracionIvaAt).toLocaleDateString('es-CL')}.`
-                            : 'La hace la tienda al enviar sus documentos. Si falta, solicita una corrección.',
-                        },
-                        {
-                          ok: estado.tieneCertificado,
-                          titulo: 'Certificado de cumplimiento tributario',
-                          detalle: estado.tieneCertificado
-                            ? 'Cargado: se abre en el paso 1 de abajo y en Documentos requeridos.'
-                            : 'La tienda debe subirlo. Si falta, solicita una corrección.',
-                        },
-                        {
-                          ok: verificadaEsteSemestre && (resultado === 'CUMPLE' || resultado === 'NO_CUMPLE'),
-                          titulo: `Verificación en el SII (semestre ${estado.semestreActual})`,
-                          detalle: verificadaEsteSemestre
-                            ? `Resultado: ${RESULTADO_SII_TEXTO[resultado] ?? resultado}.`
-                            : estado.tieneCertificado
-                              ? 'Regístrala abajo: lo que dice el certificado y el inicio de actividades consultado en sii.cl.'
-                              : 'Se registra cuando la tienda suba su certificado. Mientras tanto, solicita una corrección.',
-                        },
-                      ];
-                      return filas.map((fila) => (
-                        <div key={fila.titulo} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '8px 0' }}>
-                          <span className={`status-pill ${fila.ok ? 'tone-green' : 'tone-amber'}`}>{fila.ok ? 'Listo' : 'Falta'}</span>
-                          <div>
-                            <strong>{fila.titulo}</strong>
-                            <div style={{ fontSize: 13, color: '#64748b' }}>{fila.detalle}</div>
-                          </div>
-                        </div>
-                      ));
-                    })()}
-                    {(() => {
-                      // Se registra aca mismo, donde se aprueba. Solo hace falta si la tienda ya subio su
-                      // certificado y todavia no hay una verificacion de este semestre con la que pueda vender.
-                      const estado = taxStatusQuery.data;
-                      const resultado = estado.ultimaVerificacion?.resultado ?? '';
-                      const verificacionOk = estado.ultimaVerificacion?.semestre === estado.semestreActual
-                        && (resultado === 'CUMPLE' || resultado === 'NO_CUMPLE');
-                      if (!estado.tieneCertificado || verificacionOk || !selectedGroup) return null;
-                      return (
-                        <VerificacionAltaSii
-                          sellerId={Number(selectedGroup.sellerId)}
-                          rut={sellerMeta.rut}
-                          semestreActual={estado.semestreActual}
-                          onAbrirCertificado={certificadoCumplimiento ? () => openDocument(certificadoCumplimiento) : undefined}
-                          onRegistered={(aprobable) => {
-                            showToast(aprobable
-                              ? 'Verificación registrada. Ya puedes aprobar la tienda.'
-                              : 'Verificación registrada. Con este resultado la tienda no se puede aprobar.');
-                            if (aprobable) {
-                              setDestacarAprobar(true);
-                              window.setTimeout(() => setDestacarAprobar(false), 6000);
-                              decisionPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                            }
-                          }}
-                        />
-                      );
-                    })()}
-                    {!taxStatusQuery.data.exigido && (
-                      <p className="validation-decision-hint">La exigencia está desactivada en este ambiente: se puede aprobar igual.</p>
-                    )}
-                  </div>
-                )}
-              </section>
-
-              <section className="validation-panel validation-decision-panel" ref={decisionPanelRef}>
-                <div>
-                  <PanelTitle icon="scale" title="Decisión" />
-                  <label className="validation-notes-label" htmlFor="validation-decision-notes">
-                    Motivo del rechazo o solicitud de corrección
-                  </label>
-                  <div className="validation-notes-box">
-                    <textarea
-                      id="validation-decision-notes"
-                      maxLength={500}
-                      value={decisionNotes}
-                      onChange={(event) => setDecisionNotes(event.target.value)}
-                      placeholder="Indica el motivo que recibirá el solicitante si rechazas la solicitud..."
-                    />
-                    <span>{decisionNotes.length} / 500</span>
-                  </div>
-                </div>
-
-                <div className="validation-decision-actions">
-                  <button
-                    className="validation-action-button approve"
-                    style={destacarAprobar ? { boxShadow: '0 0 0 3px #bbf7d0', borderColor: '#16a34a' } : undefined}
-                    type="button"
-                    disabled={!canApproveRequest || mutationInProgress}
-                    onClick={approveSelectedRequest}
-                  >
-                    <UiIcon name="check" />
-                    Aprobar solicitud
-                  </button>
-                  <button
-                    className="validation-action-button correction"
-                    type="button"
-                    disabled={!canResolveRequest || !decisionNotes.trim() || mutationInProgress}
-                    onClick={requestSelectedCorrection}
-                  >
-                    <UiIcon name="refresh" />
-                    Solicitar corrección
-                  </button>
-                  <button
-                    className="validation-action-button reject"
-                    type="button"
-                    disabled={!canResolveRequest || !decisionNotes.trim() || mutationInProgress}
-                    onClick={rejectSelectedRequest}
-                  >
-                    <UiIcon name="close" />
-                    Rechazar y eliminar
-                  </button>
-                </div>
-
-                {hasMissingRequiredDocuments && (
-                  <p className="validation-decision-hint">
-                    Completa la carga de los {REQUIRED_DOCUMENTS.length} documentos de registro obligatorios para habilitar la decisión de la solicitud.
-                  </p>
-                )}
-                {!hasMissingRequiredDocuments && faltantesTributarios.length > 0 && (
-                  <p className="validation-decision-hint">
-                    Para aprobar falta: {faltantesTributarios.join('; ')}. Si es la verificación, regístrala en Situación
-                    tributaria (SII); si es un documento o la declaración, solicita una corrección.
-                  </p>
                 )}
               </section>
             </>

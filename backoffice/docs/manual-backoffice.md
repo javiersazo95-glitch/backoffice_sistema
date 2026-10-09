@@ -287,20 +287,15 @@ Aquí se aprueban las solicitudes de ingreso. Tiene cuatro pestañas.
   1. **Datos de la tienda** y del **Responsable de la solicitud**.
   2. **Redes sociales:** Instagram, Facebook o TikTok. **Abrir perfil** solo aparece si el enlace es
      de la red oficial; si no, dice que el enlace no es válido.
-  3. **Documentos requeridos:**
-     - los 5 documentos: **Certificado de inicio de actividades**, **Patente comercial
-       actualizada**, **Factura de venta o boleta electrónica**, **Certificado de cumplimiento
-       tributario (SII)** y **Declaración de representante legal** (la cédula del representante);
-     - cada uno se puede previsualizar y descargar.
-  4. **Historial de observaciones:** correcciones pedidas antes, apelaciones y reingresos.
-  5. **Situación tributaria (SII):** tres filas con **Listo** o **Falta**:
-     - **Declaración de contribuyente de IVA**;
-     - **Certificado de cumplimiento tributario**;
-     - **Verificación en el SII** del semestre.
-  6. **Registrar verificación del alta:** solo aparece cuando la tienda ya subió el certificado y
-     falta la verificación del semestre.
-  7. **Decisión:** el campo de motivo y los botones **Aprobar solicitud**, **Solicitar corrección**
+  3. **Documentos requeridos:** **Certificado de inicio de actividades**, **Patente comercial
+     actualizada**, **Factura de venta o boleta electrónica** y **Declaración de representante
+     legal** (la cédula del representante). Cada uno se puede previsualizar y descargar.
+  4. **Situación tributaria (SII):** etiquetas de la declaración de IVA, el certificado y la
+     verificación del semestre; el **Certificado de cumplimiento tributario** con su botón para
+     verlo; y, si falta, el formulario para registrar la verificación del alta.
+  5. **Decisión:** el campo de motivo y los botones **Aprobar solicitud**, **Solicitar corrección**
      y **Rechazar y eliminar**.
+  6. **Historial de observaciones** (plegado): correcciones pedidas antes, apelaciones y reingresos.
 
 El paso a paso está en [F1](#f1-aprobar-una-tienda) y [F2](#f2-pedir-una-corrección-o-rechazar-una-tienda).
 
@@ -840,24 +835,21 @@ hasta que se aprueba.
    - Si **Declaración de contribuyente de IVA** dice **Falta**, la tienda no marcó la declaración:
      pedir corrección (F2).
    - Si **Certificado de cumplimiento tributario** dice **Falta**, pedir corrección.
-5. **Registrar la verificación del alta**, en el bloque **Registrar la verificación del alta**, que
-   tiene tres pasos:
-   1. **Certificado de cumplimiento:** pulsar **Abrir certificado**, revisar que el RUT y el nombre
-      sean los de la tienda, marcar lo que dice (**Cumple** o **No cumple**) y escribir su **Fecha**.
-      - Si sale el aviso rojo "Es de otro semestre", **no sigas**: pide uno nuevo con una corrección
-        (F2).
-      - Un certificado de más de 30 días sirve, pero conviene uno reciente.
-   2. **Inicio de actividades en sii.cl**, porque el certificado no dice si sigue vigente:
-      - pulsar **Copiar RUT** y **Abrir sii.cl**, que abre la consulta de situación tributaria de
-        terceros del SII (no pide clave);
-      - pegar el RUT y, según lo que muestre el SII, marcar **Vigente**, **Término de giro** o **Sin
-        inicio de actividades**.
-   3. **Revisa y registra:** leer el resumen, que dice lo que se va a guardar y si con eso se podrá
-      aprobar la tienda. Si hace falta, **Agregar observación**. Pulsar **Registrar verificación**.
+5. **Registrar la verificación del alta**, en la sección **Situación tributaria (SII)**, que está
+   debajo de los documentos. Arriba muestra tres etiquetas (Declaración IVA, Certificado y
+   Verificación) y, debajo, el certificado con su botón para verlo.
+   - **¿Qué dice el certificado?** Abrirlo, revisar que el RUT y el nombre sean los de la tienda y
+     marcar **Cumple** o **No cumple**.
+   - **Fecha del certificado.** Si dice "Es de otro semestre", **no sigas**: pide uno nuevo con una
+     corrección (F2). Uno de más de 30 días sirve, pero conviene uno reciente.
+   - **Inicio de actividades en sii.cl.** Pulsar **Copiar** y **Abrir sii.cl**, que abre la consulta
+     de situación tributaria de terceros del SII (sin clave). Pegar el RUT y elegir en la lista lo
+     que muestra: **Vigente**, **Término de giro** o **Sin inicio de actividades**.
+   - Leer el resumen de la barra de abajo, que dice si con eso se podrá aprobar la tienda. Si hace
+     falta, **+ Observación**. Pulsar **Registrar verificación**.
 
-   Aparece el aviso "Verificación registrada. Ya puedes aprobar la tienda", la pantalla baja a
-   **Decisión** y el botón **Aprobar solicitud** queda destacado. Registrar la verificación **no**
-   aprueba la tienda.
+   Aparece "Verificación registrada. Ya puedes aprobar la tienda", la pantalla baja a **Decisión** y
+   **Aprobar solicitud** queda destacado. Registrar la verificación **no** aprueba la tienda.
 6. **Aprobar.** Pulsar **Aprobar solicitud**. Sale **Solicitud aprobada**, la tienda pasa a
    Vendedores y recibe un correo. Si quedan cupos, queda como Fundador.
 
