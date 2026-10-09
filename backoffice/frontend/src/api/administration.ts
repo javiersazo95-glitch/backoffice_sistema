@@ -406,7 +406,24 @@ export interface CreditNotePending {
   devolucionFueraDePlazo: boolean;
   documentoAnulado: string;
   codigoRetiro: string | null;
+  /** Lo que pago el comprador a esta tienda: productos mas su despacho (9-oct). */
+  totalVenta: number | null;
+  /** Lo reembolsado sobre el total de la venta, de 1 a 100. */
+  porcentajeReembolsado: number | null;
+  /** El caso, si el reembolso vino de una mediacion. */
+  mediacionId: number | null;
+  fechaEntrega: string | null;
+  /** Con que monto se propone la nota: lo reembolsado (tienda) o la comision sobre eso (RepuesTop). */
+  montoPropuesto: number | null;
+  /** Tope: no se anula mas de lo reembolsado ni mas de la factura de comision. Null si no se conoce. */
+  montoMaximo: number | null;
+  /** RECHAZADA: la tienda la subio y el backoffice la rechazo; espera que la suba de nuevo. */
+  estado: 'PENDIENTE' | 'RECHAZADA';
+  motivoRechazo: string | null;
 }
+
+/** TIENDA: la subio la tienda desde el detalle de su venta. BACKOFFICE: registrada a mano. */
+export type OrigenNotaCredito = 'TIENDA' | 'BACKOFFICE';
 
 export interface CreditNoteRegistered {
   id: number;
@@ -424,6 +441,8 @@ export interface CreditNoteRegistered {
   registradaAt: string;
   /** Se emitio despues de los 6 meses: quedo como respaldo, pero no rebajo el IVA. */
   emitidaFueraDePlazo: boolean;
+  origen: OrigenNotaCredito;
+  montoReembolso: number | null;
 }
 
 export interface MediationNearDeadline {
@@ -465,6 +484,12 @@ export async function registerCreditNote(payload: RegisterCreditNotePayload, arc
   const response = await apiClient.post<CreditNoteRegistered>('/administration/credit-notes', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
+  return response.data;
+}
+
+/** 9-oct: rechaza una nota que subio la tienda. Vuelve a pendiente y la tienda ve el motivo. */
+export async function rejectCreditNote(id: number, motivo: string): Promise<CreditNoteRegistered> {
+  const response = await apiClient.post<CreditNoteRegistered>(`/administration/credit-notes/${id}/reject`, { motivo });
   return response.data;
 }
 

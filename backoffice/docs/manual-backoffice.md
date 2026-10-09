@@ -689,21 +689,34 @@ Cuando una venta se deshace (reembolso por mediación, cancelación o bloqueo de
 documento que se emitió hay que anularlo con una **nota de crédito**. Solo así se recupera el IVA, y
 **solo si se emite dentro de 6 meses desde la entrega**.
 
-**Tarjetas:** **Notas pendientes**, **Críticas**, **Vencidas** y **Mediaciones al límite**.
+Hay dos emisores:
+
+- **Tienda:** anula su boleta de venta. Desde el 9 de octubre la **sube ella misma** en el detalle
+  de la venta (app o web). Queda registrada al instante, sin pasar por una cola de revisión; el
+  equipo la revisa en la lista de registradas y, si no calza, la **rechaza** con un motivo.
+- **RepuesTop:** anula su factura de comisión. Pasa cuando el reembolso llegó después de pagar el
+  retiro. La registra el equipo.
+
+**Tarjetas:** **Notas pendientes** (separadas en tiendas y RepuesTop), **Críticas**, **Vencidas** y
+**Mediaciones al límite**.
 
 **Tabla Notas de crédito pendientes**
 
 | Columna | Qué indica |
 |---|---|
-| **Plazo** | **Al día** (menos de 7 días desde el reembolso), **Atrasada** (7 días o más sin nota), **Crítica** (a un mes o menos de los 6 meses) o **Vencida** (pasaron los 6 meses: ya no recupera el IVA, pero igual se registra) |
-| **Vence el** | La fecha límite |
-| **Origen** | Por qué se deshizo la venta |
-| **Emite** | **Tienda** (anula su boleta de venta) o **RepuesTop** (anula su factura de comisión; pasa cuando el reembolso llegó después de pagar el retiro) |
-| **Registrar** | Abre el registro de la nota |
+| **Pedido** | Enlace al pedido (abre Pedidos filtrado por ese número) y la tienda |
+| **Total venta** | Lo que pagó el comprador a esa tienda: productos más despacho |
+| **Reembolsado** | Monto devuelto y si fue **Total** o **Parcial · N %** |
+| **Origen** | Por qué se deshizo la venta. Si fue una mediación, **Ver caso #N** abre el caso |
+| **Entrega / vence** | Fecha de entrega, fecha límite y el plazo: **Al día** (menos de 7 días desde el reembolso), **Atrasada** (7 días o más), **Crítica** (a un mes o menos de los 6 meses) o **Vencida** (ya no recupera el IVA, pero igual se registra) |
+| **Estado** | **Pendiente de la tienda**, **Rechazada** (con el motivo; espera que la tienda la suba de nuevo) o **Pendiente de RepuesTop**. Debajo, el documento que se anula |
+| **Registrar** / **Registrar a mano** | **Registrar** para las de RepuesTop. **Registrar a mano** para una de tienda que llegó por otro medio |
 
 - **Mediaciones abiertas cerca del límite:** casos todavía abiertos con más de 150 días desde la
   entrega. Si terminan en reembolso, el IVA ya no se recupera.
-- **Notas de crédito registradas:** las ya ingresadas, con su PDF.
+- **Notas de crédito registradas:** las ya ingresadas, con su PDF (ojo) y, en las de tienda,
+  **Registrada por la tienda** o **Registrada a mano**. Si el monto difiere del reembolso, se ve el
+  reembolso debajo. La **X** rechaza una nota de tienda.
 
 El paso a paso está en [F6](#f6-registrar-una-nota-de-crédito).
 
@@ -1004,21 +1017,37 @@ el correo, con el aviso "Corregimos…".
 alerta de la mañana (§21).
 
 1. Ir a **Administración Contable → Notas de crédito**. Las más urgentes están arriba.
-2. Mirar la columna **Emite**.
-   - **Tienda:** la tienda debe emitir la nota en el SII y enviar el PDF a contacto@repuestop.cl con
-     el número de pedido. El sistema se lo pide automáticamente. Si no llega, escríbele.
-   - **RepuesTop:** emitir en el SII una nota de crédito que anule la factura de comisión indicada en
-     **Anula** (folio N).
+2. Mirar la columna **Estado**.
+   - **Pendiente de la tienda:** no hay que hacer nada. El sistema le pide la nota a la tienda con
+     un enlace a la venta, y se lo recuerda cuando el plazo entra en zona crítica. Si está crítica y
+     no la sube, escríbele.
+   - **Pendiente de RepuesTop:** emitir en el SII una nota de crédito que anule la factura de
+     comisión indicada debajo (folio N) y seguir con el paso 3.
 3. Con el PDF en mano, pulsar **Registrar** y completar:
    - **Folio**: solo dígitos.
    - **Fecha de emisión**: no puede ser futura.
-   - **Monto total de la nota (IVA incluido)**: viene con el monto del reembolso; ajústalo si la
-     nota es por otro monto.
+   - **Monto total de la nota (IVA incluido)**: viene propuesto y debajo muestra el **neto y el IVA
+     calculados**. En una de RepuesTop se propone la **comisión con IVA sobre lo reembolsado** (no
+     el reembolso entero), con tope en el total de la factura. En una de tienda, lo reembolsado. Si
+     el monto difiere de lo propuesto el sistema avisa; si supera el tope, no deja guardar.
    - **PDF de la nota de crédito**.
 4. Pulsar **Registrar nota**. Pasa a **Notas de crédito registradas**.
 
 Si la fecha es posterior al vencimiento, el sistema avisa que la nota queda como respaldo pero ya no
 rebaja el IVA.
+
+**Revisar las notas que suben las tiendas.** En **Notas de crédito registradas**, abrir el PDF (ojo)
+de las que dicen **Registrada por la tienda** y comprobar que el folio, la fecha y el monto coinciden
+con el PDF, y que el PDF es una nota de crédito que anula la boleta de ese pedido. Si algo no calza:
+
+1. Pulsar la **X** de la fila.
+2. Escribir el **motivo**: la tienda lo ve tal cual en el detalle de su venta y en un aviso.
+3. Pulsar **Rechazar nota**. Vuelve a **Pendientes** como **Rechazada** hasta que la tienda la suba
+   de nuevo.
+
+**Lo que ve la tienda.** En el detalle de la venta (app: Documentos y pago; web: bajo la boleta de
+venta) aparece **Nota de crédito pendiente**, con el monto a emitir y la fecha límite. **Subir nota
+de crédito** pide folio, fecha de emisión, monto (ya propuesto, con neto e IVA) y el PDF.
 
 ## F7. Verificación semestral de enero y julio
 
@@ -1078,8 +1107,10 @@ La tienda **sigue vendiendo** mientras su certificado está en revisión.
 
 **Después de un reembolso:**
 
-- Si la tienda ya había subido su boleta, debe emitir una **nota de crédito**.
-- Aparece en Administración Contable → Notas de crédito y el sistema se la pide a la tienda (F6).
+- Si la tienda ya había subido su boleta, debe emitir una **nota de crédito** y subirla en el detalle
+  de la venta.
+- Aparece en Administración Contable → Notas de crédito con enlace al caso, y el sistema se la pide
+  a la tienda (F6).
 
 **Para suspender una cuenta desde la mediación:**
 
@@ -1166,14 +1197,15 @@ Llegan a las **08:00, 08:05 y 08:10, hora de Chile**.
 | Programada | Aviso | Qué revisa | Qué hacer |
 |---|---|---|---|
 | **08:00** | "Alerta Tributaria: N recargas sin boleta (+48h)" | Compras de Monedas con más de 48 horas sin documento | [F5](#f5-documento-de-una-recarga-de-monedas). El aviso abre Pedidos → Publicidad |
-| **08:05** | "Notas de crédito pendientes: N", o "Alerta Tributaria: N notas de crédito al límite de 6 meses" si hay críticas o vencidas | Reembolsos sin nota de crédito y mediaciones abiertas con más de 150 días | [F6](#f6-registrar-una-nota-de-crédito). El aviso abre Administración Contable → Notas de crédito |
+| **08:05** | "Notas de crédito pendientes: N", o "Alerta Tributaria: N notas de crédito al límite de 6 meses" si hay críticas o vencidas | Solo las notas que emite **RepuesTop** y las mediaciones abiertas con más de 150 días. Las de las tiendas no alertan al equipo: se les piden a ellas | [F6](#f6-registrar-una-nota-de-crédito). El aviso abre Administración Contable → Notas de crédito |
 | **08:10** | En enero y julio, "Reverificación semestral del SII: N tiendas pendientes"; el resto del año, "Alerta Tributaria: N tiendas sin verificar en el SII" o "…sin declaración de IVA" | Tiendas vigentes sin verificación del semestre o sin declaración de IVA | [F7](#f7-verificación-semestral-de-enero-y-julio). El aviso abre Confianza → Cumplimiento tributario |
 
 **Lo que reciben las tiendas:**
 
 | Cuándo | Aviso | Canal |
 |---|---|---|
-| Con la revisión de las 08:05 | "Emite la nota de crédito del pedido X", con la fecha límite y el correo contacto@repuestop.cl. Cuando la nota pasa a crítica, un "Recordatorio" | Notificación en la app y la web |
+| Con la revisión de las 08:05 | "Emite la nota de crédito del pedido X", con el monto y la fecha límite; abre el detalle de la venta para subirla. Cuando la nota pasa a crítica, un "Recordatorio" | Notificación en la app y la web |
+| Al rechazarse su nota | "Sube de nuevo la nota de crédito del pedido X", con el motivo | Notificación en la app y la web |
 | Con la revisión de las 08:10, los días **2 y 20 de enero y julio** | "Sube tu certificado de cumplimiento tributario" (día 2) y "Recuerda subir tu certificado de cumplimiento" (día 20) | Notificación y correo |
 
 ## 22. Otras tareas automáticas

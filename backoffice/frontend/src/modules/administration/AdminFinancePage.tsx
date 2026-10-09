@@ -669,7 +669,7 @@ export default function AdminFinancePage() {
   const [criticalityFilter, setCriticalityFilter] = useState<'critical' | 'warning' | ''>('');
 
   // Enlaces profundos desde el Resumen: ?tab=publicidad|pedidos|gastos|caja, ?estado=<estado de
-  // pedido>, ?criticidad=critical|warning.
+  // pedido>, ?criticidad=critical|warning, ?q=<numero de pedido> (desde Notas de credito, 9-oct).
   useEffect(() => {
     const tabParam = searchParams.get('tab');
     if (tabParam === 'publicidad') {
@@ -683,6 +683,9 @@ export default function AdminFinancePage() {
     if (estadoParam && (ORDER_STATUS_OPTIONS as readonly string[]).includes(estadoParam)) setSelectedStatusFilter(estadoParam);
     const criticidadParam = searchParams.get('criticidad');
     if (criticidadParam === 'critical' || criticidadParam === 'warning') setCriticalityFilter(criticidadParam);
+    const pedidoParam = searchParams.get('q');
+    // Un pedido puntual: sin el filtro del mes, que lo dejaria fuera si es de otro periodo.
+    if (pedidoParam) updateFilter('pedidos', { query: pedidoParam, start: '', end: '' });
   }, [searchParams]);
   const [docRecargaDraft, setDocRecargaDraft] = useState<{
     compraId: number; codigo: string; comprador: string; tipo: string; folio: string;
@@ -883,7 +886,8 @@ export default function AdminFinancePage() {
     const query = normalizeText(filter.query);
     return orders.filter((order) => {
       // Los pedidos finalizados pasan a liquidaciones: no requieren gestión ni alerta en esta vista.
-      if (order.status === 'Finalizado') return false;
+      // Salvo que se busque ese numero exacto (enlace desde Notas de credito).
+      if (order.status === 'Finalizado' && String(order.id).replace(/\D/g, '') !== filter.query.replace(/\D/g, '')) return false;
       const matchesDate = isWithinRange(orderDate(order), filter.start, filter.end);
       // O72: el numero publico se busca con o sin espacios.
       const matchesQuery = !query || [orderNumberSearchText(order.id), order.buyer, order.seller, order.product].some((value) => normalizeText(value).includes(query));
