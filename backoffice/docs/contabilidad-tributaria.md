@@ -537,8 +537,31 @@ a aceptar.
   - una nota de un emisor que no tenía documento que anular.
 - Solo cuentan los reembolsos posteriores a `repuestop.tributario.corte-produccion`
   (2026-09-10).
-- **`AlertaNotaCreditoJob`:** avisa al equipo y le pide la nota a la tienda (§8.5). Las tiendas la
-  envían a `repuestop.contabilidad.email-documentos`, hoy contacto@repuestop.cl.
+- **`AlertaNotaCreditoJob`:** le pide la nota a la tienda y avisa al equipo de las de RepuesTop (§8.5).
+
+**9 de octubre: la tienda sube su nota (migración `V2026100907`).** Antes la tienda enviaba el PDF a
+contacto@repuestop.cl y el equipo lo registraba. Ahora:
+
+- **La tienda la sube en el detalle de su venta**, en la app y en el market (paridad):
+  `GET/POST /api/v1/pedidos/{id}/notas-credito` y `GET …/notas-credito/{notaId}/url` (descarga de un
+  solo uso por el mismo endpoint de la boleta de venta). Solo la tienda dueña de la subórden.
+- **Queda registrada al instante** (`origen = TIENDA`), sin cola de revisión. El backoffice la revisa
+  en la lista y la **rechaza con un motivo** (`POST /administration/credit-notes/{id}/reject`). La
+  fila queda `estado = RECHAZADA`, vuelve a pendientes y la tienda recibe un aviso con el motivo.
+  Al subirla de nuevo se reutiliza la fila y se borra el PDF anterior. Las consultas de registradas
+  y el informe del mes solo cuentan `estado = REGISTRADA`.
+- **Montos:**
+  - la nota de la tienda se propone por lo reembolsado y no puede superarlo;
+  - la de RepuesTop anula la **comisión** facturada, no la venta: se propone la comisión con IVA
+    sobre lo reembolsado (`reembolso × tasa × 1,19`), con tope en el total de la factura del retiro
+    (`IVA / 0,19 + IVA`);
+  - el backoffice y la tienda ven el neto y el IVA calculados, y un aviso si el monto difiere del
+    propuesto.
+- **La lista de pendientes trae el contexto:** total de la venta (productos más despacho de esa
+  tienda), lo reembolsado y su porcentaje, el caso de mediación (enlace), la fecha de entrega y el
+  estado (pendiente de la tienda, rechazada o pendiente de RepuesTop).
+- El backoffice puede seguir **registrando a mano** la nota de una tienda (`origen = BACKOFFICE`).
+- Se quitó la propiedad `repuestop.contabilidad.email-documentos`.
 
 ### 8.3 Situación tributaria de las tiendas (migraciones `V2026100903` y `V2026100905`)
 
@@ -621,7 +644,7 @@ misma cuenta. Ninguna llega por correo al equipo. Sale una por persona y por dí
 | Job | Hora (Chile) | Qué revisa | Lleva a |
 |---|---|---|---|
 | `AlertaCumplimientoTributarioJob` | 08:00 | Recargas de Monedas con más de 48 h sin documento | Pedidos → Publicidad |
-| `AlertaNotaCreditoJob` | 08:05 | Notas de crédito atrasadas, críticas o vencidas, y mediaciones al límite. A la tienda: "Emite la nota de crédito del pedido…" | Administración Contable → Notas de crédito |
+| `AlertaNotaCreditoJob` | 08:05 | Al equipo: notas **de RepuesTop** atrasadas, críticas o vencidas, y mediaciones al límite (desde el 9-oct las de tienda no alertan al equipo). A la tienda: "Emite la nota de crédito del pedido…", con el monto, que abre el detalle de la venta | Administración Contable → Notas de crédito |
 | `ReverificacionSemestralJob` | 08:10 | Tiendas vigentes sin verificar este semestre o sin declaración de IVA. Los días 2 y 20 de enero y julio, además, pide el certificado a las tiendas | Confianza → Cumplimiento tributario |
 
 **La zona horaria:** el servidor de Railway corre en UTC (confirmado con `date` en la consola: "Fri
@@ -645,7 +668,6 @@ calculaban en hora de Chile.
 | `repuestop.tributario.nota-credito.cron` | `REPUESTOP_NOTA_CREDITO_CRON` | `0 5 8 * * *` |
 | `repuestop.tributario.reverificacion.cron` | `REPUESTOP_REVERIFICACION_CRON` | `0 10 8 * * *` |
 | `repuestop.tributario.corte-produccion` | `REPUESTOP_TRIBUTARIO_CORTE` | `2026-09-10T00:00:00Z` |
-| `repuestop.contabilidad.email-documentos` | `REPUESTOP_EMAIL_DOCUMENTOS` | `contacto@repuestop.cl` |
 | `repuestop.tributario.exigir-situacion-para-aprobar` | `REPUESTOP_EXIGIR_SITUACION_TRIBUTARIA` | `true` (nunca `false` en producción) |
 | `repuestop.tributario.factura-incluye-pasarela` | `REPUESTOP_FACTURA_INCLUYE_PASARELA` | `true`: la factura incluye el cargo por procesamiento de pago (hallazgo Y) |
 | `repuestop.tributario.nota-credito.dias-aviso` | — | 7 |
@@ -824,6 +846,10 @@ y bcn.cl cambiaron siete puntos:
 - La situación tributaria de las tiendas pasa a Confianza (bandeja "Cumplimiento tributario" y bloque
   en el perfil de la tienda), con acceso del permiso de Confianza a `/administration/tax-status/**`
   y la alerta de las 08:10 dirigida a Confianza.
+
+**9 de octubre: la tienda sube su nota de crédito** (backend `V2026100907`, backoffice, app y
+market; ver §8.2): carga desde el detalle de la venta, registro inmediato, rechazo con motivo, tope y
+monto propuesto, contexto en la lista de pendientes y alertas al equipo solo por las de RepuesTop.
 
 **Pruebas:** C y D se probaron en local con backend y backoffice levantados. Hay que re-probar todo
 en `dev` con el plan R1 a R16 (`repuestop/docs/planes/plan_prueba_completa_app_dev_oct.md`). Datos de
