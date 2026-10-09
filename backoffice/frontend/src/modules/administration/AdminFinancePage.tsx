@@ -2931,10 +2931,10 @@ export default function AdminFinancePage() {
             <MetricCard
               label={
                 liquidationTab === 'LIQUIDADO'
-                  ? 'IVA pagado'
+                  ? 'IVA de la comisión pagado'
                   : liquidationTab === 'PENDIENTE_LIQUIDACION'
-                    ? 'IVA acumulado por solicitar'
-                    : 'IVA acumulado'
+                    ? 'IVA de la comisión por solicitar'
+                    : 'IVA de la comisión'
               }
               value={formatMoney(liquidationTab === 'LIQUIDADO' ? paidIva : totalIvaAccumulated)}
               tone="amber"
@@ -2942,7 +2942,7 @@ export default function AdminFinancePage() {
                 liquidationTab === 'PENDIENTE_LIQUIDACION'
                   ? 'IVA de comisión acumulado antes de solicitar retiro'
                   : liquidationTab === 'EN_LIQUIDACION'
-                    ? 'IVA de comisión acumulado de retiros en proceso'
+                    ? 'Sin el cargo de pago: el IVA de cada factura está en "Emitir boleta o factura"'
                     : 'IVA de comisión pagado'
               }
               iconName="receipt"
@@ -2967,7 +2967,7 @@ export default function AdminFinancePage() {
         badge={documentComplete ? <span className="status-pill tone-green">Documento listo</span> : <span className="status-pill tone-amber">{registeredDocument ? 'Documento incompleto' : 'Sin documento'}</span>}
         meta={[
           { label: 'Liquidaciones', value: group.settlements.length },
-          { label: 'IVA acumulado', value: formatMoney(group.iva) },
+          { label: 'IVA de la comisión', value: formatMoney(group.iva) },
           { label: 'Correo', value: group.email, wide: true },
         ]}
         onPress={() => setSelectedLiquidationSeller(group)}
@@ -2986,7 +2986,7 @@ export default function AdminFinancePage() {
 </RecordList>
 ) : (
 <table className="wide-table">
-                <thead><tr><th>Vendedor</th><th>RUT</th><th>Razón social / Nombre</th><th>Correo</th><th>Cantidad liquidaciones</th><th>IVA acumulado</th><th>Acciones</th></tr></thead>
+                <thead><tr><th>Vendedor</th><th>RUT</th><th>Razón social / Nombre</th><th>Correo</th><th>Cantidad liquidaciones</th><th>IVA de la comisión</th><th>Acciones</th></tr></thead>
                 <tbody>{enLiquidationGroups.length ? enLiquidationGroups.map((group) => {
                   const registeredDocument = getGroupDocument(group);
                   const documentComplete = Boolean(registeredDocument && isIssuedDocumentComplete(registeredDocument.document, true));
@@ -4167,14 +4167,22 @@ export default function AdminFinancePage() {
                         {docRecargaCopiado ? 'Copiado' : 'Copiar datos'}
                       </button>
                     </div>
-                    <dl className="registered-document-data">
-                      {documentDraft.factura.lineas.map((linea) => (
-                        <div key={linea.concepto}><dt>{linea.concepto} (neto)</dt><dd>{formatMoney(linea.neto)}</dd></div>
-                      ))}
-                      <div><dt>Neto</dt><dd>{formatMoney(documentDraft.factura.neto)}</dd></div>
-                      <div><dt>IVA 19%</dt><dd>{formatMoney(documentDraft.factura.iva)}</dd></div>
-                      <div><dt>Total</dt><dd><strong>{formatMoney(documentDraft.factura.total)}</strong></dd></div>
-                    </dl>
+                    <table className="factura-sii-tabla">
+                      <thead>
+                        <tr><th style={{ textAlign: 'left' }}>Concepto</th><th style={{ textAlign: 'right' }}>Monto</th></tr>
+                      </thead>
+                      <tbody>
+                        {documentDraft.factura.lineas.map((linea) => (
+                          <tr key={linea.concepto}>
+                            <td>{linea.concepto} <span style={{ color: '#64748b' }}>(neto)</span></td>
+                            <td style={{ textAlign: 'right' }}>{formatMoney(linea.neto)}</td>
+                          </tr>
+                        ))}
+                        <tr><td><strong>Neto</strong></td><td style={{ textAlign: 'right' }}><strong>{formatMoney(documentDraft.factura.neto)}</strong></td></tr>
+                        <tr><td><strong>IVA 19%</strong></td><td style={{ textAlign: 'right' }}><strong>{formatMoney(documentDraft.factura.iva)}</strong></td></tr>
+                        <tr><td><strong>Total</strong></td><td style={{ textAlign: 'right' }}><strong>{formatMoney(documentDraft.factura.total)}</strong></td></tr>
+                      </tbody>
+                    </table>
                     <p className="panel-hint">
                       Son dos líneas afectas: la comisión y el cargo por procesamiento de pago que se le descuenta a la
                       tienda (la comisión de Flow). El total es lo que RepuesTop le retiene en este retiro (Oficio SII 2278

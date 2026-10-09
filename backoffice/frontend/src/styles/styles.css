@@ -20911,3 +20911,27 @@ main.feedback-page .feedback-page-header .area-home-shortcut-group { margin-left
 .validation-social-open { flex: none; padding: 7px 12px; border: 1px solid #c9d8ee; border-radius: 8px; color: #0b5ed7; font-size: 13px; font-weight: 700; text-decoration: none; background: #f5f9ff; }
 .validation-social-open:hover, .validation-social-open:focus-visible { background: #e8f1ff; }
 .validation-social-empty { margin: 0; font-size: 13px; color: #6b7a90; }
+
+/* Liquidaciones, "Datos para emitir en el SII": lineas de la factura de la tienda (9-oct). */
+.factura-sii-tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.factura-sii-tabla th {
+  padding: 8px 12px;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.factura-sii-tabla td {
+  padding: 8px 12px;
+  border-top: 1px solid #e2e8f0;
+  color: #172741;
+}
