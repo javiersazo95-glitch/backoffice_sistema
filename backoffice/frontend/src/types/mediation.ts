@@ -36,6 +36,11 @@ export interface MediationResponse {
   /** Si la fila es el bloqueo de una tienda suspendida desde un caso: ese caso. */
   originMediationId?: number | null;
   originMediationExternalId?: string | null;
+  /** Suspension aplicada desde este caso (o la de esta fila de bloqueo): parte, duracion y plazo. */
+  caseSuspensionTarget?: 'COMPRADOR' | 'VENDEDOR' | null;
+  caseSuspensionDuration?: string | null;
+  caseSuspensionStartedAt?: string | null;
+  caseSuspensionEndsAt?: string | null;
   createdAt: string;
   updatedAt: string;
   buyer?: string;
@@ -143,6 +148,10 @@ export interface ResolvedCaseResponse {
   porcentajeReembolso?: number | null;
   montoReembolso?: number | null;
   estadoReembolso?: string | null;
+  caseSuspensionTarget?: 'COMPRADOR' | 'VENDEDOR' | null;
+  caseSuspensionDuration?: string | null;
+  caseSuspensionStartedAt?: string | null;
+  caseSuspensionEndsAt?: string | null;
 }
 
 export interface InitMediationRequest {

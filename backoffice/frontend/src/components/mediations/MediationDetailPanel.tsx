@@ -7,7 +7,7 @@ import QuickActions from '@/components/shared/QuickActions';
 import UiIcon from '@/components/shared/UiIcon';
 import FounderSellerName from '@/components/shared/FounderSellerName';
 import { mediationStatusDisplay, resolveBuyerName, getBlockedTargetInfo } from '@/utils/formatters';
-import { formatDateTime } from '@/utils/formatters';
+import { formatDateTime, suspensionDurationText } from '@/utils/formatters';
 
 interface MediationDetailPanelProps {
   item: MediationResponse;
@@ -112,8 +112,15 @@ export default function MediationDetailPanel({
             )
           }
         />
-        <DetailRow label="Monto" value={item.amount} />
+        {/* El monto es lo comprado a la tienda del caso, no el total del pedido. */}
+        <DetailRow label="Monto de la tienda" value={item.amount} />
         <DetailRow label="Días transcurridos" value={daysElapsed} />
+        {suspensionDurationText(item) ? (
+          <DetailRow
+            label={item.caseSuspensionTarget === 'COMPRADOR' ? 'Suspensión del comprador' : 'Suspensión de la tienda'}
+            value={suspensionDurationText(item)}
+          />
+        ) : null}
       </div>
 
       {item.accountBlocked && (
@@ -202,7 +209,13 @@ export function ResolvedMediationDetailPanel({
         <DetailRow label="Resolución" value={item.resolutionReason || 'Sin resumen registrado'} />
         <DetailRow label="Resuelto por" value={item.resolvedBy || 'Mediador'} />
         <DetailRow label="Fecha de resolución" value={formatDateTime(item.createdAt)} />
-        <DetailRow label="Monto" value={item.amount} />
+        <DetailRow label="Monto de la tienda" value={item.amount} />
+        {suspensionDurationText(item) ? (
+          <DetailRow
+            label={item.caseSuspensionTarget === 'COMPRADOR' ? 'Suspensión del comprador' : 'Suspensión de la tienda'}
+            value={suspensionDurationText(item)}
+          />
+        ) : null}
       </div>
       <QuickActions>
         <ActionRow icon="clock" onClick={() => onOpenTimeline(item)}>Ver historial del caso</ActionRow>

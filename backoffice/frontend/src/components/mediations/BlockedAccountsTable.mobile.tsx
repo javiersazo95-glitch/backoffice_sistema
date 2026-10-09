@@ -4,7 +4,7 @@ import type { MediationResponse } from '@/types/mediation';
 import UiIcon from '@/components/shared/UiIcon';
 import FounderSellerName from '@/components/shared/FounderSellerName';
 import Badge from '@/components/shared/Badge';
-import { mediationStatusDisplay, getBlockedTargetInfo } from '@/utils/formatters';
+import { mediationStatusDisplay, getBlockedTargetInfo, suspensionDurationText } from '@/utils/formatters';
 import { RecordCard, RecordList, EmptyState } from '@/components/mobile';
 
 interface BlockedAccountsCardListProps {
@@ -96,6 +96,7 @@ export function BlockedAccountsCardList({
                 ...(item.originMediationExternalId ? [{ label: 'Caso de origen', value: item.originMediationExternalId }] : []),
                 { label: 'Etapa', value: item.stage || item.status },
                 ...(item.suspensionNivel ? [{ label: 'Nivel', value: suspensionNivelLabel(item.suspensionNivel) }] : []),
+                ...(suspensionDurationText(item) ? [{ label: 'Duración', value: suspensionDurationText(item) as string, wide: true }] : []),
                 { label: 'Responsable', value: blockedTarget.fullTargetLabel },
                 { label: 'Mediador', value: item.owner || 'No informado' },
                 { label: 'Motivo del bloqueo', value: item.escalationReason || item.reason || 'Motivo no informado', wide: true },

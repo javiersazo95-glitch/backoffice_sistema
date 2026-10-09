@@ -226,3 +226,38 @@ export function getBlockedTargetInfo(item?: {
   };
 }
 
+
+const DIAS_POR_DURACION: Record<string, string> = {
+  '3_DIAS': '3 días',
+  '7_DIAS': '7 días',
+  '15_DIAS': '15 días',
+  '1_MES': '1 mes',
+  '3_MESES': '3 meses',
+};
+
+/**
+ * Por cuanto tiempo se suspendio la cuenta (pruebas en dev, 2026-10-09): "7 días · hasta el
+ * 16-10-2026, 12:00" o "Indefinida". Sin codigo de duracion (registros antiguos) se calcula con
+ * el inicio y el fin.
+ */
+export function suspensionDurationText(item?: {
+  caseSuspensionDuration?: string | null;
+  caseSuspensionStartedAt?: string | null;
+  caseSuspensionEndsAt?: string | null;
+} | null): string | null {
+  if (!item) return null;
+  const codigo = (item.caseSuspensionDuration ?? '').toUpperCase();
+  const fin = item.caseSuspensionEndsAt ? new Date(item.caseSuspensionEndsAt) : null;
+  if (!codigo && !fin) return null;
+  if (codigo === 'INDEFINIDO' || !fin || Number.isNaN(fin.getTime())) return 'Indefinida';
+  let plazo = DIAS_POR_DURACION[codigo];
+  if (!plazo && item.caseSuspensionStartedAt) {
+    const inicio = new Date(item.caseSuspensionStartedAt);
+    const dias = Math.round((fin.getTime() - inicio.getTime()) / 86400000);
+    if (Number.isFinite(dias) && dias > 0) plazo = `${dias} ${dias === 1 ? 'día' : 'días'}`;
+  }
+  const hasta = fin.toLocaleString('es-CL', {
+    timeZone: 'America/Santiago', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
+  });
+  return `${plazo ? `${plazo} · ` : ''}hasta el ${hasta}`;
+}

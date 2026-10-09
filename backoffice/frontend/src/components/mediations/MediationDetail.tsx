@@ -17,7 +17,7 @@ import Badge from '@/components/shared/Badge';
 import UiIcon from '@/components/shared/UiIcon';
 import FounderSellerName from '@/components/shared/FounderSellerName';
 import RefundSupportActions from '@/components/shared/RefundSupportActions';
-import { formatCurrency, formatDateTime, mediationStatusDisplay } from '@/utils/formatters';
+import { formatCurrency, formatDateTime, mediationStatusDisplay, suspensionDurationText } from '@/utils/formatters';
 import {
   buildRefundSteps,
   buildVeredictoPreview,
@@ -996,6 +996,11 @@ export default function MediationDetail({
               <div className="mediation-management-meta">
                 <span>{item.externalId}</span>
                 <Badge text={mediationStatusDisplay(item.status, item.accountBlocked)} variant={item.accountBlocked ? 'cuenta-bloqueada' : item.status} />
+                {suspensionDurationText(item) ? (
+                  <span>
+                    {item.caseSuspensionTarget === 'COMPRADOR' ? 'Comprador suspendido' : 'Tienda suspendida'}: {suspensionDurationText(item)}
+                  </span>
+                ) : null}
               </div>
             </div>
           </div>
@@ -1230,7 +1235,8 @@ export default function MediationDetail({
                     <div className="mediation-blocking-warning">
                       <UiIcon name="lock" />
                       <p>
-                        Ya se suspendió {sanctionedParty === 'COMPRADOR' ? 'al comprador' : 'a la tienda'} desde este caso. Solo se puede sancionar a una parte por caso.
+                        Ya se suspendió {sanctionedParty === 'COMPRADOR' ? 'al comprador' : 'a la tienda'} desde este caso
+                        {suspensionDurationText(item) ? ` (${suspensionDurationText(item)})` : ''}. Solo se puede sancionar a una parte por caso.
                       </p>
                     </div>
                   )}

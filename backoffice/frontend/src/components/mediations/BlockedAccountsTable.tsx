@@ -3,7 +3,7 @@ import type { MediationResponse } from '@/types/mediation';
 import UiIcon from '@/components/shared/UiIcon';
 import FounderSellerName from '@/components/shared/FounderSellerName';
 import Badge from '@/components/shared/Badge';
-import { mediationStatusDisplay, getBlockedTargetInfo } from '@/utils/formatters';
+import { mediationStatusDisplay, getBlockedTargetInfo, suspensionDurationText } from '@/utils/formatters';
 
 interface BlockedAccountsTableProps {
   accounts: MediationResponse[];
@@ -123,6 +123,7 @@ export default function BlockedAccountsTable({
                     <td>
                       <Badge text={getBlockedStatusLabel(item.blockedAccountStatus, blockedTarget.isBuyer)} variant={getBlockedStatusVariant(item.blockedAccountStatus)} />
                       {item.suspensionNivel && <span className="row-sub">{suspensionNivelLabel(item.suspensionNivel)}</span>}
+                      {suspensionDurationText(item) && <span className="row-sub">{suspensionDurationText(item)}</span>}
                     </td>
                     <td><FounderSellerName name={item.sellerName} founder={item.sellerFounder} /></td>
                     <td>{item.buyer || '—'}</td>
