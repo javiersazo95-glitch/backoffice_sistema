@@ -315,7 +315,17 @@ export default function PagoProveedoresPage() {
       alert('Se procesó parcialmente. Errores:\n' + errores.join('\n'));
     } else {
       setActiveTab('historial');
-      alert('El pago del ciclo, con proveedores y socios, ha sido procesado con éxito.');
+      // Dice lo que se pago de verdad: la ultima nomina exportada, no todo lo pendiente (K).
+      const pagados = [
+        latestPendingWithdrawals.length > 0
+          && `${latestPendingWithdrawals.length} ${latestPendingWithdrawals.length === 1 ? 'retiro de proveedor' : 'retiros de proveedores'}`,
+        latestPendingPartner.length > 0
+          && `${latestPendingPartner.length} ${latestPendingPartner.length === 1 ? 'retiro de socio' : 'retiros de socios'}`,
+      ].filter(Boolean).join(' y ');
+      const pendientes = pagables.fuera > 0
+        ? ` ${pagables.fuera} ${pagables.fuera === 1 ? 'retiro queda pendiente' : 'retiros quedan pendientes'} para la próxima nómina.`
+        : '';
+      alert(`Pago registrado: se pagaron ${pagados} de la última nómina exportada.${pendientes}`);
     }
   };
 
