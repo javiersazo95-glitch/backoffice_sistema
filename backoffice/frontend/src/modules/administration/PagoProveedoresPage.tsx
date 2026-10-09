@@ -97,6 +97,31 @@ function sociosDelPago(payment: PagoProveedorResponse, partnerWithdrawals: Withd
   );
 }
 
+/**
+ * K (8-oct): lo que "Procesar pago" marca pagado es lo pendiente que salio en la ULTIMA nomina
+ * exportada de su tipo, que es el archivo que se sube a BCI. Lo pedido despues de exportar, o lo
+ * retenido por suspension, queda fuera y se cuenta en `fuera` para avisarlo.
+ */
+function calcularPagables(
+  proveedoresPendientes: RetiroAdminResponse[],
+  sociosPendientes: Withdrawal[],
+  ultimas: adminApi.UltimasNominasPago | undefined,
+) {
+  const idsProveedor = new Set(ultimas?.proveedores?.retiroIds ?? []);
+  const idsSocio = new Set(ultimas?.socios?.retiroIds ?? []);
+  const proveedores = proveedoresPendientes.filter((w) => !w.fondosRetenidos && idsProveedor.has(w.retiroId));
+  const socios = sociosPendientes.filter((w) => idsSocio.has(Number(w.id)));
+  const total = proveedores.reduce((sum, w) => sum + w.monto, 0) + socios.reduce((sum, w) => sum + w.amount, 0);
+  const fechas = [ultimas?.proveedores?.generadaAt, ultimas?.socios?.generadaAt]
+    .filter((f): f is string => Boolean(f))
+    .map((f) => new Date(f).getTime());
+  const exportadaAt = fechas.length
+    ? new Date(Math.max(...fechas)).toLocaleString('es-CL', { dateStyle: 'short', timeStyle: 'short' })
+    : null;
+  const fuera = proveedoresPendientes.length + sociosPendientes.length - proveedores.length - socios.length;
+  return { proveedores, socios, total, exportadaAt, fuera };
+}
+
 export default function PagoProveedoresPage() {
   const isMobile = useIsMobile();
   const queryClient = useQueryClient();
@@ -158,6 +183,12 @@ export default function PagoProveedoresPage() {
     queryFn: adminApi.getWithdrawalPayments,
   });
 
+  // K (8-oct): solo se paga lo que salio en la ultima nomina exportada de cada tipo.
+  const { data: ultimasNominas, refetch: refetchUltimasNominas } = useQuery<adminApi.UltimasNominasPago>({
+    queryKey: ['admin-ultimas-nominas'],
+    queryFn: adminApi.getUltimasNominas,
+  });
+
   const { data: configuracionPagos } = useQuery<ConfiguracionPagos>({
     queryKey: ['admin-configuracion-pagos'],
     queryFn: adminApi.getConfiguracionPagos,
@@ -202,6 +233,13 @@ export default function PagoProveedoresPage() {
     return partnerWithdrawals.filter((w) => (w.estado ?? 'PENDIENTE') === 'PENDIENTE');
   }, [partnerWithdrawals]);
 
+  // K (8-oct): lo que "Procesar pago" puede marcar pagado es lo pendiente que salio en la ultima
+  // nomina exportada. Lo pedido despues de exportar (o lo retenido) queda para el proximo pago.
+  const payable = useMemo(
+    () => calcularPagables(pendingWithdrawals, pendingPartnerWithdrawals, ultimasNominas),
+    [pendingWithdrawals, pendingPartnerWithdrawals, ultimasNominas],
+  );
+
   // Un solo pago contable agrupa retiros de proveedores y socios. El backend conserva el
   // tipo y codigo propio del socio y los vincula al mismo PAG-xxxxxx.
   const handleConfirmProcesarPago = async () => {
@@ -210,15 +248,26 @@ export default function PagoProveedoresPage() {
 
     // 1. Re-fetch y validar que todos los documentos (proveedores y socios) estén completos antes de pagar
     const refreshedPartner = await refetchPartnerWithdrawals();
-    const latestPendingPartner = (refreshedPartner.data ?? partnerWithdrawals)
+    const latestPendingPartnerAll = (refreshedPartner.data ?? partnerWithdrawals)
       .filter((w) => (w.estado ?? 'PENDIENTE') === 'PENDIENTE');
 
     const refreshedSupplier = await refetch();
-    const latestPendingWithdrawals = (refreshedSupplier.data ?? withdrawals).filter((withdrawal) => {
-      const createdDate = parseFecha(withdrawal.fecha);
-      // H59 fase 4: lo de una tienda suspendida no se paga (el backend tambien lo rechaza).
-      return withdrawal.estado === 'SOLICITADO' && createdDate <= cycleEnd && !withdrawal.fondosRetenidos;
-    });
+    const refreshedNominas = await refetchUltimasNominas();
+    const pagables = calcularPagables(
+      (refreshedSupplier.data ?? withdrawals).filter((withdrawal) => withdrawal.estado === 'SOLICITADO'),
+      latestPendingPartnerAll,
+      refreshedNominas.data ?? ultimasNominas,
+    );
+    // K (8-oct): solo lo que salio en la ultima nomina exportada. H59 fase 4: lo de una tienda
+    // suspendida tampoco (el backend tambien lo rechaza).
+    const latestPendingWithdrawals = pagables.proveedores;
+    const latestPendingPartner = pagables.socios;
+    if (latestPendingWithdrawals.length === 0 && latestPendingPartner.length === 0) {
+      setIsProcesarModalOpen(false);
+      setProcessingBulk(false);
+      alert('No hay retiros de la última nómina exportada pendientes de pago. Exporta la nómina, súbela a BCI y luego procesa el pago.');
+      return;
+    }
 
     const incompletePartners = latestPendingPartner
       .filter((w) => !w.documentoLiquidacionCompleto && !(w.documentoLiquidacionNombre && w.documentoLiquidacionTipo && w.documentoLiquidacionRut))
@@ -324,6 +373,7 @@ export default function PagoProveedoresPage() {
       for (const tipo of tipos) {
         const nomina = await adminApi.generarNominaBci(tipo);
         downloadFile(nomina.fileName, nomina.blob, nomina.blob.type || BCI_NOMINA_MIME_TYPE);
+        queryClient.invalidateQueries({ queryKey: ['admin-ultimas-nominas'] });
         descargadas.push(nomina.retiros !== null ? `${tipo} (${nomina.retiros} retiros)` : tipo);
       }
 
@@ -388,7 +438,7 @@ export default function PagoProveedoresPage() {
                 alignItems: 'center',
                 gap: '8px'
               }}
-              title="Procesar todos los retiros pendientes del ciclo actual"
+              title="Marcar como pagados los retiros de la última nómina exportada"
             >
               <UiIcon name="check" /> Procesar pago
             </button>
@@ -434,7 +484,7 @@ export default function PagoProveedoresPage() {
           </div>
 
           <div className="notice" style={{ marginBottom: '15px' }}>
-            <UiIcon name="calendar" /> Ciclo de pagos actual: <strong>Jueves {formatDateShort(cycleStart)}</strong> al <strong>Miércoles {formatDateShort(cycleEnd)}</strong>. Mostrando retiros solicitados dentro de este rango.
+            <UiIcon name="calendar" /> Ciclo de pagos actual: <strong>Jueves {formatDateShort(cycleStart)}</strong> al <strong>Miércoles {formatDateShort(cycleEnd)}</strong>. Se muestran todos los retiros pendientes solicitados hasta el miércoles; se paga solo lo que va en la última nómina exportada.
           </div>
 
           {/* Table Tab 1 */}
@@ -1073,10 +1123,31 @@ export default function PagoProveedoresPage() {
             </div>
             <h3 style={{ margin: 0, fontSize: '20px', color: '#1a202c' }}>Confirmar Procesamiento de Pagos</h3>
             
-            <p style={{ fontSize: '14px', color: '#4a5568', lineHeight: '1.6', margin: '10px 0' }}>
-              Estás a punto de marcar las <strong>{pendingWithdrawals.length} solicitudes de proveedores</strong>
-              {pendingPartnerWithdrawals.length > 0 && <> y <strong>{pendingPartnerWithdrawals.length} de socios</strong></>} del ciclo actual como <strong>PAGADAS</strong>.
-            </p>
+            {payable.proveedores.length + payable.socios.length === 0 ? (
+              <p style={{ fontSize: '14px', color: '#4a5568', lineHeight: '1.6', margin: '10px 0' }}>
+                No hay retiros de la <strong>última nómina exportada</strong> pendientes de pago. Exporta la nómina,
+                súbela a BCI y vuelve aquí cuando el banco haya transferido.
+              </p>
+            ) : (
+              <p style={{ fontSize: '14px', color: '#4a5568', lineHeight: '1.6', margin: '10px 0' }}>
+                Se marcarán como <strong>PAGADOS</strong>{' '}
+                <strong>{payable.proveedores.length} {payable.proveedores.length === 1 ? 'retiro de proveedor' : 'retiros de proveedores'}</strong>
+                {payable.socios.length > 0 && <> y <strong>{payable.socios.length} de {payable.socios.length === 1 ? 'socio' : 'socios'}</strong></>} de la última nómina
+                exportada, por <strong>{formatMoney(payable.total)}</strong>.
+                {payable.exportadaAt && <> Nómina exportada el {payable.exportadaAt.replace(/\.$/, '')}.</>}
+              </p>
+            )}
+
+            {payable.fuera > 0 && (
+              <div style={{ background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: '8px', padding: '10px 15px', color: '#92400e', fontSize: '13px', textAlign: 'left', lineHeight: '1.5' }}>
+                <strong>{payable.fuera} retiro(s) pendiente(s) no están en la última nómina</strong> (pedidos después de
+                exportar o retenidos por suspensión). No se pagan ahora: quedan para la próxima nómina.
+              </div>
+            )}
+
+            <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: '8px', padding: '10px 15px', color: '#075985', fontSize: '13px', textAlign: 'left', lineHeight: '1.5' }}>
+              Compara la cantidad y el total con lo que subiste a BCI. Si no coinciden, no confirmes.
+            </div>
 
             <div style={{ background: '#fff5f5', border: '1px solid #fed7d7', borderRadius: '8px', padding: '12px 15px', color: '#9b2c2c', fontSize: '13px', textAlign: 'left', lineHeight: '1.5' }}>
               <strong>⚠️ ADVERTENCIA DE SEGURIDAD:</strong><br />
@@ -1097,7 +1168,7 @@ export default function PagoProveedoresPage() {
                 className="primary-button" 
                 type="button" 
                 onClick={handleConfirmProcesarPago}
-                disabled={processingBulk}
+                disabled={processingBulk || payable.proveedores.length + payable.socios.length === 0}
                 style={{ background: '#d32f2f', borderColor: '#d32f2f', color: '#fff', minWidth: '150px' }}
               >
                 {processingBulk ? 'Procesando...' : 'Sí, confirmar pago'}

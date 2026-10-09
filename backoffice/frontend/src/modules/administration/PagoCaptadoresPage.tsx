@@ -53,12 +53,20 @@ export default function PagoCaptadoresPage() {
     queryKey: ['capturer-withdrawals'],
     queryFn: capturerApi.listCapturerWithdrawals,
   });
+  // K (8-oct): "Procesar pago" solo marca pagado lo que salio en la ultima nomina exportada.
+  const ultimasNominasQuery = useQuery({
+    queryKey: ['admin-ultimas-nominas'],
+    queryFn: administrationApi.getUltimasNominas,
+  });
   const paymentConfigQuery = useQuery({
     queryKey: ['admin-configuracion-pagos'],
     queryFn: administrationApi.getConfiguracionPagos,
   });
 
-  const refresh = () => queryClient.invalidateQueries({ queryKey: ['capturer-withdrawals'] });
+  const refresh = () => {
+    queryClient.invalidateQueries({ queryKey: ['capturer-withdrawals'] });
+    queryClient.invalidateQueries({ queryKey: ['admin-ultimas-nominas'] });
+  };
   const processMutation = useMutation({
     mutationFn: capturerApi.processCapturerWithdrawals,
     onSuccess: () => {
@@ -88,6 +96,12 @@ export default function PagoCaptadoresPage() {
   // Un retiro rechazado desaparecia de las dos pestanas y no quedaba historial de por que.
   const rejected = useMemo(() => withdrawals.filter((withdrawal) => withdrawal.estado === 'RECHAZADO'), [withdrawals]);
   const pendingTotal = useMemo(() => pending.reduce((total, withdrawal) => total + withdrawal.monto, 0), [pending]);
+  const idsUltimaNomina = useMemo(
+    () => new Set(ultimasNominasQuery.data?.captadores?.retiroIds ?? []),
+    [ultimasNominasQuery.data],
+  );
+  const payable = useMemo(() => pending.filter((withdrawal) => idsUltimaNomina.has(withdrawal.id)), [pending, idsUltimaNomina]);
+  const payableTotal = useMemo(() => payable.reduce((total, withdrawal) => total + withdrawal.monto, 0), [payable]);
   const paidTotal = useMemo(() => paid.reduce((total, withdrawal) => total + withdrawal.monto, 0), [paid]);
 
   const paymentRounds = useMemo<PaymentRound[]>(() => {
@@ -122,6 +136,7 @@ export default function PagoCaptadoresPage() {
     try {
       const nomina = await administrationApi.generarNominaBci('captadores');
       downloadFile(nomina.fileName, nomina.blob, nomina.blob.type || BCI_NOMINA_MIME_TYPE);
+      queryClient.invalidateQueries({ queryKey: ['admin-ultimas-nominas'] });
     } catch (error) {
       alert(`No se pudo generar el Excel: ${await administrationApi.mensajeDeErrorDeNomina(error)}`);
     } finally {
@@ -216,7 +231,7 @@ export default function PagoCaptadoresPage() {
           </div>
 
           <div className="notice" style={{ marginBottom: 15 }}>
-            <UiIcon name="calendar" /> Los pagos a captadores se procesan <strong>todos los martes</strong> en una sola ronda. Revisa cada boleta de honorarios y usa <strong>Procesar pago</strong> para marcar todas las solicitudes pendientes como pagadas de una vez.
+            <UiIcon name="calendar" /> Los pagos a captadores se procesan <strong>todos los martes</strong> en una sola ronda. Revisa cada boleta de honorarios y exporta la nómina, súbela a BCI y, cuando el banco transfiera, usa <strong>Procesar pago</strong>: marca como pagadas las solicitudes de la última nómina exportada.
           </div>
 
           <section className="table-shell">
@@ -417,16 +432,26 @@ export default function PagoCaptadoresPage() {
               <div className="pay-confirm-summary">
                 <div>
                   <span>Solicitudes</span>
-                  <strong>{pending.length}</strong>
+                  <strong>{payable.length}</strong>
                 </div>
                 <div>
                   <span>Monto total</span>
-                  <strong>{formatCurrency(pendingTotal)}</strong>
+                  <strong>{formatCurrency(payableTotal)}</strong>
                 </div>
               </div>
               <p className="pay-confirm-lead">
-                Todas las solicitudes pendientes se marcarán como <strong>PAGADAS</strong> y pasarán al historial en una sola ronda. Cada captador recibirá un correo de confirmación.
+                Las solicitudes de la <strong>última nómina exportada</strong> se marcarán como <strong>PAGADAS</strong> y pasarán al historial en una sola ronda. Cada captador recibirá un correo de confirmación.
               </p>
+              {pending.length > payable.length && (
+                <p className="pay-confirm-lead">
+                  {pending.length - payable.length} solicitud(es) pendiente(s) no están en la última nómina: quedan para la próxima ronda.
+                </p>
+              )}
+              {payable.length === 0 && (
+                <p className="pay-confirm-lead">
+                  No hay solicitudes de la última nómina pendientes de pago. Exporta la nómina, súbela a BCI y vuelve cuando el banco haya transferido.
+                </p>
+              )}
               <div className="pay-confirm-warning">
                 <UiIcon name="alert" />
                 <span>Confirma que el banco ya ejecutó las transferencias. Esta acción no se puede revertir.</span>
@@ -436,7 +461,7 @@ export default function PagoCaptadoresPage() {
               <button className="secondary-button" type="button" onClick={() => setIsProcesarModalOpen(false)} disabled={processMutation.isPending}>
                 Cancelar
               </button>
-              <button className="primary-button" type="button" disabled={processMutation.isPending || pending.length === 0} onClick={() => processMutation.mutate()}>
+              <button className="primary-button" type="button" disabled={processMutation.isPending || payable.length === 0} onClick={() => processMutation.mutate()}>
                 {processMutation.isPending ? 'Procesando…' : 'Confirmar y pagar'}
               </button>
             </div>

@@ -233,6 +233,10 @@ interface DocumentDraft {
   fechaEmision: string;
   /** Fecha del retiro, para advertir si el documento se emite en otro mes (art. 55 DL 825). */
   retiroFecha?: string;
+  /** Y: lineas, neto e IVA de la factura de la tienda, calculados por el servidor. */
+  factura?: administrationApi.FacturaComision;
+  /** Y: si no se pudo traer la factura sugerida (el registro sigue funcionando). */
+  facturaError?: string;
 }
 
 /** Hoy en Chile, "YYYY-MM-DD": el valor por defecto de la fecha de emision de un DTE. */
@@ -1419,6 +1423,12 @@ export default function AdminFinancePage() {
       window.alert('Completa fecha, categoría, descripción y un monto mayor a cero.');
       return;
     }
+    // M (8-oct): sin comprobante a nombre de RepuesTop el gasto no se acepta ante el SII. Al editar
+    // vale el que ya estaba cargado.
+    if (!file && !expenseDraft.receipt) {
+      window.alert('Adjunta el comprobante del gasto (PDF, JPG o PNG, a nombre de RepuesTop): sin respaldo el gasto no se acepta ante el SII.');
+      return;
+    }
 
     const exists = Boolean(expenseDraft.id);
     const requestPayload = {
@@ -1551,6 +1561,25 @@ export default function AdminFinancePage() {
       fechaEmision: existing?.issuedAt ?? todayChile(),
       retiroFecha: activeWithdrawals.find((candidate) => candidate.retiroId === group.retiroId)?.fecha,
     });
+    // Y: la factura va por la comision y por el cargo por procesamiento de pago. El servidor arma
+    // las lineas y el IVA; el detalle sugerido solo reemplaza al generico si no habia documento.
+    if (group.retiroId !== null) {
+      const retiroId = group.retiroId;
+      try {
+        const factura = await administrationApi.getFacturaComision(retiroId);
+        setDocumentDraft((current) => (current && current.retiroId === retiroId ? {
+          ...current,
+          factura,
+          ivaLiquidado: String(Math.round(factura.iva)),
+          detail: existing?.detail ?? factura.detalleSugerido,
+        } : current));
+      } catch (error) {
+        setDocumentDraft((current) => (current && current.retiroId === retiroId ? {
+          ...current,
+          facturaError: mensajeDeError(error, 'No se pudieron calcular los datos de la factura.'),
+        } : current));
+      }
+    }
   }
 
   async function openPartnerWithdrawalDocument(withdrawal: Withdrawal, isEditing = false): Promise<void> {
@@ -1615,11 +1644,15 @@ export default function AdminFinancePage() {
       && documentDraft.detail.trim()
       && (documentDraft.ivaLoCalculaElServidor || documentDraft.ivaLiquidado.trim())
       && documentDraft.pdfName?.trim();
-    if (!documentDraft.orderId || (!documentDraft.isEditing && !hasRequiredData)) {
-      window.alert('Completa los datos y adjunta el nombre del archivo de la boleta o factura.');
+    const esDocumentoDeTienda = documentDraft.tipoRetiro === 'PROVEEDOR';
+    // M11 (8-oct): el documento de una tienda se exige completo tambien al completarlo o editarlo.
+    // Antes "Completar" dejaba guardarlo a medias y el pago del jueves quedaba bloqueado.
+    if (!documentDraft.orderId || ((!documentDraft.isEditing || esDocumentoDeTienda) && !hasRequiredData)) {
+      window.alert(esDocumentoDeTienda
+        ? 'Completa RUT, razón social, correo y detalle, y adjunta el PDF de la boleta o factura: sin todo eso el retiro no se puede pagar.'
+        : 'Completa los datos y adjunta el nombre del archivo de la boleta o factura.');
       return;
     }
-    const esDocumentoDeTienda = documentDraft.tipoRetiro === 'PROVEEDOR';
     if (esDocumentoDeTienda && (!documentDraft.folio.trim() || !documentDraft.fechaEmision)) {
       window.alert('Ingresa el folio y la fecha de emisión que asignó el SII. Sin ellos el documento no se puede conciliar ni pagar el retiro.');
       return;
@@ -3866,9 +3899,9 @@ export default function AdminFinancePage() {
             </FieldLabel>
             <FieldLabel label="Descripción"><input className="input" type="text" value={expenseDraft.description} onChange={(event) => setExpenseDraft({ ...expenseDraft, description: event.target.value })} placeholder="API consulta patente" required /></FieldLabel>
             <FieldLabel label="Monto"><input className="input" type="number" min="1" step="1" value={expenseDraft.amount} onChange={(event) => setExpenseDraft({ ...expenseDraft, amount: event.target.value })} placeholder="25000" required /></FieldLabel>
-            <FieldLabel label="Comprobante opcional">
-              <input ref={receiptInputRef} className="input" type="file" accept=".pdf,.jpg,.jpeg,.png,image/*,application/pdf" onChange={handleReceiptChange} />
-              <small>{expenseDraft.receipt || 'PDF, JPG, PNG máx. 5MB'}</small>
+            <FieldLabel label="Comprobante (a nombre de RepuesTop)">
+              <input ref={receiptInputRef} className="input" type="file" accept=".pdf,.jpg,.jpeg,.png,image/*,application/pdf" onChange={handleReceiptChange} required={!expenseDraft.receipt} />
+              <small>{expenseDraft.receipt || 'Obligatorio. PDF, JPG o PNG, máx. 5MB'}</small>
             </FieldLabel>
             <div className="form-actions">
               <button className="secondary-button" type="button" onClick={() => setExpenseDraft(null)}>Cancelar</button>
@@ -4102,9 +4135,56 @@ export default function AdminFinancePage() {
                 ].filter(Boolean))).map((tipo) => <option key={tipo} value={tipo}>{tipo}</option>)}
               </select>
             </FieldLabel>
-            <FieldLabel label="RUT receptor"><input className="input" type="text" value={documentDraft.rut} onChange={(event) => setDocumentDraft({ ...documentDraft, rut: event.target.value })} required={!documentDraft.isEditing} /></FieldLabel>
+            <FieldLabel label="RUT receptor"><input className="input" type="text" value={documentDraft.rut} onChange={(event) => setDocumentDraft({ ...documentDraft, rut: event.target.value })} required={!documentDraft.isEditing || documentDraft.tipoRetiro === 'PROVEEDOR'} /></FieldLabel>
             {documentDraft.tipoRetiro === 'PROVEEDOR' && (
               <>
+                {/* Y: lo que hay que emitir en el SII, linea por linea y copiable. */}
+                {documentDraft.factura && (
+                  <div className="registered-document-preview">
+                    <div className="notice">
+                      <strong>Datos para emitir en el SII</strong>
+                      <button
+                        className="secondary-button"
+                        type="button"
+                        style={{ marginLeft: 'auto' }}
+                        onClick={() => {
+                          const factura = documentDraft.factura!;
+                          const texto = [
+                            `Receptor: ${documentDraft.name}`,
+                            documentDraft.rut ? `RUT: ${documentDraft.rut}` : null,
+                            '',
+                            ...factura.lineas.map((linea) => `${linea.concepto}: neto ${formatMoney(linea.neto)}`),
+                            `Neto: ${formatMoney(factura.neto)}`,
+                            `IVA 19%: ${formatMoney(factura.iva)}`,
+                            `Total: ${formatMoney(factura.total)}`,
+                          ].filter((linea) => linea !== null).join('\n');
+                          navigator.clipboard?.writeText(texto)
+                            .then(() => { setDocRecargaCopiado(true); window.setTimeout(() => setDocRecargaCopiado(false), 2000); })
+                            .catch(() => {});
+                        }}
+                      >
+                        <UiIcon name={docRecargaCopiado ? 'check' : 'clipboard'} />
+                        {docRecargaCopiado ? 'Copiado' : 'Copiar datos'}
+                      </button>
+                    </div>
+                    <dl className="registered-document-data">
+                      {documentDraft.factura.lineas.map((linea) => (
+                        <div key={linea.concepto}><dt>{linea.concepto} (neto)</dt><dd>{formatMoney(linea.neto)}</dd></div>
+                      ))}
+                      <div><dt>Neto</dt><dd>{formatMoney(documentDraft.factura.neto)}</dd></div>
+                      <div><dt>IVA 19%</dt><dd>{formatMoney(documentDraft.factura.iva)}</dd></div>
+                      <div><dt>Total</dt><dd><strong>{formatMoney(documentDraft.factura.total)}</strong></dd></div>
+                    </dl>
+                    <p className="panel-hint">
+                      Son dos líneas afectas: la comisión y el cargo por procesamiento de pago que se le descuenta a la
+                      tienda (la comisión de Flow). El total es lo que RepuesTop le retiene en este retiro (Oficio SII 2278
+                      de 2026).
+                    </p>
+                  </div>
+                )}
+                {documentDraft.facturaError && (
+                  <div className="notice"><UiIcon name="info" />{documentDraft.facturaError}</div>
+                )}
                 {/* Folio y fecha concilian el documento con el Registro de Compras y Ventas del
                     SII. La fecha de emision define el mes en que el IVA va al F29. */}
                 <FieldLabel label="Folio (número que asignó el SII al emitir)">
@@ -4140,13 +4220,13 @@ export default function AdminFinancePage() {
               </>
             )}
 
-            <FieldLabel label="Razón social / Nombre"><input className="input" type="text" value={documentDraft.name} onChange={(event) => setDocumentDraft({ ...documentDraft, name: event.target.value })} required={!documentDraft.isEditing} /></FieldLabel>
-            <FieldLabel label="Correo de envío"><input className="input" type="email" value={documentDraft.email} onChange={(event) => setDocumentDraft({ ...documentDraft, email: event.target.value })} required={!documentDraft.isEditing} /></FieldLabel>
-            <FieldLabel label="Detalle"><input className="input" type="text" value={documentDraft.detail} onChange={(event) => setDocumentDraft({ ...documentDraft, detail: event.target.value })} required={!documentDraft.isEditing} /></FieldLabel>
+            <FieldLabel label="Razón social / Nombre"><input className="input" type="text" value={documentDraft.name} onChange={(event) => setDocumentDraft({ ...documentDraft, name: event.target.value })} required={!documentDraft.isEditing || documentDraft.tipoRetiro === 'PROVEEDOR'} /></FieldLabel>
+            <FieldLabel label="Correo de envío"><input className="input" type="email" value={documentDraft.email} onChange={(event) => setDocumentDraft({ ...documentDraft, email: event.target.value })} required={!documentDraft.isEditing || documentDraft.tipoRetiro === 'PROVEEDOR'} /></FieldLabel>
+            <FieldLabel label="Detalle"><input className="input" type="text" value={documentDraft.detail} onChange={(event) => setDocumentDraft({ ...documentDraft, detail: event.target.value })} required={!documentDraft.isEditing || documentDraft.tipoRetiro === 'PROVEEDOR'} /></FieldLabel>
             {/* Vendedores: el servidor recalcula el IVA desde la comision de servicio y descarta lo
                 que llegue del cliente, asi que el campo es de solo lectura. Socios: quedan fuera del
                 recalculo y el valor sigue siendo el que se escriba aqui. */}
-            <FieldLabel label={documentDraft.ivaLoCalculaElServidor ? 'IVA de la comisión de servicio (calculado)' : 'IVA liquidado del socio'}>
+            <FieldLabel label={documentDraft.ivaLoCalculaElServidor ? 'IVA de la factura (calculado)' : 'IVA liquidado del socio'}>
               <input
                 className="input"
                 type="number"
@@ -4157,12 +4237,12 @@ export default function AdminFinancePage() {
                 readOnly={documentDraft.ivaLoCalculaElServidor}
                 required={!documentDraft.isEditing && !documentDraft.ivaLoCalculaElServidor}
                 title={documentDraft.ivaLoCalculaElServidor
-                  ? 'Lo calcula el sistema a partir de la comisión de servicio del pedido. No se puede editar.'
+                  ? 'Lo calcula el sistema: comisión de servicio más cargo por procesamiento de pago. No se puede editar.'
                   : 'Un retiro de socio no tiene comisión de servicio: este valor se registra tal como se escriba.'}
               />
               <small style={{ color: '#64748b', fontSize: 12 }}>
                 {documentDraft.ivaLoCalculaElServidor
-                  ? 'Calculado por el sistema desde la comisión de servicio del pedido.'
+                  ? 'Calculado por el sistema: comisión de servicio más cargo por procesamiento de pago.'
                   : 'Retiro de socio: sin comisión de servicio, se registra el valor que ingreses.'}
               </small>
             </FieldLabel>
@@ -4177,7 +4257,7 @@ export default function AdminFinancePage() {
                     setDocumentDraft({ ...documentDraft, pdfName: file.name, pdfUrl: URL.createObjectURL(file), pdfFile: file });
                   }
                 }}
-                required={!documentDraft.isEditing && !documentDraft.pdfName}
+                required={(!documentDraft.isEditing || documentDraft.tipoRetiro === 'PROVEEDOR') && !documentDraft.pdfName}
               />
               {documentDraft.pdfName && (
                 <div className="document-file-status">

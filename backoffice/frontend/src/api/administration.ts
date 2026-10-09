@@ -166,6 +166,51 @@ export async function mensajeDeErrorDeNomina(error: unknown): Promise<string> {
   return error instanceof Error ? error.message : 'Error desconocido.';
 }
 
+/**
+ * Y (revision contable 2026-10-08): lo que RepuesTop factura a la tienda por un retiro, linea por
+ * linea. La comision de servicio y el cargo por procesamiento de pago (la comision de Flow que se le
+ * descuenta), cada uno con su neto e IVA. Lo calcula el servidor, el mismo que guarda el IVA.
+ */
+export interface FacturaComision {
+  retiroId: number;
+  codigoRetiro: string;
+  lineas: { concepto: string; neto: number; iva: number }[];
+  neto: number;
+  iva: number;
+  total: number;
+  detalleSugerido: string;
+}
+
+export async function getFacturaComision(retiroId: number): Promise<FacturaComision> {
+  const response = await apiClient.get<FacturaComision>(`/administration/withdrawals/${retiroId}/factura-comision`);
+  return response.data;
+}
+
+/** Ultima nomina exportada de un tipo, con los retiros que se enviaron al banco. */
+export interface UltimaNomina {
+  nominaId: number;
+  tipo: string;
+  generadaAt: string;
+  retiroIds: number[];
+  totalConciliado: number;
+  cantidadRetiros: number;
+}
+
+export interface UltimasNominasPago {
+  proveedores: UltimaNomina | null;
+  socios: UltimaNomina | null;
+  captadores: UltimaNomina | null;
+}
+
+/**
+ * K (8-oct): "Procesar pago" solo marca pagado lo que salio en la ultima nomina exportada de su
+ * tipo. El backend lo exige; la pantalla lo usa para mostrar que se va a pagar.
+ */
+export async function getUltimasNominas(): Promise<UltimasNominasPago> {
+  const response = await apiClient.get<UltimasNominasPago>('/administration/nominas/ultimas');
+  return response.data;
+}
+
 export async function getWithdrawalPayments(): Promise<PagoProveedorResponse[]> {
   const response = await apiClient.get<PagoProveedorResponse[]>('/administration/withdrawal-payments');
   return response.data;
