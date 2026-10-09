@@ -293,9 +293,9 @@ Aquí se aprueban las solicitudes de ingreso. Tiene cuatro pestañas.
   4. **Situación tributaria (SII):** etiquetas de la declaración de IVA, el certificado y la
      verificación del semestre; el **Certificado de cumplimiento tributario** con su botón para
      verlo; y, si falta, el formulario para registrar la verificación del alta.
-  5. **Decisión:** el campo de motivo y los botones **Aprobar solicitud**, **Solicitar corrección**
+  5. **Historial de observaciones** (plegado): correcciones pedidas antes, apelaciones y reingresos.
+  6. **Decisión:** el campo de motivo y los botones **Aprobar solicitud**, **Solicitar corrección**
      y **Rechazar y eliminar**.
-  6. **Historial de observaciones** (plegado): correcciones pedidas antes, apelaciones y reingresos.
 
 El paso a paso está en [F1](#f1-aprobar-una-tienda) y [F2](#f2-pedir-una-corrección-o-rechazar-una-tienda).
 

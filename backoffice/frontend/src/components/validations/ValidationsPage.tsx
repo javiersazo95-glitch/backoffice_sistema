@@ -906,68 +906,6 @@ export default function ValidationsPage() {
                 )}
               </section>
 
-              <section className="validation-panel validation-decision-panel" ref={decisionPanelRef}>
-                <div>
-                  <PanelTitle icon="scale" title="Decisión" />
-                  <label className="validation-notes-label" htmlFor="validation-decision-notes">
-                    Motivo del rechazo o solicitud de corrección
-                  </label>
-                  <div className="validation-notes-box">
-                    <textarea
-                      id="validation-decision-notes"
-                      maxLength={500}
-                      value={decisionNotes}
-                      onChange={(event) => setDecisionNotes(event.target.value)}
-                      placeholder="Indica el motivo que recibirá el solicitante si rechazas la solicitud..."
-                    />
-                    <span>{decisionNotes.length} / 500</span>
-                  </div>
-                </div>
-
-                <div className="validation-decision-actions">
-                  <button
-                    className="validation-action-button approve"
-                    style={destacarAprobar ? { boxShadow: '0 0 0 3px #bbf7d0', borderColor: '#16a34a' } : undefined}
-                    type="button"
-                    disabled={!canApproveRequest || mutationInProgress}
-                    onClick={approveSelectedRequest}
-                  >
-                    <UiIcon name="check" />
-                    Aprobar solicitud
-                  </button>
-                  <button
-                    className="validation-action-button correction"
-                    type="button"
-                    disabled={!canResolveRequest || !decisionNotes.trim() || mutationInProgress}
-                    onClick={requestSelectedCorrection}
-                  >
-                    <UiIcon name="refresh" />
-                    Solicitar corrección
-                  </button>
-                  <button
-                    className="validation-action-button reject"
-                    type="button"
-                    disabled={!canResolveRequest || !decisionNotes.trim() || mutationInProgress}
-                    onClick={rejectSelectedRequest}
-                  >
-                    <UiIcon name="close" />
-                    Rechazar y eliminar
-                  </button>
-                </div>
-
-                {hasMissingRequiredDocuments && (
-                  <p className="validation-decision-hint">
-                    Completa la carga de los {REQUIRED_DOCUMENTS.length} documentos de registro obligatorios para habilitar la decisión de la solicitud.
-                  </p>
-                )}
-                {!hasMissingRequiredDocuments && faltantesTributarios.length > 0 && (
-                  <p className="validation-decision-hint">
-                    Para aprobar falta: {faltantesTributarios.join('; ')}. Si es la verificación, regístrala en Situación
-                    tributaria (SII); si es un documento o la declaración, solicita una corrección.
-                  </p>
-                )}
-              </section>
-
               <section className="validation-panel validation-history-panel">
                 <div
                   className="validation-history-header-toggle"
@@ -1123,6 +1061,68 @@ export default function ValidationsPage() {
                       });
                     })()}
                   </div>
+                )}
+              </section>
+
+              <section className="validation-panel validation-decision-panel" ref={decisionPanelRef}>
+                <div>
+                  <PanelTitle icon="scale" title="Decisión" />
+                  <label className="validation-notes-label" htmlFor="validation-decision-notes">
+                    Motivo del rechazo o solicitud de corrección
+                  </label>
+                  <div className="validation-notes-box">
+                    <textarea
+                      id="validation-decision-notes"
+                      maxLength={500}
+                      value={decisionNotes}
+                      onChange={(event) => setDecisionNotes(event.target.value)}
+                      placeholder="Indica el motivo que recibirá el solicitante si rechazas la solicitud..."
+                    />
+                    <span>{decisionNotes.length} / 500</span>
+                  </div>
+                </div>
+
+                <div className="validation-decision-actions">
+                  <button
+                    className="validation-action-button approve"
+                    style={destacarAprobar ? { boxShadow: '0 0 0 3px #bbf7d0', borderColor: '#16a34a' } : undefined}
+                    type="button"
+                    disabled={!canApproveRequest || mutationInProgress}
+                    onClick={approveSelectedRequest}
+                  >
+                    <UiIcon name="check" />
+                    Aprobar solicitud
+                  </button>
+                  <button
+                    className="validation-action-button correction"
+                    type="button"
+                    disabled={!canResolveRequest || !decisionNotes.trim() || mutationInProgress}
+                    onClick={requestSelectedCorrection}
+                  >
+                    <UiIcon name="refresh" />
+                    Solicitar corrección
+                  </button>
+                  <button
+                    className="validation-action-button reject"
+                    type="button"
+                    disabled={!canResolveRequest || !decisionNotes.trim() || mutationInProgress}
+                    onClick={rejectSelectedRequest}
+                  >
+                    <UiIcon name="close" />
+                    Rechazar y eliminar
+                  </button>
+                </div>
+
+                {hasMissingRequiredDocuments && (
+                  <p className="validation-decision-hint">
+                    Completa la carga de los {REQUIRED_DOCUMENTS.length} documentos de registro obligatorios para habilitar la decisión de la solicitud.
+                  </p>
+                )}
+                {!hasMissingRequiredDocuments && faltantesTributarios.length > 0 && (
+                  <p className="validation-decision-hint">
+                    Para aprobar falta: {faltantesTributarios.join('; ')}. Si es la verificación, regístrala en Situación
+                    tributaria (SII); si es un documento o la declaración, solicita una corrección.
+                  </p>
                 )}
               </section>
             </>
