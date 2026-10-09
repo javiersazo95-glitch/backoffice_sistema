@@ -38,7 +38,7 @@ más comunes, paso a paso.
 15. [Caja y gastos](#15-caja-y-gastos)
 16. [Pago a proveedores](#16-pago-a-proveedores)
 17. [Pago a captadores](#17-pago-a-captadores)
-18. [Cumplimiento SII](#18-cumplimiento-sii)
+18. [Notas de crédito](#18-notas-de-crédito)
 19. [Retiros de socios](#19-retiros-de-socios)
 
 **Parte IV. Soporte**
@@ -490,7 +490,7 @@ RepuesTop tiene la API del SII autorizada**, y hoy no la tiene.
 
 # Parte III. Administración Contable
 
-En las pantallas de esta área (salvo los pagos y Cumplimiento SII) hay un botón **Rango activo**
+En las pantallas de esta área (salvo los pagos y Notas de crédito) hay un botón **Rango activo**
 arriba a la derecha:
 
 - Elige el período: **Hoy**, **7 días**, **30 días**, **Mes actual**, **Todo** o fechas a mano.
@@ -678,10 +678,11 @@ y, cuando el banco transfiera, procesar el pago.
 > **Ojo:** el pago a captadores a honorarios está en pausa (ver la guía contable, §6). Hoy se paga el
 > monto completo, sin separar la retención de impuesto.
 
-## 18. Cumplimiento SII
+## 18. Notas de crédito
 
-Notas de crédito de las ventas deshechas. La situación tributaria de las tiendas (verificación del
-SII, certificados, declaración de IVA) está en Confianza → **Cumplimiento tributario** (§10).
+Ventas deshechas que deben anularse con nota de crédito. Hasta el 9 de octubre se llamaba "Cumplimiento
+SII"; la situación tributaria de las tiendas (verificación del SII, certificados, declaración de IVA)
+está ahora en Confianza → **Cumplimiento tributario** (§10).
 
 
 Cuando una venta se deshace (reembolso por mediación, cancelación o bloqueo de la tienda), el
@@ -1002,7 +1003,7 @@ el correo, con el aviso "Corregimos…".
 **Quién:** Administración Contable. **Cuándo:** apenas aparece. Una nota atrasada es aviso de la
 alerta de la mañana (§21).
 
-1. Ir a **Administración Contable → Cumplimiento SII**. Las más urgentes están arriba.
+1. Ir a **Administración Contable → Notas de crédito**. Las más urgentes están arriba.
 2. Mirar la columna **Emite**.
    - **Tienda:** la tienda debe emitir la nota en el SII y enviar el PDF a contacto@repuestop.cl con
      el número de pedido. El sistema se lo pide automáticamente. Si no llega, escríbele.
@@ -1078,7 +1079,7 @@ La tienda **sigue vendiendo** mientras su certificado está en revisión.
 **Después de un reembolso:**
 
 - Si la tienda ya había subido su boleta, debe emitir una **nota de crédito**.
-- Aparece en Cumplimiento SII y el sistema se la pide a la tienda (F6).
+- Aparece en Administración Contable → Notas de crédito y el sistema se la pide a la tienda (F6).
 
 **Para suspender una cuenta desde la mediación:**
 
@@ -1165,7 +1166,7 @@ Llegan a las **08:00, 08:05 y 08:10, hora de Chile**.
 | Programada | Aviso | Qué revisa | Qué hacer |
 |---|---|---|---|
 | **08:00** | "Alerta Tributaria: N recargas sin boleta (+48h)" | Compras de Monedas con más de 48 horas sin documento | [F5](#f5-documento-de-una-recarga-de-monedas). El aviso abre Pedidos → Publicidad |
-| **08:05** | "Notas de crédito pendientes: N", o "Alerta Tributaria: N notas de crédito al límite de 6 meses" si hay críticas o vencidas | Reembolsos sin nota de crédito y mediaciones abiertas con más de 150 días | [F6](#f6-registrar-una-nota-de-crédito). El aviso abre Administración Contable → Cumplimiento SII |
+| **08:05** | "Notas de crédito pendientes: N", o "Alerta Tributaria: N notas de crédito al límite de 6 meses" si hay críticas o vencidas | Reembolsos sin nota de crédito y mediaciones abiertas con más de 150 días | [F6](#f6-registrar-una-nota-de-crédito). El aviso abre Administración Contable → Notas de crédito |
 | **08:10** | En enero y julio, "Reverificación semestral del SII: N tiendas pendientes"; el resto del año, "Alerta Tributaria: N tiendas sin verificar en el SII" o "…sin declaración de IVA" | Tiendas vigentes sin verificación del semestre o sin declaración de IVA | [F7](#f7-verificación-semestral-de-enero-y-julio). El aviso abre Confianza → Cumplimiento tributario |
 
 **Lo que reciben las tiendas:**
@@ -1194,7 +1195,7 @@ No dejan avisos al equipo, pero explican por qué algunas cosas cambian solas.
 | Cuándo | Qué | Dónde |
 |---|---|---|
 | Cada mañana | Revisar la campana y los Resúmenes de cada área | Campana, Resúmenes |
-| Todos los días | Facturas de retiros nuevos (F3), documentos de recargas (F5) y notas de crédito (F6) | Liquidaciones, Pedidos → Publicidad, Cumplimiento SII |
+| Todos los días | Facturas de retiros nuevos (F3), documentos de recargas (F5) y notas de crédito (F6) | Liquidaciones, Pedidos → Publicidad, Notas de crédito |
 | Lo antes posible | Validaciones pendientes (F1) y mediaciones (F8) | Validaciones, Mediaciones |
 | Martes | Pago a captadores | Pago a captadores |
 | Martes y miércoles | Completar las facturas que falten: el ciclo cierra el miércoles | Liquidaciones |

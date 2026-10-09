@@ -515,7 +515,7 @@ a aceptar.
 
 - Tabla `bo_nota_credito` (una nota por reembolso y emisor), `NotaCreditoBackofficeService` y
   endpoints `/administration/credit-notes`.
-- Vista **Cumplimiento SII → Notas de crédito** con:
+- Vista **Administración Contable → Notas de crédito** (antes "Cumplimiento SII") con:
   - las pendientes y su vencimiento;
   - las mediaciones abiertas con más de 150 días desde la entrega;
   - las notas registradas;
@@ -599,7 +599,7 @@ petición de corrección.
 **Quién lo hace (9-oct):** la situación tributaria pasó de Administración Contable a Confianza, que
 aprueba las tiendas. La bandeja semestral está en Confianza → Cumplimiento tributario, cada perfil de
 tienda muestra su situación y permite verificarla, y la alerta de las 08:10 llega a Confianza. Las
-notas de crédito siguen en Administración Contable → Cumplimiento SII.
+notas de crédito siguen en Administración Contable, en la pantalla que ahora se llama "Notas de crédito".
 
 **Para cuando exista la API:** la pestaña ya permite descargar la nómina `RUT;DV` y la vía `API` ya
 existe en el modelo, desactivada.
@@ -621,7 +621,7 @@ misma cuenta. Ninguna llega por correo al equipo. Sale una por persona y por dí
 | Job | Hora (Chile) | Qué revisa | Lleva a |
 |---|---|---|---|
 | `AlertaCumplimientoTributarioJob` | 08:00 | Recargas de Monedas con más de 48 h sin documento | Pedidos → Publicidad |
-| `AlertaNotaCreditoJob` | 08:05 | Notas de crédito atrasadas, críticas o vencidas, y mediaciones al límite. A la tienda: "Emite la nota de crédito del pedido…" | Administración Contable → Cumplimiento SII |
+| `AlertaNotaCreditoJob` | 08:05 | Notas de crédito atrasadas, críticas o vencidas, y mediaciones al límite. A la tienda: "Emite la nota de crédito del pedido…" | Administración Contable → Notas de crédito |
 | `ReverificacionSemestralJob` | 08:10 | Tiendas vigentes sin verificar este semestre o sin declaración de IVA. Los días 2 y 20 de enero y julio, además, pide el certificado a las tiendas | Confianza → Cumplimiento tributario |
 
 **La zona horaria:** el servidor de Railway corre en UTC (confirmado con `date` en la consola: "Fri
@@ -673,7 +673,7 @@ cumple), para que la revisión sea confirmar en vez de transcribir.
 
 - **E. Consulta de boletas de venta en el backoffice.** Los endpoints
   `/api/v1/administration/sale-receipts` siguen vivos; el `BoletasVentaPage.tsx` borrado se recupera
-  del commit `62951d9`. Va como pestaña de Cumplimiento SII y debe distinguir al inscrito en
+  del commit `62951d9`. Va como pantalla propia y debe distinguir al inscrito en
   Subsistencia del incumplimiento real.
 - **F. Validar la boleta de venta por contenido.** `PedidoBoletaVentaSupport.validarArchivo` valida
   solo el `Content-Type`. Hay que usar `ArchivoSeguro.detectarTipoReal`, como en la boleta de

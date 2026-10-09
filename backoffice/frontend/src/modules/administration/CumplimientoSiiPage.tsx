@@ -318,8 +318,8 @@ export default function CumplimientoSiiPage() {
     <div className="admin-finance-page">
       <header className="page-header">
         <div className="header-title">
-          <h1>Cumplimiento SII</h1>
-          <p>Notas de crédito de las ventas deshechas. La situación tributaria de las tiendas está en Confianza → Cumplimiento tributario.</p>
+          <h1>Notas de crédito</h1>
+          <p>Ventas deshechas que deben anularse con nota de crédito dentro de 6 meses desde la entrega.</p>
         </div>
         <div className="header-actions">
           <button className="secondary-button" type="button" title="Actualizar datos"

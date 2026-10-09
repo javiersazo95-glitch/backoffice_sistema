@@ -47,7 +47,9 @@ export const navSections: NavSection[] = [
       { path: '/administracion/gastos', label: 'Caja y gastos', badge: 0, icon: 'receipt' },
       { path: '/administracion/pago-proveedores', label: 'Pago a proveedores', badge: 0, icon: 'wallet' },
       { path: '/administracion/pago-captadores', label: 'Pago a captadores', badge: 0, icon: 'users' },
-      { path: '/administracion/cumplimiento', label: 'Cumplimiento SII', badge: 0, icon: 'shieldCheck' },
+      // 9-oct: solo notas de credito; la situacion tributaria esta en Confianza. Se mantiene la ruta
+      // porque la alerta de las 08:05 enlaza aqui.
+      { path: '/administracion/cumplimiento', label: 'Notas de crédito', badge: 0, icon: 'receipt' },
     ],
   },
   {

@@ -64,6 +64,6 @@ Las rutas son relativas a `frontend/src` (FE) o a `backend/src/main/java/com/rep
 | B11 | Retiros de socios | La columna "Saldo socio" repite el saldo actual en todas las filas | FE `AdminFinancePage.tsx` |
 | B12 | Pago a proveedores | "Detalle de Pago" muestra "No se pudo cargar la información del retiro." mientras carga | FE `PagoProveedoresPage.tsx:978-981` |
 | B13 | Pago a captadores | La ronda se agrupa por los 10 primeros caracteres de la fecha: un pago nocturno en UTC cae en el día siguiente | FE `PagoCaptadoresPage.tsx:25-27` |
-| B14 | Cumplimiento SII | "Actualizar" no refresca la cola de certificados | FE `modules/administration/CumplimientoSiiPage.tsx:327` |
+| B14 | Cumplimiento SII | **Corregido el 9-oct:** la bandeja pasó a Confianza → Cumplimiento tributario y su "Actualizar" refresca también la cola. "Actualizar" no refrescaba la cola de certificados | FE `modules/administration/CumplimientoSiiPage.tsx:327` |
 | B15 | Soporte | El detalle del ticket muestra prioridades y categorías en inglés ("Highest", "Bug", "Task de soporte"); el widget registra como "App Mobile RepuesTop" los reportes hechos desde /soporte y muestra errores técnicos; Reportes QA oculta los resueltos después de paginar | FE `SupportTicketDetailModal.tsx:30-43`; `components/shared/HelpSupportWidget.tsx:322-354`; `SupportPage.tsx:1017-1019` |
 | B16 | Soporte | Panel QA antiguo sin mostrar, con botón "Corregido", y reglas de estado QA repetidas | FE `SupportPage.tsx:276-596` |
