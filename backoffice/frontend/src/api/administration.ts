@@ -519,3 +519,38 @@ export async function getTaxStatusCertificateUrl(proveedorId: number): Promise<s
   const response = await apiClient.get<{ url: string }>(`/administration/tax-status/${proveedorId}/certificate-url`);
   return response.data.url;
 }
+
+// Paso 2: certificados de cumplimiento que las tiendas suben desde Mi tienda (enero y julio).
+
+export interface CertificadoPendiente {
+  id: number;
+  proveedorId: number;
+  nombreTienda: string | null;
+  rut: string | null;
+  nombreArchivo: string | null;
+  subidoAt: string;
+  semestre: string;
+}
+
+export async function getPendingCertificates(): Promise<CertificadoPendiente[]> {
+  const response = await apiClient.get<CertificadoPendiente[]>('/administration/tax-status/certificates');
+  return response.data;
+}
+
+export async function getPendingCertificateUrl(id: number): Promise<string> {
+  const response = await apiClient.get<{ url: string }>(`/administration/tax-status/certificates/${id}/url`);
+  return response.data.url;
+}
+
+export interface ReviewCertificatePayload {
+  /** Lo que dice el certificado, o RECHAZADO si no sirve (ilegible, de otra tienda o de otro semestre). */
+  estado: 'CUMPLE' | 'NO_CUMPLE' | 'RECHAZADO';
+  /** "YYYY-MM-DD": fecha de los datos del certificado. Obligatoria salvo al rechazar. */
+  certificadoFecha: string | null;
+  /** Obligatorio al rechazar: se le muestra a la tienda. */
+  motivo: string | null;
+}
+
+export async function reviewCertificate(id: number, payload: ReviewCertificatePayload): Promise<void> {
+  await apiClient.post(`/administration/tax-status/certificates/${id}/review`, payload);
+}

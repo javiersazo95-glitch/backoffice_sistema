@@ -11,6 +11,7 @@ import { mensajeDeError } from '@/api/client';
 import MetricCard from '@/components/shared/MetricCard';
 import Modal from '@/components/shared/Modal';
 import QueryErrorNotice from '@/components/shared/QueryErrorNotice';
+import CertificadosPorRevisar from './CertificadosPorRevisar';
 import UiIcon from '@/components/shared/UiIcon';
 import { chileDay, downloadFile, formatDate, formatDateTimeLocal } from './utils';
 
@@ -185,6 +186,8 @@ export default function SituacionTributariaPanel() {
           <strong> enero y julio</strong> (Res. SII 168 de 2025).
         </span>
       </div>
+
+      <CertificadosPorRevisar />
 
       <section className="table-shell">
         <div className="table-toolbar">

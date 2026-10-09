@@ -315,3 +315,34 @@ Verificado en el texto oficial de la [Resolución Ex. SII N° 168 de 2025](https
 - Informe anual de la Res. 99 (usuarios que declararon no requerir inicio de actividades y
   usuarios registrados): no construido. Hoy no aplica porque el registro exige inicio de
   actividades a todas las tiendas.
+
+## 10. Verificación en Validaciones y certificado semestral
+
+**Paso 1, en `dev`.** La verificación del alta se hace en Confianza → Validaciones, donde se aprueba.
+El revisor registra lo que dice el certificado de cumplimiento (Cumple o No cumple, y su fecha) y
+el estado del inicio de actividades consultado en sii.cl. Base normativa verificada en los textos
+oficiales:
+
+- Al contratar, la Res. 168 (resolutivo 2°) exige el certificado. Su modelo oficial (anexo) trae
+  RUT, razón social, fecha de los datos, "Cumple / No cumple" y los tres requisitos. **No dice si
+  el inicio de actividades está vigente.**
+- La Res. 99 (resolutivo 1°) obliga a verificar el inicio de actividades por consulta en sii.cl,
+  por la API o por otro medio del SII. Un documento subido por la tienda no está entre esas
+  opciones, y no muestra un término de giro posterior. Por eso se mantiene la consulta del RUT al
+  alta.
+
+**Paso 2: reverificación de enero y julio con el certificado de la tienda.**
+
+- La tienda sube su certificado actualizado en **Mi tienda** (app y web). Queda en revisión del
+  equipo **sin volver la tienda a revisión**: sigue vendiendo. Tabla `rt_certificado_cumplimiento`
+  (migración `V2026100905`).
+- El 2 y el 20 de enero y de julio, `ReverificacionSemestralJob` le pide el certificado, por la app y
+  por correo, a cada tienda vigente que no esté al día.
+- Administración Contable lo revisa en Cumplimiento SII → Situación tributaria → "Certificados por
+  revisar", uno tras otro. Cumple o No cumple crean la verificación del semestre, con el PDF como
+  evidencia. Rechazado le pide otro a la tienda, con el motivo. Un certificado de otro semestre no
+  se acepta.
+- **Para el contador:** para la reverificación semestral la Res. 168 menciona la consulta y la API
+  (resolutivo 3°), no el certificado. El certificado dice que su estado se actualiza en enero y
+  julio, así que uno reciente refleja el semestre, pero conviene que lo confirme.
+- La solución de fondo sigue siendo la API de la Res. 117 (`solicitud-api-sii-inicio-actividades.md`).
