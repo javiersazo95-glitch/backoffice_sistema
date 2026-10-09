@@ -1,6 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import SituacionTributariaPanel from './SituacionTributariaPanel';
+import { Navigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as administrationApi from '@/api/administration';
 import type { CreditNotePending, EmisorNotaCredito, NivelNotaCredito } from '@/api/administration';
@@ -300,19 +299,19 @@ function NotasCreditoPanel() {
   );
 }
 
-type CumplimientoTab = 'situacion' | 'notas';
-
 /**
- * Cumplimiento SII: las obligaciones de RepuesTop ante el SII como operador de plataforma.
- * Las alertas diarias enlazan a cada pestana con ?tab=situacion o ?tab=notas.
+ * Cumplimiento SII: notas de credito de las ventas deshechas (plazo de 6 meses, art. 21 N° 2 y
+ * art. 70 DL 825). La alerta de las 08:05 enlaza aqui con ?tab=notas.
+ *
+ * 9-oct: la situacion tributaria de las tiendas paso a Confianza → Cumplimiento tributario, que
+ * aprueba las tiendas y las reverifica. Los avisos antiguos con ?tab=situacion se redirigen alla.
  */
 export default function CumplimientoSiiPage() {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
-  const tab: CumplimientoTab = searchParams.get('tab') === 'notas' ? 'notas' : 'situacion';
 
-  function selectTab(next: CumplimientoTab): void {
-    setSearchParams(next === 'situacion' ? {} : { tab: next }, { replace: true });
+  if (searchParams.get('tab') === 'situacion') {
+    return <Navigate to="/confianza/cumplimiento-tributario" replace />;
   }
 
   return (
@@ -320,28 +319,17 @@ export default function CumplimientoSiiPage() {
       <header className="page-header">
         <div className="header-title">
           <h1>Cumplimiento SII</h1>
-          <p>Obligaciones tributarias de RepuesTop como plataforma: situación tributaria de las tiendas y notas de crédito.</p>
+          <p>Notas de crédito de las ventas deshechas. La situación tributaria de las tiendas está en Confianza → Cumplimiento tributario.</p>
         </div>
         <div className="header-actions">
           <button className="secondary-button" type="button" title="Actualizar datos"
-            onClick={() => void queryClient.invalidateQueries({ queryKey: [tab === 'notas' ? 'admin-credit-notes' : 'admin-tax-status'] })}>
+            onClick={() => void queryClient.invalidateQueries({ queryKey: ['admin-credit-notes'] })}>
             <UiIcon name="refresh" /> Actualizar
           </button>
         </div>
       </header>
 
-      <div className="module-tabs" role="tablist" aria-label="Cumplimiento SII">
-        <button type="button" role="tab" aria-selected={tab === 'situacion'} className={tab === 'situacion' ? 'active' : undefined}
-          onClick={() => selectTab('situacion')}>
-          Situación tributaria
-        </button>
-        <button type="button" role="tab" aria-selected={tab === 'notas'} className={tab === 'notas' ? 'active' : undefined}
-          onClick={() => selectTab('notas')}>
-          Notas de crédito
-        </button>
-      </div>
-
-      {tab === 'situacion' ? <SituacionTributariaPanel /> : <NotasCreditoPanel />}
+      <NotasCreditoPanel />
     </div>
   );
 }

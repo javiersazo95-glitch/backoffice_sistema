@@ -9,6 +9,7 @@ import Badge from '@/components/shared/Badge';
 import UiIcon from '@/components/shared/UiIcon';
 import FounderSellerName from '@/components/shared/FounderSellerName';
 import { resolveProfileImageUrl } from '@/api/client';
+import SituacionTributariaTienda from '@/components/cumplimiento/SituacionTributariaTienda';
 
 interface SellerProfileModalProps {
   isOpen: boolean;
@@ -822,6 +823,11 @@ export default function SellerProfileModal({
                   <button className="profile-inline-link" type="button" onClick={() => onOpenDocuments?.(seller.id)}>
                     Ver todos los documentos <UiIcon name="arrowRight" />
                   </button>
+                </div>
+
+                <div className="seller-profile-panel tax-status-panel">
+                  <PanelTitle title="Situación tributaria (SII)" />
+                  <SituacionTributariaTienda proveedorId={seller.id} nombreTienda={seller.storeName} rut={seller.rut} />
                 </div>
 
                 <div className="seller-profile-panel retiros-panel">

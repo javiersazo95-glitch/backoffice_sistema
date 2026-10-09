@@ -27,22 +27,23 @@ más comunes, paso a paso.
 7. [Vendedores](#7-vendedores)
 8. [Mediaciones](#8-mediaciones)
 9. [Captadores](#9-captadores)
-10. [Alertas, Reportes, Feedback y Bitácora](#10-alertas-reportes-feedback-y-bitácora)
+10. [Cumplimiento tributario](#10-cumplimiento-tributario)
+11. [Alertas, Reportes, Feedback y Bitácora](#11-alertas-reportes-feedback-y-bitácora)
 
 **Parte III. Administración Contable**
 
-11. [Resumen contable](#11-resumen-contable)
-12. [Pedidos](#12-pedidos)
-13. [Liquidaciones](#13-liquidaciones)
-14. [Caja y gastos](#14-caja-y-gastos)
-15. [Pago a proveedores](#15-pago-a-proveedores)
-16. [Pago a captadores](#16-pago-a-captadores)
-17. [Cumplimiento SII](#17-cumplimiento-sii)
-18. [Retiros de socios](#18-retiros-de-socios)
+12. [Resumen contable](#12-resumen-contable)
+13. [Pedidos](#13-pedidos)
+14. [Liquidaciones](#14-liquidaciones)
+15. [Caja y gastos](#15-caja-y-gastos)
+16. [Pago a proveedores](#16-pago-a-proveedores)
+17. [Pago a captadores](#17-pago-a-captadores)
+18. [Cumplimiento SII](#18-cumplimiento-sii)
+19. [Retiros de socios](#19-retiros-de-socios)
 
 **Parte IV. Soporte**
 
-19. [Soporte](#19-soporte)
+20. [Soporte](#20-soporte)
 
 **Parte V. Flujos paso a paso**
 
@@ -60,14 +61,14 @@ más comunes, paso a paso.
 
 **Parte VI. Lo automático y el calendario**
 
-20. [Alertas diarias](#20-alertas-diarias)
-21. [Otras tareas automáticas](#21-otras-tareas-automáticas)
-22. [Calendario del equipo](#22-calendario-del-equipo)
+21. [Alertas diarias](#21-alertas-diarias)
+22. [Otras tareas automáticas](#22-otras-tareas-automáticas)
+23. [Calendario del equipo](#23-calendario-del-equipo)
 
 **Parte VII. Ayuda**
 
-23. [Problemas frecuentes](#23-problemas-frecuentes)
-24. [Glosario](#24-glosario)
+24. [Problemas frecuentes](#24-problemas-frecuentes)
+25. [Glosario](#25-glosario)
 
 ---
 
@@ -81,7 +82,7 @@ usa el backoffice para controlar lo que pasa en ellas. Tiene tres áreas:
 | Área | Para qué |
 |---|---|
 | **Administración Contable** | Dinero y documentos: pedidos, comisiones, pagos a tiendas, socios y captadores, gastos, y las obligaciones con el SII |
-| **Confianza y Mediación** | Tiendas y personas: aprobar tiendas, resolver reclamos, suspender cuentas, revisar alertas y reportes |
+| **Confianza y Mediación** | Tiendas y personas: aprobar tiendas, verificar su situación tributaria ante el SII, resolver reclamos, suspender cuentas, revisar alertas y reportes |
 | **Soporte** | Consultas y fallas: tickets de usuarios, chats de carga de inventario y defectos de QA |
 
 Cada persona ve solo las áreas para las que tiene permiso. El **super administrador** ve todo.
@@ -336,8 +337,11 @@ aprueba ninguna.
   - ver la mediación en curso;
   - ver los reportes;
   - expandir la ficha (antigüedad, repuestos, ventas, cuenta bancaria).
-- **Perfil:** resumen, documentos, historial de retiros (con los rechazos y su motivo), ventas y
-  actividad reciente.
+- **Perfil:** resumen, documentos, **situación tributaria (SII)**, historial de retiros (con los
+  rechazos y su motivo), ventas y actividad reciente.
+- **Situación tributaria en el perfil:** etiquetas de la declaración de IVA, el certificado y la
+  verificación del semestre; **Ver certificado**, **Verificar en el SII** (registra una consulta del
+  RUT, igual que en Cumplimiento tributario) y **Ver historial**.
 
 **Suspender una tienda:** en el perfil, **Historial de bloqueos** → **Bloquear tienda**.
 
@@ -419,7 +423,61 @@ Es una pantalla de consulta sobre los captadores aprobados. Tiene cinco pestaña
 
 Para desactivar a un captador se usa Gestión de Permisos (§2.3). Esta pantalla no tiene ese botón.
 
-## 10. Alertas, Reportes, Feedback y Bitácora
+## 10. Cumplimiento tributario
+
+La situación tributaria de las tiendas ante el SII. Las tiendas nuevas se verifican al aprobarlas, en
+Validaciones (F1); aquí se hace la **reverificación de enero y julio** de todas las vigentes, que exige la
+Res. SII 168 (F7). La alerta diaria de las 08:10 trae aquí.
+
+
+**Tarjetas**
+
+| Tarjeta | Qué cuenta |
+|---|---|
+| **Por reverificar este semestre** | Tiendas vigentes que no están "Al día" en el semestre |
+| **Sin declaración de IVA** | Tiendas que no declararon ser contribuyentes de IVA. **Sin esa declaración, el IVA de sus ventas lo paga RepuesTop** |
+| **Sin certificado** | Tiendas sin certificado de cumplimiento |
+| **No cumplen** | Tiendas que el SII marca como incumplidoras. Pueden vender |
+
+- En enero y julio aparece el aviso **Mes de reverificación**.
+- Debajo hay instrucciones para consultar un RUT en sii.cl, con el enlace a la página del SII.
+
+**Certificados por revisar (N)**
+
+- Los certificados que las tiendas subieron desde Mi tienda.
+- Solo aparece si hay alguno.
+- El paso a paso está en [F7](#f7-verificación-semestral-de-enero-y-julio).
+
+**Tabla Situación tributaria de las tiendas**
+
+- **Cuenta:** Aprobada, En revisión o Suspendida. Para las que están en revisión, indica cuántas
+  cosas les faltan para aprobarse.
+- **Este semestre:** **Al día**, **Por reverificar** (verificada en un semestre anterior) o **Sin
+  verificar** (nunca).
+- **Última verificación:** el resultado, la fecha y la vía (consulta en sii.cl, certificado de la
+  tienda o API).
+- **Declaración IVA** y **Certificado** (el ojo lo abre).
+- **Verificar** registra una consulta hecha en sii.cl. El reloj abre el **Historial**.
+- Lo mismo se puede hacer desde el perfil de cada tienda, en Vendedores (§7).
+
+**Nómina RUT;DV:** descarga el archivo que se sube al SII en junio y diciembre. **Solo se usa si
+RepuesTop tiene la API del SII autorizada**, y hoy no la tiene.
+
+**Registrar una verificación manual** (botón **Verificar**)
+
+1. En la [consulta de situación tributaria de terceros del SII](https://www2.sii.cl/stc/noauthz) (no
+   pide clave), con el RUT de la tienda.
+2. En el backoffice:
+   - **Fecha de la consulta**.
+   - **Vía:** **Consulta en sii.cl**.
+   - **Resultado:** **Cumple sus obligaciones tributarias**, **No cumple**, **Sin inicio de
+     actividades**, **Término de giro** o **Registro de Subsistencia**.
+   - Opcional: fecha de inicio de actividades y observaciones.
+3. Adjuntar como **evidencia** una captura o el PDF de la consulta. No es obligatorio, pero es la
+   prueba ante el SII.
+4. Pulsar **Registrar verificación**.
+
+## 11. Alertas, Reportes, Feedback y Bitácora
 
 | Pantalla | Para qué | Acciones |
 |---|---|---|
@@ -440,7 +498,7 @@ arriba a la derecha:
 - Si una cifra no pudo cargarse, aparece un aviso rojo con **Reintentar**: los totales de esa
   pantalla pueden estar incompletos hasta reintentar.
 
-## 11. Resumen contable
+## 12. Resumen contable
 
 **Pendientes ahora.** No dependen del rango. Cada tarjeta lleva a donde se resuelve:
 
@@ -470,7 +528,7 @@ gastos.
 > **Ojo:** las ventas se cuentan en el mes en que se **compraron**, no en el que se finalizaron. Está
 > pendiente confirmar ese criterio con el contador.
 
-## 12. Pedidos
+## 13. Pedidos
 
 ### 12.1 Pestaña Pedidos
 
@@ -498,7 +556,7 @@ Recargas de Monedas para publicar en el Mural. No generan pago a tiendas.
 - **Columna Documento:** dice "Factura · folio", "Boleta · folio" o **Pendiente**.
 - El ícono de documento abre el registro de la boleta o factura ([F5](#f5-documento-de-una-recarga-de-monedas)).
 
-## 13. Liquidaciones
+## 14. Liquidaciones
 
 Las ventas finalizadas de cada tienda, ordenadas según en qué punto del pago están. Hay tres
 pestañas:
@@ -542,7 +600,7 @@ Registro de Compras y Ventas del SII y para preparar el F29.
 >   anteriores, pon el rango en **Todo** para verlas todas.
 > - En **Liquidado**, el "Monto total pagado" incluye los retiros de socios.
 
-## 14. Caja y gastos
+## 15. Caja y gastos
 
 **Pestaña Caja**
 
@@ -566,7 +624,7 @@ gasto se puede reemplazar, pero no quitar.
 > **Ojo:** el "Informe de gastos" calcula su caja de otra forma, así que su cifra no cuadra con la
 > tarjeta de la pestaña.
 
-## 15. Pago a proveedores
+## 16. Pago a proveedores
 
 Aquí se pagan cada jueves los retiros de las tiendas **y** los de los socios. Tiene dos pestañas.
 
@@ -600,7 +658,7 @@ El paso a paso está en [F4](#f4-pagar-los-retiros-del-jueves).
 La tabla muestra **todos** los retiros pendientes solicitados hasta el miércoles, también los de
 ciclos anteriores que no se hayan pagado.
 
-## 16. Pago a captadores
+## 17. Pago a captadores
 
 Los captadores piden sus retiros en su portal, adjuntando su boleta de honorarios. Se pagan **los
 martes**, en una sola ronda. Hay tres pestañas: **Solicitudes de retiro**, **Historial por rondas** y
@@ -620,59 +678,11 @@ y, cuando el banco transfiera, procesar el pago.
 > **Ojo:** el pago a captadores a honorarios está en pausa (ver la guía contable, §6). Hoy se paga el
 > monto completo, sin separar la retención de impuesto.
 
-## 17. Cumplimiento SII
+## 18. Cumplimiento SII
 
-Reúne las obligaciones de RepuesTop ante el SII como plataforma. Tiene dos pestañas.
+Notas de crédito de las ventas deshechas. La situación tributaria de las tiendas (verificación del
+SII, certificados, declaración de IVA) está en Confianza → **Cumplimiento tributario** (§10).
 
-### 17.1 Situación tributaria
-
-**Tarjetas**
-
-| Tarjeta | Qué cuenta |
-|---|---|
-| **Por reverificar este semestre** | Tiendas vigentes que no están "Al día" en el semestre |
-| **Sin declaración de IVA** | Tiendas que no declararon ser contribuyentes de IVA. **Sin esa declaración, el IVA de sus ventas lo paga RepuesTop** |
-| **Sin certificado** | Tiendas sin certificado de cumplimiento |
-| **No cumplen** | Tiendas que el SII marca como incumplidoras. Pueden vender |
-
-- En enero y julio aparece el aviso **Mes de reverificación**.
-- Debajo hay instrucciones para consultar un RUT en sii.cl, con el enlace a la página del SII.
-
-**Certificados por revisar (N)**
-
-- Los certificados que las tiendas subieron desde Mi tienda.
-- Solo aparece si hay alguno.
-- El paso a paso está en [F7](#f7-verificación-semestral-de-enero-y-julio).
-
-**Tabla Situación tributaria de las tiendas**
-
-- **Cuenta:** Aprobada, En revisión o Suspendida. Para las que están en revisión, indica cuántas
-  cosas les faltan para aprobarse.
-- **Este semestre:** **Al día**, **Por reverificar** (verificada en un semestre anterior) o **Sin
-  verificar** (nunca).
-- **Última verificación:** el resultado, la fecha y la vía (consulta en sii.cl, certificado de la
-  tienda o API).
-- **Declaración IVA** y **Certificado** (el ojo lo abre).
-- **Verificar** registra una consulta hecha en sii.cl. El reloj abre el **Historial**.
-
-**Nómina RUT;DV:** descarga el archivo que se sube al SII en junio y diciembre. **Solo se usa si
-RepuesTop tiene la API del SII autorizada**, y hoy no la tiene.
-
-**Registrar una verificación manual** (botón **Verificar**)
-
-1. En sii.cl: **Servicios online → Situación tributaria → Consultar situación tributaria de terceros**,
-   con el RUT de la tienda.
-2. En el backoffice:
-   - **Fecha de la consulta**.
-   - **Vía:** **Consulta en sii.cl**.
-   - **Resultado:** **Cumple sus obligaciones tributarias**, **No cumple**, **Sin inicio de
-     actividades**, **Término de giro** o **Registro de Subsistencia**.
-   - Opcional: fecha de inicio de actividades y observaciones.
-3. Adjuntar como **evidencia** una captura o el PDF de la consulta. No es obligatorio, pero es la
-   prueba ante el SII.
-4. Pulsar **Registrar verificación**.
-
-### 17.2 Notas de crédito
 
 Cuando una venta se deshace (reembolso por mediación, cancelación o bloqueo de la tienda), el
 documento que se emitió hay que anularlo con una **nota de crédito**. Solo así se recupera el IVA, y
@@ -696,10 +706,7 @@ documento que se emitió hay que anularlo con una **nota de crédito**. Solo as�
 
 El paso a paso está en [F6](#f6-registrar-una-nota-de-crédito).
 
-> **Ojo:** el botón **Actualizar** de esta pantalla no refresca la cola de certificados. Para verla al
-> día, recarga la página.
-
-## 18. Retiros de socios
+## 19. Retiros de socios
 
 Solo para el super administrador. Se abre desde el menú de usuario → **Retirar dinero**. Tiene dos
 pestañas.
@@ -726,7 +733,7 @@ los de las tiendas.
 
 # Parte IV. Soporte
 
-## 19. Soporte
+## 20. Soporte
 
 El área se titula **Soporte Técnico** y tiene cuatro pestañas.
 
@@ -993,9 +1000,9 @@ el correo, con el aviso "Corregimos…".
 ## F6. Registrar una nota de crédito
 
 **Quién:** Administración Contable. **Cuándo:** apenas aparece. Una nota atrasada es aviso de la
-alerta de la mañana (§20).
+alerta de la mañana (§21).
 
-1. Ir a **Cumplimiento SII → Notas de crédito**. Las más urgentes están arriba.
+1. Ir a **Administración Contable → Cumplimiento SII**. Las más urgentes están arriba.
 2. Mirar la columna **Emite**.
    - **Tienda:** la tienda debe emitir la nota en el SII y enviar el PDF a contacto@repuestop.cl con
      el número de pedido. El sistema se lo pide automáticamente. Si no llega, escríbele.
@@ -1014,7 +1021,7 @@ rebaja el IVA.
 
 ## F7. Verificación semestral de enero y julio
 
-**Quién:** Administración Contable. **Cuándo:** del 1 al 31 de enero y del 1 al 31 de julio. La meta
+**Quién:** Confianza. **Cuándo:** del 1 al 31 de enero y del 1 al 31 de julio. La meta
 es que **Por reverificar este semestre** llegue a 0.
 
 **Lo que hace el sistema solo:**
@@ -1025,7 +1032,7 @@ es que **Por reverificar este semestre** llegue a 0.
 
 **Lo que hace el equipo:**
 
-1. Ir a **Cumplimiento SII → Situación tributaria**.
+1. Ir a **Confianza → Cumplimiento tributario**.
 2. En **Certificados por revisar**, pulsar **Revisar uno tras otro**. Para cada certificado:
    1. pulsar **Abrir el certificado (PDF)**;
    2. comprobar que el RUT y el nombre son los de la tienda y que la fecha es de este semestre;
@@ -1039,7 +1046,7 @@ es que **Por reverificar este semestre** llegue a 0.
 3. A fin de mes, para las tiendas que **no subieron** certificado:
    - buscarlas en la tabla con **Sin verificar** o **Por reverificar**;
    - pulsar **Verificar** y hacer la consulta en sii.cl (ver el apartado "Registrar una verificación
-     manual" del §17.1).
+     manual" del §10).
 4. Revisar que la tarjeta **Por reverificar este semestre** quede en 0.
 
 La tienda **sigue vendiendo** mientras su certificado está en revisión.
@@ -1147,18 +1154,19 @@ Los tickets internos, sin usuario, se cierran con **Cerrar ticket** y un motivo.
 
 # Parte VI. Lo automático y el calendario
 
-## 20. Alertas diarias
+## 21. Alertas diarias
 
-Tres revisiones automáticas al día dejan avisos en la campana del equipo de Administración Contable
-(y del super administrador). Solo avisan si hay algo pendiente, y una vez al día por persona.
+Tres revisiones automáticas al día dejan avisos en la campana. Las de las 08:00 y 08:05 llegan a
+Administración Contable; la de las 08:10, a Confianza. El super administrador recibe las tres. Solo
+avisan si hay algo pendiente, y una vez al día por persona.
 
 Llegan a las **08:00, 08:05 y 08:10, hora de Chile**.
 
 | Programada | Aviso | Qué revisa | Qué hacer |
 |---|---|---|---|
 | **08:00** | "Alerta Tributaria: N recargas sin boleta (+48h)" | Compras de Monedas con más de 48 horas sin documento | [F5](#f5-documento-de-una-recarga-de-monedas). El aviso abre Pedidos → Publicidad |
-| **08:05** | "Notas de crédito pendientes: N", o "Alerta Tributaria: N notas de crédito al límite de 6 meses" si hay críticas o vencidas | Reembolsos sin nota de crédito y mediaciones abiertas con más de 150 días | [F6](#f6-registrar-una-nota-de-crédito). El aviso abre Cumplimiento SII → Notas de crédito |
-| **08:10** | En enero y julio, "Reverificación semestral del SII: N tiendas pendientes"; el resto del año, "Alerta Tributaria: N tiendas sin verificar en el SII" o "…sin declaración de IVA" | Tiendas vigentes sin verificación del semestre o sin declaración de IVA | [F7](#f7-verificación-semestral-de-enero-y-julio). El aviso abre Cumplimiento SII → Situación tributaria |
+| **08:05** | "Notas de crédito pendientes: N", o "Alerta Tributaria: N notas de crédito al límite de 6 meses" si hay críticas o vencidas | Reembolsos sin nota de crédito y mediaciones abiertas con más de 150 días | [F6](#f6-registrar-una-nota-de-crédito). El aviso abre Administración Contable → Cumplimiento SII |
+| **08:10** | En enero y julio, "Reverificación semestral del SII: N tiendas pendientes"; el resto del año, "Alerta Tributaria: N tiendas sin verificar en el SII" o "…sin declaración de IVA" | Tiendas vigentes sin verificación del semestre o sin declaración de IVA | [F7](#f7-verificación-semestral-de-enero-y-julio). El aviso abre Confianza → Cumplimiento tributario |
 
 **Lo que reciben las tiendas:**
 
@@ -1167,7 +1175,7 @@ Llegan a las **08:00, 08:05 y 08:10, hora de Chile**.
 | Con la revisión de las 08:05 | "Emite la nota de crédito del pedido X", con la fecha límite y el correo contacto@repuestop.cl. Cuando la nota pasa a crítica, un "Recordatorio" | Notificación en la app y la web |
 | Con la revisión de las 08:10, los días **2 y 20 de enero y julio** | "Sube tu certificado de cumplimiento tributario" (día 2) y "Recuerda subir tu certificado de cumplimiento" (día 20) | Notificación y correo |
 
-## 21. Otras tareas automáticas
+## 22. Otras tareas automáticas
 
 No dejan avisos al equipo, pero explican por qué algunas cosas cambian solas.
 
@@ -1181,7 +1189,7 @@ No dejan avisos al equipo, pero explican por qué algunas cosas cambian solas.
 
 **El pago a tiendas, socios y captadores nunca es automático:** siempre lo confirma una persona.
 
-## 22. Calendario del equipo
+## 23. Calendario del equipo
 
 | Cuándo | Qué | Dónde |
 |---|---|---|
@@ -1193,15 +1201,15 @@ No dejan avisos al equipo, pero explican por qué algunas cosas cambian solas.
 | Jueves | Pago de retiros a tiendas y socios (F4) | Pago a proveedores |
 | Primeros días del mes | Descargar "Documentos emitidos del mes" del mes anterior y entregarlo al contador | Liquidaciones |
 | Día 20 | Fecha límite del F29 (lo presenta el contador) | — |
-| Enero y julio | Verificación semestral (F7) | Cumplimiento SII |
-| Junio y diciembre | Nómina RUT;DV al SII, **solo si se aprueba la API del SII** | Cumplimiento SII |
+| Enero y julio | Verificación semestral (F7) | Confianza → Cumplimiento tributario |
+| Junio y diciembre | Nómina RUT;DV al SII, **solo si se aprueba la API del SII** | Confianza → Cumplimiento tributario |
 | Marzo y abril | Declaraciones juradas y renta anual (contador) | — |
 
 ---
 
 # Parte VII. Ayuda
 
-## 23. Problemas frecuentes
+## 24. Problemas frecuentes
 
 **"Aprobar solicitud" está deshabilitado.**
 - Lee el aviso bajo el botón: dice qué falta (documentos, declaración de IVA, certificado o
@@ -1231,7 +1239,7 @@ No dejan avisos al equipo, pero explican por qué algunas cosas cambian solas.
 
 **No llegó la alerta de la mañana.**
 - Revisa la lista de la campana, no solo el número.
-- Las alertas solo salen si hay algo pendiente, y llegan antes de la jornada (§20).
+- Las alertas solo salen si hay algo pendiente, y llegan antes de la jornada (§21).
 
 **Un certificado de cumplimiento "es de otro semestre".**
 - El SII actualiza el estado en enero y julio, así que el certificado tiene que ser posterior a esa
@@ -1242,7 +1250,7 @@ No dejan avisos al equipo, pero explican por qué algunas cosas cambian solas.
 - No se puede: **Rechazar y eliminar** borra la postulación.
 - La tienda debe postular de nuevo.
 
-## 24. Glosario
+## 25. Glosario
 
 | Término | Qué es |
 |---|---|
