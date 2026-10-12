@@ -10,10 +10,22 @@ import type {
   Withdrawal,
   Socio,
   SocioRequest,
+  OrderHistoryEvent,
 } from '@/modules/administration/types';
 
 export async function getBootstrap(): Promise<AdministrationBootstrapResponse> {
   const response = await apiClient.get<AdministrationBootstrapResponse>('/administration/bootstrap');
+  return response.data;
+}
+
+/**
+ * 12-oct: el historial de un pedido (estados, hitos, pagos, reembolsos, mediaciones). Con
+ * `proveedorId`, solo lo de esa tienda: la fila de Pedidos es por tienda.
+ */
+export async function getOrderHistory(pedidoId: number, proveedorId?: number | null): Promise<OrderHistoryEvent[]> {
+  const response = await apiClient.get<OrderHistoryEvent[]>(`/administration/orders/${pedidoId}/history`, {
+    params: proveedorId != null ? { proveedorId } : undefined,
+  });
   return response.data;
 }
 

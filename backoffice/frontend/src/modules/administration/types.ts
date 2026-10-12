@@ -37,6 +37,26 @@ export interface Order {
   updatedAt: string;
   liquidado?: boolean;
   cancellationTooltip?: string;
+  /** 12-oct: ids reales de la fila, para pedir su historial al backend. */
+  pedidoId?: number;
+  proveedorId?: number | null;
+  /** 12-oct: lo devuelto al comprador por un veredicto de mediación (ya restado de `total`). */
+  montoReembolsado?: number;
+}
+
+/** 12-oct: un paso del historial de un pedido (GET /administration/orders/{id}/history). */
+export interface OrderHistoryEvent {
+  fecha: string;
+  tipo: 'PEDIDO' | 'TIENDA' | 'HITO' | 'PAGO' | 'REEMBOLSO' | 'MEDIACION';
+  titulo: string;
+  detalle: string | null;
+  estadoAnterior: string | null;
+  estadoNuevo: string | null;
+  actor: string;
+  actorDetalle: string | null;
+  monto: number | null;
+  /** Deducido de las fechas del pedido (anterior al registro de historial). */
+  reconstruido: boolean;
 }
 
 export interface Expense {
