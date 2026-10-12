@@ -35,6 +35,7 @@ export default function SaldosEnContraPanel() {
   const pendientes = cargos.filter((c) => c.estado === 'PENDIENTE');
   const paraCobrar = pendientes.filter((c) => c.paraCobrar);
   const totalPendiente = pendientes.reduce((acc, c) => acc + Number(c.monto || 0), 0);
+  const tiendasPendientes = new Set(pendientes.map((c) => c.proveedorId)).size;
 
   async function marcarCobrado(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
@@ -64,7 +65,7 @@ export default function SaldosEnContraPanel() {
 
       <div className="metric-grid compact" style={{ marginBottom: '20px' }}>
         <MetricCard label="Por descontar" value={formatMoney(totalPendiente)} tone="amber" iconName="wallet"
-          description={`${pendientes.length} cargos pendientes en ${new Set(pendientes.map((c) => c.proveedorId)).size} tiendas`} />
+          description={`${pendientes.length} ${pendientes.length === 1 ? 'cargo pendiente' : 'cargos pendientes'} en ${tiendasPendientes} ${tiendasPendientes === 1 ? 'tienda' : 'tiendas'}`} />
         <MetricCard label="Para cobrar" value={paraCobrar.length} tone="red" iconName="alert"
           description="Más de 30 días sin descontarse: cobrar por transferencia" />
       </div>
