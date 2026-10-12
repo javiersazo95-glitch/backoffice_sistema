@@ -11,7 +11,8 @@ import {
   type MediationSuspendPayload,
   type SuspensionDuration,
 } from '@/types/mediation';
-import { useMediation, useResolveCase, useBlockAccount, useAddMessage, useConfirmRefund } from '@/hooks/useMediations';
+import { useMediation, useResolveCase, useBlockAccount, useAddMessage, useConfirmRefund, useSendQuestion } from '@/hooks/useMediations';
+import { attentionView, claimKindHelp, guidedQuestionsFor, type GuidedQuestionTarget } from '@/utils/mediationGuidedFlow';
 import { showToast } from '@/components/layout/Toast';
 import Badge from '@/components/shared/Badge';
 import UiIcon from '@/components/shared/UiIcon';
@@ -24,6 +25,7 @@ import {
   findResolutionOption,
   refundStatusView,
   REFUND_PENDING_CONFIRMATION,
+  RESOLUTION_CHECKLIST,
   resolutionOptionsFor,
   resolutionOptionLabel,
   type MediationFavor,
@@ -166,6 +168,14 @@ interface ChatMessage {
   aligned: 'left' | 'right';
   label: string;
   isMediator: boolean;
+  /** 12-oct (flujos guiados): pregunta con opciones y, si la parte ya eligió, su respuesta. */
+  question?: {
+    title: string;
+    options: { key: string; label: string }[];
+    answerKey?: string | null;
+    answerLabel?: string | null;
+    answerText?: string | null;
+  };
 }
 
 function formatChatTime(value?: string) {
@@ -190,6 +200,15 @@ function mapBackendMessages(messages: MediationMessageResponse[] | undefined, si
     aligned: message.senderRole === 'MEDIADOR' ? 'right' : 'left',
     label: message.senderRole === 'MEDIADOR' ? 'Mediador' : message.senderRole === 'SISTEMA' ? 'Sistema' : side === 'buyer' ? 'Comprador' : 'Tienda',
     isMediator: message.senderRole === 'MEDIADOR',
+    question: message.preguntaKey
+      ? {
+          title: message.preguntaTitulo ?? '',
+          options: (message.opciones ?? []).map((option) => ({ key: option.key, label: option.label })),
+          answerKey: message.respuestaKey ?? null,
+          answerLabel: message.respuestaLabel ?? null,
+          answerText: message.respuestaTexto ?? null,
+        }
+      : undefined,
   }));
 }
 
@@ -304,7 +323,28 @@ function ChatBubble({ message, accent, partyPhotoUrl }: { message: ChatMessage; 
         <div className="chat-bubble-meta">
           <strong>{message.label}</strong>
         </div>
+        {message.question ? <p><strong>{message.question.title}</strong></p> : null}
         <p>{message.text}</p>
+        {message.question ? (
+          <div className="chat-question-options" aria-label="Opciones de la pregunta">
+            {message.question.options.map((option) => (
+              <span
+                key={option.key}
+                className={`chat-question-option${message.question?.answerKey === option.key ? ' selected' : ''}`}
+              >
+                {message.question?.answerKey === option.key ? '✓ ' : ''}{option.label}
+              </span>
+            ))}
+            {message.question.answerKey ? (
+              <small className="chat-question-answer">
+                Respondió: {message.question.answerLabel ?? message.question.answerKey}
+                {message.question.answerText ? ` · ${message.question.answerText}` : ''}
+              </small>
+            ) : (
+              <small className="chat-question-answer">Sin responder todavía.</small>
+            )}
+          </div>
+        ) : null}
         <span>{message.time}</span>
       </div>
     </div>
@@ -389,6 +429,9 @@ function ChatCard({
   onSend,
   disabled,
   banner,
+  questionTarget,
+  onSendQuestion,
+  sendingQuestion,
 }: {
   title: string;
   partyName: string;
@@ -400,8 +443,14 @@ function ChatCard({
   onSend: (value: string) => void;
   disabled?: boolean;
   banner?: ReactNode;
+  /** 12-oct (flujos guiados): a quién van las preguntas con opciones de este chat. */
+  questionTarget?: GuidedQuestionTarget;
+  onSendQuestion?: (key: string) => void;
+  sendingQuestion?: boolean;
 }) {
   const [draft, setDraft] = useState('');
+  const [questionKey, setQuestionKey] = useState('');
+  const questions = questionTarget ? guidedQuestionsFor(questionTarget) : [];
   const threadRef = useRef<HTMLDivElement>(null);
   const resolvedPhotoUrl = useMemo(() => resolveProfileImageUrl(photoUrl), [photoUrl]);
   const [imageFailed, setImageFailed] = useState(false);
@@ -465,6 +514,34 @@ function ChatCard({
       </div>
 
       {banner ? <div className="mediation-chat-banner">{banner}</div> : null}
+
+      {questions.length && onSendQuestion && !disabled ? (
+        <div className="chat-question-sender">
+          <select
+            className="select"
+            value={questionKey}
+            onChange={(event) => setQuestionKey(event.target.value)}
+            aria-label={`Pregunta guiada para ${title.toLowerCase()}`}
+          >
+            <option value="">Enviar pregunta con opciones…</option>
+            {questions.map((question) => (
+              <option key={question.key} value={question.key} title={question.hint}>{question.title}</option>
+            ))}
+          </select>
+          <button
+            className="secondary-button"
+            type="button"
+            disabled={!questionKey || sendingQuestion}
+            onClick={() => {
+              if (!questionKey) return;
+              onSendQuestion(questionKey);
+              setQuestionKey('');
+            }}
+          >
+            {sendingQuestion ? 'Enviando…' : 'Enviar'}
+          </button>
+        </div>
+      ) : null}
 
       <div className="mediation-chat-thread" ref={threadRef}>
         {messages.length ? (
@@ -598,6 +675,16 @@ export default function MediationDetail({
   const resolveMutation = useResolveCase();
   const blockMutation = useBlockAccount();
   const addMessageMutation = useAddMessage();
+  const sendQuestionMutation = useSendQuestion();
+  const handleSendQuestion = (mediationId: number, key: string) => {
+    sendQuestionMutation.mutate(
+      { mediationId, key },
+      {
+        onSuccess: () => showToast('Pregunta enviada'),
+        onError: (error: any) => showToast(error?.response?.data?.message || 'No se pudo enviar la pregunta'),
+      },
+    );
+  };
 
   const handleBack = () => {
     if (onBack) {
@@ -684,10 +771,13 @@ export default function MediationDetail({
   // O64 (pruebas de lanzamiento, 25-sep): "Resolver caso" pide confirmacion antes de ejecutar.
   // Un reembolso se solicita a Flow en el acto y no tiene vuelta atras.
   const [confirmResolveOpen, setConfirmResolveOpen] = useState(false);
+  // 12-oct: el mediador declara que lo físico (devolución, reemplazo) ya se cerró antes de resolver.
+  const [checklistOk, setChecklistOk] = useState(false);
 
   useEffect(() => {
     if (!isViewOpen) return;
     setConfirmResolveOpen(false);
+    setChecklistOk(false);
     setDecision('resolve');
     setHistoryFilter('all');
     setFavor('');
@@ -811,13 +901,17 @@ export default function MediationDetail({
     (Number.isFinite(parsedPercentage) && parsedPercentage >= 1 && parsedPercentage <= 100);
   const veredictoReady =
     !!favor && !!selectedOption && selectedOption.favor === favor && percentageValid;
-  const resolveReady = veredictoReady;
+  const checklistText = selectedOption ? RESOLUTION_CHECKLIST[selectedOption.key] : undefined;
+  const resolveReady = veredictoReady && (!checklistText || checklistOk);
 
   const handleFavorChange = (next: MediationFavor) => {
     setFavor(next);
     setResolutionOption('');
     setRefundPercentage('');
+    setChecklistOk(false);
   };
+  const claimHelp = claimKindHelp(item?.claimKind);
+  const attention = attentionView(item?.atencionMediador);
 
   // O64: a quien favorece el veredicto y, si hay reembolso, cuanto. El monto exacto lo calcula
   // el backend sobre lo comprado en la tienda (lineas + envio, tope el total del pedido), asi que
@@ -852,6 +946,7 @@ export default function MediationDetail({
             onChange={(event) => {
               setResolutionOption(event.target.value);
               setRefundPercentage('');
+              setChecklistOk(false);
             }}
           >
             <option value="">Selecciona una figura legal…</option>
@@ -865,9 +960,12 @@ export default function MediationDetail({
           </select>
           {modo === 'resolver' && favor === 'COMPRADOR' && reembolsoPlataformaVencido ? (
             <small style={{ color: '#b45309' }}>
-              Pasaron {item?.daysSinceReceived ?? 'más de 30'} días desde que el comprador recibió el producto: RepuesTop ya no
-              reembolsa. Usa «Devolución de lo pagado por la tienda», reposición o reparación; lo cumple la tienda.
+              Pasaron {item?.daysSinceReceived ?? 'más de 30'} días desde que el comprador recibió el producto y esta venta ya se le
+              pagó a la tienda: RepuesTop ya no reembolsa. Usa «Devolución de lo pagado por la tienda», reposición o reparación.
             </small>
+          ) : null}
+          {modo === 'resolver' && claimHelp ? (
+            <small style={{ color: '#475569' }}>{claimHelp}</small>
           ) : null}
           {selectedOption ? (
             <small style={{ color: '#64748b' }}>{selectedOption.fundamentoLegal}.</small>
@@ -906,6 +1004,15 @@ export default function MediationDetail({
           <UiIcon name="info" />
           <p>Reembolso íntegro: se devolverá el 100% del subtotal de la compra en la tienda.</p>
         </div>
+      ) : null}
+
+      {modo === 'resolver' && checklistText ? (
+        <label className="mediation-resolution-checklist">
+          <input type="checkbox" checked={checklistOk} onChange={(event) => setChecklistOk(event.target.checked)} />
+          <span>
+            <strong>Antes de resolver, confirmo que:</strong> {checklistText}
+          </span>
+        </label>
       ) : null}
 
       {selectedOption ? (
@@ -1007,6 +1114,9 @@ export default function MediationDetail({
               <div className="mediation-management-meta">
                 <span>{item.externalId}</span>
                 <Badge text={mediationStatusDisplay(item.status, item.accountBlocked)} variant={item.accountBlocked ? 'cuenta-bloqueada' : item.status} />
+                {attention && item.status === MediationStatus.EN_MEDIACION ? (
+                  <Badge text={attention.label} variant={attention.tone === 'success' ? 'green' : attention.tone === 'warning' ? 'amber' : 'blue'} />
+                ) : null}
                 {suspensionDurationText(item) ? (
                   <span>
                     {item.caseSuspensionTarget === 'COMPRADOR' ? 'Comprador suspendido' : 'Tienda suspendida'}: {suspensionDurationText(item)}
@@ -1107,6 +1217,9 @@ export default function MediationDetail({
               placeholder="Aún no hay mensajes en este chat."
               onSend={(value) => item?.id && handleSendMessage(item.id, value, 'COMPRADOR')}
               disabled={item.status === MediationStatus.RESUELTA || item.accountBlocked || item.buyerMessages?.some((m) => m.closed)}
+              questionTarget="COMPRADOR"
+              onSendQuestion={(key) => item?.id && handleSendQuestion(item.id, key)}
+              sendingQuestion={sendQuestionMutation.isPending}
               banner={
                 item.resolucionFavor === 'COMPRADOR'
                   && ((item.montoReembolso ?? 0) > 0 || item.estadoReembolso === REFUND_PENDING_CONFIRMATION)
@@ -1125,6 +1238,9 @@ export default function MediationDetail({
               placeholder="Aún no hay mensajes en este chat."
               onSend={(value) => item?.id && handleSendMessage(item.id, value, 'VENDEDOR')}
               disabled={item.status === MediationStatus.RESUELTA || item.accountBlocked || item.sellerMessages?.some((m) => m.closed)}
+              questionTarget="VENDEDOR"
+              onSendQuestion={(key) => item?.id && handleSendQuestion(item.id, key)}
+              sendingQuestion={sendQuestionMutation.isPending}
             />
 
             <section className="mediation-actions-card">

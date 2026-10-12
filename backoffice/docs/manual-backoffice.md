@@ -382,7 +382,15 @@ pestañas.
 **El caso completo**
 
 - Motivo, evidencias del comprador y de la tienda.
-- Un chat con cada parte.
+- Un chat con cada parte. Arriba de cada chat está **Enviar pregunta con opciones** (desde el 12 de
+  octubre): el sistema le manda a esa parte una pregunta con botones y, cuando la toca, sigue solo con
+  la otra parte. Las preguntas son: cómo prefiere resolverlo el comprador (dinero, cambio o reparación),
+  devolver el producto a la tienda, si la tienda recibió la devolución, si puede cumplir el cambio, si
+  ya envió el reemplazo y si el comprador lo recibió. Al pedir mediador, la primera pregunta sale sola
+  según el motivo del reclamo (retracto → devolver; falla o producto equivocado → elegir solución).
+- Junto al estado del caso aparece qué espera: **Esperando al comprador**, **Esperando a la tienda**,
+  **Listo para resolver** (lo físico ya se cerró) o **Pide ayuda** (alguien tocó "Necesito ayuda" u
+  objetó una devolución). Solo hay que entrar al chat en los dos últimos o cuando alguien escribe a mano.
 - **Acciones del mediador:** **Resolver mediación** o **Suspender cuenta**. El paso a paso de
   resolver está en [F8](#f8-resolver-una-mediación).
 
@@ -1106,27 +1114,49 @@ La tienda **sigue vendiendo** mientras su certificado está en revisión.
 
 **Quién:** Confianza. **Cuándo:** lo antes posible. A los 5 días el caso pasa a crítico.
 
+**La regla de oro (desde el 12 de octubre):** el caso se resuelve **una sola vez y solo cuando ya no
+queda nada físico pendiente**. Mientras el comprador devuelve el producto o la tienda manda el
+reemplazo, el caso sigue **En mediación**: la venta está retenida y el chat abierto. No hay que
+resolver para "avanzar".
+
+| Situación | Qué pasa en el chat (lo lleva el sistema con preguntas con opciones) | Resuelve con |
+|---|---|---|
+| Retracto (se arrepintió, producto sin uso) | El comprador recibe la dirección de la tienda y devuelve con flete suyo. La tienda confirma la recepción (5 días hábiles; si no responde, se presume recibido). | **Reembolso íntegro** |
+| Falla o producto equivocado y el comprador quiere el dinero | El comprador elige "dinero", devuelve con flete de la tienda y la tienda confirma. | **Reembolso íntegro** |
+| Falla y el comprador quiere cambio o reparación | El comprador elige, la tienda acepta, recibe la devolución y envía el reemplazo (10 días hábiles). El comprador confirma que lo recibió. | **Reposición cumplida** o **Reparación cumplida por la tienda** |
+| La tienda no cumple el cambio o la reparación en 10 días hábiles | Avísale por el chat y espera el plazo. | **Reembolso íntegro** (checklist: "la tienda incumplió"); procede aunque pasen 30 días si la venta sigue retenida |
+| No le llegó el producto | Pide a la tienda el comprobante de despacho o el PIN de retiro. | **Reembolso íntegro** (sin devolución) o **Entrega acreditada** |
+| Diferencia menor (falta un accesorio, rayón) | Propón una rebaja; el comprador se queda con el producto. | **Rebaja proporcional (reembolso parcial)** |
+| Retracto con el repuesto instalado, probado o dañado | Pide fotos a ambos. | **Retracto no procede** |
+| Producto conforme / entrega acreditada / fuera de plazo | Igual que antes. | Las opciones a favor de la tienda |
+| Ya se le pagó la venta a la tienda y pasaron 30 días | Igual que antes. | **Devolución de lo pagado por la tienda** |
+
 1. Ir a **Mediaciones**, elegir el caso y pulsar **Revisar mediación**.
-2. Leer el motivo, revisar las evidencias de ambas partes y conversar por los chats.
+2. Leer el motivo, revisar las evidencias de ambas partes y seguir el chip de estado: entrar al chat
+   solo si dice **Pide ayuda** o si alguien escribió a mano. Con **Listo para resolver**, ir al paso 3.
 3. En **Acciones del mediador**, elegir **Resolver mediación**:
    1. **Veredicto de la mediación:** **A favor del comprador** o **A favor de la tienda**.
    2. **Opción de resolución (Ley 19.496)**:
       - a favor del comprador: reembolso íntegro, rebaja proporcional (reembolso parcial),
-        devolución de lo pagado por la tienda, reposición o reparación;
-      - a favor de la tienda: producto conforme, entrega acreditada o reclamo fuera de plazo.
+        devolución de lo pagado por la tienda, reposición cumplida o reparación cumplida;
+      - a favor de la tienda: producto conforme, entrega acreditada, reclamo fuera de plazo o
+        retracto no procede.
    3. Si es reembolso parcial, el **Porcentaje de reembolso**, entre 1 y 100. El monto lo calcula el
       sistema.
+   4. Marcar la **casilla de confirmación** que aparece con la opción (por ejemplo, "la tienda
+      confirmó que recibió la devolución, o no corresponde devolver"). Sin marcarla no se puede
+      resolver.
 4. Revisar la vista previa del mensaje que recibirán las partes y pulsar **Resolver caso**.
 5. Confirmar. Si hay reembolso, el sistema lo pide a Flow (llega en 5 a 10 días hábiles) y la
    confirmación dice que **no se puede deshacer**.
 
-**Tope de 30 días (desde el 12 de octubre).** RepuesTop reembolsa por Flow solo hasta **30 días
-desde que el comprador recibió el producto**, como Compra Protegida de Mercado Libre. Pasado ese
-plazo, la garantía legal sigue (6 meses), pero lo cumple la tienda: el reembolso íntegro y el parcial
-aparecen deshabilitados con "(más de 30 días)" y hay que elegir **Devolución de lo pagado por la
-tienda**, reposición o reparación. Antes de resolver, pide en el chat el comprobante de la
-devolución. La suspensión de la tienda sí puede reembolsar después de los 30 días, porque una tienda
-suspendida no devuelve por su cuenta.
+**Tope de 30 días.** RepuesTop reembolsa por Flow con el dinero retenido de la venta. Si la venta
+**ya se le pagó a la tienda** y pasaron más de **30 días desde que el comprador recibió el producto**,
+RepuesTop ya no reembolsa: el reembolso íntegro y el parcial aparecen deshabilitados con "(más de 30
+días)" y hay que elegir **Devolución de lo pagado por la tienda**, reposición o reparación. Si la venta
+sigue retenida (lo normal mientras el caso está en mediación), el reembolso procede aunque hayan
+pasado más de 30 días. La suspensión de la tienda también puede reembolsar después de los 30 días,
+porque una tienda suspendida no devuelve por su cuenta.
 
 Si el reembolso dentro de los 30 días cae sobre una venta que ya se le pagó a la tienda, se le
 descuenta de su próximo retiro (§16, Saldos en contra).

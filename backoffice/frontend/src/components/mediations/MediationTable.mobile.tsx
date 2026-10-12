@@ -2,6 +2,7 @@ import { MediationResponse } from '@/types/mediation';
 import UiIcon from '@/components/shared/UiIcon';
 import FounderSellerName from '@/components/shared/FounderSellerName';
 import Badge from '@/components/shared/Badge';
+import { attentionView } from '@/utils/mediationGuidedFlow';
 import { mediationStatusDisplay } from '@/utils/formatters';
 import { RecordCard, RecordList, EmptyState } from '@/components/mobile';
 
@@ -43,6 +44,9 @@ export function MediationCardList({
             meta={[
               { label: 'Pedido', value: <strong className="blue-link">{item.orderId}</strong> },
               { label: 'Abierta hace', value: item.elapsed || '—' },
+              ...(item.status === 'EN_MEDIACION' && attentionView(item.atencionMediador)
+                ? [{ label: 'Estado del flujo', value: attentionView(item.atencionMediador)!.label }]
+                : []),
               { label: 'Motivo', value: item.reason, wide: true },
             ]}
             selected={selectedId === item.id}

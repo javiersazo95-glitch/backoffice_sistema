@@ -3,6 +3,7 @@ import UiIcon from '@/components/shared/UiIcon';
 import FounderSellerName from '@/components/shared/FounderSellerName';
 import Badge from '@/components/shared/Badge';
 import { mediationStatusDisplay } from '@/utils/formatters';
+import { attentionView } from '@/utils/mediationGuidedFlow';
 
 interface MediationTableRowProps {
   item: MediationResponse;
@@ -69,7 +70,17 @@ export default function MediationTableRow({
       <td><strong className="blue-link">{item.orderId}</strong></td>
       <td>{item.reason}</td>
       <td style={{ textAlign: 'center' }}>
-        <Badge text={mediationStatusDisplay(item.status, item.accountBlocked)} variant={item.accountBlocked ? 'cuenta-bloqueada' : item.status} />
+        <div className="mediation-status-cell">
+          <Badge text={mediationStatusDisplay(item.status, item.accountBlocked)} variant={item.accountBlocked ? 'cuenta-bloqueada' : item.status} />
+          {/* 12-oct: cuantos dias lleva abierto y que espera (flujo guiado), para no olvidar un caso. */}
+          {item.status === 'EN_MEDIACION' && item.elapsed ? <small className="row-sub">Abierta hace {item.elapsed}</small> : null}
+          {item.status === 'EN_MEDIACION' && attentionView(item.atencionMediador) ? (
+            <Badge
+              text={attentionView(item.atencionMediador)!.label}
+              variant={attentionView(item.atencionMediador)!.tone === 'success' ? 'green' : attentionView(item.atencionMediador)!.tone === 'warning' ? 'amber' : 'blue'}
+            />
+          ) : null}
+        </div>
       </td>
       <td className="mediation-actions-cell">
         <div className="seller-actions compact-actions centered-actions">

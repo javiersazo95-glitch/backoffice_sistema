@@ -178,6 +178,20 @@ export function useAddMessage() {
   });
 }
 
+/** 12-oct (flujos guiados): tras enviar la pregunta se relee el caso (trae el mensaje y `atencionMediador`). */
+export function useSendQuestion() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ mediationId, key, fletePor }: { mediationId: number; key: string; fletePor?: 'COMPRADOR' | 'TIENDA' }) =>
+      mediationsApi.sendQuestion(mediationId, key, fletePor),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['mediation', variables.mediationId] });
+      queryClient.invalidateQueries({ queryKey: ['mediation-messages', variables.mediationId] });
+      queryClient.invalidateQueries({ queryKey: ['mediations'] });
+    },
+  });
+}
+
 export function useEditMessage() {
   const queryClient = useQueryClient();
   return useMutation({

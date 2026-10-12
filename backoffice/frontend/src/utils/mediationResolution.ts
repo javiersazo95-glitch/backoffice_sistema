@@ -30,7 +30,9 @@ export const MEDIATION_RESOLUTION_OPTIONS: MediationResolutionOption[] = [
     label: 'Reembolso íntegro de lo pagado',
     fundamentoLegal:
       'Artículos 19 a 21 de la Ley N° 19.496 (garantía legal y derecho de opción del consumidor a la restitución de lo pagado)',
-    motivo: 'El producto presentó una falla o no correspondía a lo comprado, y la garantía legal permite pedir la devolución de lo pagado.',
+    // 12-oct: cubre el retracto (art. 3 bis) y la garantía legal. Se elige cuando la tienda ya
+    // recibió la devolución, o no corresponde devolver (no llegó, la tienda renunció o incumplió).
+    motivo: 'Te arrepentiste dentro del plazo o el producto presentó una falla o no correspondía a lo comprado, y la ley permite pedir la devolución de lo pagado.',
     requiresPercentage: false,
     appliesRefund: true,
   },
@@ -55,21 +57,23 @@ export const MEDIATION_RESOLUTION_OPTIONS: MediationResolutionOption[] = [
     requiresPercentage: false,
     appliesRefund: false,
   },
+  // 12-oct: en pasado. El caso sigue en mediación (venta retenida, chat abierto) mientras la tienda
+  // cumple; se resuelve con estas figuras cuando el comprador ya confirmó que recibió el reemplazo.
   {
     key: 'REPOSICION_PRODUCTO',
     favor: 'COMPRADOR',
-    label: 'Reposición o cambio del producto',
+    label: 'Reposición del producto cumplida por la tienda',
     fundamentoLegal: 'Artículo 20 de la Ley N° 19.496 (derecho del consumidor a la reposición del producto)',
-    motivo: 'El producto presentó una falla o no correspondía a lo comprado, y la garantía legal permite pedir su cambio.',
+    motivo: 'El producto presentó una falla o no correspondía a lo comprado, elegiste el cambio y la tienda ya te entregó el reemplazo.',
     requiresPercentage: false,
     appliesRefund: false,
   },
   {
     key: 'REPARACION_GRATUITA',
     favor: 'COMPRADOR',
-    label: 'Reparación gratuita del producto',
+    label: 'Reparación gratuita cumplida por la tienda',
     fundamentoLegal: 'Artículos 20 y 41 de la Ley N° 19.496 (derecho a la reparación gratuita)',
-    motivo: 'El producto presentó una falla, y la garantía legal permite pedir su reparación sin costo.',
+    motivo: 'El producto presentó una falla, elegiste la reparación sin costo y la tienda ya te lo devolvió reparado.',
     requiresPercentage: false,
     appliesRefund: false,
   },
@@ -89,6 +93,18 @@ export const MEDIATION_RESOLUTION_OPTIONS: MediationResolutionOption[] = [
     label: 'Entrega y recepción conforme acreditada',
     fundamentoLegal: 'Artículo 21 de la Ley N° 19.496 (consta la entrega del producto en las condiciones convenidas)',
     motivo: 'Consta que el producto se entregó en las condiciones acordadas.',
+    requiresPercentage: false,
+    appliesRefund: false,
+  },
+  // 12-oct: el retracto exige devolver sin deterioro imputable al comprador (art. 3 bis) y el
+  // Decreto 52/2024 solo admite excluirlo en bienes hechos a pedido, entre otros.
+  {
+    key: 'RETRACTO_NO_PROCEDE',
+    favor: 'VENDEDOR',
+    label: 'Retracto no procede: producto instalado, usado o dañado',
+    fundamentoLegal:
+      'Artículo 3 bis de la Ley N° 19.496 (no procede el retracto si el bien se deterioró por hecho imputable al consumidor) y Decreto 52/2024 del Ministerio de Economía (bienes hechos a pedido o codificados al vehículo)',
+    motivo: 'El repuesto fue instalado, probado en el vehículo o dañado después de recibirlo, o fue hecho a pedido, por lo que no corresponde el retracto.',
     requiresPercentage: false,
     appliesRefund: false,
   },
@@ -131,6 +147,20 @@ export const AUTOMATIC_RESOLUTION_OPTIONS: MediationResolutionOption[] = [
     appliesRefund: false,
   },
 ];
+
+/**
+ * 12-oct: lo que el mediador tiene que haber comprobado antes de resolver con cada figura. El caso no
+ * se resuelve hasta que lo físico (devolución, reemplazo) esté cerrado; esta casilla se lo exige.
+ * Sin entrada no hay casilla.
+ */
+export const RESOLUTION_CHECKLIST: Record<string, string> = {
+  REEMBOLSO_TOTAL:
+    'La tienda confirmó que recibió la devolución en buen estado, o no corresponde devolver (el producto no llegó, la tienda renunció a la devolución o incumplió el cambio o la reparación en el plazo).',
+  REPOSICION_PRODUCTO: 'El comprador confirmó en el chat que recibió el producto de reemplazo conforme.',
+  REPARACION_GRATUITA: 'El comprador confirmó en el chat que recibió el producto reparado y funciona.',
+  DEVOLUCION_POR_LA_TIENDA: 'La tienda confirmó que recibió la devolución (o no corresponde devolver) y se le informó que debe devolver el dinero directamente.',
+  RETRACTO_NO_PROCEDE: 'Hay fotos u otra evidencia de que el repuesto fue instalado, probado o dañado por el comprador, o de que era un producto a pedido informado antes de pagar.',
+};
 
 /** Reembolso registrado al cerrar un caso por suspension de la tienda, pendiente de que el mediador lo confirme. */
 export const REFUND_PENDING_CONFIRMATION = 'PENDIENTE_CONFIRMACION';
@@ -247,6 +277,9 @@ export function buildVeredictoPreview(params: {
 
   if (option.appliesRefund) {
     const pct = option.requiresPercentage ? refundPercentage ?? 0 : 100;
+    if (favor === 'COMPRADOR' && !option.requiresPercentage) {
+      text += ' (Confirmaste que el producto ya volvió a la tienda o que no requiere devolución.)';
+    }
     text +=
       ` Se aplicará un reembolso del ${pct}% sobre el subtotal de la compra en la tienda, que se ` +
       `solicitará a la pasarela de pagos (Flow) y se acreditará en el mismo medio de pago en un plazo ` +

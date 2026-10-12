@@ -57,6 +57,13 @@ export interface MediationResponse {
   suspensionPuedeApelar?: boolean | null;
   suspensionMotivo?: string | null;
   suspensionDetalle?: string | null;
+  /**
+   * 12-oct (flujos guiados): qué espera el caso del mediador (ESPERANDO_COMPRADOR, ESPERANDO_TIENDA,
+   * LISTO_PARA_RESOLVER, NECESITA_AYUDA) o null. `claimKind`: RETRACTO | FALLA | NO_RECIBIDO | OTRO.
+   */
+  atencionMediador?: string | null;
+  claimReasonCode?: string | null;
+  claimKind?: string | null;
 }
 
 export interface MediationDetailResponse extends MediationResponse {
@@ -116,6 +123,23 @@ export interface MediationMessageResponse {
   senderUserId?: number | null;
   editedAt: string;
   createdAt: string;
+  /** 12-oct (flujos guiados): el mensaje es una pregunta con opciones; `respuestaKey` si ya se respondió. */
+  preguntaKey?: string | null;
+  preguntaTitulo?: string | null;
+  opciones?: MediationQuestionOption[] | null;
+  respuestaKey?: string | null;
+  respuestaLabel?: string | null;
+  respuestaTexto?: string | null;
+  respondidoAt?: string | null;
+  respondidoPor?: string | null;
+}
+
+export interface MediationQuestionOption {
+  key: string;
+  label: string;
+  pideTexto?: boolean;
+  pideFotos?: boolean;
+  placeholder?: string | null;
 }
 
 export interface MediationSummaryResponse {

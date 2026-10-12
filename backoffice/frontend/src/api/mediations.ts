@@ -58,6 +58,17 @@ export async function reactivateAccount(id: number, data: ResolveCaseRequest, do
   return response.data;
 }
 
+/**
+ * 12-oct (flujos guiados): manda a una parte una pregunta con opciones (ver utils/mediationGuidedFlow).
+ * `fletePor` (COMPRADOR | TIENDA) solo aplica a la pregunta de devolución.
+ */
+export async function sendQuestion(mediationId: number, key: string, fletePor?: 'COMPRADOR' | 'TIENDA'): Promise<MediationMessageResponse> {
+  const response = await apiClient.post<MediationMessageResponse>(`/mediations/${mediationId}/preguntas/${key}`, null, {
+    params: fletePor ? { fletePor } : undefined,
+  });
+  return response.data;
+}
+
 export async function getMessages(mediationId: number, page = 0, size = 4): Promise<PageResponse<MediationMessageResponse>> {
   const response = await apiClient.get<PageResponse<MediationMessageResponse>>(`/mediations/${mediationId}/messages`, {
     params: { page, size },
