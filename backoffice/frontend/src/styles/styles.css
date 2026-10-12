@@ -14111,6 +14111,34 @@ tr.is-active {
   height: min(78vh, 900px);
 }
 
+/* 12-oct: "Imprimir / PDF" del informe de gastos imprimia la pantalla entera (menu, pagina y el
+   modal encima). Al imprimir solo se ve lo marcado con .report-print. */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  .report-print,
+  .report-print * {
+    visibility: visible;
+  }
+
+  .modal-backdrop,
+  .modal-panel {
+    position: static !important;
+    max-height: none !important;
+    overflow: visible !important;
+    box-shadow: none !important;
+    border: 0 !important;
+    background: none !important;
+  }
+
+  .report-print table {
+    min-width: 0;
+    width: 100%;
+  }
+}
+
 /* Confirmación de "Procesar pago" / rechazo en Pago a captadores */
 .modal-panel.pay-confirm {
   width: min(460px, 100%);

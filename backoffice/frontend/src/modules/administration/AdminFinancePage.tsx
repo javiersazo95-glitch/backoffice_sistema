@@ -67,7 +67,6 @@ import {
   chileDay,
   formatMonthName,
   formatMoney,
-  getCashAllocation,
   getExpenseTotal,
   getMonthRange,
   getPartnerBalances,
@@ -2253,7 +2252,6 @@ export default function AdminFinancePage() {
   const paidIva = paidPeriodSettlements.reduce((sum, settlement) => sum + settlement.serviceCommissionIva, 0);
   const selectedLiquidationPeriod = selectedLiquidationSeller?.settlements[0] ? getLiquidationPeriod(selectedLiquidationSeller.settlements[0].date) : '';
   const activeLiquidationPeriod = liquidationTab === 'EN_LIQUIDACION' && filteredSettlements[0] ? getLiquidationPeriod(filteredSettlements[0].date) : '';
-  const { cashFund } = getCashAllocation(totalCommission);
   const expenseTotal = getExpenseTotal(selectedExpenseRows);
   const totalCajaIncome = cajaMetrics.totalCaja;
   const cashBalance = totalCajaIncome - expenseTotal;
@@ -4351,14 +4349,16 @@ export default function AdminFinancePage() {
       )}
 
       {reportOpen && (
-        <Modal title="Informe de gastos" subtitle={`${filteredExpenses.length} registros · ${formatDate(filters.gastos.start)} - ${formatDate(filters.gastos.end)}`} onClose={() => setReportOpen(false)}>
-          <div className="report-summary">
+        <Modal wide title="Informe de gastos" subtitle={`${filteredExpenses.length} registros · ${formatDate(filters.gastos.start)} - ${formatDate(filters.gastos.end)}`} onClose={() => setReportOpen(false)}>
+          {/* 12-oct: misma caja que las tarjetas (pedidos + publicidad del periodo). Antes usaba el
+              70% de las liquidaciones filtradas en otra pestaña y daba otra cifra ($5.005). */}
+          <div className="report-summary report-print">
             <div><span>Registros</span><strong>{filteredExpenses.length}</strong></div>
             <div><span>Total gastos</span><strong>{formatMoney(getExpenseTotal(filteredExpenses))}</strong></div>
-            <div><span>Caja RepuesTop</span><strong>{formatMoney(cashFund)}</strong></div>
-            <div><span>Saldo caja</span><strong>{formatMoney(cashFund - getExpenseTotal(filteredExpenses))}</strong></div>
+            <div><span>Caja RepuesTop</span><strong>{formatMoney(totalCajaIncome)}</strong></div>
+            <div><span>Saldo caja</span><strong>{formatMoney(totalCajaIncome - getExpenseTotal(filteredExpenses))}</strong></div>
           </div>
-          <div className="table-shell embedded">
+          <div className="table-shell embedded report-print">
             <table>
               <thead><tr><th>Fecha</th><th>Categoría</th><th>Descripción</th><th>Monto</th><th>Comprobante</th></tr></thead>
               <tbody>

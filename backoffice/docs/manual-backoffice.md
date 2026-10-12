@@ -621,8 +621,9 @@ Registro de Compras y Ventas del SII y para preparar el F29.
 El comprobante es **obligatorio**: PDF, JPG o PNG de hasta 5 MB, a nombre de RepuesTop. Al editar un
 gasto se puede reemplazar, pero no quitar.
 
-> **Ojo:** el "Informe de gastos" calcula su caja de otra forma, así que su cifra no cuadra con la
-> tarjeta de la pestaña.
+- **Generar informe** muestra los gastos del período con la misma caja y el mismo saldo que las
+  tarjetas (desde el 12 de octubre; antes usaba otra cifra). **Imprimir / PDF** imprime solo el
+  informe.
 
 ## 16. Pago a proveedores
 
