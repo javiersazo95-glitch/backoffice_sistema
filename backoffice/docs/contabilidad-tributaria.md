@@ -562,6 +562,9 @@ contacto@repuestop.cl y el equipo lo registraba. Ahora:
   estado (pendiente de la tienda, rechazada o pendiente de RepuesTop).
 - El backoffice puede seguir **registrando a mano** la nota de una tienda (`origen = BACKOFFICE`).
 - Se quitó la propiedad `repuestop.contabilidad.email-documentos`.
+- **12 de octubre:** la nota se pide solo si la devolución ya está pedida o hecha
+  (`EstadoReembolso.esComprometido`); con error o rechazo de Flow espera a que soporte la resuelva.
+  Si el comprador pidió factura, los textos dicen "factura de venta" en vez de "boleta".
 
 ### 8.3 Situación tributaria de las tiendas (migraciones `V2026100903` y `V2026100905`)
 
