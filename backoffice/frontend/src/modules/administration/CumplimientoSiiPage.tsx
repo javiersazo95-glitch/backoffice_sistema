@@ -69,6 +69,15 @@ function estadoPendiente(p: CreditNotePending): { text: string; tone: string } {
   return { text: 'Pendiente de la tienda', tone: 'tone-amber' };
 }
 
+/** Algunos PDF se guardaron con el nombre codificado ("Adhesi%C3%B3n"): se muestra legible. */
+function legible(texto: string): string {
+  try {
+    return decodeURIComponent(texto);
+  } catch {
+    return texto;
+  }
+}
+
 function netoEIva(total: number): { neto: number; iva: number } {
   const neto = Math.round(total / (1 + IVA));
   return { neto, iva: total - neto };
@@ -257,7 +266,7 @@ function NotasCreditoPanel() {
                         <span className={`status-pill ${estado.tone}`}>{estado.text}</span>
                         {p.motivoRechazo && <div className="panel-hint">Motivo: {p.motivoRechazo}</div>}
                         <div className="panel-hint">
-                          Anula: {p.documentoAnulado}{p.codigoRetiro && ` (${p.codigoRetiro})`}
+                          Anula: {legible(p.documentoAnulado)}{p.codigoRetiro && ` (${p.codigoRetiro})`}
                         </div>
                       </td>
                       <td>
@@ -369,7 +378,7 @@ function NotasCreditoPanel() {
           <form className="form-grid" onSubmit={saveDraft}>
             <p className="panel-hint" style={{ gridColumn: '1 / -1' }}>
               Pedido <strong>{pedidoLabel(draft.pending.codigoPedido, draft.pending.pedidoId)}</strong> · {draft.pending.nombreTienda ?? '—'}
-              {' · '}emite <strong>{EMISOR_LABEL[draft.pending.emisor]}</strong> · anula: {draft.pending.documentoAnulado}.
+              {' · '}emite <strong>{EMISOR_LABEL[draft.pending.emisor]}</strong> · anula: {legible(draft.pending.documentoAnulado)}.
               {' '}Reembolso {draft.pending.montoReembolso != null ? formatMoney(draft.pending.montoReembolso) : '—'}.
               {' '}Vence el {formatDate(draft.pending.venceEl)}.
             </p>
