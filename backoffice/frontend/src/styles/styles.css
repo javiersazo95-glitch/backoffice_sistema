@@ -14101,6 +14101,16 @@ tr.is-active {
   box-shadow: 0 24px 70px rgba(15, 27, 45, 0.22);
 }
 
+/* 12-oct: documentos (comprobante de gasto): ancho para que el PDF se lea. */
+.modal-panel.modal-panel--wide {
+  width: min(1100px, 100%);
+  max-height: 94vh;
+}
+
+.modal-panel--wide .receipt-viewer iframe {
+  height: min(78vh, 900px);
+}
+
 /* Confirmación de "Procesar pago" / rechazo en Pago a captadores */
 .modal-panel.pay-confirm {
   width: min(460px, 100%);

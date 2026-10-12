@@ -448,16 +448,19 @@ function Modal({
   badges,
   children,
   onClose,
+  wide = false,
 }: {
   title: ReactNode;
   subtitle?: string;
   badges?: ReactNode;
   children: ReactNode;
   onClose: () => void;
+  /** Para documentos (PDF): el panel de 760px los dejaba ilegibles. */
+  wide?: boolean;
 }) {
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={onClose}>
-      <section className="modal-panel" role="dialog" aria-modal="true" aria-label={typeof title === 'string' ? title : 'Detalle'} onMouseDown={(event) => event.stopPropagation()}>
+      <section className={`modal-panel${wide ? ' modal-panel--wide' : ''}`} role="dialog" aria-modal="true" aria-label={typeof title === 'string' ? title : 'Detalle'} onMouseDown={(event) => event.stopPropagation()}>
         <div className="modal-header">
           <div className="modal-title-block">
             <h2>{title}</h2>
@@ -4330,7 +4333,7 @@ export default function AdminFinancePage() {
 
 
       {receiptExpense && (
-        <Modal title="Comprobante del gasto" subtitle={`${receiptExpense.description} · ${receiptExpense.receipt ?? ''}`} onClose={() => setReceiptExpense(null)}>
+        <Modal wide title="Comprobante del gasto" subtitle={`${receiptExpense.description} · ${receiptExpense.receipt ?? ''}`} onClose={() => setReceiptExpense(null)}>
           <div className="receipt-viewer">
             {!receiptExpense.receiptUrl
               ? <div className="empty-state compact-empty">El gasto tiene registrado el comprobante {receiptExpense.receipt}, pero no hay un archivo cargado en esta sesión para previsualizar.</div>
@@ -4339,7 +4342,8 @@ export default function AdminFinancePage() {
                 : !receiptObjectUrl
                   ? <div className="empty-state compact-empty">Cargando comprobante…</div>
                   : receiptExpense.receiptType === 'application/pdf' || receiptExpense.receipt?.toLowerCase().endsWith('.pdf')
-                    ? <iframe title={`Comprobante ${receiptExpense.receipt}`} src={receiptObjectUrl} />
+                    // #view=FitH: el visor del navegador abre la pagina al ancho, no al 50%.
+                    ? <iframe title={`Comprobante ${receiptExpense.receipt}`} src={`${receiptObjectUrl}#view=FitH`} />
                     : <img src={receiptObjectUrl} alt={`Comprobante ${receiptExpense.receipt}`} />}
           </div>
         </Modal>
