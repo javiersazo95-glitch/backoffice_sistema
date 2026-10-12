@@ -14473,6 +14473,13 @@ tr.is-active {
   object-fit: contain;
 }
 
+/* 12-oct: el iframe sin alto quedaba en los 150px por defecto del navegador y el PDF se veia en
+   una franja. Se le da el alto de la pantalla, con tope. */
+.receipt-viewer iframe {
+  height: min(70vh, 640px);
+  max-height: none;
+}
+
 .registered-document-preview {
   display: grid;
   gap: 16px;
