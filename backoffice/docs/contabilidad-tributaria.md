@@ -854,6 +854,15 @@ y bcn.cl cambiaron siete puntos:
 market; ver §8.2): carga desde el detalle de la venta, registro inmediato, rechazo con motivo, tope y
 monto propuesto, contexto en la lista de pendientes y alertas al equipo solo por las de RepuesTop.
 
+**12 de octubre: saldo en contra de las tiendas** (backend `V2026101201`, backoffice, app y
+market). Un reembolso por mediación sobre una venta que ya había entrado en un retiro deja un cargo
+(`rt_cargo_tienda`, `CargoTiendaService`): el neto de la venta antes del reembolso menos el de después,
+con la misma cuenta del retiro (O28). Se descuenta entero en el próximo retiro (si las ventas no lo
+cubren, no se puede retirar); a los 30 días sin descontarse, el backoffice lo cobra por transferencia
+y lo marca cobrado (Pago a proveedores → Saldos en contra). Al rechazar el retiro que lo descontó
+vuelve a pendiente; al rechazar el que pagaba la venta, se anula. La nota de crédito de la tienda y
+la de RepuesTop por la comisión se piden igual (§8.2).
+
 **Pruebas:** C y D se probaron en local con backend y backoffice levantados. Hay que re-probar todo
 en `dev` con el plan R1 a R16 (`repuestop/docs/planes/plan_prueba_completa_app_dev_oct.md`). Datos de
 prueba que quedaron en local:

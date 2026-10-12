@@ -14,6 +14,7 @@ import { downloadFile, getCurrentCycleRange } from './utils';
 import type { RetiroAdminResponse, RetiroDetalleResponse, PagoProveedorResponse, ConfiguracionPagos, Withdrawal } from './types';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { RecordCard, RecordList, EmptyState } from '@/components/mobile';
+import SaldosEnContraPanel from './SaldosEnContraPanel';
 
 
 /**
@@ -125,7 +126,7 @@ function calcularPagables(
 export default function PagoProveedoresPage() {
   const isMobile = useIsMobile();
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<'gestion' | 'historial'>('gestion');
+  const [activeTab, setActiveTab] = useState<'gestion' | 'historial' | 'saldos'>('gestion');
   const [isProcesarModalOpen, setIsProcesarModalOpen] = useState(false);
   const [processingBulk, setProcessingBulk] = useState(false);
   const [incompleteDocumentSellers, setIncompleteDocumentSellers] = useState<string[]>([]);
@@ -471,9 +472,14 @@ export default function PagoProveedoresPage() {
         <button className={activeTab === 'historial' ? 'active' : ''} onClick={() => setActiveTab('historial')}>
           <UiIcon name="clock" /> Historial de pagos
         </button>
+        <button className={activeTab === 'saldos' ? 'active' : ''} onClick={() => setActiveTab('saldos')}>
+          <UiIcon name="alert" /> Saldos en contra
+        </button>
       </div>
 
-      {activeTab === 'gestion' ? (
+      {activeTab === 'saldos' ? (
+        <SaldosEnContraPanel />
+      ) : activeTab === 'gestion' ? (
         <>
           {/* Metrics Tab 1 */}
           <div className="metric-grid compact" style={{ marginBottom: '20px' }}>

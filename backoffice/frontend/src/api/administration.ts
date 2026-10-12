@@ -493,6 +493,43 @@ export async function rejectCreditNote(id: number, motivo: string): Promise<Cred
   return response.data;
 }
 
+// 12-oct: saldo en contra de las tiendas por reembolsos de ventas ya pagadas.
+
+export type EstadoCargoTienda = 'PENDIENTE' | 'DESCONTADO' | 'COBRADO' | 'ANULADO';
+
+export interface CargoTienda {
+  id: number;
+  proveedorId: number;
+  nombreTienda: string | null;
+  pedidoId: number;
+  numeroPedido: string | null;
+  /** Lo que se le pago de mas a la tienda. */
+  monto: number;
+  /** Lo que se le devolvio al comprador. */
+  reembolso: number | null;
+  estado: EstadoCargoTienda;
+  createdAt: string;
+  diasPendiente: number;
+  /** Pendiente hace mas de 30 dias: cobrar por transferencia. */
+  paraCobrar: boolean;
+  codigoRetiroDescuento: string | null;
+  descontadoAt: string | null;
+  cobradoAt: string | null;
+  cobradoPor: string | null;
+  notaCobro: string | null;
+  motivoAnulacion: string | null;
+}
+
+export async function getStoreCharges(): Promise<CargoTienda[]> {
+  const response = await apiClient.get<CargoTienda[]>('/administration/store-charges');
+  return response.data;
+}
+
+export async function collectStoreCharge(id: number, nota: string): Promise<CargoTienda> {
+  const response = await apiClient.post<CargoTienda>(`/administration/store-charges/${id}/collect`, { nota });
+  return response.data;
+}
+
 /** URL de descarga de un solo uso del PDF de la nota. */
 export async function getCreditNoteUrl(id: number): Promise<string> {
   const response = await apiClient.get<{ url: string }>(`/administration/credit-notes/${id}/url`);

@@ -626,7 +626,8 @@ gasto se puede reemplazar, pero no quitar.
 
 ## 16. Pago a proveedores
 
-Aquí se pagan cada jueves los retiros de las tiendas **y** los de los socios. Tiene dos pestañas.
+Aquí se pagan cada jueves los retiros de las tiendas **y** los de los socios. Tiene tres pestañas:
+**Gestión de Pagos**, **Historial de pagos** y **Saldos en contra**.
 
 **Gestión de Pagos**
 
@@ -657,6 +658,25 @@ El paso a paso está en [F4](#f4-pagar-los-retiros-del-jueves).
 
 La tabla muestra **todos** los retiros pendientes solicitados hasta el miércoles, también los de
 ciclos anteriores que no se hayan pagado.
+
+**Saldos en contra** (desde el 12 de octubre)
+
+Un reclamo por garantía se puede abrir hasta 6 meses después de recibir el producto, mucho después de
+que la tienda retiró la plata. Si termina en reembolso, Flow le devuelve al comprador desde la cuenta
+de RepuesTop y la tienda ya había cobrado esa venta. Lo que se le pagó de más queda aquí como
+**cargo**: lo devuelto, menos la comisión que se le reintegra, más el cargo de Flow por el reembolso.
+
+- **Se descuenta solo** del próximo retiro de la tienda. La tienda recibe un aviso y lo ve en
+  Retiros → Cargos como "Reembolso de una venta ya pagada". Si sus ventas disponibles no alcanzan a
+  cubrirlo, no puede retirar hasta que alcancen.
+- **Tarjetas:** **Por descontar** (total pendiente) y **Para cobrar** (más de 30 días sin
+  descontarse).
+- **Estados:** **Pendiente**, **Para cobrar** (rojo), **Descontado** (con el retiro en que se
+  descontó), **Cobrado** y **Anulado**.
+- **Marcar cobrado:** si la tienda no tiene ventas y lo pagó por transferencia, pulsar **Marcar
+  cobrado** y anotar la transferencia. Deja de descontarse.
+- Si se **rechaza el retiro** que lo descontó, vuelve a **Pendiente**. Si se rechaza el retiro que
+  había pagado esa venta, se **anula**: el próximo retiro ya calcula la venta con el reembolso.
 
 ## 17. Pago a captadores
 
