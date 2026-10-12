@@ -1111,13 +1111,24 @@ La tienda **sigue vendiendo** mientras su certificado está en revisión.
    1. **Veredicto de la mediación:** **A favor del comprador** o **A favor de la tienda**.
    2. **Opción de resolución (Ley 19.496)**:
       - a favor del comprador: reembolso íntegro, rebaja proporcional (reembolso parcial),
-        reposición o reparación;
+        devolución de lo pagado por la tienda, reposición o reparación;
       - a favor de la tienda: producto conforme, entrega acreditada o reclamo fuera de plazo.
    3. Si es reembolso parcial, el **Porcentaje de reembolso**, entre 1 y 100. El monto lo calcula el
       sistema.
 4. Revisar la vista previa del mensaje que recibirán las partes y pulsar **Resolver caso**.
 5. Confirmar. Si hay reembolso, el sistema lo pide a Flow (llega en 5 a 10 días hábiles) y la
    confirmación dice que **no se puede deshacer**.
+
+**Tope de 30 días (desde el 12 de octubre).** RepuesTop reembolsa por Flow solo hasta **30 días
+desde que el comprador recibió el producto**, como Compra Protegida de Mercado Libre. Pasado ese
+plazo, la garantía legal sigue (6 meses), pero lo cumple la tienda: el reembolso íntegro y el parcial
+aparecen deshabilitados con "(más de 30 días)" y hay que elegir **Devolución de lo pagado por la
+tienda**, reposición o reparación. Antes de resolver, pide en el chat el comprobante de la
+devolución. La suspensión de la tienda sí puede reembolsar después de los 30 días, porque una tienda
+suspendida no devuelve por su cuenta.
+
+Si el reembolso dentro de los 30 días cae sobre una venta que ya se le pagó a la tienda, se le
+descuenta de su próximo retiro (§16, Saldos en contra).
 
 **Si el reembolso falla:**
 

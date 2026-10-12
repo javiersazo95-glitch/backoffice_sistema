@@ -863,6 +863,12 @@ y lo marca cobrado (Pago a proveedores → Saldos en contra). Al rechazar el ret
 vuelve a pendiente; al rechazar el que pagaba la venta, se anula. La nota de crédito de la tienda y
 la de RepuesTop por la comisión se piden igual (§8.2).
 
+**12 de octubre: tope de 30 días para el reembolso de la plataforma.** La mediación solo ordena un
+reembolso por Flow hasta 30 días desde la recepción (`ResolucionMediacionCatalogo.DIAS_REEMBOLSO_REPUESTOP`,
+validado en `resolveCase`). Después, la figura es "Devolución de lo pagado por la tienda", sin plata
+de RepuesTop. La suspensión de la tienda no tiene tope. Así los saldos en contra quedan acotados a
+ventas de semanas, no de meses.
+
 **Pruebas:** C y D se probaron en local con backend y backoffice levantados. Hay que re-probar todo
 en `dev` con el plan R1 a R16 (`repuestop/docs/planes/plan_prueba_completa_app_dev_oct.md`). Datos de
 prueba que quedaron en local:

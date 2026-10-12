@@ -45,6 +45,17 @@ export const MEDIATION_RESOLUTION_OPTIONS: MediationResolutionOption[] = [
     appliesRefund: true,
   },
   {
+    // 12-oct: pasados 30 dias desde la recepcion RepuesTop ya no reembolsa; devuelve la tienda.
+    key: 'DEVOLUCION_POR_LA_TIENDA',
+    favor: 'COMPRADOR',
+    label: 'Devolución de lo pagado por la tienda',
+    fundamentoLegal:
+      'Artículos 19 a 21 de la Ley N° 19.496 (garantía legal y derecho a la restitución de lo pagado); términos de RepuesTop (el reembolso por la plataforma cubre 30 días desde la recepción)',
+    motivo: 'El producto presentó una falla o no correspondía a lo comprado, y la garantía legal permite pedir la devolución de lo pagado. Como pasaron más de 30 días desde la recepción, la tienda te devuelve el dinero directamente.',
+    requiresPercentage: false,
+    appliesRefund: false,
+  },
+  {
     key: 'REPOSICION_PRODUCTO',
     favor: 'COMPRADOR',
     label: 'Reposición o cambio del producto',

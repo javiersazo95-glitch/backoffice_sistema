@@ -838,7 +838,10 @@ export default function MediationDetail({
     : 0;
 
   // El mismo veredicto sirve para resolver y para suspender: la suspension tambien resuelve el caso.
-  const renderVerdictFields = () => (
+  // 12-oct: al resolver, RepuesTop reembolsa hasta 30 dias desde la recepcion. La suspension de la
+  // tienda si puede reembolsar despues: la tienda suspendida no devuelve por su cuenta.
+  const reembolsoPlataformaVencido = item?.platformRefundAvailable === false;
+  const renderVerdictFields = (modo: 'resolver' | 'suspender' = 'resolver') => (
     <>
       {favor ? (
         <label className="mediation-action-field">
@@ -853,11 +856,19 @@ export default function MediationDetail({
           >
             <option value="">Selecciona una figura legal…</option>
             {favorOptions.map((option) => (
-              <option key={option.key} value={option.key}>
+              <option key={option.key} value={option.key}
+                disabled={modo === 'resolver' && reembolsoPlataformaVencido && option.appliesRefund}>
                 {option.label}
+                {modo === 'resolver' && reembolsoPlataformaVencido && option.appliesRefund ? ' (más de 30 días)' : ''}
               </option>
             ))}
           </select>
+          {modo === 'resolver' && favor === 'COMPRADOR' && reembolsoPlataformaVencido ? (
+            <small style={{ color: '#b45309' }}>
+              Pasaron {item?.daysSinceReceived ?? 'más de 30'} días desde que el comprador recibió el producto: RepuesTop ya no
+              reembolsa. Usa «Devolución de lo pagado por la tienda», reposición o reparación; lo cumple la tienda.
+            </small>
+          ) : null}
           {selectedOption ? (
             <small style={{ color: '#64748b' }}>{selectedOption.fundamentoLegal}.</small>
           ) : null}
@@ -1327,7 +1338,7 @@ export default function MediationDetail({
                           {suspensionTarget === 'VENDEDOR' ? 'a favor del comprador' : 'a favor de la tienda'}. Indica la
                           figura legal; si incluye reembolso, se solicita a la pasarela en el acto.
                         </p>
-                        {renderVerdictFields()}
+                        {renderVerdictFields('suspender')}
                       </div>
 
                       {suspensionDuration ? (

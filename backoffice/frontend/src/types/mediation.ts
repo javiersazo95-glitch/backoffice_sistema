@@ -85,6 +85,11 @@ export interface MediationDetailResponse extends MediationResponse {
   avatarUrl?: string | null;
   /** Pruebas de lanzamiento, 25-sep: el Pago del reembolso por esta mediación (reintentar / devolución manual). */
   refundPayment?: RefundPayment | null;
+  /** 12-oct: cuando recibio el comprador lo de esta tienda (primera entrega). */
+  receivedAt?: string | null;
+  daysSinceReceived?: number | null;
+  /** RepuesTop reembolsa hasta 30 dias desde la recepcion; despues devuelve la tienda. */
+  platformRefundAvailable?: boolean;
 }
 
 export interface MediationEvidenceResponse {
