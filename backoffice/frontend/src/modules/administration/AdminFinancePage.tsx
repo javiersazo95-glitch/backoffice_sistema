@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import MetricCard from '@/components/shared/MetricCard';
+import OrderHistoryTimeline from './OrderHistoryTimeline';
 import UiIcon from '@/components/shared/UiIcon';
 import AreaHomeShortcut from '@/components/shared/AreaHomeShortcut';
 import FounderSellerName from '@/components/shared/FounderSellerName';
@@ -4876,154 +4877,15 @@ export default function AdminFinancePage() {
 
       {selectedHistoryOrderId && (
         <Modal
-          title="Historial de Estados"
+          title="Historial del pedido"
           subtitle={`Pedido ${formatOrderNumber(selectedHistoryOrderId)}`}
           onClose={() => setSelectedHistoryOrderId(null)}
         >
           <div className="form-grid" style={{ padding: '20px', gap: '20px' }}>
-            {(() => {
-              const history = statusHistory[selectedHistoryOrderId] ?? [];
-              if (history.length === 0) {
-                return (
-                  <div className="empty-state compact-empty" style={{ textAlign: 'center', padding: '30px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                    <UiIcon name="info" style={{ width: '28px', height: '28px', color: '#94a3b8', marginBottom: '8px' }} />
-                    <p style={{ margin: 0, color: '#64748b' }}>Sin cambios de estado registrados para este pedido.</p>
-                  </div>
-                );
-              }
-
-              return (
-                <div
-                  className="timeline-wrapper"
-                  style={{
-                    maxHeight: '400px',
-                    overflowY: 'auto',
-                    paddingRight: '8px',
-                    margin: '10px 0',
-                  }}
-                >
-                  <div
-                    style={{
-                      position: 'relative',
-                      paddingLeft: '24px',
-                      borderLeft: '2px solid #e2e8f0',
-                      marginLeft: '12px',
-                    }}
-                  >
-                    {history.map((item, index) => {
-                      const transition = item.from ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                          <span className={`status-pill ${slug(item.from)}`} style={{ fontSize: '10.5px', padding: '1px 6px' }}>
-                            {item.from}
-                          </span>
-                          <span style={{ color: '#94a3b8', fontSize: '12px' }}>→</span>
-                          <span className={`status-pill ${slug(item.to)}`} style={{ fontSize: '10.5px', padding: '1px 6px' }}>
-                            {item.to}
-                          </span>
-                        </div>
-                      ) : (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span style={{ color: '#64748b', fontSize: '12px', fontWeight: 500 }}>Registro Inicial:</span>
-                          <span className={`status-pill ${slug(item.to)}`} style={{ fontSize: '10.5px', padding: '1px 6px' }}>
-                            {item.to}
-                          </span>
-                        </div>
-                      );
-
-                      return (
-                        <div
-                          key={index}
-                          style={{
-                            position: 'relative',
-                            marginBottom: index === history.length - 1 ? 0 : '24px',
-                          }}
-                        >
-                          {/* Dot marker on the vertical timeline line */}
-                          <div
-                            style={{
-                              position: 'absolute',
-                              left: '-31px',
-                              top: '4px',
-                              width: '12px',
-                              height: '12px',
-                              borderRadius: '50%',
-                              backgroundColor: '#3b82f6',
-                              border: '3px solid #ffffff',
-                              boxShadow: '0 0 0 2px #3b82f6',
-                              zIndex: 10,
-                            }}
-                          />
-
-                          <div
-                            style={{
-                              backgroundColor: '#f8fafc',
-                              border: '1px solid #e2e8f0',
-                              borderRadius: '10px',
-                              padding: '14px 16px',
-                              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.02)',
-                            }}
-                          >
-                            <div
-                              style={{
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center',
-                                gap: '10px',
-                                marginBottom: '8px',
-                                flexWrap: 'wrap',
-                              }}
-                            >
-                              {transition}
-                              <time style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600 }}>
-                                {formatDateTime(item.changedAt)}
-                              </time>
-                            </div>
-
-                            <div
-                              style={{
-                                display: 'flex',
-
-                                gap: '12px',
-                                fontSize: '11.5px',
-                                color: '#64748b',
-                                marginBottom: '8px',
-                                flexWrap: 'wrap',
-                              }}
-                            >
-                              <span>
-                                <strong>Responsable:</strong> {item.actor}
-                              </span>
-                              <span>•</span>
-                              <span>
-                                <strong>Origen:</strong> {item.source}
-                              </span>
-                            </div>
-
-                            {item.note && (
-                              <div
-                                style={{
-                                  margin: 0,
-                                  padding: '8px 12px',
-                                  backgroundColor: '#ffffff',
-                                  border: '1px solid #edf2f7',
-                                  borderRadius: '6px',
-                                  fontSize: '12px',
-                                  color: '#475569',
-                                  lineHeight: '1.45',
-                                  fontStyle: 'italic',
-                                }}
-                              >
-                                {item.note}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })()}
+            <OrderHistoryTimeline
+              order={orders.find((o) => o.id === selectedHistoryOrderId)}
+              localHistory={statusHistory[selectedHistoryOrderId] ?? []}
+            />
 
             <div className="form-actions" style={{ marginTop: '10px' }}>
               <button
