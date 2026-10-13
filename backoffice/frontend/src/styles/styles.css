@@ -8416,6 +8416,20 @@ tr.is-active {
   box-shadow: 0 14px 40px rgba(7, 18, 32, 0.06);
 }
 
+/*
+ * El chat toma la altura de la fila (la fija "Acciones del mediador", a la derecha) y no aporta la
+ * suya: con height 0 su contenido no cuenta al medir la fila y min-height 100% lo estira hasta ella.
+ * Los mensajes nuevos hacen scroll dentro del hilo, no alargan la tarjeta.
+ */
+.mediation-management-grid > .mediation-chat-card {
+  height: 0;
+  min-height: 100%;
+}
+
+.mediation-management-grid > .mediation-actions-card {
+  min-height: 560px;
+}
+
 .mediation-chat-header,
 .mediation-actions-card-head {
   display: flex;
@@ -8482,11 +8496,11 @@ tr.is-active {
 
 .mediation-chat-thread {
   display: flex;
-  /* Ocupa todo el alto libre de la tarjeta: el chat llega hasta donde llega la columna derecha. */
-  flex: 1 1 auto;
+  /* Ocupa el alto libre de la tarjeta y hace scroll adentro: el chat nunca alarga la fila. */
+  flex: 1 1 0;
   flex-direction: column;
   gap: 10px;
-  min-height: 320px;
+  min-height: 0;
   max-height: none;
   padding: 10px 2px 4px;
   overflow-y: auto;
@@ -9119,8 +9133,11 @@ tr.is-active {
   }
 
   .mediation-chat-card,
-  .mediation-actions-card {
+  .mediation-actions-card,
+  .mediation-management-grid > .mediation-chat-card,
+  .mediation-management-grid > .mediation-actions-card {
     height: auto;
+    min-height: 0;
   }
 
   .mediation-chat-thread {
