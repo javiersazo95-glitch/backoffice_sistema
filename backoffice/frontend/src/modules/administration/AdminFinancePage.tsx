@@ -160,6 +160,22 @@ const GrupoFacturaCell = ({ retiroId, ivaComision }: { retiroId: number | null; 
   );
 };
 
+/**
+ * 13-oct: lo que va en la factura del retiro por esta venta. El cargo por procesamiento de pago
+ * (`gatewayFeeSeller`) viene con IVA incluido; el servidor lo separa como neto = cargo / 1,19
+ * redondeado y IVA = resto. El IVA de la factura es el de la comisión más el del cargo.
+ */
+function facturaDeLaFila(settlement: Settlement) {
+  const cargoNeto = Math.round(settlement.gatewayFeeSeller / 1.19);
+  const cargoIva = settlement.gatewayFeeSeller - cargoNeto;
+  return {
+    cargoNeto,
+    cargoIva,
+    iva: settlement.serviceCommissionIva + cargoIva,
+    total: settlement.serviceCommission + settlement.serviceCommissionIva + settlement.gatewayFeeSeller,
+  };
+}
+
 const SettlementSaleBreakdown = ({ settlement }: { settlement: Settlement }) => {
   const hasDiscount = Object.entries(settlement.saleDetail).some(([label, value]) => value < 0 || label.toLowerCase().includes('descuento'));
   return (
@@ -4163,13 +4179,17 @@ export default function AdminFinancePage() {
       )}
 
       {selectedLiquidationSeller && (
-        <Modal title={<>Liquidaciones de <FounderSellerName name={selectedLiquidationSeller.seller} founder={selectedLiquidationSeller.sellerFounder} /></>} subtitle={`${selectedLiquidationSeller.settlements.length} liquidaciones · ${formatMoney(selectedLiquidationSeller.total)} · Período: ${selectedLiquidationPeriod}`} onClose={() => setSelectedLiquidationSeller(null)}>
+        <Modal wide title={<>Liquidaciones de <FounderSellerName name={selectedLiquidationSeller.seller} founder={selectedLiquidationSeller.sellerFounder} /></>} subtitle={`${selectedLiquidationSeller.settlements.length} liquidaciones · ${formatMoney(selectedLiquidationSeller.total)} · Período: ${selectedLiquidationPeriod}`} onClose={() => setSelectedLiquidationSeller(null)}>
           {selectedLiquidationSeller.retiroMonto !== null && Math.round(selectedLiquidationSeller.retiroMonto) !== Math.round(selectedLiquidationSeller.total) && (
             <div className="notice liquidation-cuadre-notice"><UiIcon name="info" /><p>La suma de las ventas es {formatMoney(selectedLiquidationSeller.total)}, pero el retiro pide <strong>{formatMoney(selectedLiquidationSeller.retiroMonto)}</strong>: la diferencia ({formatMoney(selectedLiquidationSeller.total - selectedLiquidationSeller.retiroMonto)}) son saldos en contra por reembolsos de ventas ya pagadas, descontados en este retiro.</p></div>
           )}
-          <div className="table-shell liquidation-preview-shell"><table className="wide-table liquidation-preview-table"><thead><tr><th>ID liquidación</th><th>Pedido</th><th>Fecha</th><th>Venta total</th><th>Descuentos al vendedor</th><th>Ganancia neta RepuesTop</th><th>Monto a pagar vendedor</th><th>IVA</th></tr></thead><tbody>
-            {selectedLiquidationSeller.settlements.map((settlement) => <tr key={settlement.id}><td>{settlement.id}</td><td>{formatOrderNumber(settlement.orderId)}</td><td>{formatDate(settlement.date)}</td><td className="value-cell tooltip-container"><span className="tooltip-trigger-value">{formatMoney(settlement.saleTotal)}<UiIcon name="info" /></span><div className="tooltip-content"><div className="tooltip-arrow"></div><div className="tooltip-body"><SettlementSaleBreakdown settlement={settlement} /></div></div></td><td className="value-cell tooltip-container"><span className="tooltip-trigger-value">{formatMoney(settlement.commission)}<UiIcon name="info" /></span><div className="tooltip-content"><div className="tooltip-arrow"></div><div className="tooltip-body"><SettlementFeeBreakdown settlement={settlement} /></div></div></td><td className="value-cell tooltip-container"><span className="tooltip-trigger-value">{formatMoney(settlement.netSettlement)}<UiIcon name="info" /></span><div className="tooltip-content net-settlement-tooltip"><div className="tooltip-arrow"></div><div className="tooltip-body"><SettlementNetBreakdown settlement={settlement} /></div></div></td><td>{formatMoney(settlement.sellerPayout)}<SettlementAdjustmentPills settlement={settlement} /></td><td>{formatMoney(settlement.serviceCommissionIva)}</td></tr>)}
-          </tbody><tfoot><tr><th colSpan={3}>Total acumulado</th><td>{formatMoney(selectedLiquidationSeller.settlements.reduce((total, settlement) => total + settlement.saleTotal, 0))}</td><td>{formatMoney(selectedLiquidationSeller.settlements.reduce((total, settlement) => total + settlement.commission, 0))}</td><td>{formatMoney(selectedLiquidationSeller.settlements.reduce((total, settlement) => total + settlement.netSettlement, 0))}</td><td>{formatMoney(selectedLiquidationSeller.settlements.reduce((total, settlement) => total + settlement.sellerPayout, 0))}</td><td>{formatMoney(selectedLiquidationSeller.settlements.reduce((total, settlement) => total + settlement.serviceCommissionIva, 0))}</td></tr></tfoot></table></div>
+          <p className="panel-hint" style={{ margin: '0 0 8px' }}>
+            La boleta o factura del retiro lleva la comisión de servicio y el cargo por procesamiento de pago, cada uno con su IVA.
+            "IVA factura" es el que se registra en el SII; "IVA comisión" es solo la parte de la comisión.
+          </p>
+          <div className="table-shell liquidation-preview-shell"><table className="wide-table liquidation-preview-table"><thead><tr><th>ID liquidación</th><th>Pedido</th><th>Fecha</th><th>Venta total</th><th>Descuentos al vendedor</th><th>Ganancia neta RepuesTop</th><th>Monto a pagar vendedor</th><th title="19% de la comisión de servicio">IVA comisión</th><th title="Cargo por procesamiento de pago, con IVA (neto + IVA)">Cargo de pago</th><th title="IVA de la comisión + IVA del cargo de pago: es el IVA que va en la boleta o factura">IVA factura</th></tr></thead><tbody>
+            {selectedLiquidationSeller.settlements.map((settlement) => <tr key={settlement.id}><td>{settlement.id}</td><td>{formatOrderNumber(settlement.orderId)}</td><td>{formatDate(settlement.date)}</td><td className="value-cell tooltip-container"><span className="tooltip-trigger-value">{formatMoney(settlement.saleTotal)}<UiIcon name="info" /></span><div className="tooltip-content"><div className="tooltip-arrow"></div><div className="tooltip-body"><SettlementSaleBreakdown settlement={settlement} /></div></div></td><td className="value-cell tooltip-container"><span className="tooltip-trigger-value">{formatMoney(settlement.commission)}<UiIcon name="info" /></span><div className="tooltip-content"><div className="tooltip-arrow"></div><div className="tooltip-body"><SettlementFeeBreakdown settlement={settlement} /></div></div></td><td className="value-cell tooltip-container"><span className="tooltip-trigger-value">{formatMoney(settlement.netSettlement)}<UiIcon name="info" /></span><div className="tooltip-content net-settlement-tooltip"><div className="tooltip-arrow"></div><div className="tooltip-body"><SettlementNetBreakdown settlement={settlement} /></div></div></td><td>{formatMoney(settlement.sellerPayout)}<SettlementAdjustmentPills settlement={settlement} /></td><td>{formatMoney(settlement.serviceCommissionIva)}</td><td title={`neto ${formatMoney(facturaDeLaFila(settlement).cargoNeto)} + IVA ${formatMoney(facturaDeLaFila(settlement).cargoIva)}`}>{formatMoney(settlement.gatewayFeeSeller)}</td><td><strong>{formatMoney(facturaDeLaFila(settlement).iva)}</strong></td></tr>)}
+          </tbody><tfoot><tr><th colSpan={3}>Total acumulado</th><td>{formatMoney(selectedLiquidationSeller.settlements.reduce((total, settlement) => total + settlement.saleTotal, 0))}</td><td>{formatMoney(selectedLiquidationSeller.settlements.reduce((total, settlement) => total + settlement.commission, 0))}</td><td>{formatMoney(selectedLiquidationSeller.settlements.reduce((total, settlement) => total + settlement.netSettlement, 0))}</td><td>{formatMoney(selectedLiquidationSeller.settlements.reduce((total, settlement) => total + settlement.sellerPayout, 0))}</td><td>{formatMoney(selectedLiquidationSeller.settlements.reduce((total, settlement) => total + settlement.serviceCommissionIva, 0))}</td><td>{formatMoney(selectedLiquidationSeller.settlements.reduce((total, settlement) => total + settlement.gatewayFeeSeller, 0))}</td><td><strong>{formatMoney(selectedLiquidationSeller.settlements.reduce((total, settlement) => total + facturaDeLaFila(settlement).iva, 0))}</strong></td></tr></tfoot></table></div>
         </Modal>
       )}
 

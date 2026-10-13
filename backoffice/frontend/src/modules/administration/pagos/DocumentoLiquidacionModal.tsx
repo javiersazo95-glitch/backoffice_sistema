@@ -143,7 +143,16 @@ export default function DocumentoLiquidacionModal({
             <dt>Razón social / Nombre</dt><dd>{retiro.documentoLiquidacionRazonSocial}</dd>
             <dt>Correo de envío</dt><dd>{retiro.documentoLiquidacionEmail}</dd>
             <dt>Detalle</dt><dd>{retiro.documentoLiquidacionDetalle}</dd>
-            <dt>IVA de la factura</dt><dd>{formatMoney(retiro.documentoLiquidacionIva ?? 0)}</dd>
+            <dt>IVA de la factura</dt>
+            <dd>
+              {formatMoney(retiro.documentoLiquidacionIva ?? 0)}
+              {factura && Math.round(factura.iva) !== Math.round(retiro.documentoLiquidacionIva ?? 0) && (
+                <small style={{ display: 'block', color: '#b45309', fontWeight: 600 }}>
+                  Recalculado hoy: {formatMoney(factura.iva)} (comisión {formatMoney(factura.lineas[0]?.iva ?? 0)}{factura.lineas[1] ? ` + cargo de pago ${formatMoney(factura.lineas[1].iva)}` : ''}).
+                  El registrado quedó con el cálculo anterior o antes de un reembolso: entra a "Editar" y guarda para actualizarlo.
+                </small>
+              )}
+            </dd>
             <dt>Documento</dt><dd><strong>{retiro.documentoLiquidacionNombre}</strong></dd>
             {retiro.documentoLiquidacionRegistradoAt && <><dt>Registrado</dt><dd>{formatDateTimeLocal(retiro.documentoLiquidacionRegistradoAt)}</dd></>}
           </dl>
