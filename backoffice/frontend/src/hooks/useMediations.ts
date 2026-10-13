@@ -16,11 +16,23 @@ export function useMediations(filter?: MediationFilterRequest) {
   });
 }
 
-export function useMediation(id: number) {
+/**
+ * `live`: el caso sigue en mediacion y el mediador tiene los chats a la vista. Se relee solo cada
+ * pocos segundos (y al volver a la pestana) para que los mensajes nuevos de las partes aparezcan
+ * sin recargar; react-query conserva los datos anteriores, asi que no parpadea.
+ */
+export const MEDIATION_LIVE_REFRESH_MS = 5000;
+
+export function useMediation(id: number, options?: { live?: boolean }) {
+  const live = options?.live ?? false;
   return useQuery({
     queryKey: ['mediation', id],
     queryFn: () => mediationsApi.getMediationById(id),
     enabled: !!id,
+    // Solo mientras el caso siga en mediacion: resuelto o cerrado, no cambia.
+    refetchInterval: (query) => (live && query.state.data?.status === 'EN_MEDIACION' ? MEDIATION_LIVE_REFRESH_MS : false),
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: live,
   });
 }
 

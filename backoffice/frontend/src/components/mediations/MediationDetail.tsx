@@ -815,7 +815,8 @@ export default function MediationDetail({
   const parsedId = paramId ? Number(paramId) : null;
   const effectiveId = propItem?.id ?? (parsedId && Number.isFinite(parsedId) ? parsedId : 0);
 
-  const { data: fetchedMediation, isLoading: isLoadingMediation } = useMediation(effectiveId);
+  // Los chats se refrescan solos mientras el caso siga en mediacion (sin recargar la pagina).
+  const { data: fetchedMediation, isLoading: isLoadingMediation } = useMediation(effectiveId, { live: !propItem });
   const item = (propItem ?? fetchedMediation) as MediationModalItem | undefined;
 
   const isViewOpen = isOpen ?? true;

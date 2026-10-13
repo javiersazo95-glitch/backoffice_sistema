@@ -8353,7 +8353,8 @@ tr.is-active {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(390px, 0.95fr);
   gap: 14px;
-  align-items: start;
+  /* Los dos chats se estiran hasta la altura de la tarjeta de acciones (columna derecha). */
+  align-items: stretch;
 }
 
 .mediation-init-reason-card {
@@ -8481,11 +8482,12 @@ tr.is-active {
 
 .mediation-chat-thread {
   display: flex;
-  flex: 0 0 auto;
+  /* Ocupa todo el alto libre de la tarjeta: el chat llega hasta donde llega la columna derecha. */
+  flex: 1 1 auto;
   flex-direction: column;
   gap: 10px;
-  min-height: 0;
-  max-height: calc(100vh - 360px);
+  min-height: 320px;
+  max-height: none;
   padding: 10px 2px 4px;
   overflow-y: auto;
   overflow-x: hidden;
@@ -9112,12 +9114,18 @@ tr.is-active {
     grid-template-columns: 1fr;
   }
 
+  .mediation-management-grid {
+    align-items: start;
+  }
+
   .mediation-chat-card,
   .mediation-actions-card {
     height: auto;
   }
 
   .mediation-chat-thread {
+    flex: 0 0 auto;
+    min-height: 0;
     max-height: 340px;
   }
 
