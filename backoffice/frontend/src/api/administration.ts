@@ -5,6 +5,7 @@ import type {
   RetiroAdminResponse,
   RetiroDetalleResponse,
   PagoProveedorResponse,
+  DatosTransferencia,
   ConfiguracionPagos,
   Expense,
   Withdrawal,
@@ -61,6 +62,25 @@ export async function getWithdrawalDetails(id: string | number): Promise<RetiroD
  */
 export async function rejectWithdrawal(id: string | number, motivo: string): Promise<RetiroAdminResponse> {
   const response = await apiClient.patch<RetiroAdminResponse>(`/administration/withdrawals/${id}/reject`, { motivo });
+  return response.data;
+}
+
+/**
+ * 13-oct: ficha con los datos bancarios que se copian en BCI para transferir este retiro a mano,
+ * si es la primera vez que se le paga a la tienda, el alias con que buscarla y las advertencias.
+ */
+export async function getDatosTransferencia(retiroId: number): Promise<DatosTransferencia> {
+  const response = await apiClient.get<DatosTransferencia>(`/administration/withdrawals/${retiroId}/datos-transferencia`);
+  return response.data;
+}
+
+/**
+ * El operador ya transfirio en BCI: marca el retiro pagado con el numero de operacion del banco.
+ * El backend exige la boleta de comision cargada, agrupa el retiro en el PAG del dia (uno por dia
+ * para transferencias) y le manda al vendedor el detalle con el PDF adjunto. Devuelve ese PAG.
+ */
+export async function payWithdrawalByTransfer(retiroId: number, referencia: string): Promise<PagoProveedorResponse> {
+  const response = await apiClient.patch<PagoProveedorResponse>(`/administration/withdrawals/${retiroId}/pay`, { referencia });
   return response.data;
 }
 

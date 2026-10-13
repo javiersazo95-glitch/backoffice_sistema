@@ -285,6 +285,12 @@ export interface RetiroAdminResponse {
   rechazadoAt?: string | null;
   rechazadoPor?: string | null;
   fechaEfectiva: string;
+  /** Trazabilidad del pago (13-oct): cuando, quien, por que via y con que operacion del banco. */
+  pagadoAt?: string | null;
+  pagadoPor?: string | null;
+  modalidadPago?: ModalidadPago | null;
+  referenciaTransferencia?: string | null;
+  bankAccountUpdatedAt?: string | null;
   // H59 fase 4: la tienda esta suspendida y sus fondos retenidos (temporal, reserva de cierre o
   // fraude). El backend rechaza pagarlos y la nomina los deja fuera.
   proveedorId?: number;
@@ -304,6 +310,46 @@ export interface RetiroAdminResponse {
   /** Cuando se registro en el backoffice; no es la fecha tributaria. */
   documentoLiquidacionRegistradoAt?: string | null;
   documentoLiquidacionCompleto?: boolean;
+}
+
+/**
+ * Ficha de transferencia de un retiro (13-oct): lo que el operador copia en BCI para pagarlo a
+ * mano, mas el contexto que evita errores (primera vez, alias con el que buscar al destinatario,
+ * datos cambiados desde el ultimo pago). La arma el servidor; aqui solo se muestra.
+ */
+export interface DatosTransferencia {
+  retiroId: number;
+  codigoRetiro: string;
+  nombreTienda: string;
+  estado: string;
+  idExterno: string;
+  aliasSugerido: string;
+  banco: string | null;
+  bankCode: number | null;
+  tipoCuenta: string | null;
+  numeroCuenta: string | null;
+  rutTitular: string | null;
+  titular: string | null;
+  emailAviso: string | null;
+  bancoRequiereAlias: boolean;
+  inscritaComo: string | null;
+  aliasInscrito: string | null;
+  bankAccountUpdatedAt: string | null;
+  monto: number;
+  /** Pesos sin puntos ni simbolo, listo para pegar en el banco. */
+  montoEntero: string;
+  glosa: string;
+  vecesPagado: number;
+  primeraTransferencia: boolean;
+  ultimoPagoAt: string | null;
+  ultimoPagoEstado: string | null;
+  ultimoPagoModalidad: ModalidadPago | null;
+  documentoCompleto: boolean;
+  /** Banco, tipo y numero de cuenta, RUT y titular registrados: sin eso no hay a donde transferir. */
+  datosBancariosCompletos: boolean;
+  fondosRetenidos: boolean;
+  motivoRetencion: string | null;
+  advertencias: string[];
 }
 
 /** BCI-NOMINA-001: "Cuenta de Cargo" (cuenta de RepuesTop) usada en la nomina de pago BCI. */
@@ -333,11 +379,20 @@ export interface RetiroDetalleResponse {
   pedidos: RetiroPedidoItem[];
 }
 
+/**
+ * 13-oct: NOMINA es el Excel subido a BCI (un PAG por nomina procesada); TRANSFERENCIA son los
+ * pagos manuales 1:1 en la banca en linea (un PAG por dia que agrupa todas las del dia).
+ */
+export type ModalidadPago = 'NOMINA' | 'TRANSFERENCIA';
+
 export interface PagoProveedorResponse {
   pagoId: number;
   montoTotal: number;
   estado: string;
   fechaPago: string;
+  modalidad?: ModalidadPago | null;
+  /** Dia (Chile, "YYYY-MM-DD") de los pagos del PAG. */
+  fechaPagoDia?: string | null;
   periodoInicio?: string;
   periodoFin?: string;
   retiros: RetiroAdminResponse[];

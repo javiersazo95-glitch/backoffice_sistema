@@ -82,6 +82,7 @@ import {
   validateReceipt,
 } from './utils';
 import { useIsMobile } from '@/hooks/useIsMobile';
+import DocumentoLiquidacionModal from './pagos/DocumentoLiquidacionModal';
 import { useAuth } from '@/context/AuthContext';
 import { Role } from '@/types/auth';
 import Badge from '@/components/shared/Badge';
@@ -724,6 +725,8 @@ export default function AdminFinancePage() {
 
   const [documentDraft, setDocumentDraft] = useState<DocumentDraft | null>(null);
   const [registeredDocumentPreview, setRegisteredDocumentPreview] = useState<RegisteredDocumentPreview | null>(null);
+  // 13-oct: la boleta/factura de una tienda usa el mismo modal que Pago a proveedores.
+  const [docRetiroTienda, setDocRetiroTienda] = useState<{ retiro: RetiroAdminResponse; editing: boolean } | null>(null);
   /** Mes ("YYYY-MM") del export de documentos emitidos, para cuadrar el F29. */
   const [issuedDocumentsMonth, setIssuedDocumentsMonth] = useState(() => todayChile().slice(0, 7));
   const [issuedDocumentsBusy, setIssuedDocumentsBusy] = useState(false);
@@ -1531,63 +1534,18 @@ export default function AdminFinancePage() {
     return null;
   }
 
-  async function openGroupDocument(group: LiquidationSellerGroup, isEditing = false): Promise<void> {
-    const orderId = group.settlements[0]?.orderId ?? '';
-    const existing = getGroupDocument(group)?.document;
-    if (existing && isIssuedDocumentComplete(existing, true) && !isEditing) {
-      let document = existing;
-      if (!document.pdfUrl && group.retiroId !== null) {
-        try {
-          document = { ...document, pdfUrl: await administrationApi.getLiquidationDocumentFile('PROVEEDOR', group.retiroId) };
-        } catch (error) {
-          window.alert(mensajeDeError(error, 'No se pudo cargar el PDF registrado.'));
-        }
-      }
-      setRegisteredDocumentPreview({ orderId, document });
+  /**
+   * 13-oct: el documento de una tienda se carga con el mismo modal que usa Pago a proveedores
+   * (DocumentoLiquidacionModal): mismos campos, misma puerta de pago y una sola implementacion.
+   * El borrador generico de abajo queda solo para el respaldo de un retiro de socio.
+   */
+  function openGroupDocument(group: LiquidationSellerGroup, isEditing = false): void {
+    const retiro = activeWithdrawals.find((candidate) => candidate.retiroId === group.retiroId);
+    if (!retiro) {
+      window.alert('No se encontró una solicitud de retiro activa para este vendedor. Actualiza la página y verifica que el retiro siga activo.');
       return;
     }
-    setDocumentDraft({
-      orderId,
-      orderIds: group.settlements.map((settlement) => settlement.orderId),
-      retiroId: group.retiroId,
-      isEditing: Boolean(existing),
-      // La comision de servicio es un servicio gravado que RepuesTop le presta a la tienda. Con
-      // factura la tienda usa el IVA como credito fiscal; con boleta afecta lo pierde y acaba
-      // pagando un 19% de mas. Boleta queda para el receptor sin RUT, que no tiene giro.
-      type: existing?.type ?? (group.rut && group.rut !== 'Sin RUT' ? 'Factura' : 'Boleta'),
-      rut: existing?.rut ?? (group.rut === 'Sin RUT' ? '' : group.rut),
-      name: existing?.name ?? group.legalName,
-      email: existing?.email ?? (group.email === 'Sin correo' ? '' : group.email),
-      detail: existing?.detail ?? `Comisión de servicio RepuesTop de ${group.settlements.length} liquidación${group.settlements.length === 1 ? '' : 'es'}`,
-      ivaLiquidado: existing?.ivaLiquidado ?? String(Math.round(group.iva)),
-      ivaLoCalculaElServidor: true,
-      tipoRetiro: 'PROVEEDOR',
-      pdfName: existing?.pdfName ?? '',
-      pdfUrl: existing?.pdfUrl,
-      originalPdfName: existing?.pdfName,
-      folio: existing?.folio ?? '',
-      fechaEmision: existing?.issuedAt ?? todayChile(),
-      retiroFecha: activeWithdrawals.find((candidate) => candidate.retiroId === group.retiroId)?.fecha,
-    });
-    // Y: la factura va por la comision y por el cargo por procesamiento de pago. El servidor arma
-    // las lineas y el IVA; el detalle sugerido solo reemplaza al generico si no habia documento.
-    if (group.retiroId !== null) {
-      const retiroId = group.retiroId;
-      try {
-        const factura = await administrationApi.getFacturaComision(retiroId);
-        setDocumentDraft((current) => (current && current.retiroId === retiroId ? {
-          ...current,
-          factura,
-          ivaLiquidado: String(Math.round(factura.iva)),
-          detail: existing?.detail ?? factura.detalleSugerido,
-        } : current));
-      } catch (error) {
-        setDocumentDraft((current) => (current && current.retiroId === retiroId ? {
-          ...current,
-          facturaError: mensajeDeError(error, 'No se pudieron calcular los datos de la factura.'),
-        } : current));
-      }
-    }
+    setDocRetiroTienda({ retiro, editing: isEditing });
   }
 
   async function openPartnerWithdrawalDocument(withdrawal: Withdrawal, isEditing = false): Promise<void> {
@@ -4149,98 +4107,6 @@ export default function AdminFinancePage() {
               </select>
             </FieldLabel>
             <FieldLabel label="RUT receptor"><input className="input" type="text" value={documentDraft.rut} onChange={(event) => setDocumentDraft({ ...documentDraft, rut: event.target.value })} required={!documentDraft.isEditing || documentDraft.tipoRetiro === 'PROVEEDOR'} /></FieldLabel>
-            {documentDraft.tipoRetiro === 'PROVEEDOR' && (
-              <>
-                {/* Y: lo que hay que emitir en el SII, linea por linea y copiable. */}
-                {documentDraft.factura && (
-                  <div className="registered-document-preview">
-                    <div className="notice">
-                      <strong>Datos para emitir en el SII</strong>
-                      <button
-                        className="secondary-button"
-                        type="button"
-                        style={{ marginLeft: 'auto' }}
-                        onClick={() => {
-                          const factura = documentDraft.factura!;
-                          const texto = [
-                            `Receptor: ${documentDraft.name}`,
-                            documentDraft.rut ? `RUT: ${documentDraft.rut}` : null,
-                            '',
-                            ...factura.lineas.map((linea) => `${linea.concepto}: neto ${formatMoney(linea.neto)}`),
-                            `Neto: ${formatMoney(factura.neto)}`,
-                            `IVA 19%: ${formatMoney(factura.iva)}`,
-                            `Total: ${formatMoney(factura.total)}`,
-                          ].filter((linea) => linea !== null).join('\n');
-                          navigator.clipboard?.writeText(texto)
-                            .then(() => { setDocRecargaCopiado(true); window.setTimeout(() => setDocRecargaCopiado(false), 2000); })
-                            .catch(() => {});
-                        }}
-                      >
-                        <UiIcon name={docRecargaCopiado ? 'check' : 'clipboard'} />
-                        {docRecargaCopiado ? 'Copiado' : 'Copiar datos'}
-                      </button>
-                    </div>
-                    <table className="factura-sii-tabla">
-                      <thead>
-                        <tr><th style={{ textAlign: 'left' }}>Concepto</th><th style={{ textAlign: 'right' }}>Monto</th></tr>
-                      </thead>
-                      <tbody>
-                        {documentDraft.factura.lineas.map((linea) => (
-                          <tr key={linea.concepto}>
-                            <td>{linea.concepto} <span style={{ color: '#64748b' }}>(neto)</span></td>
-                            <td style={{ textAlign: 'right' }}>{formatMoney(linea.neto)}</td>
-                          </tr>
-                        ))}
-                        <tr><td><strong>Neto</strong></td><td style={{ textAlign: 'right' }}><strong>{formatMoney(documentDraft.factura.neto)}</strong></td></tr>
-                        <tr><td><strong>IVA 19%</strong></td><td style={{ textAlign: 'right' }}><strong>{formatMoney(documentDraft.factura.iva)}</strong></td></tr>
-                        <tr><td><strong>Total</strong></td><td style={{ textAlign: 'right' }}><strong>{formatMoney(documentDraft.factura.total)}</strong></td></tr>
-                      </tbody>
-                    </table>
-                    <p className="panel-hint">
-                      Son dos líneas afectas: la comisión y el cargo por procesamiento de pago que se le descuenta a la
-                      tienda (la comisión de Flow). El total es lo que RepuesTop le retiene en este retiro (Oficio SII 2278
-                      de 2026).
-                    </p>
-                  </div>
-                )}
-                {documentDraft.facturaError && (
-                  <div className="notice"><UiIcon name="info" />{documentDraft.facturaError}</div>
-                )}
-                {/* Folio y fecha concilian el documento con el Registro de Compras y Ventas del
-                    SII. La fecha de emision define el mes en que el IVA va al F29. */}
-                <FieldLabel label="Folio (número que asignó el SII al emitir)">
-                  <input
-                    className="input"
-                    type="text"
-                    inputMode="numeric"
-                    pattern="[0-9]+"
-                    title="Solo dígitos: el número del documento emitido"
-                    value={documentDraft.folio}
-                    onChange={(event) => setDocumentDraft({ ...documentDraft, folio: event.target.value })}
-                    placeholder="Ej: 1024 (aparece en el documento ya emitido)"
-                    required
-                  />
-                </FieldLabel>
-                <FieldLabel label="Fecha de emisión">
-                  <input
-                    className="input"
-                    type="date"
-                    max={todayChile()}
-                    value={documentDraft.fechaEmision}
-                    onChange={(event) => setDocumentDraft({ ...documentDraft, fechaEmision: event.target.value })}
-                    required
-                  />
-                  {documentDraft.retiroFecha && documentDraft.fechaEmision
-                    && chileDay(documentDraft.retiroFecha).slice(0, 7) !== documentDraft.fechaEmision.slice(0, 7) && (
-                    <small style={{ color: '#b45309', fontSize: 12 }}>
-                      Se emite en un mes distinto al del retiro ({formatDate(documentDraft.retiroFecha)}). La factura por un
-                      servicio va en el período en que se percibe la comisión (art. 55 DL 825): confírmalo con el contador.
-                    </small>
-                  )}
-                </FieldLabel>
-              </>
-            )}
-
             <FieldLabel label="Razón social / Nombre"><input className="input" type="text" value={documentDraft.name} onChange={(event) => setDocumentDraft({ ...documentDraft, name: event.target.value })} required={!documentDraft.isEditing || documentDraft.tipoRetiro === 'PROVEEDOR'} /></FieldLabel>
             <FieldLabel label="Correo de envío"><input className="input" type="email" value={documentDraft.email} onChange={(event) => setDocumentDraft({ ...documentDraft, email: event.target.value })} required={!documentDraft.isEditing || documentDraft.tipoRetiro === 'PROVEEDOR'} /></FieldLabel>
             <FieldLabel label="Detalle"><input className="input" type="text" value={documentDraft.detail} onChange={(event) => setDocumentDraft({ ...documentDraft, detail: event.target.value })} required={!documentDraft.isEditing || documentDraft.tipoRetiro === 'PROVEEDOR'} /></FieldLabel>
@@ -4307,6 +4173,20 @@ export default function AdminFinancePage() {
             </div>
           </form>
         </Modal>
+      )}
+
+      {docRetiroTienda && (
+        <DocumentoLiquidacionModal
+          retiro={docRetiroTienda.retiro}
+          initialEditing={docRetiroTienda.editing}
+          onClose={() => setDocRetiroTienda(null)}
+          onSaved={() => {
+            setDocRetiroTienda(null);
+            // Los retiros de tienda vienen del servidor: se recargan para traer folio, fecha y si el
+            // documento quedo completo segun la puerta de pago.
+            void refetchWithdrawals();
+          }}
+        />
       )}
 
       {registeredDocumentPreview && (

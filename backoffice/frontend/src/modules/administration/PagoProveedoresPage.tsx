@@ -10,8 +10,11 @@ import UiIcon from '@/components/shared/UiIcon';
 import MetricCard from '@/components/shared/MetricCard';
 import FounderSellerName from '@/components/shared/FounderSellerName';
 import SellerListTooltip from '@/components/shared/SellerListTooltip';
-import { downloadFile, getCurrentCycleRange } from './utils';
-import type { RetiroAdminResponse, RetiroDetalleResponse, PagoProveedorResponse, ConfiguracionPagos, Withdrawal } from './types';
+import { chileDay, downloadFile, formatDateTimeLocal, getCurrentCycleRange } from './utils';
+import type { RetiroAdminResponse, RetiroDetalleResponse, PagoProveedorResponse, ConfiguracionPagos, DatosTransferencia, Withdrawal } from './types';
+import TransferenciaModal from './pagos/TransferenciaModal';
+import ConfirmarTransferenciaModal, { codigoPag } from './pagos/ConfirmarTransferenciaModal';
+import DocumentoLiquidacionModal from './pagos/DocumentoLiquidacionModal';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { RecordCard, RecordList, EmptyState } from '@/components/mobile';
 import SaldosEnContraPanel from './SaldosEnContraPanel';
@@ -48,6 +51,21 @@ function RechazosDelPago({ payment }: { payment: PagoProveedorResponse }) {
       {rechazados.length === 1 ? '1 rechazado' : `${rechazados.length} rechazados`}
     </span>
   );
+}
+
+/** NOMINA o TRANSFERENCIA, como pill. Los pagos anteriores al 13-oct no traen modalidad: eran nomina. */
+function ModalidadPill({ payment }: { payment: PagoProveedorResponse }) {
+  return payment.modalidad === 'TRANSFERENCIA'
+    ? <span className="status-pill tone-violet" title="Transferencias manuales 1:1 agrupadas por día">Transferencias</span>
+    : <span className="status-pill tone-blue" title="Nómina de pago masivo subida a BCI">Nómina BCI</span>;
+}
+
+/** Estado de la boleta/factura de comision de un retiro de proveedor, de un vistazo. */
+function BoletaPill({ retiro }: { retiro: RetiroAdminResponse }) {
+  const hayAlgo = Boolean(retiro.documentoLiquidacionNombre || retiro.documentoLiquidacionRut || retiro.documentoLiquidacionFolio);
+  return retiro.documentoLiquidacionCompleto
+    ? <span className="status-pill tone-green pp-boleta-pill">Boleta lista</span>
+    : <span className="status-pill tone-amber pp-boleta-pill">{hayAlgo ? 'Boleta incompleta' : 'Sin boleta'}</span>;
 }
 
 function parseFecha(value: string | Date): Date {
@@ -154,6 +172,12 @@ export default function PagoProveedoresPage() {
     ? motivoRechazo.trim()
     : MOTIVOS_RECHAZO.find((motivo) => motivo.id === motivoRechazoOpcion)?.label ?? '';
   const [selectedPendingRetiroId, setSelectedPendingRetiroId] = useState<number | null>(null);
+
+  // 13-oct: transferencia manual 1:1. Popup con los datos bancarios copiables, carga de la boleta
+  // desde la fila y confirmacion de "ya transferí" con el numero de operacion de BCI.
+  const [transferRetiro, setTransferRetiro] = useState<RetiroAdminResponse | null>(null);
+  const [docRetiro, setDocRetiro] = useState<RetiroAdminResponse | null>(null);
+  const [confirmRetiro, setConfirmRetiro] = useState<{ retiro: RetiroAdminResponse; datos: DatosTransferencia | null } | null>(null);
 
   // Modal para cargar documento tributario de socio desde Pago a Proveedores
   const [partnerDocModal, setPartnerDocModal] = useState<{
@@ -341,6 +365,13 @@ export default function PagoProveedoresPage() {
       && (!historyEndDate || date <= new Date(historyEndDate + 'T23:59:59'));
   }), [payments, historyCodeFilter, historyStartDate, historyEndDate]);
 
+  // 13-oct: el PAG de las transferencias de hoy, para ver el avance del dia y marcar rebotes sin ir
+  // al historial. Solo las de modalidad TRANSFERENCIA: la nomina sigue con su propio PAG.
+  const pagoDeHoy = useMemo(() => {
+    const hoy = chileDay(new Date().toISOString());
+    return payments.find((payment) => payment.modalidad === 'TRANSFERENCIA' && payment.fechaPagoDia === hoy) ?? null;
+  }, [payments]);
+
   // Total sums (incluye retiros de socio, ver BO-SOCIOS-001)
   const pendingTotalAmount = useMemo(
     () => pendingWithdrawals.reduce((sum, w) => sum + w.monto, 0)
@@ -449,9 +480,9 @@ export default function PagoProveedoresPage() {
                 alignItems: 'center',
                 gap: '8px'
               }}
-              title="Marcar como pagados los retiros de la última nómina exportada"
+              title="Solo para la nómina BCI: marca pagados los retiros de la última nómina exportada. Las transferencias 1:1 se marcan una a una desde cada fila."
             >
-              <UiIcon name="check" /> Procesar pago
+              <UiIcon name="check" /> Procesar pago (nómina)
             </button>
           ) : (
             <button className="secondary-button" type="button" onClick={() => refetch()} title="Actualizar datos">
@@ -499,8 +530,13 @@ export default function PagoProveedoresPage() {
             />
           </div>
 
-          <div className="notice" style={{ marginBottom: '15px' }}>
-            <UiIcon name="calendar" /> Ciclo de pagos actual: <strong>Jueves {formatDateShort(cycleStart)}</strong> al <strong>Miércoles {formatDateShort(cycleEnd)}</strong>. Se muestran todos los retiros pendientes solicitados hasta el miércoles; se paga solo lo que va en la última nómina exportada.
+          <div className="notice pp-cycle-notice" style={{ marginBottom: '15px' }}>
+            <UiIcon name="calendar" />
+            <div>
+              <p>Ciclo de pagos actual: <strong>Jueves {formatDateShort(cycleStart)}</strong> al <strong>Miércoles {formatDateShort(cycleEnd)}</strong>. Se muestran todos los retiros pendientes solicitados hasta el miércoles.</p>
+              <p><strong>Transferencia 1:1:</strong> en cada fila, <span className="pp-inline-icon"><UiIcon name="bank" /></span> copia los datos bancarios y el alias del destinatario en BCI, <span className="pp-inline-icon"><UiIcon name="receipt" /></span> carga la boleta y <span className="pp-inline-icon"><UiIcon name="check" /></span> la marca transferida cuando quede exitosa en el banco. Los pagos de un mismo día se agrupan en un solo PAG.</p>
+              <p><strong>Nómina BCI:</strong> exporta el Excel, súbelo al banco y usa "Procesar pago"; se paga solo lo que va en la última nómina exportada.</p>
+            </div>
           </div>
 
           {/* Table Tab 1 */}
@@ -531,7 +567,8 @@ export default function PagoProveedoresPage() {
       subtitle={`${w.codigoRetiro || '—'} · ${formatDate(w.fecha)}`}
       badge={w.fondosRetenidos
         ? <span className="status-pill tone-red" title={w.motivoRetencion ?? undefined}>Retenido: tienda suspendida</span>
-        : <span className="status-pill tone-blue">Proveedor</span>}
+        : <><span className="status-pill tone-blue">Proveedor</span> <BoletaPill retiro={w} /></>}
+      tone={w.documentoLiquidacionCompleto ? 'default' : 'warning'}
       meta={[
         { label: 'Monto', value: <strong>{formatMoney(w.monto)}</strong> },
         { label: 'RUT', value: w.rut },
@@ -539,8 +576,24 @@ export default function PagoProveedoresPage() {
         { label: 'Cuenta', value: `${w.tipoCuenta} · ${w.numeroCuenta}` },
         { label: 'Email', value: w.email, wide: true },
       ]}
-      onPress={() => setSelectedPendingRetiroId(w.retiroId)}
-      actions={<button type="button" className="mb-action" onClick={() => setSelectedPendingRetiroId(w.retiroId)}><UiIcon name="eye" />Ver solicitud</button>}
+      onPress={() => setTransferRetiro(w)}
+      actions={(
+        <>
+          <button type="button" className="mb-action" onClick={() => setSelectedPendingRetiroId(w.retiroId)}><UiIcon name="eye" />Ver solicitud</button>
+          <button type="button" className={`mb-action ${w.documentoLiquidacionCompleto ? 'mb-action--success' : 'mb-action--primary'}`} onClick={() => setDocRetiro(w)}>
+            <UiIcon name={w.documentoLiquidacionCompleto ? 'fileCheck' : 'receipt'} />{w.documentoLiquidacionCompleto ? 'Boleta' : 'Cargar boleta'}
+          </button>
+          <button type="button" className="mb-action" onClick={() => setTransferRetiro(w)}><UiIcon name="bank" />Datos para transferir</button>
+          <button
+            type="button"
+            className="mb-action mb-action--success"
+            disabled={!w.documentoLiquidacionCompleto || Boolean(w.fondosRetenidos)}
+            onClick={() => setConfirmRetiro({ retiro: w, datos: null })}
+          >
+            <UiIcon name="check" />Marcar transferido
+          </button>
+        </>
+      )}
     />
   ))}
   {pendingPartnerWithdrawals.map((w) => {
@@ -599,7 +652,7 @@ export default function PagoProveedoresPage() {
                     <th>Monto</th>
                     <th>Email</th>
                     <th>Fecha Solicitud</th>
-                    <th style={{ width: '80px', textAlign: 'center' }}>Acciones</th>
+                    <th style={{ width: '170px', textAlign: 'center' }}>Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -614,7 +667,7 @@ export default function PagoProveedoresPage() {
                           <td><strong>{w.codigoRetiro || '—'}</strong></td>
                           <td>{w.fondosRetenidos
                             ? <span className="status-pill tone-red" title={w.motivoRetencion ?? undefined}>Retenido: tienda suspendida</span>
-                            : <span className="status-pill tone-blue">Proveedor</span>}</td>
+                            : <span className="pp-tipo-cell"><span className="status-pill tone-blue">Proveedor</span><BoletaPill retiro={w} /></span>}</td>
                           <td><FounderSellerName name={w.nombreTienda} founder={w.sellerFounder} /></td>
                           <td>{w.rut}</td>
                           <td>{w.banco}</td>
@@ -632,6 +685,35 @@ export default function PagoProveedoresPage() {
                                 title="Ver detalle de la solicitud de retiro"
                               >
                                 <UiIcon name="eye" />
+                              </button>
+                              <button
+                                className={`action-button ${w.documentoLiquidacionCompleto ? 'success' : 'issue'}`}
+                                type="button"
+                                onClick={() => setDocRetiro(w)}
+                                title={w.documentoLiquidacionCompleto ? 'Ver o editar la boleta/factura de comisión registrada' : 'Cargar la boleta/factura de comisión (obligatoria para pagar)'}
+                              >
+                                <UiIcon name={w.documentoLiquidacionCompleto ? 'fileCheck' : 'receipt'} />
+                              </button>
+                              <button
+                                className="action-button neutral"
+                                type="button"
+                                onClick={() => setTransferRetiro(w)}
+                                title="Datos bancarios para transferir en BCI (copiar con un clic)"
+                              >
+                                <UiIcon name="bank" />
+                              </button>
+                              <button
+                                className="action-button success"
+                                type="button"
+                                disabled={!w.documentoLiquidacionCompleto || Boolean(w.fondosRetenidos)}
+                                onClick={() => setConfirmRetiro({ retiro: w, datos: null })}
+                                title={w.fondosRetenidos
+                                  ? 'Fondos retenidos: no se puede pagar'
+                                  : w.documentoLiquidacionCompleto
+                                    ? 'Ya transferí en BCI: marcar como transferido'
+                                    : 'Carga la boleta antes de marcar como transferido'}
+                              >
+                                <UiIcon name="check" />
                               </button>
                             </div>
                           </td>
@@ -694,6 +776,69 @@ export default function PagoProveedoresPage() {
 )}
             </div>
           </section>
+
+          {pagoDeHoy && (
+            <section className="table-shell pp-today">
+              <div className="table-toolbar">
+                <h2>
+                  Transferidos hoy · <strong>{codigoPag(pagoDeHoy.pagoId)}</strong>
+                  <small> {pagoDeHoy.retiros.length} {pagoDeHoy.retiros.length === 1 ? 'retiro' : 'retiros'} · {formatMoney(pagoDeHoy.montoTotal)}</small>
+                </h2>
+                <button className="secondary-button" type="button" onClick={() => setSelectedPagoId(pagoDeHoy.pagoId)}>
+                  <UiIcon name="eye" /> Ver pago del día
+                </button>
+              </div>
+              <div className="table-wrap">
+                <table className="wide-table">
+                  <thead>
+                    <tr>
+                      <th>Cód. Solicitud</th>
+                      <th>Tienda</th>
+                      <th>Monto</th>
+                      <th>Hora</th>
+                      <th>Operador</th>
+                      <th>N° operación BCI</th>
+                      <th>Depósito</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pagoDeHoy.retiros.map((retiro) => (
+                      <tr key={`hoy-${retiro.retiroId}`}>
+                        <td><strong>{retiro.codigoRetiro || '—'}</strong></td>
+                        <td><FounderSellerName name={retiro.nombreTienda} founder={retiro.sellerFounder} /></td>
+                        <td style={{ fontWeight: 'bold' }}>{formatMoney(retiro.monto)}</td>
+                        <td>{retiro.pagadoAt ? formatDateTimeLocal(retiro.pagadoAt).slice(11) : '—'}</td>
+                        <td>{retiro.pagadoPor || '—'}</td>
+                        <td className="pp-mono">{retiro.referenciaTransferencia || '—'}</td>
+                        <td>
+                          {retiro.estado === 'RECHAZADO' ? (
+                            <span className="status-pill tone-red" title={retiro.motivoRechazo ?? undefined}>Rechazado</span>
+                          ) : (
+                            <div className="action-cell">
+                              <span className="status-pill tone-green">Transferido</span>
+                              <button
+                                type="button"
+                                className="action-button neutral"
+                                title="El depósito rebotó en el banco"
+                                onClick={() => {
+                                  setRetiroARechazar({ id: retiro.retiroId, tienda: retiro.nombreTienda, codigo: retiro.codigoRetiro });
+                                  setMotivoRechazo('');
+                                  setMotivoRechazoOpcion('');
+                                  setErrorRechazo('');
+                                }}
+                              >
+                                <UiIcon name="alert" />
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )}
         </>
       ) : (
         <>
@@ -787,7 +932,7 @@ export default function PagoProveedoresPage() {
         key={payment.pagoId}
         title={`PAG-${String(payment.pagoId).padStart(6, '0')}`}
         subtitle={`${payment.retiros.length + sociosPagados.length} solicitudes · ${formatDate(payment.fechaPago)}`}
-        badge={<span className="status-pill tone-green">{payment.estado}</span>}
+        badge={<><span className="status-pill tone-green">{payment.estado}</span> <ModalidadPill payment={payment} /></>}
         footer={payment.retiros.some((retiro) => retiro.estado === 'RECHAZADO') ? <RechazosDelPago payment={payment} /> : undefined}
         meta={[
           { label: 'Monto pagado', value: <strong style={{ color: '#2e7d32' }}>{formatMoney(payment.montoTotal)}</strong> },
@@ -831,6 +976,7 @@ export default function PagoProveedoresPage() {
                             <small style={{ display: 'block', color: '#6b7a90', marginTop: 3 }}>
                               {payment.retiros.length + sociosPagados.length} solicitudes de retiro
                             </small>
+                            <div style={{ marginTop: 4 }}><ModalidadPill payment={payment} /></div>
                           </td>
                           <td>
                             {payment.retiros.length > 0 ? (
@@ -937,7 +1083,8 @@ export default function PagoProveedoresPage() {
       {/* Details Popup Modal */}
       {selectedPagoId !== null && (
         <div className="modal-backdrop pp-modal-backdrop" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setSelectedPagoId(null)}>
-          <div className="modal-content pp-modal" style={{ background: '#fff', borderRadius: '12px', width: '90%', maxWidth: '650px', padding: '24px', boxShadow: '0 20px 40px rgba(0,0,0,0.15)', display: 'flex', flexDirection: 'column', gap: '15px' }} onClick={(e) => e.stopPropagation()}>
+          {/* 13-oct: con la columna "Transferencia" (operacion, hora, operador) el panel de 650px no alcanza. */}
+          <div className="modal-content pp-modal" style={{ background: '#fff', borderRadius: '12px', width: '90%', maxWidth: paymentDetails?.modalidad === 'TRANSFERENCIA' ? '860px' : '650px', padding: '24px', boxShadow: '0 20px 40px rgba(0,0,0,0.15)', display: 'flex', flexDirection: 'column', gap: '15px' }} onClick={(e) => e.stopPropagation()}>
             <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #eee', paddingBottom: '12px' }}>
               <h3 style={{ margin: 0, fontSize: '18px' }}>
                 Detalle de Pago PAG-{String(selectedPagoId).padStart(6, '0')}
@@ -957,6 +1104,10 @@ export default function PagoProveedoresPage() {
                     <div><strong>Fecha de Pago:</strong> {formatDate(paymentDetails.fechaPago)}</div>
                     <div><strong>Estado:</strong> {paymentDetails.estado}</div>
                     <div><strong>Monto Total Pago:</strong> <strong style={{ color: '#075ed7' }}>{formatMoney(totalSuma)}</strong></div>
+                    <div><strong>Modalidad:</strong> <ModalidadPill payment={paymentDetails} /></div>
+                    {paymentDetails.modalidad === 'TRANSFERENCIA' && (
+                      <div><strong>Día:</strong> {paymentDetails.fechaPagoDia ? formatDateShort(paymentDetails.fechaPagoDia) : formatDateShort(paymentDetails.fechaPago)} (todas las transferencias de ese día)</div>
+                    )}
                   </div>
 
                   <div style={{ fontSize: '14px', fontWeight: 'bold', marginTop: '5px' }}>Solicitudes de retiro incluidas:</div>
@@ -969,6 +1120,7 @@ export default function PagoProveedoresPage() {
                           <th style={{ textAlign: 'left', padding: '8px 12px' }}>Tipo</th>
                           <th style={{ textAlign: 'left', padding: '8px 12px' }}>Fecha</th>
                           <th style={{ textAlign: 'right', padding: '8px 12px' }}>Monto Pagado</th>
+                          {paymentDetails.modalidad === 'TRANSFERENCIA' && <th style={{ textAlign: 'left', padding: '8px 12px' }}>Transferencia</th>}
                           <th style={{ textAlign: 'center', padding: '8px 12px' }}>Depósito</th>
                         </tr>
                       </thead>
@@ -981,6 +1133,13 @@ export default function PagoProveedoresPage() {
                             <td style={{ padding: '8px 12px' }}><span className="status-pill tone-blue" style={{ fontSize: '11px' }}>Proveedor</span></td>
                             <td style={{ padding: '8px 12px' }}>{formatDate(retiro.fecha)}</td>
                             <td style={{ textAlign: 'right', padding: '8px 12px', fontWeight: 'bold' }}>{formatMoney(retiro.monto)}</td>
+                            {paymentDetails.modalidad === 'TRANSFERENCIA' && (
+                              <td style={{ padding: '8px 12px', fontSize: 12, whiteSpace: 'nowrap' }}>
+                                <div className="pp-mono">{retiro.referenciaTransferencia || '—'}</div>
+                                <div style={{ color: '#6b7a90' }}>{retiro.pagadoAt ? formatDateTimeLocal(retiro.pagadoAt) : ''}</div>
+                                {retiro.pagadoPor && <div style={{ color: '#6b7a90' }}>{retiro.pagadoPor}</div>}
+                              </td>
+                            )}
                             <td style={{ textAlign: 'center', padding: '8px 12px' }}>
                               {retiro.estado === 'RECHAZADO' ? (
                                 <span className="status-pill tone-red" style={{ fontSize: '11px' }}>Rechazado</span>
@@ -1003,7 +1162,7 @@ export default function PagoProveedoresPage() {
                           </tr>
                           {retiro.estado === 'RECHAZADO' && (
                             <tr className="pp-rejected-row">
-                              <td colSpan={6}>
+                              <td colSpan={paymentDetails.modalidad === 'TRANSFERENCIA' ? 7 : 6}>
                                 <div className="pp-rejected-note">
                                   <UiIcon name="alert" />
                                   <div>
@@ -1027,6 +1186,7 @@ export default function PagoProveedoresPage() {
                             <td style={{ padding: '8px 12px' }}><span className="status-pill tone-violet" style={{ fontSize: '11px' }}>Socio</span></td>
                             <td style={{ padding: '8px 12px' }}>{formatDate(w.date)}</td>
                             <td style={{ textAlign: 'right', padding: '8px 12px', fontWeight: 'bold' }}>{formatMoney(w.amount)}</td>
+                            {paymentDetails.modalidad === 'TRANSFERENCIA' && <td style={{ padding: '8px 12px', color: '#a0aec0' }}>—</td>}
                             {/* Los socios no pasan por este flujo: su retiro no libera items de pedidos. */}
                             <td style={{ textAlign: 'center', padding: '8px 12px', color: '#a0aec0' }}>—</td>
                           </tr>
@@ -1347,6 +1507,42 @@ export default function PagoProveedoresPage() {
             </form>
           </div>
         </div>
+      )}
+
+      {transferRetiro && (
+        <TransferenciaModal
+          retiro={transferRetiro}
+          onClose={() => setTransferRetiro(null)}
+          onCargarBoleta={() => setDocRetiro(transferRetiro)}
+          onMarcarTransferido={(datos) => setConfirmRetiro({ retiro: transferRetiro, datos })}
+        />
+      )}
+
+      {docRetiro && (
+        <DocumentoLiquidacionModal
+          retiro={docRetiro}
+          onClose={() => setDocRetiro(null)}
+          onSaved={async () => {
+            setDocRetiro(null);
+            const refreshed = await refetch();
+            queryClient.invalidateQueries({ queryKey: ['admin-datos-transferencia'] });
+            // El popup de transferencia, si sigue abierto, debe ver la boleta ya completa.
+            const actualizado = refreshed.data?.find((w) => w.retiroId === docRetiro.retiroId);
+            if (actualizado && transferRetiro?.retiroId === actualizado.retiroId) setTransferRetiro(actualizado);
+          }}
+        />
+      )}
+
+      {confirmRetiro && (
+        <ConfirmarTransferenciaModal
+          retiro={confirmRetiro.retiro}
+          datos={confirmRetiro.datos}
+          onClose={() => setConfirmRetiro(null)}
+          onPaid={() => {
+            setConfirmRetiro(null);
+            setTransferRetiro(null);
+          }}
+        />
       )}
 
       {isConfigModalOpen && (

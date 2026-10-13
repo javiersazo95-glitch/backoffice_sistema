@@ -21215,3 +21215,498 @@ main.feedback-page .feedback-page-header .area-home-shortcut-group { margin-left
 
 /* 13-oct: paso del cuestionario que vencio sin respuesta. */
 .mediation-questionnaire-step.expired .mediation-questionnaire-answer.expired { color: #92400e; }
+
+/* ------------------------------------------------------------------ */
+/* Pago a proveedores: transferencia manual 1:1 (13-oct-2026)          */
+/* ------------------------------------------------------------------ */
+
+.pp-modal-panel {
+  width: 100%;
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  padding: 22px 24px;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.pp-modal-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--soft-line);
+}
+
+.pp-modal-title {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.pp-modal-title h3 {
+  margin: 0;
+  font-size: 18px;
+  color: var(--ink);
+}
+
+.pp-modal-title p {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.pp-modal-badge {
+  flex: 0 0 auto;
+  padding-top: 2px;
+}
+
+.pp-modal-panel .notice.error {
+  background: var(--red-soft);
+  color: #9b2c2c;
+  border-color: #fed7d7;
+}
+
+.pp-tipo-cell {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.pp-boleta-pill {
+  font-size: 10.5px;
+}
+
+.pp-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12.5px;
+}
+
+.action-cell .action-button:disabled,
+.mb-action:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Ficha de transferencia */
+.pp-transfer-alias {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #0b1f3b 0%, #123a6b 100%);
+  color: #fff;
+}
+
+.pp-transfer-alias > div {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.pp-transfer-alias-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: #9fb7d1;
+}
+
+.pp-transfer-alias-value {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 26px;
+  letter-spacing: 1px;
+  line-height: 1.1;
+}
+
+.pp-transfer-alias-hint {
+  font-size: 12px;
+  line-height: 1.4;
+  color: #d5e2f1;
+}
+
+.pp-transfer-warnings {
+  list-style: none;
+  margin: 0;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px solid #fcd34d;
+  border-radius: 10px;
+  background: var(--amber-soft);
+  color: #7c4a03;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.pp-transfer-warnings.is-blocking {
+  border-color: #fca5a5;
+  background: #fff5f5;
+  color: #9b2c2c;
+}
+
+.pp-transfer-warnings li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.pp-transfer-warnings .ui-icon {
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+  margin-top: 1px;
+}
+
+.pp-transfer-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.pp-copy-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 56px;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  cursor: pointer;
+  transition: border-color 120ms ease, background 120ms ease, box-shadow 120ms ease;
+}
+
+.pp-copy-field:hover,
+.pp-copy-field:focus-visible {
+  border-color: #9cc0f5;
+  background: #f5f9ff;
+  outline: none;
+}
+
+.pp-copy-field.is-copied {
+  border-color: var(--green);
+  background: var(--green-soft);
+}
+
+.pp-copy-field.is-empty {
+  cursor: default;
+  background: var(--soft);
+}
+
+.pp-copy-field.is-emphasis {
+  grid-column: 1 / -1;
+}
+
+.pp-copy-field-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pp-copy-field-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.pp-copy-field-value {
+  font-size: 14px;
+  font-weight: 650;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.pp-copy-field.is-emphasis .pp-copy-field-value {
+  font-size: 18px;
+}
+
+.pp-copy-field-value.is-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: 0.5px;
+}
+
+.pp-copy-field-value small {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.pp-copy-field-value em {
+  font-style: italic;
+  font-weight: 500;
+  color: #a0aec0;
+}
+
+.pp-copy-field-hint {
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.pp-copy-field-hint code {
+  font-size: 11.5px;
+}
+
+.pp-copy-field-action {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--blue);
+  background: #eaf2ff;
+}
+
+.pp-copy-field.is-copied .pp-copy-field-action {
+  color: #fff;
+  background: var(--green);
+}
+
+.pp-copy-field.is-empty .pp-copy-field-action {
+  display: none;
+}
+
+.pp-copy-field-action .ui-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.pp-copy-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+.pp-copy-button:hover {
+  background: var(--soft);
+}
+
+.pp-copy-button.is-copied {
+  border-color: var(--green);
+  color: var(--green);
+  background: var(--green-soft);
+}
+
+.pp-copy-button--solid {
+  border-color: transparent;
+  background: #fff;
+  color: #0b1f3b;
+}
+
+.pp-copy-button--solid.is-copied {
+  background: var(--green-soft);
+}
+
+.pp-copy-button .ui-icon {
+  width: 15px;
+  height: 15px;
+}
+
+.pp-copy-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pp-transfer-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding-top: 12px;
+  border-top: 1px solid var(--soft-line);
+}
+
+.pp-transfer-actions-main {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.pp-transfer-actions .primary-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pp-transfer-blocked {
+  margin: -6px 0 0;
+  text-align: right;
+  font-size: 12.5px;
+  color: #9b2c2c;
+  font-weight: 600;
+}
+
+/* Confirmacion "ya transferí" */
+.pp-confirm-summary {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 6px 14px;
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--soft);
+  font-size: 13px;
+}
+
+.pp-confirm-summary dt {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.pp-confirm-summary dd {
+  margin: 0;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.pp-confirm-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #34495e;
+  cursor: pointer;
+}
+
+.pp-confirm-check.is-checked {
+  border-color: var(--green);
+  background: var(--green-soft);
+  color: var(--ink);
+}
+
+.pp-confirm-check input {
+  margin: 2px 0 0;
+  accent-color: var(--green);
+}
+
+.pp-confirm-error {
+  margin: 0;
+  color: #c53030;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.pp-confirm-modal .form-field small {
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+/* Transferidos hoy */
+.pp-today .table-toolbar h2 small {
+  margin-left: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+@media (max-width: 720px) {
+  .pp-transfer-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .pp-transfer-alias {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .pp-modal-panel {
+    padding: 18px 16px;
+    max-height: calc(100vh - 24px);
+  }
+
+  .pp-confirm-summary {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+
+  .pp-confirm-summary dd {
+    margin-bottom: 6px;
+  }
+}
+
+.pp-cycle-notice > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.pp-cycle-notice p {
+  margin: 0;
+}
+
+.pp-inline-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  margin: 0 1px;
+  border-radius: 5px;
+  background: #e3edfb;
+  color: var(--blue);
+  vertical-align: -5px;
+}
+
+.pp-inline-icon .ui-icon {
+  width: 13px;
+  height: 13px;
+}
+
+/* El .notice generico pone cada <p> en inline-flex; el aviso del ciclo es texto corrido. */
+.pp-cycle-notice {
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+
+.pp-cycle-notice > .ui-icon {
+  flex: 0 0 18px;
+  margin-top: 1px;
+}
+
+.pp-cycle-notice p {
+  display: block;
+  line-height: 1.5;
+}
+
+@media (max-width: 720px) {
+  /* En movil la pill del encabezado baja a su propia linea; si no, el titulo se parte palabra por palabra. */
+  .pp-modal-head {
+    flex-wrap: wrap;
+  }
+
+  .pp-modal-title {
+    flex: 1 1 0;
+  }
+
+  .pp-modal-badge {
+    order: 3;
+    flex: 1 1 100%;
+    padding-top: 0;
+  }
+}
