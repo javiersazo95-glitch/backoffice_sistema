@@ -390,9 +390,31 @@ pestañas.
   - no recibido → a la tienda: si despachó o entregó el pedido;
   - cualquier otro motivo → "¿Qué necesitas resolver?" (falla, producto distinto, retracto o no llega).
 
-  Cada respuesta avisa sola a la otra parte y lanza el siguiente paso. Toda pregunta termina en
-  **"Ninguna de estas: hablar con un mediador"**: el cuestionario se detiene y el caso queda en
-  **Pide un mediador**.
+  Si es **la tienda** la que pide el mediador, el cuestionario arranca con ella: "¿Qué necesitas
+  resolver?" (el comprador no responde o no recibe el pedido → se le pregunta al comprador qué pasa
+  con su pedido; la devolución llegó dañada → pide un mediador; quiero devolverle el dinero → se le
+  pregunta al comprador si tiene el producto para devolverlo).
+
+  La **primera pregunta se responde en el mismo popup de "Solicitar mediador"** (la app y el Market la
+  muestran con sus opciones en un desplegable), así que el flujo sigue en el acto con la otra parte.
+
+  Cada respuesta avisa sola a la otra parte y lanza el siguiente paso. Quien respondió recibe el aviso
+  **"Avisamos a la tienda / al comprador y quedamos a la espera de su respuesta"**, con el plazo que
+  tiene la contraparte. Toda pregunta termina en **"Ninguna de estas: hablar con un mediador"**: el
+  cuestionario se detiene y el caso queda en **Pide un mediador**.
+- **Plazos y re-pregunta** (desde el 13 de octubre). Cada pregunta vence: devolver el producto 10
+  días corridos; la tienda confirma la recepción 5 días hábiles; acepta el cambio 3 días hábiles;
+  envía el reemplazo 10 días hábiles; acredita el despacho 2 días hábiles; el resto 5 días corridos.
+  Si la parte no responde, un proceso automático (cada 15 minutos) marca la pregunta **"Sin
+  respuesta (venció el plazo)"**, se lo dice a quien no respondió y le pregunta a la otra parte **cómo
+  quiere continuar**, con el contexto de lo que venció: al comprador "la tienda no confirmó si recibió
+  tu devolución…" (quiero el reembolso / darle unos días más / hablar con un mediador) y a la tienda
+  "el comprador no informó la devolución…" (pedir que se cierre a favor de mi tienda / darle unos días
+  más / hablar con un mediador). "Darle unos días más" reenvía la pregunta vencida con un plazo nuevo;
+  las otras dejan el caso en **Listo para resolver** o **Pide un mediador** y avisan al mediador. Si la
+  tienda no confirma la recepción de una devolución en plazo, se presume recibida en buen estado
+  (así lo dicen los términos). En el panel del cuestionario cada paso pendiente muestra hasta cuándo
+  vence.
 - **Los finales felices se resuelven solos** (desde el 13 de octubre), sin mediador:
   - la tienda confirma que recibió la devolución en buen estado → **Reembolso íntegro**, pedido a
     Flow en el acto;

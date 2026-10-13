@@ -34,10 +34,20 @@ export const GUIDED_QUESTIONS: GuidedQuestion[] = [
   { key: 'P4_REEMPLAZO', target: 'COMPRADOR', title: '¿Recibiste el reemplazo?', hint: 'El comprador confirma que el cambio o la reparación quedó bien.' },
   { key: 'P7_DESPACHO', target: 'VENDEDOR', title: '¿Despachaste o entregaste el pedido?', hint: 'Pedido no recibido: la tienda acredita el despacho.' },
   { key: 'P8_LLEGADA', target: 'COMPRADOR', title: '¿Ya recibiste tu pedido?', hint: 'Después de que la tienda informó el despacho.' },
+  // 13-oct: cuestionario de la tienda, oferta de reembolso y seguimiento por plazo vencido.
+  { key: 'S1_TIENDA', target: 'VENDEDOR', title: '¿Qué necesitas resolver? (tienda)', hint: 'Cuando es la tienda la que pide el mediador.' },
+  { key: 'B2_REEMBOLSO', target: 'COMPRADOR', title: 'La tienda propone devolverte el dinero', hint: 'El comprador dice si tiene el producto para devolverlo.' },
+  { key: 'F_TIENDA_NO_RESP', target: 'COMPRADOR', title: 'La tienda no respondió a tiempo', hint: 'La manda el sistema al vencer un plazo de la tienda.' },
+  { key: 'F_COMPRADOR_NO_RESP', target: 'VENDEDOR', title: 'El comprador no respondió a tiempo', hint: 'La manda el sistema al vencer un plazo del comprador.' },
 ];
 
+/** 13-oct: las de seguimiento las manda solo el sistema al vencer un plazo; no se retoman a mano. */
+export function isFollowUpQuestion(key: string | null | undefined): boolean {
+  return key === 'F_TIENDA_NO_RESP' || key === 'F_COMPRADOR_NO_RESP';
+}
+
 export function guidedQuestionsFor(target: GuidedQuestionTarget): GuidedQuestion[] {
-  return GUIDED_QUESTIONS.filter((question) => question.target === target);
+  return GUIDED_QUESTIONS.filter((question) => question.target === target && !isFollowUpQuestion(question.key));
 }
 
 function guidedQuestion(key: string | null | undefined): GuidedQuestion | undefined {
@@ -94,6 +104,10 @@ export interface QuestionnaireStep {
   answeredAt: string | null;
   /** La parte tocó "Ninguna de estas: hablar con un mediador". */
   askedForMediator: boolean;
+  /** 13-oct: plazo para responder y si venció sin respuesta. */
+  deadlineText: string | null;
+  expiresAt: string | null;
+  expired: boolean;
 }
 
 /**
@@ -123,6 +137,9 @@ export function buildQuestionnaireSteps(...threads: (MediationMessageResponse[] 
         answerText: message.respuestaTexto ?? null,
         answeredAt: message.respondidoAt ?? null,
         askedForMediator: message.respuestaKey === HELP_OPTION_KEY,
+        deadlineText: message.plazoTexto ?? null,
+        expiresAt: message.venceAt ?? null,
+        expired: Boolean(message.vencida),
       };
     });
 }
@@ -140,6 +157,7 @@ function eleccionDe(steps: QuestionnaireStep[]): 'DINERO' | 'CAMBIO' | 'REPARACI
     else if (step.key === 'P1_SOLUCION' && step.answerKey === 'REPARACION') eleccion = 'REPARACION';
     else if (step.key === 'P1_SOLUCION' && step.answerKey === 'DINERO') eleccion = 'DINERO';
     else if (step.key === 'P5_CUMPLIR' && step.answerKey === 'REEMBOLSAR') eleccion = 'DINERO';
+    else if (step.key === 'B2_REEMBOLSO' || (step.key === 'F_TIENDA_NO_RESP' && step.answerKey === 'REEMBOLSO')) eleccion = 'DINERO';
   });
   return eleccion;
 }

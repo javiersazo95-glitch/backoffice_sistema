@@ -21187,3 +21187,6 @@ main.feedback-page .feedback-page-header .area-home-shortcut-group { margin-left
 }
 .mediation-resolution-checklist input { margin-top: 3px; }
 .mediation-status-cell { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+
+/* 13-oct: paso del cuestionario que vencio sin respuesta. */
+.mediation-questionnaire-step.expired .mediation-questionnaire-answer.expired { color: #92400e; }

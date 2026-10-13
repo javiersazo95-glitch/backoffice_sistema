@@ -132,6 +132,10 @@ export interface MediationMessageResponse {
   respuestaTexto?: string | null;
   respondidoAt?: string | null;
   respondidoPor?: string | null;
+  /** 13-oct: plazo para responder y si venció sin respuesta. */
+  plazoTexto?: string | null;
+  venceAt?: string | null;
+  vencida?: boolean;
 }
 
 export interface MediationQuestionOption {

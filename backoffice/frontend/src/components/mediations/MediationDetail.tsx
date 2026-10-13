@@ -430,20 +430,24 @@ function QuestionnairePanel({
           {steps.map((step, index) => (
             <li
               key={step.id}
-              className={`mediation-questionnaire-step ${step.target === 'COMPRADOR' ? 'buyer' : 'seller'}${step.answerKey ? '' : ' pending'}${step.askedForMediator ? ' help' : ''}`}
+              className={`mediation-questionnaire-step ${step.target === 'COMPRADOR' ? 'buyer' : 'seller'}${step.answerKey ? '' : ' pending'}${step.askedForMediator ? ' help' : ''}${step.expired ? ' expired' : ''}`}
             >
               <span className="mediation-questionnaire-step-index">{index + 1}</span>
               <div>
                 <small>{PARTY_LABEL[step.target]} · {partyName(step.target)}</small>
                 <strong>{step.title}</strong>
                 {step.answerKey ? (
-                  <span className="mediation-questionnaire-answer">
-                    <UiIcon name={step.askedForMediator ? 'alert' : 'check'} /> {step.answerLabel}
+                  <span className={`mediation-questionnaire-answer${step.expired ? ' expired' : ''}`}>
+                    <UiIcon name={step.askedForMediator ? 'alert' : step.expired ? 'clock' : 'check'} /> {step.answerLabel}
                     {step.answerText ? <em> «{step.answerText}»</em> : null}
                     {step.answeredAt ? <time> · {formatDateTime(step.answeredAt)}</time> : null}
                   </span>
                 ) : (
-                  <span className="mediation-questionnaire-answer waiting">Esperando respuesta · enviada {formatDateTime(step.askedAt)}</span>
+                  <span className="mediation-questionnaire-answer waiting">
+                    Esperando respuesta · enviada {formatDateTime(step.askedAt)}
+                    {/* 13-oct: cada pregunta vence; vencida, el sistema le pregunta a la otra parte como seguir. */}
+                    {step.expiresAt ? ` · vence ${formatDateTime(step.expiresAt)}` : step.deadlineText ? ` · plazo ${step.deadlineText}` : ''}
+                  </span>
                 )}
               </div>
             </li>
