@@ -21746,3 +21746,45 @@ main.feedback-page .feedback-page-header .area-home-shortcut-group { margin-left
   display: block;
   line-height: 1.5;
 }
+
+/* 13-oct: "i" con el desglose de la ganancia de una recarga (popover con posición fija) */
+.ganancia-recarga {
+  display: inline-flex;
+}
+
+.ganancia-recarga-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: help;
+}
+
+.ganancia-recarga-trigger .ui-icon {
+  width: 14px;
+  height: 14px;
+  color: var(--blue);
+}
+
+.ganancia-recarga-popover {
+  position: fixed;
+  z-index: 1300;
+  width: 340px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink);
+  text-align: left;
+}
+
+.ganancia-recarga-popover .tooltip-row {
+  white-space: normal;
+}
+
+.advertising-highlight .ganancia-recarga-trigger strong {
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.advertising-highlight .ganancia-recarga-trigger .ui-icon {
+  width: 16px;
+  height: 16px;
+}

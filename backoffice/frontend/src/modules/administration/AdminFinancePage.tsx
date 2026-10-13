@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent,
 import { formatRut, validateRut } from '@/utils/rut';
 import { formatOrderNumber, orderNumberSearchText } from '@/utils/orderNumber';
 import { toChileIso } from '@/utils/formatters';
+import type React from 'react';
+import { createPortal } from 'react-dom';
 import { useQuery } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
@@ -175,6 +177,55 @@ function facturaDeLaFila(settlement: Settlement) {
     total: settlement.serviceCommission + settlement.serviceCommissionIva + settlement.gatewayFeeSeller,
   };
 }
+
+/**
+ * 13-oct: de dónde sale la ganancia de una compra de Monedas, en un tooltip "i". Venta sin IVA;
+ * la comisión de Flow se informa (neto + IVA recuperable) pero no se descuenta.
+ */
+const GananciaRecargaBreakdown = ({ ad }: { ad: AdvertisingOrder }) => {
+  const iva = ad.ivaVenta ?? Math.max(0, ad.montoPagado - ad.montoNeto);
+  const ganancia = ad.montoPagado - iva;
+  const flowIva = ad.ivaPasarela ?? Math.round(ad.comisionPasarela - ad.comisionPasarela / 1.19);
+  const flowNeto = ad.comisionPasarela - flowIva;
+  return (
+    <>
+      <div className="tooltip-row"><span>Monto pagado por el comprador</span><span>{formatMoney(ad.montoPagado)}</span></div>
+      <div className="tooltip-row"><span>IVA de la venta (19%, débito fiscal)</span><span style={{ color: '#dc2626', fontWeight: 600 }}>-{formatMoney(iva)}</span></div>
+      <div className="tooltip-divider" />
+      <div className="tooltip-row total"><span>Ganancia RepuesTop (venta sin IVA)</span><span>{formatMoney(ganancia)}</span></div>
+      <div className="tooltip-divider" />
+      <div className="tooltip-row"><span>Comisión Flow (informativa, no se descuenta)</span><span>{formatMoney(ad.comisionPasarela)}</span></div>
+      <div className="tooltip-row" style={{ color: '#64748b' }}><span>· neto {formatMoney(flowNeto)} + IVA recuperable {formatMoney(flowIva)}</span><span /></div>
+      <div className="tooltip-row" style={{ color: '#64748b' }}><span>70% a caja · 30% a socios</span><span>{formatMoney(Math.round(ganancia * 0.7))} · {formatMoney(Math.round(ganancia * 0.3))}</span></div>
+    </>
+  );
+};
+
+/**
+ * Valor con la "i" del desglose de una recarga; se usa en Publicidad, Caja y socios. El popover va
+ * con posición fija calculada al pasar el mouse: las tablas (`.table-wrap`) recortan lo que se sale
+ * de su caja, y un tooltip absoluto quedaba cortado en las primeras filas.
+ */
+const GananciaRecargaValue = ({ ad, value, strong = false }: { ad: AdvertisingOrder; value: number; strong?: boolean }) => {
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const abrir = (event: React.MouseEvent<HTMLElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const ancho = 340;
+    setPos({ top: rect.bottom + 8, left: Math.max(8, Math.min(rect.left, window.innerWidth - ancho - 8)) });
+  };
+  return (
+    <span className="ganancia-recarga" onMouseEnter={abrir} onMouseLeave={() => setPos(null)} onClick={(event) => { event.stopPropagation(); pos ? setPos(null) : abrir(event); }}>
+      <span className="ganancia-recarga-trigger" title="Ver de dónde sale la ganancia">{strong ? <strong>{formatMoney(value)}</strong> : formatMoney(value)}<UiIcon name="info" /></span>
+      {pos && createPortal(
+        // Al body: dentro de un modal con transform, un position:fixed queda relativo al modal.
+        <div className="ganancia-recarga-popover" style={{ top: pos.top, left: pos.left }} role="tooltip">
+          <div className="tooltip-body"><GananciaRecargaBreakdown ad={ad} /></div>
+        </div>,
+        document.body,
+      )}
+    </span>
+  );
+};
 
 const SettlementSaleBreakdown = ({ settlement }: { settlement: Settlement }) => {
   const hasDiscount = Object.entries(settlement.saleDetail).some(([label, value]) => value < 0 || label.toLowerCase().includes('descuento'));
@@ -2664,7 +2715,7 @@ export default function AdminFinancePage() {
         { label: 'Fichas', value: row.cantidadFichas.toLocaleString('es-CL') },
         { label: 'Monto pagado', value: formatMoney(row.montoPagado) },
         { label: 'Comisión pasarela', value: formatMoney(row.comisionPasarela) },
-        { label: 'Ganancia', value: formatMoney(row.montoNeto) },
+        { label: 'Ganancia', value: <GananciaRecargaValue ad={row} value={row.montoNeto} /> },
         { label: 'Método de pago', value: row.metodoPago ?? '—' },
         { label: 'Correo', value: row.correo ?? '—' },
       ]}
@@ -2701,7 +2752,7 @@ export default function AdminFinancePage() {
                     <td>{row.cantidadFichas.toLocaleString('es-CL')}</td>
                     <td>{formatMoney(row.montoPagado)}</td>
                     <td>{formatMoney(row.comisionPasarela)}</td>
-                    <td>{formatMoney(row.montoNeto)}</td>
+                    <td className="value-cell"><GananciaRecargaValue ad={row} value={row.montoNeto} /></td>
                     <td>{row.metodoPago ?? '—'}</td>
                     <td><span className={`status-pill ${slug(row.estado)}`}>{row.estado}</span></td>
                     <td>
@@ -3322,7 +3373,7 @@ export default function AdminFinancePage() {
       badge={<span className={`status-pill ${entry.type === 'pedido' ? 'finalizado' : 'preparando'}`}>{entry.type === 'pedido' ? 'Pedido' : 'Publicidad'}</span>}
       meta={[
         { label: 'En caja (70%)', value: <strong style={{ color: '#059669' }}>{formatMoney(entry.cashAmount)}</strong> },
-        { label: 'Ganancia neta', value: formatMoney(entry.netProfit) },
+        { label: 'Ganancia neta', value: entry.originalAdvertising ? <GananciaRecargaValue ad={entry.originalAdvertising} value={entry.netProfit} /> : formatMoney(entry.netProfit) },
         { label: 'Venta total', value: formatMoney(entry.totalSale) },
         { label: 'Comisión / Retención', value: entry.commissionOrDeduction },
         { label: 'Comprador', value: entry.buyer },
@@ -3392,8 +3443,10 @@ export default function AdminFinancePage() {
                     <td>
                       <span style={{ fontSize: '12px' }}>{entry.commissionOrDeduction}</span>
                     </td>
-                    <td>
-                      <strong>{formatMoney(entry.netProfit)}</strong>
+                    <td className="value-cell">
+                      {entry.originalAdvertising
+                        ? <GananciaRecargaValue ad={entry.originalAdvertising} value={entry.netProfit} strong />
+                        : <strong>{formatMoney(entry.netProfit)}</strong>}
                     </td>
                     <td>
                       <strong style={{ color: '#059669', fontSize: '14px' }}>{formatMoney(entry.cashAmount)}</strong>
@@ -3682,7 +3735,7 @@ export default function AdminFinancePage() {
       badge={<span className={`status-pill ${entry.type === 'pedido' ? 'finalizado' : 'preparando'}`}>{entry.type === 'pedido' ? 'Pedido' : 'Publicidad'}</span>}
       meta={[
         { label: 'Total socios (30%)', value: <strong style={{ color: '#7c3aed' }}>{formatMoney(entry.partnerShare)}</strong> },
-        { label: 'Ganancia neta', value: formatMoney(entry.netProfit) },
+        { label: 'Ganancia neta', value: entry.originalAdvertising ? <GananciaRecargaValue ad={entry.originalAdvertising} value={entry.netProfit} /> : formatMoney(entry.netProfit) },
         { label: 'Comisión / Descuento', value: entry.commissionLabel },
         { label: 'Comisión pasarela', value: formatMoney(entry.gatewayFee) },
         { label: 'IVA', value: formatMoney(entry.iva) },
@@ -3745,7 +3798,7 @@ export default function AdminFinancePage() {
                     <td><span style={{ fontSize: '12px' }}>{entry.commissionLabel}</span></td>
                     <td>{formatMoney(entry.gatewayFee)}</td>
                     <td>{formatMoney(entry.iva)}</td>
-                    <td><strong>{formatMoney(entry.netProfit)}</strong></td>
+                    <td className="value-cell">{entry.originalAdvertising ? <GananciaRecargaValue ad={entry.originalAdvertising} value={entry.netProfit} strong /> : <strong>{formatMoney(entry.netProfit)}</strong>}</td>
                     <td><strong style={{ color: '#7c3aed', fontSize: '14px' }}>{formatMoney(entry.partnerShare)}</strong></td>
                     <td>{formatDate(entry.date)}</td>
                     <td>
@@ -4629,7 +4682,7 @@ export default function AdminFinancePage() {
               </div>
               <div className="advertising-highlight positive">
                 <span>Ganancia RepuesTop</span>
-                <strong>{formatMoney(selectedAdvertisingOrder.montoNeto)}</strong>
+                <GananciaRecargaValue ad={selectedAdvertisingOrder} value={selectedAdvertisingOrder.montoNeto} strong />
               </div>
             </div>
 
