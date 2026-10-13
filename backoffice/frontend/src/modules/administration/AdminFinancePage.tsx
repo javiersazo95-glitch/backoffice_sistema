@@ -1013,8 +1013,8 @@ export default function AdminFinancePage() {
   /**
    * Convergencia total de ingresos (pedidos y publicidad):
    * - Pedidos: ganancia neta (5% tarifa fundador o 10%/7%/5% normal menos pasarela/IVA) -> 70% a caja.
-   * - Publicidad: venta sin IVA menos comisión Flow sin IVA (O16: el IVA débito no es ganancia y el
-   *   IVA de Flow se recupera como crédito fiscal) -> 70% a caja. Lo calcula el backend (montoNeto).
+   * - Publicidad: venta sin IVA (13-oct, decisión del usuario: solo se descuenta el IVA; la comisión
+   *   de Flow se informa pero no se resta) -> 70% a caja. Lo calcula el backend (montoNeto).
    */
   /** Ingresos del periodo de Caja (pedidos finalizados + compras de Monedas), con cash.ts. */
   const cajaEntriesAll = useMemo<CashIncomeEntry[]>(
@@ -1289,9 +1289,8 @@ export default function AdminFinancePage() {
         concept: ad.pack ? `Fichas Mural: ${ad.pack} (${ad.cantidadFichas.toLocaleString('es-CL')} fichas)` : `Compra Fichas (${ad.cantidadFichas.toLocaleString('es-CL')})`,
         sellerOrPack: ad.pack || 'Fichas Mural',
         sellerFounder: false,
-        commissionLabel: ad.ivaPasarela
-          ? `Comisión Flow (-${formatMoney(ad.comisionPasarela)}; IVA recuperable ${formatMoney(ad.ivaPasarela)})`
-          : `Comisión Flow (-${formatMoney(ad.comisionPasarela)})`,
+        // 13-oct: la ganancia es la venta sin IVA; Flow se informa, no se descuenta.
+        commissionLabel: `IVA de la venta (-${formatMoney(ad.ivaVenta ?? 0)}) · Flow ${formatMoney(ad.comisionPasarela)} no se descuenta`,
         gatewayFee: ad.comisionPasarela,
         // O16: IVA débito de la venta (antes 0: se contaba como ganancia).
         iva: ad.ivaVenta ?? 0,
@@ -2607,7 +2606,7 @@ export default function AdminFinancePage() {
               label="Ganancia"
               value={formatMoney(advertisingMetrics.ganancia)}
               tone="green"
-              description="Monto pagado menos la pasarela"
+              description="Monto pagado sin IVA; la comisión de la pasarela no se descuenta"
               iconName="percent"
             />
             <MetricCard
@@ -4625,8 +4624,8 @@ export default function AdminFinancePage() {
                 <strong>{formatMoney(selectedAdvertisingOrder.montoPagado)}</strong>
               </div>
               <div className="advertising-highlight negative">
-                <span>Comisión pasarela</span>
-                <strong>− {formatMoney(selectedAdvertisingOrder.comisionPasarela)}</strong>
+                <span>IVA de la venta</span>
+                <strong>− {formatMoney(selectedAdvertisingOrder.ivaVenta ?? Math.max(0, selectedAdvertisingOrder.montoPagado - selectedAdvertisingOrder.montoNeto))}</strong>
               </div>
               <div className="advertising-highlight positive">
                 <span>Ganancia RepuesTop</span>

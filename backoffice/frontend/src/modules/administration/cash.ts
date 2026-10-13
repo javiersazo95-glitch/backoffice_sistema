@@ -51,7 +51,10 @@ export function buildCashEntries(
     // O77 (27-sep): el dia de la compra en hora de Chile, no el de la marca UTC.
     .filter((ad) => isWithinRange(chileDay(ad.fecha), start, end))
     .map((ad) => {
+      // 13-oct (decision del usuario): la ganancia de una recarga es la venta sin IVA. La comision de
+      // Flow se informa pero no se descuenta; el backend ya manda montoNeto asi.
       const netProfit = ad.montoNeto;
+      const ivaVenta = ad.ivaVenta ?? Math.max(0, ad.montoPagado - ad.montoNeto);
       return {
         id: ad.codigo,
         type: 'publicidad',
@@ -61,8 +64,8 @@ export function buildCashEntries(
         sellerOrPack: ad.pack || 'Fichas Mural',
         sellerFounder: false,
         totalSale: ad.montoPagado,
-        commissionOrDeduction: `Comisión Flow (-${formatMoney(ad.comisionPasarela)})`,
-        commissionAmount: ad.comisionPasarela,
+        commissionOrDeduction: `IVA de la venta (-${formatMoney(ivaVenta)}) · Flow ${formatMoney(ad.comisionPasarela)} no se descuenta`,
+        commissionAmount: ivaVenta,
         netProfit,
         cashAmount: Math.round(netProfit * 0.7),
         originalAdvertising: ad,
