@@ -106,6 +106,60 @@ const serviceCommissionLabel = (settlement: Settlement) =>
     : `Comisión RepuesTop (${Math.round(settlement.serviceCommissionRate * 100)}%)`;
 
 /** El despacho integra la venta gravada: todos los cobros siguientes usan esta base. */
+/**
+ * 13-oct: reembolsos y saldos en contra, visibles en las tres pestañas. `saleTotal` ya viene neto del
+ * reembolso por mediación (lo calcula el servidor), pero sin esta marca nada decía que la venta se
+ * redujo; y si el reembolso llegó después de pagarle a la tienda, lo pagado de más es un saldo en
+ * contra que se descuenta del retiro siguiente.
+ */
+const SettlementAdjustmentPills = ({ settlement }: { settlement: Settlement }) => {
+  if (!(settlement.montoReembolsado > 0) && !(settlement.saldoEnContra > 0)) return null;
+  const estadoSaldo = settlement.saldoEnContraEstado === 'PENDIENTE'
+    ? 'pendiente de descontar'
+    : settlement.saldoEnContraEstado === 'DESCONTADO'
+      ? 'descontado del retiro siguiente'
+      : settlement.saldoEnContraEstado === 'COBRADO' ? 'cobrado' : '';
+  return (
+    <span className="settlement-adjustments">
+      {settlement.montoReembolsado > 0 && (
+        <span className="status-pill tone-amber" title="Devuelto al comprador por un veredicto de mediación; el total de la venta ya lo descuenta.">
+          Reembolso −{formatMoney(settlement.montoReembolsado)}
+        </span>
+      )}
+      {settlement.saldoEnContra > 0 && (
+        <span className="status-pill tone-red" title={`La venta ya se había pagado cuando llegó el reembolso: ${formatMoney(settlement.saldoEnContra)} ${estadoSaldo}.`}>
+          Saldo en contra {formatMoney(settlement.saldoEnContra)}{estadoSaldo ? ` · ${estadoSaldo}` : ''}
+        </span>
+      )}
+    </span>
+  );
+};
+
+/**
+ * 13-oct: lo que va en la boleta o factura del retiro, calculado por el servidor (comisión de
+ * servicio + cargo por procesamiento de pago, cada uno con su IVA). Antes la columna sumaba en el
+ * navegador solo el IVA de la comisión, y el formulario de la boleta mostraba otro monto.
+ */
+const GrupoFacturaCell = ({ retiroId, ivaComision }: { retiroId: number | null; ivaComision: number }) => {
+  const { data, isError } = useQuery<administrationApi.FacturaComision>({
+    queryKey: ['factura-comision', retiroId],
+    queryFn: () => administrationApi.getFacturaComision(retiroId!),
+    enabled: retiroId !== null,
+    staleTime: 60_000,
+  });
+  if (retiroId === null) {
+    return <span title="Sin solicitud de retiro activa: solo el IVA de la comisión de servicio">{formatMoney(ivaComision)} <small style={{ color: '#64748b' }}>(solo comisión)</small></span>;
+  }
+  if (isError) return <span style={{ color: '#b45309' }}>{formatMoney(ivaComision)} <small>(sin cargo de pago)</small></span>;
+  if (!data) return <span style={{ color: '#64748b' }}>Calculando…</span>;
+  return (
+    <span className="grupo-factura-cell" title={data.lineas.map((linea) => `${linea.concepto}: neto ${formatMoney(linea.neto)} + IVA ${formatMoney(linea.iva)}`).join(' · ')}>
+      <strong>{formatMoney(data.total)}</strong>
+      <small>neto {formatMoney(data.neto)} · IVA {formatMoney(data.iva)}</small>
+    </span>
+  );
+};
+
 const SettlementSaleBreakdown = ({ settlement }: { settlement: Settlement }) => {
   const hasDiscount = Object.entries(settlement.saleDetail).some(([label, value]) => value < 0 || label.toLowerCase().includes('descuento'));
   return (
@@ -178,6 +232,8 @@ interface LiquidationSellerGroup {
   total: number;
   iva: number;
   retiroId: number | null;
+  /** 13-oct: lo que pide el retiro (ya con los saldos en contra descontados), para cuadrarlo con Σ pagos. */
+  retiroMonto: number | null;
 }
 
 interface ExpenseDraft {
@@ -1110,7 +1166,11 @@ export default function AdminFinancePage() {
           settlement.sellerTaxId,
           settlement.sellerEmail,
         ),
+        retiroMonto: null,
       };
+      if (current.retiroMonto === null && current.retiroId !== null) {
+        current.retiroMonto = activeWithdrawals.find((candidate) => candidate.retiroId === current.retiroId)?.monto ?? null;
+      }
       current.settlements.push(settlement);
       current.total += settlement.sellerPayout;
       current.iva += settlement.serviceCommissionIva;
@@ -1128,8 +1188,30 @@ export default function AdminFinancePage() {
     const period = getPaymentPeriod(payment.fechaPago);
     return `${period.start}|${period.end}` === activePaidPeriod;
   }), [activePaidPeriod, paidPayments]);
-  const paidRetiroIds = useMemo(() => new Set(paidPaymentsForPeriod.flatMap((payment) => payment.retiros.map((retiro) => retiro.retiroId))), [paidPaymentsForPeriod]);
-  const paidPeriodSettlements = useMemo(() => settlements.filter((settlement) => settlement.liquidationStatus === 'LIQUIDADO' && paidRetiroIds.size && settlement.id && isWithinRange(settlement.date, paidPeriods.find((period) => period.key === activePaidPeriod)?.start.slice(0, 10) ?? '', paidPeriods.find((period) => period.key === activePaidPeriod)?.end.slice(0, 10) ?? '')), [activePaidPeriod, paidPeriods, paidRetiroIds, settlements]);
+  const paidRetiros = useMemo(() => paidPaymentsForPeriod.flatMap((payment) => payment.retiros), [paidPaymentsForPeriod]);
+  // 13-oct: antes "Ganancia neta" e "IVA" del tab Liquidado se sumaban sobre las ventas con FECHA
+  // DE PEDIDO dentro de la semana del pago, que no son las ventas de esos retiros (un retiro junta
+  // ventas de semanas anteriores). Ahora se cruzan los pedidos de cada retiro pagado con sus filas.
+  const { data: paidPeriodRetiroDetails = [] } = useQuery<RetiroDetalleResponse[]>({
+    queryKey: ['withdrawal-period-details', activePaidPeriod, paidRetiros.map((retiro) => retiro.retiroId).join(',')],
+    queryFn: () => Promise.all(paidRetiros.map((retiro) => administrationApi.getWithdrawalDetails(retiro.retiroId))),
+    enabled: liquidationTab === 'LIQUIDADO' && paidRetiros.length > 0,
+    staleTime: 60_000,
+  });
+  const paidPeriodSettlements = useMemo(() => {
+    const claves = new Set<string>();
+    paidPeriodRetiroDetails.forEach((detalle, index) => {
+      const proveedorId = paidRetiros[index]?.proveedorId;
+      detalle.pedidos.forEach((pedido) => {
+        if (pedido.tipoCargo) return;
+        // Con la tienda del retiro se cruza por (pedido, tienda); si un backend antiguo no la manda, solo por pedido.
+        claves.add(proveedorId != null ? `${pedido.pedidoId}|${proveedorId}` : `${pedido.pedidoId}|*`);
+      });
+    });
+    if (claves.size === 0) return [];
+    return settlements.filter((settlement) => settlement.pedidoId !== undefined
+      && (claves.has(`${settlement.pedidoId}|${settlement.proveedorId ?? ''}`) || claves.has(`${settlement.pedidoId}|*`)));
+  }, [paidPeriodRetiroDetails, paidRetiros, settlements]);
 
   const filteredWithdrawals = useMemo(
     () => withdrawals
@@ -2913,8 +2995,8 @@ export default function AdminFinancePage() {
                 liquidationTab === 'PENDIENTE_LIQUIDACION'
                   ? 'IVA de comisión acumulado antes de solicitar retiro'
                   : liquidationTab === 'EN_LIQUIDACION'
-                    ? 'Sin el cargo de pago: el IVA de cada factura está en "Emitir boleta o factura"'
-                    : 'IVA de comisión pagado'
+                    ? 'Solo comisión de servicio; la factura de cada retiro (con cargo de pago) está en la columna "A facturar"'
+                    : 'IVA de comisión de las ventas pagadas en el período'
               }
               iconName="receipt"
             />
@@ -2938,7 +3020,8 @@ export default function AdminFinancePage() {
         badge={documentComplete ? <span className="status-pill tone-green">Documento listo</span> : <span className="status-pill tone-amber">{registeredDocument ? 'Documento incompleto' : 'Sin documento'}</span>}
         meta={[
           { label: 'Liquidaciones', value: group.settlements.length },
-          { label: 'IVA de la comisión', value: formatMoney(group.iva) },
+          { label: 'A facturar (con IVA)', value: <GrupoFacturaCell retiroId={group.retiroId} ivaComision={group.iva} /> },
+          ...(group.retiroMonto !== null ? [{ label: 'Monto del retiro', value: formatMoney(group.retiroMonto) }] : []),
           { label: 'Correo', value: group.email, wide: true },
         ]}
         onPress={() => setSelectedLiquidationSeller(group)}
@@ -2957,12 +3040,12 @@ export default function AdminFinancePage() {
 </RecordList>
 ) : (
 <table className="wide-table">
-                <thead><tr><th>Vendedor</th><th>RUT</th><th>Razón social / Nombre</th><th>Correo</th><th>Cantidad liquidaciones</th><th>IVA de la comisión</th><th>Acciones</th></tr></thead>
+                <thead><tr><th>Vendedor</th><th>RUT</th><th>Razón social / Nombre</th><th>Correo</th><th>Cantidad liquidaciones</th><th>Monto a pagar</th><th>A facturar (neto + IVA)</th><th>Acciones</th></tr></thead>
                 <tbody>{enLiquidationGroups.length ? enLiquidationGroups.map((group) => {
                   const registeredDocument = getGroupDocument(group);
                   const documentComplete = Boolean(registeredDocument && isIssuedDocumentComplete(registeredDocument.document, true));
-                  return <tr key={group.key}><td><FounderSellerName name={group.seller} founder={group.sellerFounder} /></td><td>{group.rut}</td><td>{group.legalName}</td><td>{group.email}</td><td>{group.settlements.length}</td><td>{formatMoney(group.iva)}</td><td><div className="action-cell"><button className="action-button neutral" type="button" onClick={() => setSelectedLiquidationSeller(group)} title="Vista previa de liquidaciones"><UiIcon name="eye" /></button><button className={`action-button ${documentComplete ? 'success' : 'issue'}`} type="button" onClick={() => openGroupDocument(group)} title={documentComplete ? 'Ver boleta o factura registrada' : registeredDocument ? 'Completar boleta o factura' : 'Emitir boleta o factura'}><UiIcon name={documentComplete ? 'fileCheck' : 'receipt'} /></button>{documentComplete && <button className="action-button neutral" type="button" onClick={() => openGroupDocument(group, true)} title="Editar boleta o factura registrada"><UiIcon name="edit" /></button>}</div></td></tr>;
-                }) : <tr><td colSpan={7}><div className="empty-state">No hay liquidaciones en curso para el rango seleccionado.</div></td></tr>}</tbody>
+                  return <tr key={group.key}><td><FounderSellerName name={group.seller} founder={group.sellerFounder} /></td><td>{group.rut}</td><td>{group.legalName}</td><td>{group.email}</td><td>{group.settlements.length}</td><td>{group.retiroMonto !== null && Math.round(group.retiroMonto) !== Math.round(group.total) ? <span title={`Σ liquidaciones ${formatMoney(group.total)}; el retiro pide ${formatMoney(group.retiroMonto)} (saldos en contra descontados)`}><strong>{formatMoney(group.retiroMonto)}</strong><small style={{ display: 'block', color: '#b45309' }}>Σ ventas {formatMoney(group.total)}</small></span> : formatMoney(group.retiroMonto ?? group.total)}</td><td><GrupoFacturaCell retiroId={group.retiroId} ivaComision={group.iva} /></td><td><div className="action-cell"><button className="action-button neutral" type="button" onClick={() => setSelectedLiquidationSeller(group)} title="Vista previa de liquidaciones"><UiIcon name="eye" /></button><button className={`action-button ${documentComplete ? 'success' : 'issue'}`} type="button" onClick={() => openGroupDocument(group)} title={documentComplete ? 'Ver boleta o factura registrada' : registeredDocument ? 'Completar boleta o factura' : 'Emitir boleta o factura'}><UiIcon name={documentComplete ? 'fileCheck' : 'receipt'} /></button>{documentComplete && <button className="action-button neutral" type="button" onClick={() => openGroupDocument(group, true)} title="Editar boleta o factura registrada"><UiIcon name="edit" /></button>}</div></td></tr>;
+                }) : <tr><td colSpan={8}><div className="empty-state">No hay liquidaciones en curso para el rango seleccionado.</div></td></tr>}</tbody>
               </table>
 )
             ) : liquidationTab === 'LIQUIDADO' ? (
@@ -3003,7 +3086,7 @@ export default function AdminFinancePage() {
       badge={<span className={`status-pill ${slug('Finalizado')}`}>Finalizado</span>}
       meta={[
         { label: 'Pedido', value: formatOrderNumber(settlement.orderId) },
-        { label: 'Venta total', value: formatMoney(settlement.saleTotal) },
+        { label: 'Venta total', value: <>{formatMoney(settlement.saleTotal)} <SettlementAdjustmentPills settlement={settlement} /></> },
         { label: 'Descuentos al vendedor', value: formatMoney(settlement.commission) },
         { label: 'Ganancia neta RepuesTop', value: formatMoney(settlement.netSettlement) },
       ]}
@@ -3039,6 +3122,7 @@ export default function AdminFinancePage() {
                           <SettlementSaleBreakdown settlement={settlement} />
                         </div>
                       </div>
+                      <SettlementAdjustmentPills settlement={settlement} />
                     </td>
                     <td className="value-cell tooltip-container">
                       <span className="tooltip-trigger-value">
@@ -4059,7 +4143,8 @@ export default function AdminFinancePage() {
       {selectedPaidPayment && (
         <Modal title={`Liquidaciones del pago PAG-${String(selectedPaidPayment.pagoId).padStart(6, '0')}`} subtitle={`${formatDate(selectedPaidPayment.periodoInicio ?? selectedPaidPayment.fechaPago)} - ${formatDate(selectedPaidPayment.periodoFin ?? selectedPaidPayment.fechaPago)}`} onClose={() => setSelectedPaidPayment(null)}>
           <div className="table-toolbar"><input className="input" type="search" placeholder="Buscar por liquidación o pedido..." value={paidDetailQuery} onChange={(event) => setPaidDetailQuery(event.target.value)} /><select className="input" value={paidDetailSeller} onChange={(event) => setPaidDetailSeller(event.target.value)}><option value="">Todos los vendedores</option>{[...new Set(selectedPaidPayment.retiros.map((retiro) => retiro.nombreTienda))].map((seller) => <option key={seller} value={seller}>{seller}</option>)}</select></div>
-          <div className="modal-table-scroll paid-liquidation-detail"><table className="wide-table"><thead><tr><th>Código de liquidación</th><th>Vendedor</th><th>Pedido</th><th>Fecha</th><th>Valor</th></tr></thead><tbody>{selectedPaidPayment.retiros.flatMap((retiro, index) => (paidPaymentDetails[index]?.pedidos ?? []).filter((pedido) => (!paidDetailSeller || retiro.nombreTienda === paidDetailSeller) && (!paidDetailQuery || normalizeText(`${orderNumberSearchText(pedido.numeroPedido)} ${pedido.codigoExterno ?? ''}`).includes(normalizeText(paidDetailQuery)))).map((pedido) => <tr key={`${retiro.retiroId}-${pedido.pedidoId}`}><td>{pedido.numeroPedido ? `LQ-${pedido.numeroPedido.replace(/\s/g, '')}` : '—'}</td><td><FounderSellerName name={retiro.nombreTienda} founder={retiro.sellerFounder} /></td><td>{pedido.numeroPedido ?? '—'}</td><td>{formatDate(pedido.fecha)}</td><td>{formatMoney(pedido.valor)}</td></tr>))}</tbody></table></div>
+          <div className="modal-table-scroll paid-liquidation-detail"><table className="wide-table"><thead><tr><th>Código de liquidación</th><th>Vendedor</th><th>Pedido</th><th>Fecha</th><th>Valor</th></tr></thead><tbody>{selectedPaidPayment.retiros.flatMap((retiro, index) => (paidPaymentDetails[index]?.pedidos ?? []).filter((pedido) => (!paidDetailSeller || retiro.nombreTienda === paidDetailSeller) && (!paidDetailQuery || normalizeText(`${orderNumberSearchText(pedido.numeroPedido)} ${pedido.codigoExterno ?? ''}`).includes(normalizeText(paidDetailQuery)))).map((pedido) => <tr key={`${retiro.retiroId}-${pedido.pedidoId}-${pedido.tipoCargo ?? 'venta'}`}><td>{pedido.tipoCargo ? <span className={`status-pill ${pedido.tipoCargo === 'REEMBOLSO_POSTERIOR' ? 'tone-red' : 'tone-amber'}`}>{pedido.tipoCargo === 'REEMBOLSO_POSTERIOR' ? 'Saldo en contra' : 'Ajuste'}</span> : pedido.numeroPedido ? `LQ-${pedido.numeroPedido.replace(/\s/g, '')}` : '—'}</td><td><FounderSellerName name={retiro.nombreTienda} founder={retiro.sellerFounder} /></td><td>{pedido.numeroPedido ?? '—'}{pedido.tipoCargo && <small style={{ display: 'block', color: '#64748b' }}>{pedido.nombrePedido}</small>}</td><td>{formatDate(pedido.fecha)}</td><td style={pedido.valor < 0 ? { color: '#dc2626' } : undefined}>{pedido.valor < 0 ? `-${formatMoney(Math.abs(pedido.valor))}` : formatMoney(pedido.valor)}</td></tr>))}</tbody>
+            <tfoot><tr><th colSpan={4}>Transferido en este pago</th><td><strong>{formatMoney(selectedPaidPayment.retiros.reduce((sum, retiro) => sum + retiro.monto, 0))}</strong></td></tr></tfoot></table></div>
         </Modal>
       )}
 
@@ -4079,8 +4164,11 @@ export default function AdminFinancePage() {
 
       {selectedLiquidationSeller && (
         <Modal title={<>Liquidaciones de <FounderSellerName name={selectedLiquidationSeller.seller} founder={selectedLiquidationSeller.sellerFounder} /></>} subtitle={`${selectedLiquidationSeller.settlements.length} liquidaciones · ${formatMoney(selectedLiquidationSeller.total)} · Período: ${selectedLiquidationPeriod}`} onClose={() => setSelectedLiquidationSeller(null)}>
+          {selectedLiquidationSeller.retiroMonto !== null && Math.round(selectedLiquidationSeller.retiroMonto) !== Math.round(selectedLiquidationSeller.total) && (
+            <div className="notice liquidation-cuadre-notice"><UiIcon name="info" /><p>La suma de las ventas es {formatMoney(selectedLiquidationSeller.total)}, pero el retiro pide <strong>{formatMoney(selectedLiquidationSeller.retiroMonto)}</strong>: la diferencia ({formatMoney(selectedLiquidationSeller.total - selectedLiquidationSeller.retiroMonto)}) son saldos en contra por reembolsos de ventas ya pagadas, descontados en este retiro.</p></div>
+          )}
           <div className="table-shell liquidation-preview-shell"><table className="wide-table liquidation-preview-table"><thead><tr><th>ID liquidación</th><th>Pedido</th><th>Fecha</th><th>Venta total</th><th>Descuentos al vendedor</th><th>Ganancia neta RepuesTop</th><th>Monto a pagar vendedor</th><th>IVA</th></tr></thead><tbody>
-            {selectedLiquidationSeller.settlements.map((settlement) => <tr key={settlement.id}><td>{settlement.id}</td><td>{formatOrderNumber(settlement.orderId)}</td><td>{formatDate(settlement.date)}</td><td className="value-cell tooltip-container"><span className="tooltip-trigger-value">{formatMoney(settlement.saleTotal)}<UiIcon name="info" /></span><div className="tooltip-content"><div className="tooltip-arrow"></div><div className="tooltip-body"><SettlementSaleBreakdown settlement={settlement} /></div></div></td><td className="value-cell tooltip-container"><span className="tooltip-trigger-value">{formatMoney(settlement.commission)}<UiIcon name="info" /></span><div className="tooltip-content"><div className="tooltip-arrow"></div><div className="tooltip-body"><SettlementFeeBreakdown settlement={settlement} /></div></div></td><td className="value-cell tooltip-container"><span className="tooltip-trigger-value">{formatMoney(settlement.netSettlement)}<UiIcon name="info" /></span><div className="tooltip-content net-settlement-tooltip"><div className="tooltip-arrow"></div><div className="tooltip-body"><SettlementNetBreakdown settlement={settlement} /></div></div></td><td>{formatMoney(settlement.sellerPayout)}</td><td>{formatMoney(settlement.serviceCommissionIva)}</td></tr>)}
+            {selectedLiquidationSeller.settlements.map((settlement) => <tr key={settlement.id}><td>{settlement.id}</td><td>{formatOrderNumber(settlement.orderId)}</td><td>{formatDate(settlement.date)}</td><td className="value-cell tooltip-container"><span className="tooltip-trigger-value">{formatMoney(settlement.saleTotal)}<UiIcon name="info" /></span><div className="tooltip-content"><div className="tooltip-arrow"></div><div className="tooltip-body"><SettlementSaleBreakdown settlement={settlement} /></div></div></td><td className="value-cell tooltip-container"><span className="tooltip-trigger-value">{formatMoney(settlement.commission)}<UiIcon name="info" /></span><div className="tooltip-content"><div className="tooltip-arrow"></div><div className="tooltip-body"><SettlementFeeBreakdown settlement={settlement} /></div></div></td><td className="value-cell tooltip-container"><span className="tooltip-trigger-value">{formatMoney(settlement.netSettlement)}<UiIcon name="info" /></span><div className="tooltip-content net-settlement-tooltip"><div className="tooltip-arrow"></div><div className="tooltip-body"><SettlementNetBreakdown settlement={settlement} /></div></div></td><td>{formatMoney(settlement.sellerPayout)}<SettlementAdjustmentPills settlement={settlement} /></td><td>{formatMoney(settlement.serviceCommissionIva)}</td></tr>)}
           </tbody><tfoot><tr><th colSpan={3}>Total acumulado</th><td>{formatMoney(selectedLiquidationSeller.settlements.reduce((total, settlement) => total + settlement.saleTotal, 0))}</td><td>{formatMoney(selectedLiquidationSeller.settlements.reduce((total, settlement) => total + settlement.commission, 0))}</td><td>{formatMoney(selectedLiquidationSeller.settlements.reduce((total, settlement) => total + settlement.netSettlement, 0))}</td><td>{formatMoney(selectedLiquidationSeller.settlements.reduce((total, settlement) => total + settlement.sellerPayout, 0))}</td><td>{formatMoney(selectedLiquidationSeller.settlements.reduce((total, settlement) => total + settlement.serviceCommissionIva, 0))}</td></tr></tfoot></table></div>
         </Modal>
       )}
@@ -4297,6 +4385,12 @@ export default function AdminFinancePage() {
               <div><dt>Pedido asociado</dt><dd>{formatOrderNumber(selectedDetailSettlement.orderId)}</dd></div>
               {Boolean(selectedDetailSettlement.descuento && selectedDetailSettlement.descuento > 0) && (
                 <div><dt>Descuento cotización</dt><dd style={{ color: '#dc2626', fontWeight: 600 }}>-{formatMoney(selectedDetailSettlement.descuento!)}</dd></div>
+              )}
+              {selectedDetailSettlement.montoReembolsado > 0 && (
+                <div><dt>Reembolso por mediación</dt><dd style={{ color: '#b45309', fontWeight: 600 }}>-{formatMoney(selectedDetailSettlement.montoReembolsado)} <small style={{ fontWeight: 400, color: '#64748b' }}>(ya descontado de la base y de la comisión)</small></dd></div>
+              )}
+              {selectedDetailSettlement.saldoEnContra > 0 && (
+                <div><dt>Saldo en contra</dt><dd style={{ color: '#dc2626', fontWeight: 600 }}>{formatMoney(selectedDetailSettlement.saldoEnContra)} <small style={{ fontWeight: 400, color: '#64748b' }}>(reembolso posterior al pago; {selectedDetailSettlement.saldoEnContraEstado?.toLowerCase() ?? 'pendiente'})</small></dd></div>
               )}
             </dl>
 
@@ -4634,6 +4728,22 @@ export default function AdminFinancePage() {
                       <dt style={{ color: '#64748b', fontSize: '13px', fontWeight: 600 }}>Descuento cotización:</dt>
                       <dd style={{ margin: 0, color: '#dc2626', fontSize: '13px', fontWeight: 700 }}>
                         -{formatMoney(selectedDetailOrder.descuento!)}
+                      </dd>
+                    </>
+                  )}
+                  {Boolean(selectedDetailOrder.montoReembolsado && selectedDetailOrder.montoReembolsado > 0) && (
+                    <>
+                      <dt style={{ color: '#64748b', fontSize: '13px', fontWeight: 600 }}>Reembolso por mediación:</dt>
+                      <dd style={{ margin: 0, color: '#b45309', fontSize: '13px', fontWeight: 700 }}>
+                        -{formatMoney(selectedDetailOrder.montoReembolsado!)} <small style={{ fontWeight: 400, color: '#64748b' }}>(el total ya lo descuenta)</small>
+                      </dd>
+                    </>
+                  )}
+                  {Boolean(selectedDetailOrder.saldoEnContra && selectedDetailOrder.saldoEnContra > 0) && (
+                    <>
+                      <dt style={{ color: '#64748b', fontSize: '13px', fontWeight: 600 }}>Saldo en contra de la tienda:</dt>
+                      <dd style={{ margin: 0, color: '#dc2626', fontSize: '13px', fontWeight: 700 }}>
+                        {formatMoney(selectedDetailOrder.saldoEnContra!)} <small style={{ fontWeight: 400, color: '#64748b' }}>({selectedDetailOrder.saldoEnContraEstado?.toLowerCase() ?? 'pendiente'})</small>
                       </dd>
                     </>
                   )}

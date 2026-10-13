@@ -21710,3 +21710,36 @@ main.feedback-page .feedback-page-header .area-home-shortcut-group { margin-left
     padding-top: 0;
   }
 }
+
+/* 13-oct: reembolsos y saldos en contra en Liquidaciones */
+.settlement-adjustments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.settlement-adjustments .status-pill {
+  font-size: 10.5px;
+}
+
+.grupo-factura-cell {
+  display: inline-flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+
+.grupo-factura-cell small {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.liquidation-cuadre-notice {
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+
+.liquidation-cuadre-notice p {
+  display: block;
+  line-height: 1.5;
+}

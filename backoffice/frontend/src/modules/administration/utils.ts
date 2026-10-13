@@ -126,6 +126,7 @@ export function getSettlements(orders: Order[], statuses: Record<string, Settlem
       const baseComisiones = Math.max(0, subtotal - descuento) + Number(order.costoEnvio ?? 0);
       const paidAmount = baseComisiones - grossEarnings;
       const sellerPayout = Number(order.montoPagarVendedor ?? paidAmount);
+      const montoReembolsado = Number(order.montoReembolsado ?? 0);
       const settlementId = getSettlementId(order.id);
       return {
         id: settlementId,
@@ -142,6 +143,8 @@ export function getSettlements(orders: Order[], statuses: Record<string, Settlem
           'Valor publicado por el vendedor': subtotal,
           ...(descuento > 0 ? { 'Descuento en cotización': -descuento } : {}),
           'Costo de despacho': Number(order.costoEnvio ?? 0),
+          // 13-oct: el total ya viene neto del reembolso; sin esta linea el desglose no sumaba.
+          ...(montoReembolsado > 0 ? { 'Reembolso por mediación': -montoReembolsado } : {}),
         },
         saleTooltip: order.totalVentaTooltip,
         commission: grossEarnings,
@@ -156,6 +159,11 @@ export function getSettlements(orders: Order[], statuses: Record<string, Settlem
         liquidationStatus: order.estadoLiquidacion ?? 'PENDIENTE_LIQUIDACION',
         paidAmount,
         status: statuses[settlementId] ?? 'Completada',
+        pedidoId: order.pedidoId,
+        proveedorId: order.proveedorId,
+        montoReembolsado,
+        saldoEnContra: Number(order.saldoEnContra ?? 0),
+        saldoEnContraEstado: order.saldoEnContraEstado ?? null,
       };
     });
 }

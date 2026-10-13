@@ -42,6 +42,12 @@ export interface Order {
   proveedorId?: number | null;
   /** 12-oct: lo devuelto al comprador por un veredicto de mediación (ya restado de `total`). */
   montoReembolsado?: number;
+  /**
+   * 13-oct: lo que se le pagó de más a la tienda porque el reembolso llegó después de pagarle la
+   * venta; se descuenta de su próximo retiro (CargoTienda). Null si no hay cargos.
+   */
+  saldoEnContra?: number | null;
+  saldoEnContraEstado?: 'PENDIENTE' | 'DESCONTADO' | 'COBRADO' | string | null;
   /** 13-oct: qué pasó después de la compra (reembolsado, reemplazado, reparado…), ver PostventaBadge. */
   postventa?: string | null;
   postventaDetalle?: string | null;
@@ -188,6 +194,13 @@ export interface Settlement {
   liquidationStatus: LiquidationStatus;
   paidAmount: number;
   status: SettlementStatus;
+  /** Ids reales de la fila (pedido y tienda), para cruzarla con los retiros pagados. */
+  pedidoId?: number;
+  proveedorId?: number | null;
+  /** 13-oct: reembolso por mediación ya descontado de `saleTotal`, y saldo en contra si llegó después del pago. */
+  montoReembolsado: number;
+  saldoEnContra: number;
+  saldoEnContraEstado: string | null;
 }
 
 export interface ImportRecord {
@@ -367,6 +380,9 @@ export interface RetiroPedidoItem {
   fecha: string;
   cantidadVendida: number;
   valor: number;
+  /** Fila que no es una venta: REEMBOLSO_POSTERIOR (cargo descontado) o PAGADO_ANTES_DEL_REEMBOLSO (ajuste del retiro de origen). */
+  tipoCargo?: string | null;
+  montoReembolsoMediacion?: number | null;
 }
 
 export interface RetiroDetalleResponse {
