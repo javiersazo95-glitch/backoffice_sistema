@@ -140,6 +140,8 @@ export interface MediationQuestionOption {
   pideTexto?: boolean;
   pideFotos?: boolean;
   placeholder?: string | null;
+  /** Línea corta bajo la etiqueta: qué implica elegir la opción. */
+  descripcion?: string | null;
 }
 
 export interface MediationSummaryResponse {

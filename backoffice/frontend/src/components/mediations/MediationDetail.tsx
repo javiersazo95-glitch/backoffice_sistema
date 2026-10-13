@@ -12,7 +12,16 @@ import {
   type SuspensionDuration,
 } from '@/types/mediation';
 import { useMediation, useResolveCase, useBlockAccount, useAddMessage, useConfirmRefund, useSendQuestion } from '@/hooks/useMediations';
-import { attentionView, claimKindHelp, guidedQuestionsFor, type GuidedQuestionTarget } from '@/utils/mediationGuidedFlow';
+import {
+  attentionView,
+  buildQuestionnaireSteps,
+  claimKindHelp,
+  guidedQuestionsFor,
+  HELP_OPTION_KEY,
+  pendingStep,
+  possibleSolutions,
+  type QuestionnaireStep,
+} from '@/utils/mediationGuidedFlow';
 import { showToast } from '@/components/layout/Toast';
 import Badge from '@/components/shared/Badge';
 import UiIcon from '@/components/shared/UiIcon';
@@ -168,10 +177,12 @@ interface ChatMessage {
   aligned: 'left' | 'right';
   label: string;
   isMediator: boolean;
+  /** El mensaje lo mandó el asistente (cuestionario automático), no una persona. */
+  isAssistant: boolean;
   /** 12-oct (flujos guiados): pregunta con opciones y, si la parte ya eligió, su respuesta. */
   question?: {
     title: string;
-    options: { key: string; label: string }[];
+    options: { key: string; label: string; description?: string | null }[];
     answerKey?: string | null;
     answerLabel?: string | null;
     answerText?: string | null;
@@ -198,12 +209,13 @@ function mapBackendMessages(messages: MediationMessageResponse[] | undefined, si
     time: formatChatTime(message.createdAt),
     side,
     aligned: message.senderRole === 'MEDIADOR' ? 'right' : 'left',
-    label: message.senderRole === 'MEDIADOR' ? 'Mediador' : message.senderRole === 'SISTEMA' ? 'Sistema' : side === 'buyer' ? 'Comprador' : 'Tienda',
+    label: message.senderRole === 'MEDIADOR' ? 'Mediador' : message.senderRole === 'SISTEMA' ? 'Asistente RepuesTop' : side === 'buyer' ? 'Comprador' : 'Tienda',
     isMediator: message.senderRole === 'MEDIADOR',
+    isAssistant: message.senderRole === 'SISTEMA',
     question: message.preguntaKey
       ? {
           title: message.preguntaTitulo ?? '',
-          options: (message.opciones ?? []).map((option) => ({ key: option.key, label: option.label })),
+          options: (message.opciones ?? []).map((option) => ({ key: option.key, label: option.label, description: option.descripcion })),
           answerKey: message.respuestaKey ?? null,
           answerLabel: message.respuestaLabel ?? null,
           answerText: message.respuestaTexto ?? null,
@@ -319,35 +331,188 @@ function ChatBubble({ message, accent, partyPhotoUrl }: { message: ChatMessage; 
           <img src={partyPhotoUrl} alt={message.label} />
         </span>
       ) : null}
-      <div className={`chat-bubble ${message.aligned === 'left' ? 'incoming' : 'outgoing'} ${accent}`}>
+      <div className={`chat-bubble ${message.aligned === 'left' ? 'incoming' : 'outgoing'} ${accent}${message.question ? ' chat-bubble-question' : ''}`}>
         <div className="chat-bubble-meta">
           <strong>{message.label}</strong>
         </div>
-        {message.question ? <p><strong>{message.question.title}</strong></p> : null}
-        <p>{message.text}</p>
-        {message.question ? (
-          <div className="chat-question-options" aria-label="Opciones de la pregunta">
-            {message.question.options.map((option) => (
-              <span
-                key={option.key}
-                className={`chat-question-option${message.question?.answerKey === option.key ? ' selected' : ''}`}
-              >
-                {message.question?.answerKey === option.key ? '✓ ' : ''}{option.label}
-              </span>
-            ))}
-            {message.question.answerKey ? (
-              <small className="chat-question-answer">
-                Respondió: {message.question.answerLabel ?? message.question.answerKey}
-                {message.question.answerText ? ` · ${message.question.answerText}` : ''}
-              </small>
-            ) : (
-              <small className="chat-question-answer">Sin responder todavía.</small>
-            )}
-          </div>
-        ) : null}
+        {message.question ? <QuestionCard question={message.question} text={message.text} /> : <p>{message.text}</p>}
         <span>{message.time}</span>
       </div>
     </div>
+  );
+}
+
+/**
+ * Pregunta del cuestionario tal como la ve la parte: opciones de selección (una sola) con su
+ * descripción. El mediador solo la lee; la parte la responde desde la app o la web.
+ */
+function QuestionCard({ question, text }: { question: NonNullable<ChatMessage['question']>; text: string }) {
+  const answered = Boolean(question.answerKey);
+  return (
+    <div className="chat-question-card">
+      <strong className="chat-question-title">{question.title}</strong>
+      {text ? <p className="chat-question-text">{text}</p> : null}
+      <ul className="chat-question-choices" aria-label={`Opciones de «${question.title}»`}>
+        {question.options.map((option) => {
+          const selected = question.answerKey === option.key;
+          return (
+            <li
+              key={option.key}
+              className={`chat-question-choice${selected ? ' selected' : ''}${answered && !selected ? ' dimmed' : ''}${option.key === HELP_OPTION_KEY ? ' help' : ''}`}
+            >
+              <span className="chat-question-radio" aria-hidden="true" />
+              <span className="chat-question-choice-copy">
+                <span>{option.label}{selected ? <span className="sr-only"> (elegida)</span> : null}</span>
+                {option.description ? <small>{option.description}</small> : null}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+      {answered ? (
+        <small className="chat-question-answer">
+          Eligió: <strong>{question.answerLabel ?? question.answerKey}</strong>
+          {question.answerText ? ` · «${question.answerText}»` : ''}
+        </small>
+      ) : (
+        <small className="chat-question-answer pending">Esperando que elija una opción.</small>
+      )}
+    </div>
+  );
+}
+
+const PARTY_LABEL: Record<QuestionnaireStep['target'], string> = { COMPRADOR: 'Comprador', VENDEDOR: 'Tienda' };
+
+/**
+ * Cuestionario automático del caso: lo que preguntó el asistente a cada parte, lo que eligieron, qué
+ * espera ahora y, si alguien pidió un mediador, en qué paso. El mediador ya no escribe las opciones:
+ * solo puede retomar el cuestionario en un paso (por ejemplo, después de atender una petición de ayuda).
+ */
+function QuestionnairePanel({
+  steps,
+  attention,
+  buyerName,
+  sellerName,
+  closed,
+  onRelaunch,
+  relaunching,
+}: {
+  steps: QuestionnaireStep[];
+  attention: string | null | undefined;
+  buyerName: string;
+  sellerName: string;
+  closed: boolean;
+  onRelaunch: (key: string) => void;
+  relaunching: boolean;
+}) {
+  const [relaunchKey, setRelaunchKey] = useState('');
+  const pending = pendingStep(steps);
+  const helpStep = [...steps].reverse().find((step) => step.askedForMediator) ?? null;
+  const needsMediator = (attention ?? '').toUpperCase() === 'NECESITA_AYUDA';
+  const partyName = (target: QuestionnaireStep['target']) => (target === 'COMPRADOR' ? buyerName : sellerName);
+
+  return (
+    <section className="mediation-questionnaire-card">
+      <div className="mediation-questionnaire-head">
+        <span className="mediation-questionnaire-icon"><UiIcon name="message" /></span>
+        <div>
+          <span className="mediation-init-reason-kicker">Cuestionario automático</span>
+          <h3>Lo que eligieron comprador y tienda</h3>
+        </div>
+      </div>
+
+      {steps.length === 0 ? (
+        <p className="mediation-questionnaire-empty">
+          Este caso no tiene cuestionario (se abrió antes del asistente). Si sigue en mediación, puedes iniciarlo abajo.
+        </p>
+      ) : (
+        <ol className="mediation-questionnaire-steps">
+          {steps.map((step, index) => (
+            <li
+              key={step.id}
+              className={`mediation-questionnaire-step ${step.target === 'COMPRADOR' ? 'buyer' : 'seller'}${step.answerKey ? '' : ' pending'}${step.askedForMediator ? ' help' : ''}`}
+            >
+              <span className="mediation-questionnaire-step-index">{index + 1}</span>
+              <div>
+                <small>{PARTY_LABEL[step.target]} · {partyName(step.target)}</small>
+                <strong>{step.title}</strong>
+                {step.answerKey ? (
+                  <span className="mediation-questionnaire-answer">
+                    <UiIcon name={step.askedForMediator ? 'alert' : 'check'} /> {step.answerLabel}
+                    {step.answerText ? <em> «{step.answerText}»</em> : null}
+                    {step.answeredAt ? <time> · {formatDateTime(step.answeredAt)}</time> : null}
+                  </span>
+                ) : (
+                  <span className="mediation-questionnaire-answer waiting">Esperando respuesta · enviada {formatDateTime(step.askedAt)}</span>
+                )}
+              </div>
+            </li>
+          ))}
+        </ol>
+      )}
+
+      {needsMediator && helpStep ? (
+        <div className="mediation-questionnaire-callout warning">
+          <UiIcon name="alert" />
+          <p>
+            <strong>{helpStep.target === 'COMPRADOR' ? 'El comprador' : 'La tienda'} pidió hablar con un mediador</strong> en «{helpStep.title}»
+            {helpStep.answerText ? <>: «{helpStep.answerText}»</> : null}. El cuestionario se detuvo: escríbele por su chat,
+            con el historial de arriba como contexto.
+          </p>
+        </div>
+      ) : needsMediator ? (
+        <div className="mediation-questionnaire-callout warning">
+          <UiIcon name="alert" />
+          <p>
+            <strong>El caso necesita un mediador.</strong> La última respuesta detuvo el cuestionario: escribe a las partes por
+            su chat.
+          </p>
+        </div>
+      ) : pending ? (
+        <div className="mediation-questionnaire-callout">
+          <UiIcon name="clock" />
+          <p>
+            Esperando que {pending.target === 'COMPRADOR' ? 'el comprador' : 'la tienda'} responda «{pending.title}». Al
+            responder, el asistente avisa a la otra parte y sigue solo.
+          </p>
+        </div>
+      ) : null}
+
+      {!closed ? (
+        <div className="mediation-questionnaire-relaunch">
+          <select
+            className="select"
+            value={relaunchKey}
+            onChange={(event) => setRelaunchKey(event.target.value)}
+            aria-label="Retomar el cuestionario en un paso"
+          >
+            <option value="">{steps.length ? 'Retomar el cuestionario en…' : 'Iniciar el cuestionario en…'}</option>
+            <optgroup label="Al comprador">
+              {guidedQuestionsFor('COMPRADOR').map((question) => (
+                <option key={question.key} value={question.key} title={question.hint}>{question.title}</option>
+              ))}
+            </optgroup>
+            <optgroup label="A la tienda">
+              {guidedQuestionsFor('VENDEDOR').map((question) => (
+                <option key={question.key} value={question.key} title={question.hint}>{question.title}</option>
+              ))}
+            </optgroup>
+          </select>
+          <button
+            className="secondary-button"
+            type="button"
+            disabled={!relaunchKey || relaunching}
+            onClick={() => {
+              if (!relaunchKey) return;
+              onRelaunch(relaunchKey);
+              setRelaunchKey('');
+            }}
+          >
+            {relaunching ? 'Enviando…' : 'Enviar paso'}
+          </button>
+        </div>
+      ) : null}
+    </section>
   );
 }
 
@@ -429,9 +594,7 @@ function ChatCard({
   onSend,
   disabled,
   banner,
-  questionTarget,
-  onSendQuestion,
-  sendingQuestion,
+  contextSteps,
 }: {
   title: string;
   partyName: string;
@@ -443,14 +606,11 @@ function ChatCard({
   onSend: (value: string) => void;
   disabled?: boolean;
   banner?: ReactNode;
-  /** 12-oct (flujos guiados): a quién van las preguntas con opciones de este chat. */
-  questionTarget?: GuidedQuestionTarget;
-  onSendQuestion?: (key: string) => void;
-  sendingQuestion?: boolean;
+  /** Lo que esta parte eligió en el cuestionario: contexto para el mediador al escribirle. */
+  contextSteps?: QuestionnaireStep[];
 }) {
   const [draft, setDraft] = useState('');
-  const [questionKey, setQuestionKey] = useState('');
-  const questions = questionTarget ? guidedQuestionsFor(questionTarget) : [];
+  const answeredContext = (contextSteps ?? []).filter((step) => step.answerKey);
   const threadRef = useRef<HTMLDivElement>(null);
   const resolvedPhotoUrl = useMemo(() => resolveProfileImageUrl(photoUrl), [photoUrl]);
   const [imageFailed, setImageFailed] = useState(false);
@@ -515,31 +675,15 @@ function ChatCard({
 
       {banner ? <div className="mediation-chat-banner">{banner}</div> : null}
 
-      {questions.length && onSendQuestion && !disabled ? (
-        <div className="chat-question-sender">
-          <select
-            className="select"
-            value={questionKey}
-            onChange={(event) => setQuestionKey(event.target.value)}
-            aria-label={`Pregunta guiada para ${title.toLowerCase()}`}
-          >
-            <option value="">Enviar pregunta con opciones…</option>
-            {questions.map((question) => (
-              <option key={question.key} value={question.key} title={question.hint}>{question.title}</option>
-            ))}
-          </select>
-          <button
-            className="secondary-button"
-            type="button"
-            disabled={!questionKey || sendingQuestion}
-            onClick={() => {
-              if (!questionKey) return;
-              onSendQuestion(questionKey);
-              setQuestionKey('');
-            }}
-          >
-            {sendingQuestion ? 'Enviando…' : 'Enviar'}
-          </button>
+      {answeredContext.length ? (
+        <div className="chat-context-strip" aria-label="Respuestas de esta parte en el cuestionario">
+          <span className="chat-context-label">Eligió en el cuestionario</span>
+          {answeredContext.map((step) => (
+            <span key={step.id} className={`chat-context-chip${step.askedForMediator ? ' help' : ''}`} title={step.title}>
+              {step.answerLabel}
+              {step.answerText ? ` · «${step.answerText}»` : ''}
+            </span>
+          ))}
         </div>
       ) : null}
 
@@ -680,8 +824,8 @@ export default function MediationDetail({
     sendQuestionMutation.mutate(
       { mediationId, key },
       {
-        onSuccess: () => showToast('Pregunta enviada'),
-        onError: (error: any) => showToast(error?.response?.data?.message || 'No se pudo enviar la pregunta'),
+        onSuccess: () => showToast('Paso del cuestionario enviado'),
+        onError: (error: any) => showToast(error?.response?.data?.message || 'No se pudo enviar el paso del cuestionario'),
       },
     );
   };
@@ -912,6 +1056,17 @@ export default function MediationDetail({
   };
   const claimHelp = claimKindHelp(item?.claimKind);
   const attention = attentionView(item?.atencionMediador);
+  // El cuestionario automático: pasos de ambas partes y las soluciones que salen de sus respuestas.
+  const questionnaireSteps = buildQuestionnaireSteps(item.messages, item.buyerMessages, item.sellerMessages);
+  const caseClosed = item.status === MediationStatus.RESUELTA || Boolean(item.accountBlocked);
+  const solutions = caseClosed ? [] : possibleSolutions(questionnaireSteps, item.claimKind);
+  const applySolution = (optionKey: string, solutionFavor: MediationFavor) => {
+    setDecision('resolve');
+    setFavor(solutionFavor);
+    setResolutionOption(optionKey);
+    setRefundPercentage('');
+    setChecklistOk(false);
+  };
 
   // O64: a quien favorece el veredicto y, si hay reembolso, cuanto. El monto exacto lo calcula
   // el backend sobre lo comprado en la tienda (lineas + envio, tope el total del pedido), asi que
@@ -1207,6 +1362,16 @@ export default function MediationDetail({
               </div>
             </section>
 
+            <QuestionnairePanel
+              steps={questionnaireSteps}
+              attention={item.atencionMediador}
+              buyerName={buyerName}
+              sellerName={sellerName}
+              closed={caseClosed || item.status !== MediationStatus.EN_MEDIACION}
+              onRelaunch={(key) => item?.id && handleSendQuestion(item.id, key)}
+              relaunching={sendQuestionMutation.isPending}
+            />
+
             <ChatCard
               title="Chat con comprador"
               partyName={buyerName}
@@ -1217,9 +1382,7 @@ export default function MediationDetail({
               placeholder="Aún no hay mensajes en este chat."
               onSend={(value) => item?.id && handleSendMessage(item.id, value, 'COMPRADOR')}
               disabled={item.status === MediationStatus.RESUELTA || item.accountBlocked || item.buyerMessages?.some((m) => m.closed)}
-              questionTarget="COMPRADOR"
-              onSendQuestion={(key) => item?.id && handleSendQuestion(item.id, key)}
-              sendingQuestion={sendQuestionMutation.isPending}
+              contextSteps={questionnaireSteps.filter((step) => step.target === 'COMPRADOR')}
               banner={
                 item.resolucionFavor === 'COMPRADOR'
                   && ((item.montoReembolso ?? 0) > 0 || item.estadoReembolso === REFUND_PENDING_CONFIRMATION)
@@ -1238,9 +1401,7 @@ export default function MediationDetail({
               placeholder="Aún no hay mensajes en este chat."
               onSend={(value) => item?.id && handleSendMessage(item.id, value, 'VENDEDOR')}
               disabled={item.status === MediationStatus.RESUELTA || item.accountBlocked || item.sellerMessages?.some((m) => m.closed)}
-              questionTarget="VENDEDOR"
-              onSendQuestion={(key) => item?.id && handleSendQuestion(item.id, key)}
-              sendingQuestion={sendQuestionMutation.isPending}
+              contextSteps={questionnaireSteps.filter((step) => step.target === 'VENDEDOR')}
             />
 
             <section className="mediation-actions-card">
@@ -1280,6 +1441,37 @@ export default function MediationDetail({
                   </span>
                 </button>
               </div>
+
+              {solutions.length ? (
+                <div className="mediation-solutions-form">
+                  <span className="mediation-init-reason-kicker">Soluciones posibles según el cuestionario</span>
+                  <p>Salen de lo que eligieron las partes. Toca una para cargarla en el veredicto; luego revisa y confirma.</p>
+                  <div className="mediation-solutions-list">
+                    {solutions.map((entry) => {
+                      const option = findResolutionOption(entry.optionKey);
+                      const active = decision === 'resolve' && favor === entry.favor && resolutionOption === entry.optionKey;
+                      return (
+                        <button
+                          key={entry.optionKey}
+                          type="button"
+                          aria-pressed={active}
+                          className={`mediation-choice mediation-solution-option${active ? ' selected' : ''}`}
+                          onClick={() => applySolution(entry.optionKey, entry.favor)}
+                        >
+                          <span className="mediation-choice-radio" />
+                          <div>
+                            <strong>
+                              {option?.label ?? entry.optionKey}
+                              {entry.recommended ? <em className="mediation-solution-tag">Recomendada</em> : null}
+                            </strong>
+                            <p>A favor {entry.favor === 'COMPRADOR' ? 'del comprador' : 'de la tienda'} · {entry.why}</p>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
 
               {decision === 'resolve' ? (
                 <div className="mediation-verdict-block" style={{ display: 'flex', flexDirection: 'column', gap: '12px', margin: '4px 0 8px' }}>

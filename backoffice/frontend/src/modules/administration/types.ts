@@ -42,6 +42,9 @@ export interface Order {
   proveedorId?: number | null;
   /** 12-oct: lo devuelto al comprador por un veredicto de mediación (ya restado de `total`). */
   montoReembolsado?: number;
+  /** 13-oct: qué pasó después de la compra (reembolsado, reemplazado, reparado…), ver PostventaBadge. */
+  postventa?: string | null;
+  postventaDetalle?: string | null;
 }
 
 /** 12-oct: un paso del historial de un pedido (GET /administration/orders/{id}/history). */

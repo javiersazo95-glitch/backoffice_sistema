@@ -4,6 +4,7 @@ import * as administrationApi from '@/api/administration';
 import { mensajeDeError } from '@/api/client';
 import type { Order, OrderHistoryEvent, StatusHistoryItem } from './types';
 import { formatDateTime, formatMoney } from './utils';
+import PostventaBadge from './PostventaBadge';
 
 /** Color del punto y de la etiqueta segun que cambio. */
 const TIPO: Record<OrderHistoryEvent['tipo'], { label: string; color: string; bg: string }> = {
@@ -53,6 +54,13 @@ export default function OrderHistoryTimeline({ order, localHistory }: { order: O
 
   return (
     <div style={{ display: 'grid', gap: 10 }}>
+      {order?.postventa ? (
+        <p style={{ margin: 0, padding: '8px 12px', borderRadius: 8, background: '#f8fafc', border: '1px solid #e2e8f0', color: '#334155', fontSize: 12.5, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <strong>Resultado de la venta:</strong>
+          <PostventaBadge postventa={order.postventa} />
+          {order.postventaDetalle ? <span>{order.postventaDetalle}</span> : null}
+        </p>
+      ) : null}
       {order?.montoReembolsado ? (
         <p style={{ margin: 0, padding: '8px 12px', borderRadius: 8, background: '#fffbeb', color: '#92400e', fontSize: 12.5 }}>
           Esta venta tuvo un reembolso por mediación de <strong>{formatMoney(order.montoReembolsado)}</strong>; el total ya lo descuenta.

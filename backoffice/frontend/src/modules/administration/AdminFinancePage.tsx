@@ -7,6 +7,7 @@ import { isAxiosError } from 'axios';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import MetricCard from '@/components/shared/MetricCard';
 import OrderHistoryTimeline from './OrderHistoryTimeline';
+import PostventaBadge from './PostventaBadge';
 import UiIcon from '@/components/shared/UiIcon';
 import AreaHomeShortcut from '@/components/shared/AreaHomeShortcut';
 import FounderSellerName from '@/components/shared/FounderSellerName';
@@ -2764,7 +2765,12 @@ export default function AdminFinancePage() {
         leading={<label className="mb-check" onClick={(e) => e.stopPropagation()}><input type="checkbox" checked={selectedRows.pedidos.has(order.id)} onChange={() => toggleSelection('pedidos', order.id)} aria-label={`Seleccionar pedido ${order.id}`} /></label>}
         title={formatOrderNumber(order.id)}
         subtitle={<>{order.buyer} · <FounderSellerName name={order.seller} founder={order.sellerFounder} /></>}
-        badge={<span className={`status-pill ${slug(order.status)}`}>{order.status}</span>}
+        badge={(
+          <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+            <span className={`status-pill ${slug(order.status)}`}>{order.status}</span>
+            <PostventaBadge postventa={order.postventa} detalle={order.postventaDetalle} />
+          </span>
+        )}
         tone={showCriticality ? (criticality.level === 'critical' ? 'danger' : 'warning') : 'default'}
         meta={[
           { label: 'Total', value: formatMoney(order.total) },
@@ -2824,6 +2830,7 @@ export default function AdminFinancePage() {
                       <span className={`status-pill ${slug(order.status)}`}>
                         {order.status}
                       </span>
+                      {order.postventa ? <div><PostventaBadge postventa={order.postventa} detalle={order.postventaDetalle} /></div> : null}
                     </td>
                     <td className="updated-at-cell">
                       <span>{formatDateTime(order.updatedAt)}</span>

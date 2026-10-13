@@ -382,15 +382,40 @@ pestañas.
 **El caso completo**
 
 - Motivo, evidencias del comprador y de la tienda.
-- Un chat con cada parte. Arriba de cada chat está **Enviar pregunta con opciones** (desde el 12 de
-  octubre): el sistema le manda a esa parte una pregunta con botones y, cuando la toca, sigue solo con
-  la otra parte. Las preguntas son: cómo prefiere resolverlo el comprador (dinero, cambio o reparación),
-  devolver el producto a la tienda, si la tienda recibió la devolución, si puede cumplir el cambio, si
-  ya envió el reemplazo y si el comprador lo recibió. Al pedir mediador, la primera pregunta sale sola
-  según el motivo del reclamo (retracto → devolver; falla o producto equivocado → elegir solución).
+- **Cuestionario automático** (desde el 13 de octubre). Al pedir mediador, el asistente de RepuesTop
+  le manda solo a la parte un cuestionario de selección única, como el bot de un canal de atención. El
+  mediador ya no escribe las opciones a mano. Según el motivo del reclamo arranca en:
+  - retracto → devolver el producto (flete del comprador);
+  - falla, incompatible o producto equivocado → cómo prefiere resolverlo (dinero, cambio o reparación);
+  - no recibido → a la tienda: si despachó o entregó el pedido;
+  - cualquier otro motivo → "¿Qué necesitas resolver?" (falla, producto distinto, retracto o no llega).
+
+  Cada respuesta avisa sola a la otra parte y lanza el siguiente paso. Toda pregunta termina en
+  **"Ninguna de estas: hablar con un mediador"**: el cuestionario se detiene y el caso queda en
+  **Pide un mediador**.
+- **Los finales felices se resuelven solos** (desde el 13 de octubre), sin mediador:
+  - la tienda confirma que recibió la devolución en buen estado → **Reembolso íntegro**, pedido a
+    Flow en el acto;
+  - la tienda dice que no despachó el pedido → **Reembolso íntegro**;
+  - el comprador confirma que recibió el reemplazo o la reparación → **Reposición** o **Reparación
+    cumplida**;
+  - el comprador confirma que le llegó el pedido → **Entrega conforme acreditada**.
+
+  El caso queda resuelto por **Sistema**, las partes reciben el veredicto y la venta sale de
+  mediación. Si el reembolso ya no lo puede hacer RepuesTop (más de 30 días desde la recepción con la
+  venta ya pagada a la tienda), no se resuelve solo: queda en **Listo para resolver** para el mediador.
+- El panel **Cuestionario automático** muestra cada paso (quién, qué pregunta, qué eligió y cuándo), qué
+  espera ahora y, si alguien pidió un mediador, en qué paso y con qué comentario. Con **Retomar el
+  cuestionario en…** se reenvía un paso (por ejemplo, después de aclarar algo por el chat).
+- Un chat con cada parte. Arriba de cada chat aparece lo que esa parte **eligió en el cuestionario**,
+  para escribirle con contexto. Las preguntas se ven como las ve la parte, con la opción elegida marcada.
 - Junto al estado del caso aparece qué espera: **Esperando al comprador**, **Esperando a la tienda**,
-  **Listo para resolver** (lo físico ya se cerró) o **Pide ayuda** (alguien tocó "Necesito ayuda" u
-  objetó una devolución). Solo hay que entrar al chat en los dos últimos o cuando alguien escribe a mano.
+  **Listo para resolver** (lo físico ya se cerró) o **Pide un mediador** (alguien tocó "hablar con un
+  mediador" u objetó una devolución). Solo hay que entrar al chat en los dos últimos o cuando alguien
+  escribe a mano.
+- En **Acciones del mediador** aparecen las **soluciones posibles según el cuestionario**, con la
+  recomendada primero. Tocar una carga la figura legal en el veredicto; igual hay que revisarla,
+  marcar el checklist y confirmar.
 - **Acciones del mediador:** **Resolver mediación** o **Suspender cuenta**. El paso a paso de
   resolver está en [F8](#f8-resolver-una-mediación).
 
@@ -548,10 +573,17 @@ Es un registro de seguimiento. El cumplimiento del pedido es responsabilidad de 
 - El reloj de **Última actualización** marca en amarillo o rojo los pedidos que se acercan a su
   límite o lo pasaron.
 - **Ver detalle** y **Ver historial**.
+- Bajo el estado aparece la **etiqueta de postventa** cuando la venta tuvo mediación: **Reembolsado**,
+  **Reembolso en proceso**, **Reembolso parcial**, **Devuelto por la tienda**, **Reemplazado**,
+  **Reparado**, **Entrega conforme**, **Reclamo rechazado**, **Cerrado por suspensión**, o, con el caso
+  abierto, **En cuestionario**, **Listo para resolver** o **Pide mediador**. Al pasar el mouse se ve el
+  caso, la figura y si lo resolvió el sistema o el mediador.
+- El **Historial** muestra cada cambio de estado con fecha y responsable, y además cada respuesta del
+  cuestionario de mediación ("«¿Recibiste la devolución?» → Sí, en buen estado") y el cierre del caso.
+  Lo que hizo el cuestionario aparece con responsable **Sistema (Cuestionario automático)**.
 
 > **Ojo:**
 > - El filtro "Finalizado" siempre deja la tabla vacía.
-> - El **Historial de Estados** muestra un solo registro: el sistema no guarda la historia completa.
 > - Si llegaste desde la tarjeta "Pedidos atrasados", queda un filtro invisible hasta recargar la
 >   página.
 
@@ -1133,7 +1165,7 @@ resolver para "avanzar".
 
 1. Ir a **Mediaciones**, elegir el caso y pulsar **Revisar mediación**.
 2. Leer el motivo, revisar las evidencias de ambas partes y seguir el chip de estado: entrar al chat
-   solo si dice **Pide ayuda** o si alguien escribió a mano. Con **Listo para resolver**, ir al paso 3.
+   solo si dice **Pide un mediador** o si alguien escribió a mano. Con **Listo para resolver**, ir al paso 3.
 3. En **Acciones del mediador**, elegir **Resolver mediación**:
    1. **Veredicto de la mediación:** **A favor del comprador** o **A favor de la tienda**.
    2. **Opción de resolución (Ley 19.496)**:
