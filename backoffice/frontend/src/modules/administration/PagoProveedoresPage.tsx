@@ -18,6 +18,8 @@ import DocumentoLiquidacionModal from './pagos/DocumentoLiquidacionModal';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { RecordCard, RecordList, EmptyState } from '@/components/mobile';
 import SaldosEnContraPanel from './SaldosEnContraPanel';
+import { DesgloseProvider, MontoInfo } from './desglose/DesgloseModal';
+import RespaldoSocioModal from './pagos/RespaldoSocioModal';
 
 
 /**
@@ -38,6 +40,11 @@ const MOTIVOS_RECHAZO = [
   { id: 'CUENTA_CERRADA', label: 'Cuenta cerrada o bloqueada' },
 ] as const;
 const MOTIVO_OTRO = 'OTRO';
+
+/** 13-oct: lo que recibe la tienda en este retiro, con la "i" del desglose (ventas, descuentos, boleta). */
+function RetiroMonto({ retiro }: { retiro: RetiroAdminResponse }) {
+  return <MontoInfo value={retiro.monto} strong foco="recibe" fuente={{ retiro }} label="La tienda recibe" />;
+}
 
 /** Cuantos depositos de la nomina rebotaron, con sus motivos en el title. */
 function RechazosDelPago({ payment }: { payment: PagoProveedorResponse }) {
@@ -142,6 +149,10 @@ function calcularPagables(
 }
 
 export default function PagoProveedoresPage() {
+  return <DesgloseProvider><PagoProveedoresContent /></DesgloseProvider>;
+}
+
+function PagoProveedoresContent() {
   const isMobile = useIsMobile();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<'gestion' | 'historial' | 'saldos'>('gestion');
@@ -183,6 +194,9 @@ export default function PagoProveedoresPage() {
   const [partnerDocModal, setPartnerDocModal] = useState<{
     retiroId: number;
     beneficiary: string;
+    codigo: string;
+    monto: number;
+    fecha: string;
     type: string;
     rut: string;
     razonSocial: string;
@@ -570,7 +584,7 @@ export default function PagoProveedoresPage() {
         : <><span className="status-pill tone-blue">Proveedor</span> <BoletaPill retiro={w} /></>}
       tone={w.documentoLiquidacionCompleto ? 'default' : 'warning'}
       meta={[
-        { label: 'Monto', value: <strong>{formatMoney(w.monto)}</strong> },
+        { label: 'La tienda recibe', value: <RetiroMonto retiro={w} /> },
         { label: 'RUT', value: w.rut },
         { label: 'Banco', value: w.banco },
         { label: 'Cuenta', value: `${w.tipoCuenta} · ${w.numeroCuenta}` },
@@ -622,6 +636,9 @@ export default function PagoProveedoresPage() {
             onClick={() => setPartnerDocModal({
               retiroId: Number(w.id),
               beneficiary: w.beneficiary,
+              codigo: w.codigoRetiro || `SOCIO-${w.id}`,
+              monto: w.amount,
+              fecha: w.date,
               type: w.documentoLiquidacionTipo || 'Comprobante de retiro',
               rut: w.documentoLiquidacionRut || w.rut || '',
               razonSocial: w.documentoLiquidacionRazonSocial || w.titular || w.beneficiary,
@@ -673,7 +690,7 @@ export default function PagoProveedoresPage() {
                           <td>{w.banco}</td>
                           <td>{w.tipoCuenta}</td>
                           <td>{w.numeroCuenta}</td>
-                          <td style={{ fontWeight: 'bold' }}>{formatMoney(w.monto)}</td>
+                          <td className="value-cell"><RetiroMonto retiro={w} /></td>
                           <td>{w.email}</td>
                           <td>{formatDate(w.fecha)}</td>
                           <td>
@@ -746,6 +763,9 @@ export default function PagoProveedoresPage() {
                                   onClick={() => setPartnerDocModal({
                                     retiroId: Number(w.id),
                                     beneficiary: w.beneficiary,
+                                    codigo: w.codigoRetiro || `SOCIO-${w.id}`,
+                                    monto: w.amount,
+                                    fecha: w.date,
                                     type: w.documentoLiquidacionTipo || 'Comprobante de retiro',
                                     rut: w.documentoLiquidacionRut || w.rut || '',
                                     razonSocial: w.documentoLiquidacionRazonSocial || w.titular || w.beneficiary,
@@ -806,7 +826,7 @@ export default function PagoProveedoresPage() {
                       <tr key={`hoy-${retiro.retiroId}`}>
                         <td><strong>{retiro.codigoRetiro || '—'}</strong></td>
                         <td><FounderSellerName name={retiro.nombreTienda} founder={retiro.sellerFounder} /></td>
-                        <td style={{ fontWeight: 'bold' }}>{formatMoney(retiro.monto)}</td>
+                        <td className="value-cell"><RetiroMonto retiro={retiro} /></td>
                         <td>{retiro.pagadoAt ? formatDateTimeLocal(retiro.pagadoAt).slice(11) : '—'}</td>
                         <td>{retiro.pagadoPor || '—'}</td>
                         <td className="pp-mono">{retiro.referenciaTransferencia || '—'}</td>
@@ -1132,7 +1152,7 @@ export default function PagoProveedoresPage() {
                             <td style={{ padding: '8px 12px' }}><FounderSellerName name={retiro.nombreTienda} founder={retiro.sellerFounder} /></td>
                             <td style={{ padding: '8px 12px' }}><span className="status-pill tone-blue" style={{ fontSize: '11px' }}>Proveedor</span></td>
                             <td style={{ padding: '8px 12px' }}>{formatDate(retiro.fecha)}</td>
-                            <td style={{ textAlign: 'right', padding: '8px 12px', fontWeight: 'bold' }}>{formatMoney(retiro.monto)}</td>
+                            <td style={{ textAlign: 'right', padding: '8px 12px' }}><RetiroMonto retiro={retiro} /></td>
                             {paymentDetails.modalidad === 'TRANSFERENCIA' && (
                               <td style={{ padding: '8px 12px', fontSize: 12, whiteSpace: 'nowrap' }}>
                                 <div className="pp-mono">{retiro.referenciaTransferencia || '—'}</div>
@@ -1381,132 +1401,61 @@ export default function PagoProveedoresPage() {
       )}
 
       {partnerDocModal && (
-        <div className="modal-backdrop pp-modal-backdrop" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setPartnerDocModal(null)}>
-          <div className="modal-content pp-modal" style={{ background: '#fff', borderRadius: 12, width: '90%', maxWidth: 540, padding: 24, boxShadow: '0 20px 40px rgba(0,0,0,.15)' }} onClick={(e) => e.stopPropagation()}>
-            <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #eee', paddingBottom: 12, marginBottom: 16 }}>
-              <h3 style={{ margin: 0, fontSize: 18 }}>Cargar documento tributario — Socio: {partnerDocModal.beneficiary}</h3>
-              <button type="button" onClick={() => setPartnerDocModal(null)} style={{ background: 'transparent', border: 0, fontSize: 20, cursor: 'pointer' }}>&times;</button>
-            </header>
-            <form onSubmit={async (e) => {
-              e.preventDefault();
-              if (!partnerDocModal.rut.trim() || !partnerDocModal.razonSocial.trim() || !partnerDocModal.email.trim() || !partnerDocModal.pdfName?.trim()) {
-                alert('Completa RUT, Razón social, Email y adjunta el archivo PDF.');
-                return;
-              }
-              setSavingPartnerDoc(true);
-              try {
-                await adminApi.saveLiquidationDocument({
-                  // Este modal es exclusivamente de socios.
-                  tipoRetiro: 'SOCIO',
-                  retiroId: partnerDocModal.retiroId,
-                  tipoDocumento: partnerDocModal.type.trim(),
-                  rut: partnerDocModal.rut.trim(),
-                  razonSocial: partnerDocModal.razonSocial.trim(),
-                  email: partnerDocModal.email.trim(),
-                  detalle: partnerDocModal.detalle.trim(),
-                  ivaLiquidado: Number(partnerDocModal.iva) || 0,
-                  eliminarDocumento: false,
-                }, partnerDocModal.pdfFile);
-                await refetchPartnerWithdrawals();
-                setPartnerDocModal(null);
-              } catch (err) {
-                alert('No se pudo guardar el documento tributario: ' + (mensajeDeError(err, 'error desconocido')));
-              } finally {
-                setSavingPartnerDoc(false);
-              }
-            }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: 12, fontWeight: 'bold', color: '#4a5568', marginBottom: 4 }}>Tipo de documento</label>
-                  <select
-                    className="select"
-                    value={partnerDocModal.type}
-                    onChange={(e) => setPartnerDocModal({ ...partnerDocModal, type: e.target.value })}
-                    style={{ width: '100%', padding: '8px 12px', borderRadius: 6, border: '1px solid #cddde9' }}
-                  >
-                    {/* Un retiro de socio no es una prestacion de servicios: no lleva boleta de
-                        honorarios. Mismas opciones que el modal de Administracion Contable; el tipo
-                        ya registrado se agrega siempre para que ningun documento historico quede
-                        sin su opcion (O18). */}
-                    {Array.from(new Set([
-                      'Comprobante de retiro', 'Liquidación de sueldo', 'Documento Tributario', partnerDocModal.type,
-                    ].filter(Boolean))).map((tipo) => <option key={tipo} value={tipo}>{tipo}</option>)}
-                  </select>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: 12, fontWeight: 'bold', color: '#4a5568', marginBottom: 4 }}>RUT Receptor</label>
-                    <input
-                      type="text"
-                      className="input"
-                      value={partnerDocModal.rut}
-                      onChange={(e) => setPartnerDocModal({ ...partnerDocModal, rut: e.target.value })}
-                      placeholder="Ej: 15.123.456-7"
-                      required
-                      style={{ width: '100%', padding: '8px 12px', borderRadius: 6, border: '1px solid #cddde9' }}
-                    />
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: 12, fontWeight: 'bold', color: '#4a5568', marginBottom: 4 }}>Razón Social / Nombre</label>
-                    <input
-                      type="text"
-                      className="input"
-                      value={partnerDocModal.razonSocial}
-                      onChange={(e) => setPartnerDocModal({ ...partnerDocModal, razonSocial: e.target.value })}
-                      required
-                      style={{ width: '100%', padding: '8px 12px', borderRadius: 6, border: '1px solid #cddde9' }}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: 12, fontWeight: 'bold', color: '#4a5568', marginBottom: 4 }}>Correo electrónico socio</label>
-                  <input
-                    type="email"
-                    className="input"
-                    value={partnerDocModal.email}
-                    onChange={(e) => setPartnerDocModal({ ...partnerDocModal, email: e.target.value })}
-                    required
-                    style={{ width: '100%', padding: '8px 12px', borderRadius: 6, border: '1px solid #cddde9' }}
-                  />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: 12, fontWeight: 'bold', color: '#4a5568', marginBottom: 4 }}>Detalle</label>
-                  <input
-                    type="text"
-                    className="input"
-                    value={partnerDocModal.detalle}
-                    onChange={(e) => setPartnerDocModal({ ...partnerDocModal, detalle: e.target.value })}
-                    required
-                    style={{ width: '100%', padding: '8px 12px', borderRadius: 6, border: '1px solid #cddde9' }}
-                  />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: 12, fontWeight: 'bold', color: '#4a5568', marginBottom: 4 }}>Adjuntar archivo PDF (*.pdf)</label>
-                  <input
-                    type="file"
-                    accept=".pdf"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) {
-                        setPartnerDocModal({ ...partnerDocModal, pdfFile: file, pdfName: file.name });
-                      }
-                    }}
-                    style={{ width: '100%', padding: '6px' }}
-                  />
-                  {partnerDocModal.pdfName && (
-                    <small style={{ color: '#2e7d32', fontWeight: 'bold' }}>✓ {partnerDocModal.pdfName}</small>
-                  )}
-                </div>
-              </div>
-              <footer style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
-                <button className="secondary-button" type="button" onClick={() => setPartnerDocModal(null)} disabled={savingPartnerDoc}>Cancelar</button>
-                <button className="primary-button" type="submit" disabled={savingPartnerDoc}>
-                  {savingPartnerDoc ? 'Guardando...' : 'Guardar documento'}
-                </button>
-              </footer>
-            </form>
-          </div>
-        </div>
+        <RespaldoSocioModal
+          socio={partnerDocModal.beneficiary}
+          codigo={partnerDocModal.codigo}
+          monto={partnerDocModal.monto}
+          fecha={partnerDocModal.fecha}
+          editando={false}
+          guardando={savingPartnerDoc}
+          datos={{
+            tipo: partnerDocModal.type,
+            rut: partnerDocModal.rut,
+            nombre: partnerDocModal.razonSocial,
+            email: partnerDocModal.email,
+            detalle: partnerDocModal.detalle,
+            iva: partnerDocModal.iva,
+            pdfName: partnerDocModal.pdfName ?? '',
+          }}
+          onChange={(cambios) => setPartnerDocModal({
+            ...partnerDocModal,
+            ...(cambios.tipo !== undefined ? { type: cambios.tipo } : {}),
+            ...(cambios.rut !== undefined ? { rut: cambios.rut } : {}),
+            ...(cambios.nombre !== undefined ? { razonSocial: cambios.nombre } : {}),
+            ...(cambios.email !== undefined ? { email: cambios.email } : {}),
+            ...(cambios.detalle !== undefined ? { detalle: cambios.detalle } : {}),
+            ...(cambios.iva !== undefined ? { iva: cambios.iva } : {}),
+          })}
+          onFile={(file) => setPartnerDocModal({ ...partnerDocModal, pdfFile: file, pdfName: file.name })}
+          onClose={() => setPartnerDocModal(null)}
+          onSubmit={async () => {
+            if (!partnerDocModal.rut.trim() || !partnerDocModal.razonSocial.trim() || !partnerDocModal.email.trim() || !partnerDocModal.pdfName?.trim()) {
+              alert('Completa RUT, Razón social, Email y adjunta el archivo PDF.');
+              return;
+            }
+            setSavingPartnerDoc(true);
+            try {
+              await adminApi.saveLiquidationDocument({
+                // Este modal es exclusivamente de socios.
+                tipoRetiro: 'SOCIO',
+                retiroId: partnerDocModal.retiroId,
+                tipoDocumento: partnerDocModal.type.trim(),
+                rut: partnerDocModal.rut.trim(),
+                razonSocial: partnerDocModal.razonSocial.trim(),
+                email: partnerDocModal.email.trim(),
+                detalle: partnerDocModal.detalle.trim(),
+                ivaLiquidado: Number(partnerDocModal.iva) || 0,
+                eliminarDocumento: false,
+              }, partnerDocModal.pdfFile);
+              await refetchPartnerWithdrawals();
+              setPartnerDocModal(null);
+            } catch (err) {
+              alert('No se pudo guardar el documento tributario: ' + (mensajeDeError(err, 'error desconocido')));
+            } finally {
+              setSavingPartnerDoc(false);
+            }
+          }}
+        />
       )}
 
       {transferRetiro && (

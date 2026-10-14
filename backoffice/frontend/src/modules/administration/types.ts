@@ -427,7 +427,7 @@ export interface AdvertisingOrder {
   cantidadFichas: number;
   montoPagado: number;
   comisionPasarela: number;
-  /** O16: venta sin IVA menos Flow sin IVA (el backend ya descuenta el IVA). */
+  /** Ganancia: venta sin IVA menos Flow sin IVA (14-oct: la comisión de Flow la asume RepuesTop). */
   montoNeto: number;
   /** O16: IVA débito de la venta de fichas. */
   ivaVenta?: number;

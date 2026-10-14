@@ -122,7 +122,8 @@ export function getSettlements(orders: Order[], statuses: Record<string, Settlem
       const gatewayFeeSeller = Number(order.comisionPagoFlowVendedor ?? 0);
       const gatewayFeeRepuestop = Number(order.comisionPagoFlowRepuestop ?? 0);
       const grossEarnings = Number(order.descuentosVendedor ?? serviceCommission + serviceCommissionIva + gatewayFeeSeller);
-      const netSettlement = Number(order.liquidacionServicio ?? serviceCommission + serviceCommissionIva);
+      // Ganancia neta = comisión sin IVA (el IVA va al SII), igual que el servidor.
+      const netSettlement = Number(order.liquidacionServicio ?? serviceCommission);
       const baseComisiones = Math.max(0, subtotal - descuento) + Number(order.costoEnvio ?? 0);
       const paidAmount = baseComisiones - grossEarnings;
       const sellerPayout = Number(order.montoPagarVendedor ?? paidAmount);

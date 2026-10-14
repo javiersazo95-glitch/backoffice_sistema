@@ -10,6 +10,8 @@ import QueryErrorNotice from '@/components/shared/QueryErrorNotice';
 import UiIcon from '@/components/shared/UiIcon';
 import { formatOrderNumber } from '@/utils/orderNumber';
 import { chileDay, formatDate, formatDateTimeLocal, formatMoney } from './utils';
+import PpModal from './pagos/PpModal';
+import { DocArchivo, DocPaper, DocPaso, DocPorQue } from './pagos/documentoUi';
 
 /**
  * Notas de credito de las ventas deshechas, pendiente D de la revision contable (2026-10-08).
@@ -373,74 +375,109 @@ function NotasCreditoPanel() {
         )}
       </section>
 
-      <Modal isOpen={draft !== null} onClose={() => setDraft(null)} title="Registrar nota de crédito">
-        {draft && (
-          <form className="form-grid" onSubmit={saveDraft}>
-            <p className="panel-hint" style={{ gridColumn: '1 / -1' }}>
-              Pedido <strong>{pedidoLabel(draft.pending.codigoPedido, draft.pending.pedidoId)}</strong> · {draft.pending.nombreTienda ?? '—'}
-              {' · '}emite <strong>{EMISOR_LABEL[draft.pending.emisor]}</strong> · anula: {legible(draft.pending.documentoAnulado)}.
-              {' '}Reembolso {draft.pending.montoReembolso != null ? formatMoney(draft.pending.montoReembolso) : '—'}.
-              {' '}Vence el {formatDate(draft.pending.venceEl)}.
-            </p>
-            {draft.pending.emisor === 'REPUESTOP' && (
-              <p className="panel-hint" style={{ gridColumn: '1 / -1' }}>
-                La nota de RepuesTop anula la <strong>comisión</strong> facturada por lo reembolsado, no la venta: se propone
-                la comisión con IVA sobre el reembolso
-                {draft.pending.montoMaximo != null && <>, con tope en el total de la factura ({formatMoney(draft.pending.montoMaximo)})</>}.
-              </p>
-            )}
-            <label className="form-field">
-              <span>Folio (número que asignó el SII)</span>
-              <input className="input" type="text" inputMode="numeric" pattern="[0-9]+" required
-                value={draft.folio} onChange={(event) => setDraft({ ...draft, folio: event.target.value })} />
-            </label>
-            <label className="form-field">
-              <span>Fecha de emisión</span>
-              <input className="input" type="date" max={todayChile()} required
-                value={draft.fechaEmision} onChange={(event) => setDraft({ ...draft, fechaEmision: event.target.value })} />
-            </label>
-            <label className="form-field">
-              <span>Monto total de la nota (IVA incluido)</span>
-              <input className="input" type="number" min="1" step="1" max={draft.pending.montoMaximo ?? undefined}
-                value={draft.monto} onChange={(event) => setDraft({ ...draft, monto: event.target.value })} />
-              {montoDraft != null && montoDraft > 0 && (
-                <small className="panel-hint">
-                  Neto {formatMoney(netoEIva(montoDraft).neto)} · IVA {formatMoney(netoEIva(montoDraft).iva)} (calculado)
-                </small>
-              )}
-            </label>
-            <label className="form-field">
-              <span>PDF de la nota de crédito</span>
-              <input className="input" type="file" accept=".pdf,application/pdf" required
-                onChange={(event) => setDraft({ ...draft, archivo: event.target.files?.[0] ?? null })} />
-            </label>
-            {montoDraft != null && draft.pending.montoMaximo != null && montoDraft > draft.pending.montoMaximo && (
-              <div className="notice notice-error" style={{ gridColumn: '1 / -1' }}>
-                <UiIcon name="alert" /> El monto supera el tope de {formatMoney(draft.pending.montoMaximo)}.
+      {/* 14-oct: mismo formato que la boleta de tarifa de servicio: a la izquierda la nota tal como
+          queda y por qué es ese monto; a la derecha emitirla y registrarla. */}
+      {draft && (() => {
+        const p = draft.pending;
+        const deRepuestop = p.emisor === 'REPUESTOP';
+        const monto = montoDraft ?? 0;
+        const { neto, iva } = netoEIva(monto);
+        const superaTope = montoDraft != null && p.montoMaximo != null && montoDraft > p.montoMaximo;
+        return (
+          <PpModal
+            title="Registrar nota de crédito"
+            subtitle={<>Pedido <strong>{pedidoLabel(p.codigoPedido, p.pedidoId)}</strong> · {p.nombreTienda ?? '—'}</>}
+            badge={<span className={`status-pill ${NIVEL_LABEL[p.nivel].tone}`}>{NIVEL_LABEL[p.nivel].text}</span>}
+            onClose={() => !saving && setDraft(null)}
+            width={1040}
+            closeDisabled={saving}
+            className="boleta-modal"
+          >
+            <form className="boleta-layout" onSubmit={saveDraft}>
+              <aside className="boleta-doc">
+                <DocPaper
+                  kicker="Documento a registrar"
+                  titulo="Nota de crédito electrónica"
+                  estado={{ texto: `Vence ${formatDate(p.venceEl)}`, sub: p.diasRestantes >= 0 ? `${p.diasRestantes} días` : 'Vencida', tono: p.diasRestantes >= 0 ? 'pending' : 'info' }}
+                  emisor={deRepuestop ? 'RepuesTop' : (p.nombreTienda ?? 'Tienda')}
+                  receptor={deRepuestop ? (p.nombreTienda ?? 'Tienda') : 'Comprador del pedido'}
+                  extra={[{ label: 'Anula', value: legible(p.documentoAnulado) }]}
+                  lineas={[{ concepto: deRepuestop ? 'Anula la comisión facturada por lo reembolsado' : 'Anula la venta por lo reembolsado', monto: neto }]}
+                  totales={[{ label: 'Monto neto', value: formatMoney(neto) }, { label: 'IVA 19%', value: formatMoney(iva) }]}
+                  total={{ label: 'Total de la nota', monto }}
+                />
+                <DocPorQue
+                  texto={deRepuestop
+                    ? <>Se le devolvió plata al comprador. RepuesTop anula la <strong>comisión</strong> que le facturó a la tienda por ese monto (con IVA), no la venta{p.montoMaximo != null ? <>, con tope en el total de la factura ({formatMoney(p.montoMaximo)})</> : null}.</>
+                    : <>La tienda anula su boleta o factura por lo que se le devolvió al comprador, IVA incluido.</>}
+                  filas={[
+                    ...(p.totalVenta != null ? [{ label: 'Venta de la tienda', monto: p.totalVenta }] : []),
+                    ...(p.montoReembolso != null ? [{ label: `Reembolsado al comprador${p.porcentajeReembolsado != null ? ` (${p.porcentajeReembolsado}%)` : ''}`, monto: p.montoReembolso, tipo: deRepuestop ? undefined : ('result' as const) }] : []),
+                    ...(deRepuestop && p.montoPropuesto != null ? [{ label: 'Nota propuesta (comisión con IVA)', monto: p.montoPropuesto, tipo: 'result' as const }] : []),
+                  ]}
+                />
+              </aside>
+
+              <div className="boleta-main">
+                <DocPaso
+                  n={1}
+                  titulo={deRepuestop ? 'Emite la nota en el SII' : 'La tienda emite la nota'}
+                  descripcion={<>Emite <strong>{EMISOR_LABEL[p.emisor]}</strong>, referenciando {legible(p.documentoAnulado)}. Hay plazo hasta el <strong>{formatDate(p.venceEl)}</strong> (6 meses): después ya no rebaja el IVA.</>}
+                >
+                  {p.devolucionFueraDePlazo ? (
+                    <div className="boleta-callout is-warn"><UiIcon name="alert" /><span>La devolución ocurrió después de los 6 meses: la nota queda como respaldo, pero el IVA ya no se recupera.</span></div>
+                  ) : (
+                    <div className="boleta-callout"><UiIcon name="info" /><span>Reembolso {p.montoReembolso != null ? formatMoney(p.montoReembolso) : '—'}{p.fechaReembolso ? ` del ${formatDate(p.fechaReembolso)}` : ''}.</span></div>
+                  )}
+                </DocPaso>
+
+                <DocPaso n={2} titulo="Registra la nota emitida" descripcion="Folio, fecha, monto total (IVA incluido) y el PDF.">
+                  <div className="boleta-fields">
+                    <label className="form-field">
+                      <span>Folio asignado por el SII</span>
+                      <input className="input" type="text" inputMode="numeric" pattern="[0-9]+" required placeholder="Ej: 512"
+                        value={draft.folio} onChange={(event) => setDraft({ ...draft, folio: event.target.value })} />
+                    </label>
+                    <label className="form-field">
+                      <span>Fecha de emisión</span>
+                      <input className="input" type="date" max={todayChile()} required
+                        value={draft.fechaEmision} onChange={(event) => setDraft({ ...draft, fechaEmision: event.target.value })} />
+                    </label>
+                    <label className="form-field is-wide">
+                      <span>Monto total de la nota (IVA incluido)</span>
+                      <input className="input" type="number" min="1" step="1" max={p.montoMaximo ?? undefined}
+                        value={draft.monto} onChange={(event) => setDraft({ ...draft, monto: event.target.value })} />
+                      {montoDraft != null && montoDraft > 0 && <small className="boleta-hint">Neto {formatMoney(neto)} + IVA {formatMoney(iva)}</small>}
+                    </label>
+                    <DocArchivo nombre={draft.archivo?.name ?? ''} onFile={(file) => setDraft({ ...draft, archivo: file })} required titulo="Adjunta el PDF de la nota de crédito" />
+                  </div>
+                </DocPaso>
+
+                {superaTope && (
+                  <div className="notice notice-error"><UiIcon name="alert" /> El monto supera el tope de {formatMoney(p.montoMaximo!)}.</div>
+                )}
+                {montoDraft != null && referenciaDraft != null && Math.round(montoDraft) !== Math.round(referenciaDraft) && !superaTope && (
+                  <div className="notice">
+                    <UiIcon name="alert" />
+                    {p.emisor === 'TIENDA'
+                      ? ` El monto es distinto de lo reembolsado (${formatMoney(referenciaDraft)}). Revisa que coincida con el PDF.`
+                      : ` El monto es distinto de la comisión propuesta (${formatMoney(referenciaDraft)}). Revisa que coincida con el PDF.`}
+                  </div>
+                )}
+                {draft.fechaEmision > p.venceEl && (
+                  <div className="notice"><UiIcon name="alert" /> La fecha de emisión es posterior al vencimiento: la nota queda como respaldo, pero ya no rebaja el IVA.</div>
+                )}
+                {draftError && <div className="notice notice-error">{draftError}</div>}
+
+                <div className="boleta-actions">
+                  <button className="secondary-button" type="button" onClick={() => setDraft(null)} disabled={saving}>Cancelar</button>
+                  <button className="primary-button" type="submit" disabled={saving}><UiIcon name="check" />{saving ? 'Guardando…' : 'Registrar nota'}</button>
+                </div>
               </div>
-            )}
-            {montoDraft != null && referenciaDraft != null && Math.round(montoDraft) !== Math.round(referenciaDraft)
-              && !(draft.pending.montoMaximo != null && montoDraft > draft.pending.montoMaximo) && (
-              <div className="notice" style={{ gridColumn: '1 / -1' }}>
-                <UiIcon name="alert" />
-                {draft.pending.emisor === 'TIENDA'
-                  ? ` El monto es distinto de lo reembolsado (${formatMoney(referenciaDraft)}). Revisa que coincida con el PDF.`
-                  : ` El monto es distinto de la comisión propuesta (${formatMoney(referenciaDraft)}). Revisa que coincida con el PDF.`}
-              </div>
-            )}
-            {draft.fechaEmision > draft.pending.venceEl && (
-              <div className="notice" style={{ gridColumn: '1 / -1' }}>
-                <UiIcon name="alert" /> La fecha de emisión es posterior al vencimiento: la nota queda como respaldo, pero ya no rebaja el IVA.
-              </div>
-            )}
-            {draftError && <div className="notice notice-error" style={{ gridColumn: '1 / -1' }}>{draftError}</div>}
-            <div className="form-actions">
-              <button className="secondary-button" type="button" onClick={() => setDraft(null)}>Cancelar</button>
-              <button className="primary-button" type="submit" disabled={saving}>{saving ? 'Guardando…' : 'Registrar nota'}</button>
-            </div>
-          </form>
-        )}
-      </Modal>
+            </form>
+          </PpModal>
+        );
+      })()}
 
       <Modal isOpen={rechazo !== null} onClose={() => setRechazo(null)} title="Rechazar nota de crédito">
         {rechazo && (

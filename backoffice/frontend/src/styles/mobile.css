@@ -3950,3 +3950,72 @@
   .mb-shell .dash-insight .secondary-button { grid-column: 2; justify-self: start; }
   .mb-shell .dash-bar, .mb-shell .dash-bar-button { grid-template-columns: minmax(90px, 120px) minmax(0, 1fr) auto; }
 }
+
+/* 13-oct: desglose de la información de pago en teléfonos: bottom sheet y cifras apiladas. */
+@media (max-width: 768px), (pointer: coarse) and (max-height: 520px) {
+  .desglose-backdrop {
+    place-items: end stretch;
+    padding: 0;
+  }
+
+  .desglose-modal,
+  .desglose-modal.is-compact {
+    width: 100%;
+    max-height: 92dvh;
+    border-radius: 16px 16px 0 0;
+    animation: desglose-sheet 0.2s ease;
+  }
+
+  @keyframes desglose-sheet { from { transform: translateY(24px); opacity: 0; } }
+
+  .desglose-head { padding: 14px 16px 10px; }
+  .desglose-scroll { padding: 14px 16px calc(18px + env(safe-area-inset-bottom)); }
+
+  .desglose-heroes { grid-template-columns: 1fr; gap: 8px; }
+
+  .desglose-hero {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    padding: 10px 12px;
+  }
+
+  .desglose-hero strong { grid-row: 1 / span 2; grid-column: 2; font-size: 20px; }
+
+  .desglose-steps,
+  .desglose-steps.is-recarga {
+    grid-template-columns: 1fr;
+    grid-template-areas: none;
+  }
+
+  .desglose-step,
+  .desglose-step[class*="area-"] {
+    grid-area: auto;
+    grid-template-columns: 1fr;
+    gap: 4px;
+    padding: 10px;
+  }
+
+  .desglose-step-num { width: 22px; height: 22px; font-size: 12px; }
+
+  .desglose-step-title { flex-wrap: wrap; }
+
+  .desglose-boleta th,
+  .desglose-boleta td { padding: 6px 4px; font-size: 12px; }
+
+  .desglose-cuadre { flex-wrap: wrap; }
+
+  .monto-info { white-space: normal; }
+
+  .pp-modal-panel.boleta-modal { padding: 14px; }
+  .boleta-layout { grid-template-columns: 1fr; gap: 12px; }
+  .boleta-doc { position: static; }
+  .boleta-doc-parties,
+  .boleta-type,
+  .boleta-type.is-three,
+  .boleta-fields { grid-template-columns: 1fr; }
+  .boleta-registered { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .boleta-doc-totals .is-total dd { font-size: 21px; }
+  .boleta-pdf iframe { height: 60dvh; }
+  .boleta-actions { position: sticky; bottom: 0; padding: 10px 0 calc(4px + env(safe-area-inset-bottom)); background: #f6f8fb; }
+  .boleta-actions > button { flex: 1 1 0; justify-content: center; }
+}

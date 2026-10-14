@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import * as adminApi from '@/api/administration';
 import { mensajeDeError } from '@/api/client';
 import UiIcon from '@/components/shared/UiIcon';
@@ -6,7 +6,9 @@ import { showToast } from '@/components/layout/Toast';
 import { chileDay, formatDate, formatDateTimeLocal, formatMoney } from '../utils';
 import type { RetiroAdminResponse } from '../types';
 import PpModal from './PpModal';
-import { CopyButton } from './CopyField';
+import { DocArchivo, DocPaper, DocPaso, DocPorQue, DocTipoSelector } from './documentoUi';
+import { useDesglose } from '../desglose/DesgloseModal';
+import { useRetiroDesglose, type RetiroRef } from '../desglose/useRetiroDesglose';
 
 interface Borrador {
   type: string;
@@ -26,12 +28,84 @@ function todayChile(): string {
 }
 
 /**
+ * 14-oct: el documento a emitir, como se verá en el SII: tipo, receptor, conceptos, neto, IVA y
+ * total. Debajo, por qué es ese monto (ventas del retiro − boleta = lo que recibe la tienda).
+ */
+function DocumentoAEmitir({
+  retiro,
+  factura,
+  tipo,
+  receptor,
+  rut,
+  emitido,
+}: {
+  retiro: RetiroAdminResponse;
+  factura: adminApi.FacturaComision;
+  tipo: string;
+  receptor: string;
+  rut: string;
+  /** Folio y fecha cuando el documento ya está registrado. */
+  emitido?: { folio: string; fecha: string };
+}) {
+  const abrir = useDesglose();
+  const ref = useMemo<RetiroRef>(() => ({
+    retiroId: retiro.retiroId,
+    monto: retiro.monto,
+    nombreTienda: retiro.nombreTienda,
+    codigoRetiro: retiro.codigoRetiro,
+    proveedorId: retiro.proveedorId,
+  }), [retiro.retiroId, retiro.monto, retiro.nombreTienda, retiro.codigoRetiro, retiro.proveedorId]);
+  const { desglose } = useRetiroDesglose(ref);
+  const ventas = desglose?.ventas?.length ? desglose.venta.total : null;
+  const saldos = desglose?.recibe?.lineas.find((linea) => linea.concepto.startsWith('Saldos en contra'))?.monto ?? 0;
+
+  const textoSii = [
+    `${tipo} electrónica`,
+    `Receptor: ${receptor}`,
+    rut ? `RUT: ${rut}` : null,
+    '',
+    ...factura.lineas.map((linea) => `${linea.concepto}: neto ${formatMoney(linea.neto)}`),
+    `Neto: ${formatMoney(factura.neto)}`,
+    `IVA 19%: ${formatMoney(factura.iva)}`,
+    `Total: ${formatMoney(factura.total)}`,
+  ].filter((linea) => linea !== null).join('\n');
+
+  return (
+    <aside className="boleta-doc">
+      <DocPaper
+        kicker={emitido ? 'Documento emitido' : 'Documento a emitir'}
+        titulo={`${tipo} electrónica`}
+        estado={emitido ? { texto: `Folio ${emitido.folio || '—'}`, sub: emitido.fecha ? formatDate(emitido.fecha) : undefined, tono: 'done' } : { texto: 'Sin emitir', tono: 'pending' }}
+        emisor="RepuesTop"
+        receptor={receptor}
+        receptorDetalle={rut}
+        lineas={factura.lineas.map((linea) => ({ concepto: linea.concepto, monto: linea.neto }))}
+        totales={[{ label: 'Monto neto', value: formatMoney(factura.neto) }, { label: 'IVA 19%', value: formatMoney(factura.iva) }]}
+        total={{ label: 'Total', monto: factura.total }}
+        copiar={emitido ? undefined : { texto: textoSii }}
+      />
+      <DocPorQue
+        texto="Es lo que RepuesTop le cobró a la tienda en este retiro: la comisión de servicio y el cargo por procesamiento de pago, cada uno con su IVA."
+        filas={[
+          ...(ventas !== null ? [{ label: 'Ventas del retiro', monto: ventas }] : []),
+          { label: 'Boleta (cobro RepuesTop)', monto: factura.total, tipo: ventas !== null ? 'minus' as const : undefined },
+          ...(saldos > 0 ? [{ label: 'Saldos en contra', monto: saldos, tipo: 'minus' as const }] : []),
+          { label: 'La tienda recibe', monto: retiro.monto, tipo: ventas !== null ? 'result' as const : undefined },
+        ]}
+        accion={<button type="button" className="desglose-link" onClick={() => abrir({ retiro: ref }, 'boleta', { completo: true })}>Ver desglose venta por venta</button>}
+      />
+    </aside>
+  );
+}
+
+/**
  * Carga de la boleta o factura de comision de un retiro de PROVEEDOR desde Pago a proveedores
  * (13-oct). Pide lo mismo que Liquidaciones > En liquidacion y guarda por el mismo endpoint, asi
  * que la puerta de pago (documento completo: tipo, RUT, razon social, correo, detalle, folio, fecha
  * de emision y PDF) es identica; el backend la vuelve a exigir al marcar transferido.
  *
- * Si el documento ya esta completo muestra lo registrado con el PDF, y "Editar" abre el formulario.
+ * 14-oct: rediseño en dos columnas. A la izquierda el documento a emitir y su porqué; a la derecha
+ * los pasos (emitir en el SII, datos del receptor, registrar folio y PDF).
  */
 export default function DocumentoLiquidacionModal({
   retiro,
@@ -125,153 +199,127 @@ export default function DocumentoLiquidacionModal({
     }
   };
 
+  const subtitulo = <>Retiro <strong>{retiro.codigoRetiro || '—'}</strong> · {retiro.nombreTienda}</>;
+  const cargando = !factura && !facturaError;
+  const sinFactura = facturaError
+    ? <div className="notice boleta-error"><UiIcon name="alert" />{facturaError}</div>
+    : <div className="boleta-loading"><span className="desglose-spinner" />Calculando el monto de la boleta…</div>;
+
   if (!editando) {
+    const ivaDesactualizado = factura && Math.round(factura.iva) !== Math.round(retiro.documentoLiquidacionIva ?? 0);
     return (
       <PpModal
-        title="Documento registrado"
-        subtitle={<>Retiro <strong>{retiro.codigoRetiro || '—'}</strong> · {retiro.nombreTienda}</>}
-        badge={<span className="status-pill tone-green">Boleta lista</span>}
+        title="Boleta de tarifa de servicio"
+        subtitle={subtitulo}
+        badge={<span className="status-pill tone-green"><UiIcon name="check" />Registrada</span>}
         onClose={onClose}
-        width={720}
+        width={1040}
+        className="boleta-modal"
       >
-        <div className="registered-document-preview">
-          <dl className="registered-document-data">
-            <dt>Tipo de documento</dt><dd>{retiro.documentoLiquidacionTipo}</dd>
-            <dt>Folio</dt><dd>{retiro.documentoLiquidacionFolio}</dd>
-            <dt>Fecha de emisión</dt><dd>{retiro.documentoLiquidacionFechaEmision ? formatDate(retiro.documentoLiquidacionFechaEmision) : '—'}</dd>
-            <dt>RUT receptor</dt><dd>{retiro.documentoLiquidacionRut}</dd>
-            <dt>Razón social / Nombre</dt><dd>{retiro.documentoLiquidacionRazonSocial}</dd>
-            <dt>Correo de envío</dt><dd>{retiro.documentoLiquidacionEmail}</dd>
-            <dt>Detalle</dt><dd>{retiro.documentoLiquidacionDetalle}</dd>
-            <dt>IVA de la factura</dt>
-            <dd>
-              {formatMoney(retiro.documentoLiquidacionIva ?? 0)}
-              {factura && Math.round(factura.iva) !== Math.round(retiro.documentoLiquidacionIva ?? 0) && (
-                <small style={{ display: 'block', color: '#b45309', fontWeight: 600 }}>
-                  Recalculado hoy: {formatMoney(factura.iva)} (comisión {formatMoney(factura.lineas[0]?.iva ?? 0)}{factura.lineas[1] ? ` + cargo de pago ${formatMoney(factura.lineas[1].iva)}` : ''}).
-                  El registrado quedó con el cálculo anterior o antes de un reembolso: entra a "Editar" y guarda para actualizarlo.
-                </small>
-              )}
-            </dd>
-            <dt>Documento</dt><dd><strong>{retiro.documentoLiquidacionNombre}</strong></dd>
-            {retiro.documentoLiquidacionRegistradoAt && <><dt>Registrado</dt><dd>{formatDateTimeLocal(retiro.documentoLiquidacionRegistradoAt)}</dd></>}
-          </dl>
-          {pdfUrl && (
-            <div className="receipt-viewer registered-document-pdf">
-              <iframe title={`Documento ${retiro.documentoLiquidacionNombre ?? ''}`} src={pdfUrl} />
+        <div className="boleta-layout">
+          {factura
+            ? <DocumentoAEmitir retiro={retiro} factura={factura} tipo={retiro.documentoLiquidacionTipo || 'Boleta'} receptor={retiro.documentoLiquidacionRazonSocial || ''} rut={retiro.documentoLiquidacionRut || ''} emitido={{ folio: retiro.documentoLiquidacionFolio || '', fecha: retiro.documentoLiquidacionFechaEmision || '' }} />
+            : sinFactura}
+          <div className="boleta-main">
+            {ivaDesactualizado && (
+              <div className="notice boleta-warning">
+                <UiIcon name="alert" />
+                <span>
+                  El IVA registrado ({formatMoney(retiro.documentoLiquidacionIva ?? 0)}) no coincide con el recalculado hoy ({formatMoney(factura!.iva)}): se registró con el cálculo anterior o antes de un reembolso. Entra a <strong>Editar</strong> y guarda para actualizarlo.
+                </span>
+              </div>
+            )}
+            <DocPaso n={0} titulo="Datos registrados" descripcion="Lo que quedó guardado para conciliar el pago.">
+              <dl className="boleta-registered">
+                <div><dt>Tipo</dt><dd>{retiro.documentoLiquidacionTipo}</dd></div>
+                <div><dt>Folio</dt><dd>{retiro.documentoLiquidacionFolio}</dd></div>
+                <div><dt>Fecha de emisión</dt><dd>{retiro.documentoLiquidacionFechaEmision ? formatDate(retiro.documentoLiquidacionFechaEmision) : '—'}</dd></div>
+                <div><dt>IVA registrado</dt><dd>{formatMoney(retiro.documentoLiquidacionIva ?? 0)}</dd></div>
+                <div className="is-wide"><dt>Receptor</dt><dd>{retiro.documentoLiquidacionRazonSocial} · {retiro.documentoLiquidacionRut}</dd></div>
+                <div className="is-wide"><dt>Correo de envío</dt><dd>{retiro.documentoLiquidacionEmail}</dd></div>
+                <div className="is-wide"><dt>Detalle</dt><dd>{retiro.documentoLiquidacionDetalle}</dd></div>
+                <div className="is-wide"><dt>Archivo</dt><dd><UiIcon name="document" /> {retiro.documentoLiquidacionNombre}{retiro.documentoLiquidacionRegistradoAt ? <small> · registrado {formatDateTimeLocal(retiro.documentoLiquidacionRegistradoAt)}</small> : null}</dd></div>
+              </dl>
+            </DocPaso>
+            {pdfUrl && (
+              <div className="receipt-viewer boleta-pdf">
+                <iframe title={`Documento ${retiro.documentoLiquidacionNombre ?? ''}`} src={pdfUrl} />
+              </div>
+            )}
+            <div className="boleta-actions">
+              <button className="secondary-button" type="button" onClick={() => setEditando(true)}><UiIcon name="edit" /> Editar</button>
+              <button className="primary-button" type="button" onClick={onClose}>Cerrar</button>
             </div>
-          )}
-          <div className="form-actions">
-            <button className="secondary-button" type="button" onClick={() => setEditando(true)}><UiIcon name="edit" /> Editar</button>
-            <button className="primary-button" type="button" onClick={onClose}>Cerrar</button>
           </div>
         </div>
       </PpModal>
     );
   }
 
-  const textoFactura = factura ? [
-    `Receptor: ${borrador.razonSocial}`,
-    borrador.rut ? `RUT: ${borrador.rut}` : null,
-    '',
-    ...factura.lineas.map((linea) => `${linea.concepto}: neto ${formatMoney(linea.neto)}`),
-    `Neto: ${formatMoney(factura.neto)}`,
-    `IVA 19%: ${formatMoney(factura.iva)}`,
-    `Total: ${formatMoney(factura.total)}`,
-  ].filter((linea) => linea !== null).join('\n') : '';
+  const set = (campo: keyof Borrador) => (event: { target: { value: string } }) => setBorrador({ ...borrador, [campo]: event.target.value });
+  const mesDistinto = retiro.fecha && borrador.fechaEmision && chileDay(retiro.fecha).slice(0, 7) !== borrador.fechaEmision.slice(0, 7);
 
   return (
     <PpModal
-      title={completo ? 'Editar documento registrado' : 'Cargar boleta o factura de comisión'}
-      subtitle={<>Retiro <strong>{retiro.codigoRetiro || '—'}</strong> · {retiro.nombreTienda}</>}
+      title={completo ? 'Editar boleta de tarifa de servicio' : 'Emitir boleta de tarifa de servicio'}
+      subtitle={subtitulo}
+      badge={<span className={`status-pill ${completo ? 'tone-blue' : 'tone-amber'}`}>{completo ? 'Editando' : 'Pendiente'}</span>}
       onClose={onClose}
-      width={720}
+      width={1040}
       closeDisabled={guardando}
+      className="boleta-modal"
     >
-      <form className="form-grid" onSubmit={guardar}>
-        <label className="form-field">
-          <span>Tipo de documento</span>
-          <select className="select" value={borrador.type} onChange={(event) => setBorrador({ ...borrador, type: event.target.value })}>
-            {Array.from(new Set(['Factura', 'Boleta', borrador.type].filter(Boolean))).map((tipo) => <option key={tipo} value={tipo}>{tipo}</option>)}
-          </select>
-        </label>
-        <label className="form-field">
-          <span>RUT receptor</span>
-          <input className="input" type="text" value={borrador.rut} onChange={(event) => setBorrador({ ...borrador, rut: event.target.value })} required />
-        </label>
+      <form className="boleta-layout" onSubmit={guardar}>
+        {factura
+          ? <DocumentoAEmitir retiro={retiro} factura={factura} tipo={borrador.type} receptor={borrador.razonSocial} rut={borrador.rut} />
+          : sinFactura}
 
-        {factura && (
-          <div className="registered-document-preview">
-            <div className="notice">
-              <strong>Datos para emitir en el SII</strong>
-              <CopyButton text={textoFactura} label="Copiar datos" className="pp-copy-button--solid" />
+        <div className="boleta-main">
+          <DocPaso
+            n={1}
+            titulo="Emite el documento en el SII"
+            descripcion={<>En el portal del SII emite una <strong>{borrador.type.toLowerCase()} electrónica</strong> con los conceptos y montos del documento de la izquierda{factura ? <> (total <strong>{formatMoney(factura.total)}</strong>)</> : null}.</>}
+          >
+            <DocTipoSelector
+              valor={borrador.type}
+              onChange={(tipo) => setBorrador({ ...borrador, type: tipo })}
+              opciones={[
+                { valor: 'Factura', titulo: 'Factura electrónica', detalle: 'La tienda tiene RUT de empresa o giro' },
+                { valor: 'Boleta', titulo: 'Boleta electrónica', detalle: 'Persona natural sin giro' },
+              ]}
+            />
+          </DocPaso>
+
+          <DocPaso n={2} titulo="Datos del receptor" descripcion="La tienda a la que RepuesTop le cobra la tarifa. Se precargan desde su perfil.">
+            <div className="boleta-fields">
+              <label className="form-field"><span>RUT</span><input className="input" type="text" value={borrador.rut} onChange={set('rut')} required /></label>
+              <label className="form-field"><span>Razón social / Nombre</span><input className="input" type="text" value={borrador.razonSocial} onChange={set('razonSocial')} required /></label>
+              <label className="form-field"><span>Correo de envío</span><input className="input" type="email" value={borrador.email} onChange={set('email')} required /></label>
+              <label className="form-field"><span>Detalle o glosa</span><input className="input" type="text" value={borrador.detalle} onChange={set('detalle')} required /></label>
             </div>
-            <table className="factura-sii-tabla">
-              <thead><tr><th style={{ textAlign: 'left' }}>Concepto</th><th style={{ textAlign: 'right' }}>Monto</th></tr></thead>
-              <tbody>
-                {factura.lineas.map((linea) => (
-                  <tr key={linea.concepto}><td>{linea.concepto} <span style={{ color: '#64748b' }}>(neto)</span></td><td style={{ textAlign: 'right' }}>{formatMoney(linea.neto)}</td></tr>
-                ))}
-                <tr><td><strong>Neto</strong></td><td style={{ textAlign: 'right' }}><strong>{formatMoney(factura.neto)}</strong></td></tr>
-                <tr><td><strong>IVA 19%</strong></td><td style={{ textAlign: 'right' }}><strong>{formatMoney(factura.iva)}</strong></td></tr>
-                <tr><td><strong>Total</strong></td><td style={{ textAlign: 'right' }}><strong>{formatMoney(factura.total)}</strong></td></tr>
-              </tbody>
-            </table>
+          </DocPaso>
+
+          <DocPaso n={3} titulo="Registra el documento emitido" descripcion="Sin folio, fecha y PDF el retiro no se puede pagar.">
+            <div className="boleta-fields">
+              <label className="form-field">
+                <span>Folio asignado por el SII</span>
+                <input className="input" type="text" inputMode="numeric" pattern="[0-9]+" title="Solo dígitos: el número del documento emitido" value={borrador.folio} onChange={set('folio')} placeholder="Ej: 1024" required />
+              </label>
+              <label className="form-field">
+                <span>Fecha de emisión</span>
+                <input className="input" type="date" max={todayChile()} value={borrador.fechaEmision} onChange={set('fechaEmision')} required />
+                {mesDistinto && <small className="boleta-hint is-warn">Mes distinto al del retiro ({formatDate(retiro.fecha)}). Confírmalo con el contador.</small>}
+              </label>
+              <DocArchivo nombre={borrador.pdfName} onFile={(file) => setBorrador({ ...borrador, pdfName: file.name, pdfFile: file })} required={!borrador.pdfName} />
+            </div>
+          </DocPaso>
+
+          <div className="boleta-actions">
+            <button className="secondary-button" type="button" onClick={completo ? () => setEditando(false) : onClose} disabled={guardando}>Cancelar</button>
+            <button className="primary-button" type="submit" disabled={guardando || cargando}>
+              <UiIcon name="check" />{guardando ? 'Guardando…' : completo ? 'Guardar cambios' : 'Registrar documento'}
+            </button>
           </div>
-        )}
-        {facturaError && <div className="notice"><UiIcon name="info" />{facturaError}</div>}
-
-        <label className="form-field">
-          <span>Folio (número que asignó el SII al emitir)</span>
-          <input className="input" type="text" inputMode="numeric" pattern="[0-9]+" title="Solo dígitos: el número del documento emitido" value={borrador.folio} onChange={(event) => setBorrador({ ...borrador, folio: event.target.value })} placeholder="Ej: 1024" required />
-        </label>
-        <label className="form-field">
-          <span>Fecha de emisión</span>
-          <input className="input" type="date" max={todayChile()} value={borrador.fechaEmision} onChange={(event) => setBorrador({ ...borrador, fechaEmision: event.target.value })} required />
-          {retiro.fecha && borrador.fechaEmision && chileDay(retiro.fecha).slice(0, 7) !== borrador.fechaEmision.slice(0, 7) && (
-            <small style={{ color: '#b45309', fontSize: 12 }}>
-              Se emite en un mes distinto al del retiro ({formatDate(retiro.fecha)}). Confírmalo con el contador.
-            </small>
-          )}
-        </label>
-        <label className="form-field">
-          <span>Razón social / Nombre</span>
-          <input className="input" type="text" value={borrador.razonSocial} onChange={(event) => setBorrador({ ...borrador, razonSocial: event.target.value })} required />
-        </label>
-        <label className="form-field">
-          <span>Correo de envío</span>
-          <input className="input" type="email" value={borrador.email} onChange={(event) => setBorrador({ ...borrador, email: event.target.value })} required />
-        </label>
-        <label className="form-field">
-          <span>Detalle</span>
-          <input className="input" type="text" value={borrador.detalle} onChange={(event) => setBorrador({ ...borrador, detalle: event.target.value })} required />
-        </label>
-        <label className="form-field">
-          <span>IVA de la factura (calculado)</span>
-          <input className="input" type="number" min="0" step="1" value={borrador.iva} readOnly title="Lo calcula el sistema: comisión de servicio más cargo por procesamiento de pago." />
-          <small style={{ color: '#64748b', fontSize: 12 }}>Calculado por el sistema: comisión de servicio más cargo por procesamiento de pago.</small>
-        </label>
-        <label className="form-field">
-          <span>Cargar Boleta / Factura (PDF)</span>
-          <input
-            className="input"
-            type="file"
-            accept=".pdf"
-            onChange={(event) => {
-              const file = event.target.files?.[0];
-              if (file) setBorrador({ ...borrador, pdfName: file.name, pdfFile: file });
-            }}
-            required={!borrador.pdfName}
-          />
-          {borrador.pdfName && (
-            <div className="document-file-status">
-              <span><UiIcon name="check" />Archivo cargado: <strong>{borrador.pdfName}</strong></span>
-            </div>
-          )}
-        </label>
-        <div className="form-actions">
-          <button className="secondary-button" type="button" onClick={completo ? () => setEditando(false) : onClose} disabled={guardando}>Cancelar</button>
-          <button className="primary-button" type="submit" disabled={guardando}>{guardando ? 'Guardando…' : completo ? 'Guardar cambios' : 'Registrar documento'}</button>
         </div>
       </form>
     </PpModal>

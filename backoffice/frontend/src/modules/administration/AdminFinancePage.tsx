@@ -2,8 +2,6 @@ import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent,
 import { formatRut, validateRut } from '@/utils/rut';
 import { formatOrderNumber, orderNumberSearchText } from '@/utils/orderNumber';
 import { toChileIso } from '@/utils/formatters';
-import type React from 'react';
-import { createPortal } from 'react-dom';
 import { useQuery } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
@@ -85,6 +83,11 @@ import {
 } from './utils';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import DocumentoLiquidacionModal from './pagos/DocumentoLiquidacionModal';
+import PpModal from './pagos/PpModal';
+import RespaldoSocioModal from './pagos/RespaldoSocioModal';
+import { DocArchivo, DocPaper, DocPaso, DocPorQue, DocTipoSelector } from './pagos/documentoUi';
+import { DesgloseProvider, DesgloseResumen, DesgloseView, MontoInfo, useDesglose } from './desglose/DesgloseModal';
+import { boletaDeVenta, desgloseGrupo, desgloseRecarga, desgloseVenta } from './desglose/desglose';
 import { useAuth } from '@/context/AuthContext';
 import { Role } from '@/types/auth';
 import Badge from '@/components/shared/Badge';
@@ -101,11 +104,6 @@ type PartnerTab = 'ingresos' | 'retiros';
 type CajaExpenseTab = 'caja' | 'gastos';
 /** Filtro de origen de ingresos en la tabla de Caja. */
 type CajaSourceFilter = 'todos' | 'pedidos' | 'publicidad';
-
-const serviceCommissionLabel = (settlement: Settlement) =>
-  settlement.sellerFounder && Math.round(settlement.serviceCommissionRate * 100) === 5
-    ? 'Tarifa RepuesTop Fundador (5%)'
-    : `Comisión RepuesTop (${Math.round(settlement.serviceCommissionRate * 100)}%)`;
 
 /** El despacho integra la venta gravada: todos los cobros siguientes usan esta base. */
 /**
@@ -138,140 +136,65 @@ const SettlementAdjustmentPills = ({ settlement }: { settlement: Settlement }) =
 };
 
 /**
- * 13-oct: lo que va en la boleta o factura del retiro, calculado por el servidor (comisión de
- * servicio + cargo por procesamiento de pago, cada uno con su IVA). Antes la columna sumaba en el
- * navegador solo el IVA de la comisión, y el formulario de la boleta mostraba otro monto.
+ * 13-oct: monto de la boleta o factura del retiro (comisión de servicio + cargo por procesamiento
+ * de pago, cada uno con su IVA), calculado por el servidor. La "i" abre el desglose del grupo.
  */
-const GrupoFacturaCell = ({ retiroId, ivaComision }: { retiroId: number | null; ivaComision: number }) => {
-  const { data, isError } = useQuery<administrationApi.FacturaComision>({
-    queryKey: ['factura-comision', retiroId],
-    queryFn: () => administrationApi.getFacturaComision(retiroId!),
-    enabled: retiroId !== null,
-    staleTime: 60_000,
-  });
-  if (retiroId === null) {
-    return <span title="Sin solicitud de retiro activa: solo el IVA de la comisión de servicio">{formatMoney(ivaComision)} <small style={{ color: '#64748b' }}>(solo comisión)</small></span>;
-  }
-  if (isError) return <span style={{ color: '#b45309' }}>{formatMoney(ivaComision)} <small>(sin cargo de pago)</small></span>;
+const useFacturaRetiro = (retiroId: number | null) => useQuery<administrationApi.FacturaComision>({
+  queryKey: ['factura-comision', retiroId],
+  queryFn: () => administrationApi.getFacturaComision(retiroId!),
+  enabled: retiroId !== null,
+  staleTime: 60_000,
+});
+
+const desgloseDelGrupo = (group: LiquidationSellerGroup, factura: administrationApi.FacturaComision | null | undefined) => desgloseGrupo(group.settlements, {
+  titulo: `Desglose de ${group.seller}`,
+  subtitulo: `${group.legalName} · ${group.settlements.length} venta${group.settlements.length === 1 ? '' : 's'}`,
+  retiroMonto: group.retiroMonto,
+  factura: factura ?? null,
+});
+
+/** Lo que recibe el vendedor en su retiro (ya descuenta saldos en contra), con su "i". */
+const GrupoRecibeMonto = ({ group }: { group: LiquidationSellerGroup }) => {
+  const { data } = useFacturaRetiro(group.retiroId);
+  return <MontoInfo value={group.retiroMonto ?? group.total} strong foco="recibe" fuente={() => desgloseDelGrupo(group, data)} label="Vendedor recibe" />;
+};
+
+/** Vista previa del grupo: las tres cifras clave y el cuadre antes de la tabla por venta. */
+const LiquidationPreviewSummary = ({ group }: { group: LiquidationSellerGroup }) => {
+  const { data } = useFacturaRetiro(group.retiroId);
+  return <DesgloseResumen desglose={desgloseDelGrupo(group, data)} />;
+};
+
+/** Monto de la boleta de un retiro ya pagado, con su "i". */
+const RetiroBoletaMonto = ({ retiro }: { retiro: RetiroAdminResponse }) => {
+  const { data, isError } = useFacturaRetiro(retiro.retiroId);
+  if (isError) return <span style={{ color: '#64748b' }}>—</span>;
   if (!data) return <span style={{ color: '#64748b' }}>Calculando…</span>;
+  return <MontoInfo value={data.total} foco="boleta" fuente={{ retiro }} label="Boleta" />;
+};
+
+const GrupoFacturaCell = ({ group }: { group: LiquidationSellerGroup }) => {
+  const { data, isError, isLoading } = useFacturaRetiro(group.retiroId);
+  if (group.retiroId !== null && isLoading) return <span style={{ color: '#64748b' }}>Calculando…</span>;
+  const desglose = () => desgloseDelGrupo(group, data);
+  const total = data?.total ?? group.settlements.reduce((sum, settlement) => sum + boletaDeVenta(settlement).total, 0);
   return (
-    <span className="grupo-factura-cell" title={data.lineas.map((linea) => `${linea.concepto}: neto ${formatMoney(linea.neto)} + IVA ${formatMoney(linea.iva)}`).join(' · ')}>
-      <strong>{formatMoney(data.total)}</strong>
-      <small>neto {formatMoney(data.neto)} · IVA {formatMoney(data.iva)}</small>
+    <span className="grupo-factura-cell">
+      <MontoInfo value={total} strong foco="boleta" fuente={desglose} label="Boleta a emitir" />
+      {data ? <small>neto {formatMoney(data.neto)} · IVA {formatMoney(data.iva)}</small> : <small style={{ color: isError ? '#b45309' : '#64748b' }}>{isError ? 'calculado por venta' : 'sin retiro activo'}</small>}
     </span>
   );
 };
 
-/**
- * 13-oct: lo que va en la factura del retiro por esta venta. El cargo por procesamiento de pago
- * (`gatewayFeeSeller`) viene con IVA incluido; el servidor lo separa como neto = cargo / 1,19
- * redondeado y IVA = resto. El IVA de la factura es el de la comisión más el del cargo.
- */
-function facturaDeLaFila(settlement: Settlement) {
-  const cargoNeto = Math.round(settlement.gatewayFeeSeller / 1.19);
-  const cargoIva = settlement.gatewayFeeSeller - cargoNeto;
-  return {
-    cargoNeto,
-    cargoIva,
-    iva: settlement.serviceCommissionIva + cargoIva,
-    total: settlement.serviceCommission + settlement.serviceCommissionIva + settlement.gatewayFeeSeller,
-  };
-}
+/** Ganancia de una compra de Monedas con su "i" (Publicidad, Caja y socios). */
+const GananciaRecargaValue = ({ ad, value, strong = false }: { ad: AdvertisingOrder; value: number; strong?: boolean }) => (
+  <MontoInfo value={value} strong={strong} foco="ganancia" fuente={() => desgloseRecarga(ad)} label="Ganancia" />
+);
 
-/**
- * 13-oct: de dónde sale la ganancia de una compra de Monedas, en un tooltip "i". Venta sin IVA;
- * la comisión de Flow se informa (neto + IVA recuperable) pero no se descuenta.
- */
-const GananciaRecargaBreakdown = ({ ad }: { ad: AdvertisingOrder }) => {
-  const iva = ad.ivaVenta ?? Math.max(0, ad.montoPagado - ad.montoNeto);
-  const ganancia = ad.montoPagado - iva;
-  const flowIva = ad.ivaPasarela ?? Math.round(ad.comisionPasarela - ad.comisionPasarela / 1.19);
-  const flowNeto = ad.comisionPasarela - flowIva;
-  return (
-    <>
-      <div className="tooltip-row"><span>Monto pagado por el comprador</span><span>{formatMoney(ad.montoPagado)}</span></div>
-      <div className="tooltip-row"><span>IVA de la venta (19%, débito fiscal)</span><span style={{ color: '#dc2626', fontWeight: 600 }}>-{formatMoney(iva)}</span></div>
-      <div className="tooltip-divider" />
-      <div className="tooltip-row total"><span>Ganancia RepuesTop (venta sin IVA)</span><span>{formatMoney(ganancia)}</span></div>
-      <div className="tooltip-divider" />
-      <div className="tooltip-row"><span>Comisión Flow (informativa, no se descuenta)</span><span>{formatMoney(ad.comisionPasarela)}</span></div>
-      <div className="tooltip-row" style={{ color: '#64748b' }}><span>· neto {formatMoney(flowNeto)} + IVA recuperable {formatMoney(flowIva)}</span><span /></div>
-      <div className="tooltip-row" style={{ color: '#64748b' }}><span>70% a caja · 30% a socios</span><span>{formatMoney(Math.round(ganancia * 0.7))} · {formatMoney(Math.round(ganancia * 0.3))}</span></div>
-    </>
-  );
-};
-
-/**
- * Valor con la "i" del desglose de una recarga; se usa en Publicidad, Caja y socios. El popover va
- * con posición fija calculada al pasar el mouse: las tablas (`.table-wrap`) recortan lo que se sale
- * de su caja, y un tooltip absoluto quedaba cortado en las primeras filas.
- */
-const GananciaRecargaValue = ({ ad, value, strong = false }: { ad: AdvertisingOrder; value: number; strong?: boolean }) => {
-  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
-  const abrir = (event: React.MouseEvent<HTMLElement>) => {
-    const rect = event.currentTarget.getBoundingClientRect();
-    const ancho = 340;
-    setPos({ top: rect.bottom + 8, left: Math.max(8, Math.min(rect.left, window.innerWidth - ancho - 8)) });
-  };
-  return (
-    <span className="ganancia-recarga" onMouseEnter={abrir} onMouseLeave={() => setPos(null)} onClick={(event) => { event.stopPropagation(); pos ? setPos(null) : abrir(event); }}>
-      <span className="ganancia-recarga-trigger" title="Ver de dónde sale la ganancia">{strong ? <strong>{formatMoney(value)}</strong> : formatMoney(value)}<UiIcon name="info" /></span>
-      {pos && createPortal(
-        // Al body: dentro de un modal con transform, un position:fixed queda relativo al modal.
-        <div className="ganancia-recarga-popover" style={{ top: pos.top, left: pos.left }} role="tooltip">
-          <div className="tooltip-body"><GananciaRecargaBreakdown ad={ad} /></div>
-        </div>,
-        document.body,
-      )}
-    </span>
-  );
-};
-
-const SettlementSaleBreakdown = ({ settlement }: { settlement: Settlement }) => {
-  const hasDiscount = Object.entries(settlement.saleDetail).some(([label, value]) => value < 0 || label.toLowerCase().includes('descuento'));
-  return (
-    <>
-      {Object.entries(settlement.saleDetail).map(([label, value]) => (
-        <div className="tooltip-row" key={label}>
-          <span>{label}</span>
-          <span style={value < 0 ? { color: '#dc2626', fontWeight: 600 } : undefined}>
-            {value < 0 ? `-${formatMoney(Math.abs(value))}` : formatMoney(value)}
-          </span>
-        </div>
-      ))}
-      <div className="tooltip-divider" />
-      <div className="tooltip-row total">
-        <span>Base de comisiones: {hasDiscount ? 'productos + despacho - descuento' : 'productos + despacho'}</span>
-        <span>{formatMoney(settlement.saleTotal)}</span>
-      </div>
-    </>
-  );
-};
-
-const SettlementFeeBreakdown = ({ settlement }: { settlement: Settlement }) => {
-  const hasDiscount = Boolean(settlement.descuento && settlement.descuento > 0);
-  return (
-    <>
-      <div className="tooltip-row">
-        <span>Base de cálculo: {hasDiscount ? 'productos + despacho - descuento' : 'productos + despacho'}</span>
-        <span>{formatMoney(settlement.saleTotal)}</span>
-      </div>
-      <div className="tooltip-row"><span>{serviceCommissionLabel(settlement)}</span><span>{formatMoney(settlement.serviceCommission)}</span></div>
-      <div className="tooltip-row"><span>IVA de tarifa de servicio</span><span>{formatMoney(settlement.serviceCommissionIva)}</span></div>
-      <div className="tooltip-row"><span>Comisión PagoFlow sobre venta total</span><span>{formatMoney(settlement.gatewayFeeSeller)}</span></div>
-      <div className="tooltip-divider" />
-      <div className="tooltip-row total"><span>Total descuentos al vendedor</span><span>{formatMoney(settlement.commission)}</span></div>
-    </>
-  );
-};
-
-const SettlementNetBreakdown = ({ settlement }: { settlement: Settlement }) => <>
-  <div className="tooltip-row"><span>Tarifa de servicio cobrada</span><span>{formatMoney(settlement.commission)}</span></div>
-  <div className="tooltip-row"><span>IVA de tarifa de servicio</span><span>-{formatMoney(settlement.serviceCommissionIva)}</span></div>
-  <div className="tooltip-row"><span>Comisión PagoFlow sobre productos + despacho</span><span>-{formatMoney(settlement.gatewayFeeSeller)}</span></div>
-  <div className="tooltip-divider" />
-  <div className="tooltip-row total"><span>Ganancia neta RepuesTop</span><span>{formatMoney(settlement.netSettlement)}</span></div>
-</>;
+/** Un monto de una venta con su "i": abre el desglose de la liquidación en el paso indicado. */
+const SettlementMonto = ({ settlement, value, foco, strong = false }: { settlement: Settlement; value: number; foco: 'venta' | 'descuentos' | 'recibe' | 'boleta' | 'ganancia'; strong?: boolean }) => (
+  <MontoInfo value={value} strong={strong} foco={foco} fuente={() => desgloseVenta(settlement, { pedido: formatOrderNumber(settlement.orderId) })} />
+);
 
 interface PaginationState {
   page: number;
@@ -326,6 +249,10 @@ interface OrderDraft {
 
 interface DocumentDraft {
   orderId: string;
+  /** Socio y monto del retiro, para mostrar qué se respalda. */
+  beneficiary?: string;
+  monto?: number | null;
+  fecha?: string;
   orderIds: string[];
   retiroId: number | null;
   isEditing: boolean;
@@ -753,6 +680,11 @@ function TablePager({
 }
 
 export default function AdminFinancePage() {
+  return <DesgloseProvider><AdminFinancePageContent /></DesgloseProvider>;
+}
+
+function AdminFinancePageContent() {
+  const abrirDesglose = useDesglose();
   const isMobile = useIsMobile();
   const location = useLocation();
   const navigate = useNavigate();
@@ -826,7 +758,6 @@ export default function AdminFinancePage() {
     /** Lo que el comprador pidio al recargar. Null si no eligio. */
     solicitado: string | null;
   } | null>(null);
-  const [docRecargaCopiado, setDocRecargaCopiado] = useState(false);
   const [docRecargaBusy, setDocRecargaBusy] = useState(false);
   const [docRecargaError, setDocRecargaError] = useState('');
   const [selectedAdvertisingOrder, setSelectedAdvertisingOrder] = useState<AdvertisingOrder | null>(null);
@@ -1064,8 +995,8 @@ export default function AdminFinancePage() {
   /**
    * Convergencia total de ingresos (pedidos y publicidad):
    * - Pedidos: ganancia neta (5% tarifa fundador o 10%/7%/5% normal menos pasarela/IVA) -> 70% a caja.
-   * - Publicidad: venta sin IVA (13-oct, decisión del usuario: solo se descuenta el IVA; la comisión
-   *   de Flow se informa pero no se resta) -> 70% a caja. Lo calcula el backend (montoNeto).
+   * - Publicidad: venta sin IVA menos la comisión de Flow sin IVA (14-oct, decisión del usuario: la
+   *   comisión de la pasarela la asume RepuesTop) -> 70% a caja. Lo calcula el backend (montoNeto).
    */
   /** Ingresos del periodo de Caja (pedidos finalizados + compras de Monedas), con cash.ts. */
   const cajaEntriesAll = useMemo<CashIncomeEntry[]>(
@@ -1127,7 +1058,6 @@ export default function AdminFinancePage() {
       total: sugerencia.total,
       solicitado: sugerencia.solicitado,
     });
-    setDocRecargaCopiado(false);
   }
 
   async function guardarDocumentoRecarga() {
@@ -1340,8 +1270,8 @@ export default function AdminFinancePage() {
         concept: ad.pack ? `Fichas Mural: ${ad.pack} (${ad.cantidadFichas.toLocaleString('es-CL')} fichas)` : `Compra Fichas (${ad.cantidadFichas.toLocaleString('es-CL')})`,
         sellerOrPack: ad.pack || 'Fichas Mural',
         sellerFounder: false,
-        // 13-oct: la ganancia es la venta sin IVA; Flow se informa, no se descuenta.
-        commissionLabel: `IVA de la venta (-${formatMoney(ad.ivaVenta ?? 0)}) · Flow ${formatMoney(ad.comisionPasarela)} no se descuenta`,
+        // 14-oct: la comisión de Flow la asume RepuesTop: se resta sin IVA (su IVA es crédito fiscal).
+        commissionLabel: `IVA de la venta (-${formatMoney(ad.ivaVenta ?? 0)}) · Flow sin IVA (-${formatMoney(ad.comisionPasarela - (ad.ivaPasarela ?? 0))})`,
         gatewayFee: ad.comisionPasarela,
         // O16: IVA débito de la venta (antes 0: se contaba como ganancia).
         iva: ad.ivaVenta ?? 0,
@@ -1724,6 +1654,9 @@ export default function AdminFinancePage() {
 
     setDocumentDraft({
       orderId: withdrawal.codigoRetiro || `SOCIO-${withdrawal.id}`,
+      beneficiary: withdrawal.beneficiary,
+      monto: withdrawal.amount,
+      fecha: withdrawal.date,
       orderIds: [withdrawal.codigoRetiro || `SOCIO-${withdrawal.id}`],
       retiroId: Number(withdrawal.id),
       isEditing: Boolean(existingDoc),
@@ -1749,8 +1682,8 @@ export default function AdminFinancePage() {
     });
   }
 
-  async function saveDocument(event: FormEvent<HTMLFormElement>): Promise<void> {
-    event.preventDefault();
+  async function saveDocument(event?: FormEvent<HTMLFormElement>): Promise<void> {
+    event?.preventDefault();
     if (!documentDraft) return;
     const hasRequiredData = documentDraft.rut.trim()
       && documentDraft.name.trim()
@@ -2357,6 +2290,16 @@ export default function AdminFinancePage() {
   const paidTotal = paidPaymentsForPeriod.reduce((sum, payment) => sum + payment.montoTotal, 0);
   const paidNetProfit = paidPeriodSettlements.reduce((sum, settlement) => sum + settlement.netSettlement, 0);
   const paidIva = paidPeriodSettlements.reduce((sum, settlement) => sum + settlement.serviceCommissionIva, 0);
+  /** Desglose agregado de las ventas del tab (la "i" de las tarjetas de Liquidaciones). */
+  const desglosePeriodo = () => {
+    const rows = liquidationTab === 'LIQUIDADO' ? paidPeriodSettlements : selectedSettlementRows;
+    const etiqueta = liquidationTab === 'LIQUIDADO' ? 'pagadas en el período' : liquidationTab === 'EN_LIQUIDACION' ? 'en liquidación' : 'por solicitar';
+    return desgloseGrupo(rows, {
+      titulo: `Desglose de las ventas ${etiqueta}`,
+      subtitulo: `${rows.length} venta${rows.length === 1 ? '' : 's'} · todas las tiendas`,
+      recibeEtiqueta: 'Las tiendas reciben',
+    });
+  };
   const selectedLiquidationPeriod = selectedLiquidationSeller?.settlements[0] ? getLiquidationPeriod(selectedLiquidationSeller.settlements[0].date) : '';
   const activeLiquidationPeriod = liquidationTab === 'EN_LIQUIDACION' && filteredSettlements[0] ? getLiquidationPeriod(filteredSettlements[0].date) : '';
   const expenseTotal = getExpenseTotal(selectedExpenseRows);
@@ -2657,7 +2600,7 @@ export default function AdminFinancePage() {
               label="Ganancia"
               value={formatMoney(advertisingMetrics.ganancia)}
               tone="green"
-              description="Monto pagado sin IVA; la comisión de la pasarela no se descuenta"
+              description="Monto pagado sin IVA, menos la comisión de Flow sin IVA (la asume RepuesTop)"
               iconName="percent"
             />
             <MetricCard
@@ -3018,6 +2961,7 @@ export default function AdminFinancePage() {
                     : 'Total generado en liquidación'
               }
               value={formatMoney(liquidationTab === 'LIQUIDADO' ? paidTotal : totalGenerated)}
+              onInfoClick={() => abrirDesglose(desglosePeriodo, liquidationTab === 'LIQUIDADO' ? 'recibe' : 'venta')}
               tone="blue"
               description={
                 liquidationTab === 'LIQUIDADO'
@@ -3037,6 +2981,7 @@ export default function AdminFinancePage() {
                     : 'Ganancia neta'
               }
               value={formatMoney(liquidationTab === 'LIQUIDADO' ? paidNetProfit : totalCommission)}
+              onInfoClick={() => abrirDesglose(desglosePeriodo, 'ganancia')}
               tone="green"
               description={
                 liquidationTab === 'PENDIENTE_LIQUIDACION'
@@ -3056,6 +3001,7 @@ export default function AdminFinancePage() {
                     : 'IVA de la comisión'
               }
               value={formatMoney(liquidationTab === 'LIQUIDADO' ? paidIva : totalIvaAccumulated)}
+              onInfoClick={() => abrirDesglose(desglosePeriodo, 'boleta')}
               tone="amber"
               description={
                 liquidationTab === 'PENDIENTE_LIQUIDACION'
@@ -3086,8 +3032,8 @@ export default function AdminFinancePage() {
         badge={documentComplete ? <span className="status-pill tone-green">Documento listo</span> : <span className="status-pill tone-amber">{registeredDocument ? 'Documento incompleto' : 'Sin documento'}</span>}
         meta={[
           { label: 'Liquidaciones', value: group.settlements.length },
-          { label: 'A facturar (con IVA)', value: <GrupoFacturaCell retiroId={group.retiroId} ivaComision={group.iva} /> },
-          ...(group.retiroMonto !== null ? [{ label: 'Monto del retiro', value: formatMoney(group.retiroMonto) }] : []),
+          { label: 'Vendedor recibe', value: <GrupoRecibeMonto group={group} /> },
+          { label: 'Boleta a emitir (con IVA)', value: <GrupoFacturaCell group={group} /> },
           { label: 'Correo', value: group.email, wide: true },
         ]}
         onPress={() => setSelectedLiquidationSeller(group)}
@@ -3106,11 +3052,11 @@ export default function AdminFinancePage() {
 </RecordList>
 ) : (
 <table className="wide-table">
-                <thead><tr><th>Vendedor</th><th>RUT</th><th>Razón social / Nombre</th><th>Correo</th><th>Cantidad liquidaciones</th><th>Monto a pagar</th><th>A facturar (neto + IVA)</th><th>Acciones</th></tr></thead>
+                <thead><tr><th>Vendedor</th><th>RUT</th><th>Razón social / Nombre</th><th>Correo</th><th>Cantidad liquidaciones</th><th>Vendedor recibe</th><th>Boleta a emitir (neto + IVA)</th><th>Acciones</th></tr></thead>
                 <tbody>{enLiquidationGroups.length ? enLiquidationGroups.map((group) => {
                   const registeredDocument = getGroupDocument(group);
                   const documentComplete = Boolean(registeredDocument && isIssuedDocumentComplete(registeredDocument.document, true));
-                  return <tr key={group.key}><td><FounderSellerName name={group.seller} founder={group.sellerFounder} /></td><td>{group.rut}</td><td>{group.legalName}</td><td>{group.email}</td><td>{group.settlements.length}</td><td>{group.retiroMonto !== null && Math.round(group.retiroMonto) !== Math.round(group.total) ? <span title={`Σ liquidaciones ${formatMoney(group.total)}; el retiro pide ${formatMoney(group.retiroMonto)} (saldos en contra descontados)`}><strong>{formatMoney(group.retiroMonto)}</strong><small style={{ display: 'block', color: '#b45309' }}>Σ ventas {formatMoney(group.total)}</small></span> : formatMoney(group.retiroMonto ?? group.total)}</td><td><GrupoFacturaCell retiroId={group.retiroId} ivaComision={group.iva} /></td><td><div className="action-cell"><button className="action-button neutral" type="button" onClick={() => setSelectedLiquidationSeller(group)} title="Vista previa de liquidaciones"><UiIcon name="eye" /></button><button className={`action-button ${documentComplete ? 'success' : 'issue'}`} type="button" onClick={() => openGroupDocument(group)} title={documentComplete ? 'Ver boleta o factura registrada' : registeredDocument ? 'Completar boleta o factura' : 'Emitir boleta o factura'}><UiIcon name={documentComplete ? 'fileCheck' : 'receipt'} /></button>{documentComplete && <button className="action-button neutral" type="button" onClick={() => openGroupDocument(group, true)} title="Editar boleta o factura registrada"><UiIcon name="edit" /></button>}</div></td></tr>;
+                  return <tr key={group.key}><td><FounderSellerName name={group.seller} founder={group.sellerFounder} /></td><td>{group.rut}</td><td>{group.legalName}</td><td>{group.email}</td><td>{group.settlements.length}</td><td><span className="grupo-factura-cell"><GrupoRecibeMonto group={group} />{group.retiroMonto !== null && Math.round(group.retiroMonto) !== Math.round(group.total) && <small style={{ color: '#b45309' }}>Σ ventas {formatMoney(group.total)} − saldos en contra</small>}</span></td><td><GrupoFacturaCell group={group} /></td><td><div className="action-cell"><button className="action-button neutral" type="button" onClick={() => setSelectedLiquidationSeller(group)} title="Vista previa de liquidaciones"><UiIcon name="eye" /></button><button className={`action-button ${documentComplete ? 'success' : 'issue'}`} type="button" onClick={() => openGroupDocument(group)} title={documentComplete ? 'Ver boleta o factura registrada' : registeredDocument ? 'Completar boleta o factura' : 'Emitir boleta o factura'}><UiIcon name={documentComplete ? 'fileCheck' : 'receipt'} /></button>{documentComplete && <button className="action-button neutral" type="button" onClick={() => openGroupDocument(group, true)} title="Editar boleta o factura registrada"><UiIcon name="edit" /></button>}</div></td></tr>;
                 }) : <tr><td colSpan={8}><div className="empty-state">No hay liquidaciones en curso para el rango seleccionado.</div></td></tr>}</tbody>
               </table>
 )
@@ -3152,9 +3098,10 @@ export default function AdminFinancePage() {
       badge={<span className={`status-pill ${slug('Finalizado')}`}>Finalizado</span>}
       meta={[
         { label: 'Pedido', value: formatOrderNumber(settlement.orderId) },
-        { label: 'Venta total', value: <>{formatMoney(settlement.saleTotal)} <SettlementAdjustmentPills settlement={settlement} /></> },
-        { label: 'Descuentos al vendedor', value: formatMoney(settlement.commission) },
-        { label: 'Ganancia neta RepuesTop', value: formatMoney(settlement.netSettlement) },
+        { label: 'Venta total', value: <><SettlementMonto settlement={settlement} value={settlement.saleTotal} foco="venta" /> <SettlementAdjustmentPills settlement={settlement} /></> },
+        { label: 'Descuentos al vendedor', value: <SettlementMonto settlement={settlement} value={settlement.commission} foco="descuentos" /> },
+        { label: 'Vendedor recibe', value: <SettlementMonto settlement={settlement} value={settlement.sellerPayout} foco="recibe" strong /> },
+        { label: 'Ganancia neta RepuesTop', value: <SettlementMonto settlement={settlement} value={settlement.netSettlement} foco="ganancia" /> },
       ]}
       onPress={() => showSettlementDetail(settlement)}
       actions={<button type="button" className="mb-action" onClick={() => showSettlementDetail(settlement)}><UiIcon name="eye" />Ver detalle</button>}
@@ -3166,7 +3113,7 @@ export default function AdminFinancePage() {
               <thead>
                 <tr>
                   <SelectionHeader view="liquidaciones" sourceIds={filteredSettlements.map((settlement) => settlement.id)} selected={selectedRows.liquidaciones} onToggle={toggleMassSelection} />
-                  <th>ID liquidación</th><th>Fecha</th><th>Vendedor</th><th>Pedidos asociados</th><th>Venta total</th><th>Descuentos al vendedor</th><th>Ganancia neta RepuesTop</th><th>Estado</th><th>Acciones</th>
+                  <th>ID liquidación</th><th>Fecha</th><th>Vendedor</th><th>Pedidos asociados</th><th>Venta total</th><th>Descuentos al vendedor</th><th>Vendedor recibe</th><th>Ganancia neta RepuesTop</th><th>Estado</th><th>Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -3177,43 +3124,13 @@ export default function AdminFinancePage() {
                     <td>{formatDate(settlement.date)}</td>
                     <td><FounderSellerName name={settlement.seller} founder={settlement.sellerFounder} /></td>
                     <td>{formatOrderNumber(settlement.orderId)}</td>
-                    <td className="value-cell tooltip-container">
-                      <span className="tooltip-trigger-value">
-                        {formatMoney(settlement.saleTotal)}
-                        <UiIcon name="info" />
-                      </span>
-                      <div className="tooltip-content">
-                        <div className="tooltip-arrow"></div>
-                        <div className="tooltip-body">
-                          <SettlementSaleBreakdown settlement={settlement} />
-                        </div>
-                      </div>
+                    <td className="value-cell">
+                      <SettlementMonto settlement={settlement} value={settlement.saleTotal} foco="venta" />
                       <SettlementAdjustmentPills settlement={settlement} />
                     </td>
-                    <td className="value-cell tooltip-container">
-                      <span className="tooltip-trigger-value">
-                        {formatMoney(settlement.commission)}
-                        <UiIcon name="info" />
-                      </span>
-                      <div className="tooltip-content">
-                        <div className="tooltip-arrow"></div>
-                        <div className="tooltip-body">
-                          <SettlementFeeBreakdown settlement={settlement} />
-                        </div>
-                      </div>
-                    </td>
-                    <td className="value-cell tooltip-container">
-                      <span className="tooltip-trigger-value">
-                        {formatMoney(settlement.netSettlement)}
-                        <UiIcon name="info" />
-                      </span>
-                      <div className="tooltip-content net-settlement-tooltip">
-                        <div className="tooltip-arrow"></div>
-                        <div className="tooltip-body">
-                          <SettlementNetBreakdown settlement={settlement} />
-                        </div>
-                      </div>
-                    </td>
+                    <td className="value-cell"><SettlementMonto settlement={settlement} value={settlement.commission} foco="descuentos" /></td>
+                    <td className="value-cell"><SettlementMonto settlement={settlement} value={settlement.sellerPayout} foco="recibe" strong /></td>
+                    <td className="value-cell"><SettlementMonto settlement={settlement} value={settlement.netSettlement} foco="ganancia" /></td>
                     <td>
                       <span className={`status-pill ${slug('Finalizado')}`}>
                         Finalizado
@@ -3225,7 +3142,7 @@ export default function AdminFinancePage() {
                       </div>
                     </td>
                   </tr>
-                )) : <tr><td colSpan={10}><div className="empty-state">No hay liquidaciones para el rango seleccionado.</div></td></tr>}
+                )) : <tr><td colSpan={11}><div className="empty-state">No hay liquidaciones para el rango seleccionado.</div></td></tr>}
               </tbody>
             </table>
 )
@@ -3373,7 +3290,7 @@ export default function AdminFinancePage() {
       badge={<span className={`status-pill ${entry.type === 'pedido' ? 'finalizado' : 'preparando'}`}>{entry.type === 'pedido' ? 'Pedido' : 'Publicidad'}</span>}
       meta={[
         { label: 'En caja (70%)', value: <strong style={{ color: '#059669' }}>{formatMoney(entry.cashAmount)}</strong> },
-        { label: 'Ganancia neta', value: entry.originalAdvertising ? <GananciaRecargaValue ad={entry.originalAdvertising} value={entry.netProfit} /> : formatMoney(entry.netProfit) },
+        { label: 'Ganancia neta', value: entry.originalAdvertising ? <GananciaRecargaValue ad={entry.originalAdvertising} value={entry.netProfit} /> : entry.originalSettlement ? <SettlementMonto settlement={entry.originalSettlement} value={entry.netProfit} foco="ganancia" /> : formatMoney(entry.netProfit) },
         { label: 'Venta total', value: formatMoney(entry.totalSale) },
         { label: 'Comisión / Retención', value: entry.commissionOrDeduction },
         { label: 'Comprador', value: entry.buyer },
@@ -3446,7 +3363,7 @@ export default function AdminFinancePage() {
                     <td className="value-cell">
                       {entry.originalAdvertising
                         ? <GananciaRecargaValue ad={entry.originalAdvertising} value={entry.netProfit} strong />
-                        : <strong>{formatMoney(entry.netProfit)}</strong>}
+                        : entry.originalSettlement ? <SettlementMonto settlement={entry.originalSettlement} value={entry.netProfit} foco="ganancia" strong /> : <strong>{formatMoney(entry.netProfit)}</strong>}
                     </td>
                     <td>
                       <strong style={{ color: '#059669', fontSize: '14px' }}>{formatMoney(entry.cashAmount)}</strong>
@@ -3735,7 +3652,7 @@ export default function AdminFinancePage() {
       badge={<span className={`status-pill ${entry.type === 'pedido' ? 'finalizado' : 'preparando'}`}>{entry.type === 'pedido' ? 'Pedido' : 'Publicidad'}</span>}
       meta={[
         { label: 'Total socios (30%)', value: <strong style={{ color: '#7c3aed' }}>{formatMoney(entry.partnerShare)}</strong> },
-        { label: 'Ganancia neta', value: entry.originalAdvertising ? <GananciaRecargaValue ad={entry.originalAdvertising} value={entry.netProfit} /> : formatMoney(entry.netProfit) },
+        { label: 'Ganancia neta', value: entry.originalAdvertising ? <GananciaRecargaValue ad={entry.originalAdvertising} value={entry.netProfit} /> : entry.originalSettlement ? <SettlementMonto settlement={entry.originalSettlement} value={entry.netProfit} foco="ganancia" /> : formatMoney(entry.netProfit) },
         { label: 'Comisión / Descuento', value: entry.commissionLabel },
         { label: 'Comisión pasarela', value: formatMoney(entry.gatewayFee) },
         { label: 'IVA', value: formatMoney(entry.iva) },
@@ -3798,7 +3715,7 @@ export default function AdminFinancePage() {
                     <td><span style={{ fontSize: '12px' }}>{entry.commissionLabel}</span></td>
                     <td>{formatMoney(entry.gatewayFee)}</td>
                     <td>{formatMoney(entry.iva)}</td>
-                    <td className="value-cell">{entry.originalAdvertising ? <GananciaRecargaValue ad={entry.originalAdvertising} value={entry.netProfit} strong /> : <strong>{formatMoney(entry.netProfit)}</strong>}</td>
+                    <td className="value-cell">{entry.originalAdvertising ? <GananciaRecargaValue ad={entry.originalAdvertising} value={entry.netProfit} strong /> : entry.originalSettlement ? <SettlementMonto settlement={entry.originalSettlement} value={entry.netProfit} foco="ganancia" strong /> : <strong>{formatMoney(entry.netProfit)}</strong>}</td>
                     <td><strong style={{ color: '#7c3aed', fontSize: '14px' }}>{formatMoney(entry.partnerShare)}</strong></td>
                     <td>{formatDate(entry.date)}</td>
                     <td>
@@ -4218,7 +4135,7 @@ export default function AdminFinancePage() {
 
       {paidDocumentsPayment && (
         <Modal title="Boletas y facturas adjuntas" subtitle={`PAG-${String(paidDocumentsPayment.pagoId).padStart(6, '0')}`} onClose={() => setPaidDocumentsPayment(null)}>
-          <div className="modal-table-scroll paid-liquidation-detail"><table className="wide-table"><thead><tr><th>Vendedor</th><th>RUT</th><th>Archivo asociado</th></tr></thead><tbody>{paidDocumentsPayment.retiros.map((retiro) => <tr key={retiro.retiroId}><td><FounderSellerName name={retiro.nombreTienda} founder={retiro.sellerFounder} /></td><td>{retiro.rut || 'Sin RUT'}</td><td><button className={`action-button ${retiro.documentoLiquidacionNombre ? 'neutral' : 'disabled'}`} type="button" onClick={() => void previewPaidDocument(retiro.retiroId, retiro.documentoLiquidacionNombre)} disabled={!retiro.documentoLiquidacionNombre} title={retiro.documentoLiquidacionNombre ? `Ver ${retiro.documentoLiquidacionNombre}` : 'Sin PDF registrado'} aria-label={retiro.documentoLiquidacionNombre ? `Ver PDF de ${retiro.nombreTienda}` : `Sin PDF registrado para ${retiro.nombreTienda}`}><UiIcon name="eye" /></button></td></tr>)}</tbody></table></div>
+          <div className="modal-table-scroll paid-liquidation-detail"><table className="wide-table"><thead><tr><th>Vendedor</th><th>RUT</th><th>Transferido</th><th>Boleta</th><th>Archivo asociado</th></tr></thead><tbody>{paidDocumentsPayment.retiros.map((retiro) => <tr key={retiro.retiroId}><td><FounderSellerName name={retiro.nombreTienda} founder={retiro.sellerFounder} /></td><td>{retiro.rut || 'Sin RUT'}</td><td className="value-cell"><MontoInfo value={retiro.monto} strong foco="recibe" fuente={{ retiro }} label="Transferido" /></td><td className="value-cell"><RetiroBoletaMonto retiro={retiro} /></td><td><button className={`action-button ${retiro.documentoLiquidacionNombre ? 'neutral' : 'disabled'}`} type="button" onClick={() => void previewPaidDocument(retiro.retiroId, retiro.documentoLiquidacionNombre)} disabled={!retiro.documentoLiquidacionNombre} title={retiro.documentoLiquidacionNombre ? `Ver ${retiro.documentoLiquidacionNombre}` : 'Sin PDF registrado'} aria-label={retiro.documentoLiquidacionNombre ? `Ver PDF de ${retiro.nombreTienda}` : `Sin PDF registrado para ${retiro.nombreTienda}`}><UiIcon name="eye" /></button></td></tr>)}</tbody></table></div>
         </Modal>
       )}
 
@@ -4232,107 +4149,44 @@ export default function AdminFinancePage() {
 
       {selectedLiquidationSeller && (
         <Modal wide title={<>Liquidaciones de <FounderSellerName name={selectedLiquidationSeller.seller} founder={selectedLiquidationSeller.sellerFounder} /></>} subtitle={`${selectedLiquidationSeller.settlements.length} liquidaciones · ${formatMoney(selectedLiquidationSeller.total)} · Período: ${selectedLiquidationPeriod}`} onClose={() => setSelectedLiquidationSeller(null)}>
-          {selectedLiquidationSeller.retiroMonto !== null && Math.round(selectedLiquidationSeller.retiroMonto) !== Math.round(selectedLiquidationSeller.total) && (
-            <div className="notice liquidation-cuadre-notice"><UiIcon name="info" /><p>La suma de las ventas es {formatMoney(selectedLiquidationSeller.total)}, pero el retiro pide <strong>{formatMoney(selectedLiquidationSeller.retiroMonto)}</strong>: la diferencia ({formatMoney(selectedLiquidationSeller.total - selectedLiquidationSeller.retiroMonto)}) son saldos en contra por reembolsos de ventas ya pagadas, descontados en este retiro.</p></div>
-          )}
-          <p className="panel-hint" style={{ margin: '0 0 8px' }}>
-            La boleta o factura del retiro lleva la comisión de servicio y el cargo por procesamiento de pago, cada uno con su IVA.
-            "IVA factura" es el que se registra en el SII; "IVA comisión" es solo la parte de la comisión.
-          </p>
-          <div className="table-shell liquidation-preview-shell"><table className="wide-table liquidation-preview-table"><thead><tr><th>ID liquidación</th><th>Pedido</th><th>Fecha</th><th>Venta total</th><th>Descuentos al vendedor</th><th>Ganancia neta RepuesTop</th><th>Monto a pagar vendedor</th><th title="19% de la comisión de servicio">IVA comisión</th><th title="Cargo por procesamiento de pago, con IVA (neto + IVA)">Cargo de pago</th><th title="IVA de la comisión + IVA del cargo de pago: es el IVA que va en la boleta o factura">IVA factura</th></tr></thead><tbody>
-            {selectedLiquidationSeller.settlements.map((settlement) => <tr key={settlement.id}><td>{settlement.id}</td><td>{formatOrderNumber(settlement.orderId)}</td><td>{formatDate(settlement.date)}</td><td className="value-cell tooltip-container"><span className="tooltip-trigger-value">{formatMoney(settlement.saleTotal)}<UiIcon name="info" /></span><div className="tooltip-content"><div className="tooltip-arrow"></div><div className="tooltip-body"><SettlementSaleBreakdown settlement={settlement} /></div></div></td><td className="value-cell tooltip-container"><span className="tooltip-trigger-value">{formatMoney(settlement.commission)}<UiIcon name="info" /></span><div className="tooltip-content"><div className="tooltip-arrow"></div><div className="tooltip-body"><SettlementFeeBreakdown settlement={settlement} /></div></div></td><td className="value-cell tooltip-container"><span className="tooltip-trigger-value">{formatMoney(settlement.netSettlement)}<UiIcon name="info" /></span><div className="tooltip-content net-settlement-tooltip"><div className="tooltip-arrow"></div><div className="tooltip-body"><SettlementNetBreakdown settlement={settlement} /></div></div></td><td>{formatMoney(settlement.sellerPayout)}<SettlementAdjustmentPills settlement={settlement} /></td><td>{formatMoney(settlement.serviceCommissionIva)}</td><td title={`neto ${formatMoney(facturaDeLaFila(settlement).cargoNeto)} + IVA ${formatMoney(facturaDeLaFila(settlement).cargoIva)}`}>{formatMoney(settlement.gatewayFeeSeller)}</td><td><strong>{formatMoney(facturaDeLaFila(settlement).iva)}</strong></td></tr>)}
-          </tbody><tfoot><tr><th colSpan={3}>Total acumulado</th><td>{formatMoney(selectedLiquidationSeller.settlements.reduce((total, settlement) => total + settlement.saleTotal, 0))}</td><td>{formatMoney(selectedLiquidationSeller.settlements.reduce((total, settlement) => total + settlement.commission, 0))}</td><td>{formatMoney(selectedLiquidationSeller.settlements.reduce((total, settlement) => total + settlement.netSettlement, 0))}</td><td>{formatMoney(selectedLiquidationSeller.settlements.reduce((total, settlement) => total + settlement.sellerPayout, 0))}</td><td>{formatMoney(selectedLiquidationSeller.settlements.reduce((total, settlement) => total + settlement.serviceCommissionIva, 0))}</td><td>{formatMoney(selectedLiquidationSeller.settlements.reduce((total, settlement) => total + settlement.gatewayFeeSeller, 0))}</td><td><strong>{formatMoney(selectedLiquidationSeller.settlements.reduce((total, settlement) => total + facturaDeLaFila(settlement).iva, 0))}</strong></td></tr></tfoot></table></div>
+          <LiquidationPreviewSummary group={selectedLiquidationSeller} />
+          <div className="table-shell liquidation-preview-shell"><table className="wide-table liquidation-preview-table"><thead><tr><th>ID liquidación</th><th>Pedido</th><th>Fecha</th><th>Base de venta</th><th>Descuentos</th><th>Vendedor recibe</th><th title="Comisión + cargo de pago, cada uno con IVA">Boleta</th><th>Ganancia RepuesTop</th></tr></thead><tbody>
+            {selectedLiquidationSeller.settlements.map((settlement) => <tr key={settlement.id}><td>{settlement.id}</td><td>{formatOrderNumber(settlement.orderId)}</td><td>{formatDate(settlement.date)}</td><td className="value-cell"><SettlementMonto settlement={settlement} value={settlement.saleTotal} foco="venta" /></td><td className="value-cell"><SettlementMonto settlement={settlement} value={settlement.commission} foco="descuentos" /></td><td className="value-cell"><SettlementMonto settlement={settlement} value={settlement.sellerPayout} foco="recibe" strong /><SettlementAdjustmentPills settlement={settlement} /></td><td className="value-cell"><SettlementMonto settlement={settlement} value={boletaDeVenta(settlement).total} foco="boleta" /></td><td className="value-cell"><SettlementMonto settlement={settlement} value={settlement.netSettlement} foco="ganancia" /></td></tr>)}
+          </tbody><tfoot><tr><th colSpan={3}>Total del grupo</th><td>{formatMoney(selectedLiquidationSeller.settlements.reduce((total, settlement) => total + settlement.saleTotal, 0))}</td><td>{formatMoney(selectedLiquidationSeller.settlements.reduce((total, settlement) => total + settlement.commission, 0))}</td><td><strong>{formatMoney(selectedLiquidationSeller.total)}</strong></td><td><strong>{formatMoney(selectedLiquidationSeller.settlements.reduce((total, settlement) => total + boletaDeVenta(settlement).total, 0))}</strong></td><td>{formatMoney(selectedLiquidationSeller.settlements.reduce((total, settlement) => total + settlement.netSettlement, 0))}</td></tr></tfoot></table></div>
         </Modal>
       )}
 
+      {/* 14-oct: el borrador genérico quedó solo para el respaldo del retiro de un socio. */}
       {documentDraft && (
-        <Modal title={documentDraft.isEditing ? 'Editar documento registrado' : 'Emitir documento'} subtitle={documentDraft.orderId} onClose={() => setDocumentDraft(null)}>
-          <form className="form-grid" onSubmit={saveDocument}>
-            <FieldLabel label="Tipo de documento">
-              {/* O18: el documento de un socio tambien se carga desde Pago a proveedores, que ofrece
-                  Boleta de Honorarios y Documento Tributario. Con solo Boleta/Factura aca, uno de esos
-                  se mostraba como "Boleta" y no se podia volver a elegir. Por eso el tipo ya
-                  registrado se agrega siempre a la lista: ningun documento historico queda sin su
-                  opcion, aunque el tipo ya no se ofrezca para los nuevos. */}
-              <select className="select" value={documentDraft.type} onChange={(event) => setDocumentDraft({ ...documentDraft, type: event.target.value })}>
-                {Array.from(new Set([
-                  ...(documentDraft.tipoRetiro === 'SOCIO'
-                    // "Boleta de Honorarios" ya no se ofrece: un retiro no es un servicio prestado.
-                    // Si el socio alguna vez cobra por trabajo efectivo, el retiro se registra con
-                    // naturaleza REMUNERACION y su respaldo es una liquidacion de sueldo.
-                    ? ['Comprobante de retiro', 'Liquidación de sueldo', 'Documento Tributario']
-                    : ['Factura', 'Boleta']),
-                  documentDraft.type,
-                ].filter(Boolean))).map((tipo) => <option key={tipo} value={tipo}>{tipo}</option>)}
-              </select>
-            </FieldLabel>
-            <FieldLabel label="RUT receptor"><input className="input" type="text" value={documentDraft.rut} onChange={(event) => setDocumentDraft({ ...documentDraft, rut: event.target.value })} required={!documentDraft.isEditing || documentDraft.tipoRetiro === 'PROVEEDOR'} /></FieldLabel>
-            <FieldLabel label="Razón social / Nombre"><input className="input" type="text" value={documentDraft.name} onChange={(event) => setDocumentDraft({ ...documentDraft, name: event.target.value })} required={!documentDraft.isEditing || documentDraft.tipoRetiro === 'PROVEEDOR'} /></FieldLabel>
-            <FieldLabel label="Correo de envío"><input className="input" type="email" value={documentDraft.email} onChange={(event) => setDocumentDraft({ ...documentDraft, email: event.target.value })} required={!documentDraft.isEditing || documentDraft.tipoRetiro === 'PROVEEDOR'} /></FieldLabel>
-            <FieldLabel label="Detalle"><input className="input" type="text" value={documentDraft.detail} onChange={(event) => setDocumentDraft({ ...documentDraft, detail: event.target.value })} required={!documentDraft.isEditing || documentDraft.tipoRetiro === 'PROVEEDOR'} /></FieldLabel>
-            {/* Vendedores: el servidor recalcula el IVA desde la comision de servicio y descarta lo
-                que llegue del cliente, asi que el campo es de solo lectura. Socios: quedan fuera del
-                recalculo y el valor sigue siendo el que se escriba aqui. */}
-            <FieldLabel label={documentDraft.ivaLoCalculaElServidor ? 'IVA de la factura (calculado)' : 'IVA liquidado del socio'}>
-              <input
-                className="input"
-                type="number"
-                min="0"
-                step="1"
-                value={documentDraft.ivaLiquidado}
-                onChange={(event) => setDocumentDraft({ ...documentDraft, ivaLiquidado: event.target.value })}
-                readOnly={documentDraft.ivaLoCalculaElServidor}
-                required={!documentDraft.isEditing && !documentDraft.ivaLoCalculaElServidor}
-                title={documentDraft.ivaLoCalculaElServidor
-                  ? 'Lo calcula el sistema: comisión de servicio más cargo por procesamiento de pago. No se puede editar.'
-                  : 'Un retiro de socio no tiene comisión de servicio: este valor se registra tal como se escriba.'}
-              />
-              <small style={{ color: '#64748b', fontSize: 12 }}>
-                {documentDraft.ivaLoCalculaElServidor
-                  ? 'Calculado por el sistema: comisión de servicio más cargo por procesamiento de pago.'
-                  : 'Retiro de socio: sin comisión de servicio, se registra el valor que ingreses.'}
-              </small>
-            </FieldLabel>
-            <FieldLabel label="Cargar Boleta / Factura (PDF)">
-              <input
-                className="input"
-                type="file"
-                accept=".pdf"
-                onChange={(event) => {
-                  const file = event.target.files?.[0];
-                  if (file) {
-                    setDocumentDraft({ ...documentDraft, pdfName: file.name, pdfUrl: URL.createObjectURL(file), pdfFile: file });
-                  }
-                }}
-                required={(!documentDraft.isEditing || documentDraft.tipoRetiro === 'PROVEEDOR') && !documentDraft.pdfName}
-              />
-              {documentDraft.pdfName && (
-                <div className="document-file-status">
-                  <span>
-                    <UiIcon name="check" />
-                    Archivo cargado: <strong>{documentDraft.pdfName}</strong>
-                  </span>
-                  {documentDraft.isEditing && (
-                    <button
-                      className="document-file-remove"
-                      type="button"
-                      onClick={() => setDocumentDraft({ ...documentDraft, pdfName: '', pdfUrl: undefined, pdfFile: undefined })}
-                    >
-                      <UiIcon name="trash" /> Eliminar PDF
-                    </button>
-                  )}
-                </div>
-              )}
-              {documentDraft.isEditing && !documentDraft.pdfName && (
-                <div className="document-file-empty"><UiIcon name="info" />El registro quedará sin PDF adjunto.</div>
-              )}
-            </FieldLabel>
-            <div className="form-actions">
-              <button className="secondary-button" type="button" onClick={() => setDocumentDraft(null)}>Cancelar</button>
-              <button className="primary-button" type="submit">{documentDraft.isEditing ? 'Guardar cambios' : 'Registrar envío'}</button>
-            </div>
-          </form>
-        </Modal>
+        <RespaldoSocioModal
+          socio={documentDraft.beneficiary ?? documentDraft.name}
+          codigo={documentDraft.orderId}
+          monto={documentDraft.monto ?? null}
+          fecha={documentDraft.fecha}
+          editando={documentDraft.isEditing}
+          datos={{
+            tipo: documentDraft.type,
+            rut: documentDraft.rut,
+            nombre: documentDraft.name,
+            email: documentDraft.email,
+            detalle: documentDraft.detail,
+            iva: documentDraft.ivaLiquidado,
+            pdfName: documentDraft.pdfName ?? '',
+          }}
+          onChange={(cambios) => setDocumentDraft({
+            ...documentDraft,
+            ...(cambios.tipo !== undefined ? { type: cambios.tipo } : {}),
+            ...(cambios.rut !== undefined ? { rut: cambios.rut } : {}),
+            ...(cambios.nombre !== undefined ? { name: cambios.nombre } : {}),
+            ...(cambios.email !== undefined ? { email: cambios.email } : {}),
+            ...(cambios.detalle !== undefined ? { detail: cambios.detalle } : {}),
+            ...(cambios.iva !== undefined ? { ivaLiquidado: cambios.iva } : {}),
+          })}
+          onFile={(file) => setDocumentDraft({ ...documentDraft, pdfName: file.name, pdfUrl: URL.createObjectURL(file), pdfFile: file })}
+          onQuitarPdf={() => setDocumentDraft({ ...documentDraft, pdfName: '', pdfUrl: undefined, pdfFile: undefined })}
+          onSubmit={() => void saveDocument()}
+          onClose={() => setDocumentDraft(null)}
+        />
       )}
 
       {docRetiroTienda && (
@@ -4425,30 +4279,7 @@ export default function AdminFinancePage() {
       {selectedDetailSettlement && (
         <Modal title="Detalle de liquidación" subtitle={`${selectedDetailSettlement.id} · Pedido ${formatOrderNumber(selectedDetailSettlement.orderId)}`} onClose={() => setSelectedDetailSettlement(null)}>
           <div className="settlement-detail-modal">
-            <section className="settlement-hero">
-              <span className="settlement-hero-icon"><UiIcon name="clipboard" /></span>
-              <div>
-                <span><FounderSellerName name={selectedDetailSettlement.seller} founder={selectedDetailSettlement.sellerFounder} /></span>
-                <strong>{formatMoney(selectedDetailSettlement.netSettlement)}</strong>
-                <p>Ganancia neta RepuesTop después de IVA y PagoFlow</p>
-              </div>
-              <span className={`status-pill ${slug(selectedDetailSettlement.status)}`}>{selectedDetailSettlement.status}</span>
-            </section>
-
-            <section className="settlement-stat-grid">
-              <article><span>Base: productos + despacho{selectedDetailSettlement.descuento && selectedDetailSettlement.descuento > 0 ? ' - descuento' : ''}</span><strong>{formatMoney(selectedDetailSettlement.saleTotal)}</strong></article>
-              <article><span>{serviceCommissionLabel(selectedDetailSettlement)}</span><strong>{formatMoney(selectedDetailSettlement.serviceCommission)}</strong></article>
-              <article><span>IVA de tarifa de servicio</span><strong>{formatMoney(selectedDetailSettlement.serviceCommissionIva)}</strong></article>
-              <article><span>PagoFlow sobre venta total</span><strong>{formatMoney(selectedDetailSettlement.gatewayFeeSeller)}</strong></article>
-            </section>
-
-            <section className="settlement-net-card">
-              <div><span>Descuentos al vendedor</span><strong>{formatMoney(selectedDetailSettlement.commission)}</strong></div>
-              <UiIcon name="minus" />
-              <div><span>IVA y PagoFlow sobre venta total</span><strong>{formatMoney(selectedDetailSettlement.serviceCommissionIva + selectedDetailSettlement.gatewayFeeSeller)}</strong></div>
-              <UiIcon name="arrowRight" />
-              <div className="success"><span>Ganancia neta RepuesTop</span><strong>{formatMoney(selectedDetailSettlement.netSettlement)}</strong></div>
-            </section>
+            <DesgloseView desglose={desgloseVenta(selectedDetailSettlement, { pedido: formatOrderNumber(selectedDetailSettlement.orderId) })} />
 
             <dl className="settlement-meta">
               <div><dt>Fecha</dt><dd>{formatDate(selectedDetailSettlement.date)}</dd></div>
@@ -4476,192 +4307,148 @@ export default function AdminFinancePage() {
       {/* Documento tributario de una recarga. RepuesTop es vendedor DIRECTO aca, asi que la
           obligacion de emitir es propia: se emite en el Portal MIPYME del SII y el PDF se carga
           y se despacha al comprador desde este formulario. */}
-      {docRecargaDraft && (
-        <Modal
-          title={`Documento de la recarga ${docRecargaDraft.codigo}`}
-          subtitle={`Comprador: ${docRecargaDraft.comprador}`}
-          onClose={() => !docRecargaBusy && setDocRecargaDraft(null)}
-        >
-          <form className="form-grid" onSubmit={(event) => { event.preventDefault(); guardarDocumentoRecarga(); }}>
-            <p className="panel-hint">
-              Emite el documento en el Portal MIPYME del SII con los datos de abajo y adjunta el PDF.
-              Al guardar se le envía por correo al comprador: la norma exige entregarlo, no solo
-              emitirlo.
-            </p>
+      {/* 14-oct: mismo formato que la boleta de tarifa de servicio. Izquierda: el documento que
+          RepuesTop le emite al comprador y por qué es ese monto. Derecha: emitir, receptor y
+          registrar. RepuesTop es vendedor directo: emite por el total pagado. */}
+      {docRecargaDraft && (() => {
+        const compra = advertising?.compras.find((candidate) => candidate.id === docRecargaDraft.compraId) ?? null;
+        const esFactura = docRecargaDraft.tipo === 'FACTURA';
+        const tipoLabel = esFactura ? 'Factura' : 'Boleta';
+        const receptor = docRecargaDraft.razonSocial || docRecargaDraft.comprador;
+        const textoSii = [
+          `${tipoLabel} electrónica`,
+          `Receptor: ${receptor}`,
+          docRecargaDraft.rut ? `RUT: ${docRecargaDraft.rut}` : null,
+          docRecargaDraft.giro ? `Giro: ${docRecargaDraft.giro}` : null,
+          docRecargaDraft.direccion ? `Dirección: ${docRecargaDraft.direccion}` : null,
+          docRecargaDraft.email ? `Correo: ${docRecargaDraft.email}` : null,
+          '',
+          `Detalle: ${docRecargaDraft.detalle}`,
+          `Neto: ${formatMoney(docRecargaDraft.neto)}`,
+          `IVA 19%: ${formatMoney(docRecargaDraft.iva)}`,
+          `Total: ${formatMoney(docRecargaDraft.total)}`,
+        ].filter((linea) => linea !== null).join('\n');
+        return (
+          <PpModal
+            title={docRecargaDraft.yaCargado ? 'Reemplazar documento de la recarga' : 'Emitir documento de la recarga'}
+            subtitle={<>Recarga <strong>{docRecargaDraft.codigo}</strong> · {docRecargaDraft.comprador}</>}
+            badge={<span className={`status-pill ${docRecargaDraft.yaCargado ? 'tone-green' : 'tone-amber'}`}>{docRecargaDraft.yaCargado ? 'Ya cargado' : 'Pendiente'}</span>}
+            onClose={() => !docRecargaBusy && setDocRecargaDraft(null)}
+            width={1040}
+            closeDisabled={docRecargaBusy}
+            className="boleta-modal"
+          >
+            <form className="boleta-layout" onSubmit={(event) => { event.preventDefault(); guardarDocumentoRecarga(); }}>
+              <aside className="boleta-doc">
+                <DocPaper
+                  kicker="Documento a emitir"
+                  titulo={`${tipoLabel} electrónica`}
+                  estado={docRecargaDraft.yaCargado ? { texto: docRecargaDraft.folio ? `Folio ${docRecargaDraft.folio}` : 'Cargado', tono: 'done' } : { texto: 'Sin emitir', tono: 'pending' }}
+                  emisor="RepuesTop"
+                  receptor={receptor}
+                  receptorDetalle={docRecargaDraft.rut}
+                  extra={[
+                    ...(docRecargaDraft.giro ? [{ label: 'Giro', value: docRecargaDraft.giro }] : []),
+                    ...(docRecargaDraft.direccion ? [{ label: 'Dirección', value: docRecargaDraft.direccion }] : []),
+                    ...(docRecargaDraft.email ? [{ label: 'Correo', value: docRecargaDraft.email }] : []),
+                  ]}
+                  lineas={[{ concepto: docRecargaDraft.detalle || 'Venta de Monedas', monto: docRecargaDraft.neto }]}
+                  totales={[{ label: 'Monto neto', value: formatMoney(docRecargaDraft.neto) }, { label: 'IVA 19%', value: formatMoney(docRecargaDraft.iva) }]}
+                  total={{ label: 'Total', monto: docRecargaDraft.total }}
+                  copiar={{ texto: textoSii }}
+                />
+                <DocPorQue
+                  texto="RepuesTop le vende las Monedas directo al comprador, así que emite el documento por el total que pagó. El precio incluye IVA: el neto se calcula hacia atrás (total ÷ 1,19)."
+                  filas={[
+                    { label: 'Pagó el comprador', monto: docRecargaDraft.total },
+                    { label: 'IVA 19% (se paga al SII)', monto: docRecargaDraft.iva, tipo: 'minus' },
+                    { label: 'Neto del documento', monto: docRecargaDraft.neto, tipo: 'result' },
+                  ]}
+                  accion={compra ? (
+                    <p className="boleta-why-extra">
+                      La ganancia de RepuesTop es distinta: al neto se le resta la comisión de Flow sin IVA →{' '}
+                      <GananciaRecargaValue ad={compra} value={compra.montoNeto} strong />
+                    </p>
+                  ) : undefined}
+                />
+              </aside>
 
-            {/* Lo que pidió el comprador va arriba y aparte del tipo sugerido. Si no se dijera,
-                el administrador emitiría lo que le propone la pantalla sin enterarse de que le
-                estaban pidiendo otra cosa, y la elección del comprador sería decorativa. */}
-            {docRecargaDraft.solicitado ? (
-              <div className="notice">
-                <strong>
-                  El comprador pidió{' '}
-                  {docRecargaDraft.solicitado === 'FACTURA' ? 'factura' : 'boleta'}
-                </strong>
-                <span>
-                  {docRecargaDraft.solicitado === 'FACTURA'
-                    ? 'La eligió al pagar, con el RUT ya validado. Emitir otra cosa lo deja sin el crédito fiscal del IVA.'
-                    : 'La eligió al pagar, aunque tenga RUT de empresa registrado.'}
-                </span>
-              </div>
-            ) : (
-              <div className="notice">
-                <strong>El comprador no eligió documento</strong>
-                <span>
-                  Es una recarga anterior a esa opción. El tipo de abajo sale de la heurística de
-                  siempre: factura si tiene RUT de empresa registrado, boleta si no.
-                </span>
-              </div>
-            )}
-
-            {/* Todo lo que hay que tipear en el SII, junto y copiable: el administrador no
-                deberia tener que ir a buscar el RUT o el giro a otra pantalla. */}
-            <div className="registered-document-preview">
-              <div className="notice">
-                <strong>Datos para emitir en el SII</strong>
-                <button
-                  className="secondary-button"
-                  type="button"
-                  style={{ marginLeft: 'auto' }}
-                  onClick={() => {
-                    const texto = [
-                      `Receptor: ${docRecargaDraft.razonSocial || docRecargaDraft.comprador}`,
-                      docRecargaDraft.rut ? `RUT: ${docRecargaDraft.rut}` : null,
-                      docRecargaDraft.giro ? `Giro: ${docRecargaDraft.giro}` : null,
-                      docRecargaDraft.direccion ? `Dirección: ${docRecargaDraft.direccion}` : null,
-                      docRecargaDraft.email ? `Correo: ${docRecargaDraft.email}` : null,
-                      '',
-                      `Detalle: ${docRecargaDraft.detalle}`,
-                      `Neto: ${formatMoney(docRecargaDraft.neto)}`,
-                      `IVA 19%: ${formatMoney(docRecargaDraft.iva)}`,
-                      `Total: ${formatMoney(docRecargaDraft.total)}`,
-                    ].filter(Boolean).join('\n');
-                    navigator.clipboard?.writeText(texto)
-                      .then(() => { setDocRecargaCopiado(true); window.setTimeout(() => setDocRecargaCopiado(false), 2000); })
-                      .catch(() => {});
-                  }}
+              <div className="boleta-main">
+                <DocPaso
+                  n={1}
+                  titulo="Emite el documento en el SII"
+                  descripcion={<>En el Portal MIPYME del SII emite una <strong>{tipoLabel.toLowerCase()} electrónica</strong> por <strong>{formatMoney(docRecargaDraft.total)}</strong> con los datos de la izquierda.</>}
                 >
-                  <UiIcon name={docRecargaCopiado ? 'check' : 'clipboard'} />
-                  {docRecargaCopiado ? 'Copiado' : 'Copiar datos'}
-                </button>
-              </div>
-              <dl className="registered-document-data">
-                <div><dt>Receptor</dt><dd>{docRecargaDraft.razonSocial || docRecargaDraft.comprador}</dd></div>
-                <div><dt>RUT</dt><dd>{docRecargaDraft.rut || 'Sin RUT registrado'}</dd></div>
-                <div><dt>Giro</dt><dd>{docRecargaDraft.giro || '—'}</dd></div>
-                <div><dt>Dirección</dt><dd>{docRecargaDraft.direccion || '—'}</dd></div>
-                <div><dt>Correo</dt><dd>{docRecargaDraft.email || '—'}</dd></div>
-                <div><dt>Detalle</dt><dd>{docRecargaDraft.detalle}</dd></div>
-                <div><dt>Neto</dt><dd>{formatMoney(docRecargaDraft.neto)}</dd></div>
-                <div><dt>IVA 19%</dt><dd>{formatMoney(docRecargaDraft.iva)}</dd></div>
-                <div><dt>Total</dt><dd><strong>{formatMoney(docRecargaDraft.total)}</strong></dd></div>
-              </dl>
-              <p className="panel-hint">
-                El precio de la Moneda incluye IVA, así que el neto va calculado hacia atrás. No es
-                lo mismo que la &quot;Ganancia RepuesTop&quot; de la tabla, que descuenta la comisión
-                de la pasarela y no tiene relación con el impuesto.
-              </p>
-            </div>
+                  {/* Lo que pidió el comprador va antes del tipo: si no, se emitiría lo que propone la
+                      pantalla sin enterarse de que pedía otra cosa. */}
+                  <div className={`boleta-callout${docRecargaDraft.solicitado ? ' is-strong' : ''}`}>
+                    <UiIcon name={docRecargaDraft.solicitado ? 'user' : 'info'} />
+                    {docRecargaDraft.solicitado ? (
+                      <span>
+                        <strong>El comprador pidió {docRecargaDraft.solicitado === 'FACTURA' ? 'factura' : 'boleta'}.</strong>{' '}
+                        {docRecargaDraft.solicitado === 'FACTURA'
+                          ? 'La eligió al pagar, con el RUT ya validado. Emitir otra cosa lo deja sin el crédito fiscal del IVA.'
+                          : 'La eligió al pagar, aunque tenga RUT de empresa registrado.'}
+                      </span>
+                    ) : (
+                      <span><strong>El comprador no eligió documento.</strong> Es una recarga anterior a esa opción: se sugiere factura si tiene RUT de empresa registrado, boleta si no.</span>
+                    )}
+                  </div>
+                  <DocTipoSelector
+                    valor={docRecargaDraft.tipo}
+                    onChange={(tipo) => setDocRecargaDraft({ ...docRecargaDraft, tipo })}
+                    opciones={[
+                      { valor: 'FACTURA', titulo: 'Factura electrónica', detalle: docRecargaDraft.solicitado === 'FACTURA' ? 'La que pidió el comprador' : 'Empresa con RUT y giro' },
+                      { valor: 'BOLETA', titulo: 'Boleta electrónica', detalle: docRecargaDraft.solicitado === 'BOLETA' ? 'La que pidió el comprador' : 'Persona natural' },
+                    ]}
+                  />
+                </DocPaso>
 
-            <FieldLabel label="Tipo de documento">
-              <select
-                className="select"
-                value={docRecargaDraft.tipo}
-                onChange={(event) => setDocRecargaDraft({ ...docRecargaDraft, tipo: event.target.value })}
-              >
-                <option value="FACTURA">Factura</option>
-                <option value="BOLETA">Boleta</option>
-              </select>
-            </FieldLabel>
+                <DocPaso n={2} titulo="Datos del receptor" descripcion={esFactura ? 'En una factura el RUT es obligatorio.' : 'En una boleta el RUT es opcional.'}>
+                  <div className="boleta-fields">
+                    <label className="form-field">
+                      <span>{esFactura ? 'RUT (obligatorio)' : 'RUT'}</span>
+                      <input className="input" type="text" value={docRecargaDraft.rut} onChange={(event) => setDocRecargaDraft({ ...docRecargaDraft, rut: event.target.value })} required={esFactura} placeholder="12.345.678-5" />
+                    </label>
+                    <label className="form-field">
+                      <span>Razón social / Nombre</span>
+                      <input className="input" type="text" value={docRecargaDraft.razonSocial} onChange={(event) => setDocRecargaDraft({ ...docRecargaDraft, razonSocial: event.target.value })} />
+                    </label>
+                  </div>
+                </DocPaso>
 
-            <FieldLabel label="Folio (número que asignó el SII al emitir)">
-              <input
-                className="input"
-                type="text"
-                value={docRecargaDraft.folio}
-                onChange={(event) => setDocRecargaDraft({ ...docRecargaDraft, folio: event.target.value })}
-                placeholder="Ej: 1024 — aparece en el documento ya emitido"
-                inputMode="numeric"
-                required
-              />
-            </FieldLabel>
+                <DocPaso n={3} titulo="Registra el documento emitido" descripcion="Al guardar se le envía por correo al comprador: la norma exige entregarlo, no solo emitirlo.">
+                  <div className="boleta-fields">
+                    <label className="form-field">
+                      <span>Folio asignado por el SII</span>
+                      <input className="input" type="text" inputMode="numeric" value={docRecargaDraft.folio} onChange={(event) => setDocRecargaDraft({ ...docRecargaDraft, folio: event.target.value })} placeholder="Ej: 1024" required />
+                    </label>
+                    <label className="form-field">
+                      <span>Fecha de emisión</span>
+                      <input className="input" type="date" max={todayChile()} value={docRecargaDraft.fechaEmision} onChange={(event) => setDocRecargaDraft({ ...docRecargaDraft, fechaEmision: event.target.value })} required />
+                    </label>
+                    <DocArchivo nombre={docRecargaDraft.archivo?.name ?? ''} onFile={(file) => setDocRecargaDraft({ ...docRecargaDraft, archivo: file })} required />
+                  </div>
+                </DocPaso>
 
-            <FieldLabel label="Fecha de emisión">
-              <input
-                className="input"
-                type="date"
-                max={todayChile()}
-                value={docRecargaDraft.fechaEmision}
-                onChange={(event) => setDocRecargaDraft({ ...docRecargaDraft, fechaEmision: event.target.value })}
-                required
-              />
-            </FieldLabel>
+                {docRecargaError && <div className="notice error">{docRecargaError}</div>}
 
-            <FieldLabel label={docRecargaDraft.tipo === 'FACTURA' ? 'RUT receptor (obligatorio)' : 'RUT receptor'}>
-              <input
-                className="input"
-                type="text"
-                value={docRecargaDraft.rut}
-                onChange={(event) => setDocRecargaDraft({ ...docRecargaDraft, rut: event.target.value })}
-                required={docRecargaDraft.tipo === 'FACTURA'}
-                placeholder="12.345.678-5"
-              />
-            </FieldLabel>
-
-            <FieldLabel label="Razón social / Nombre">
-              <input
-                className="input"
-                type="text"
-                value={docRecargaDraft.razonSocial}
-                onChange={(event) => setDocRecargaDraft({ ...docRecargaDraft, razonSocial: event.target.value })}
-              />
-            </FieldLabel>
-
-            <FieldLabel label="Cargar boleta / factura (PDF)">
-              <input
-                className="input"
-                type="file"
-                accept=".pdf"
-                onChange={(event) => setDocRecargaDraft({
-                  ...docRecargaDraft,
-                  archivo: event.target.files?.[0] ?? null,
-                })}
-                required
-              />
-              {docRecargaDraft.archivo && (
-                <div className="document-file-status">
-                  <span><UiIcon name="check" />Archivo listo: <strong>{docRecargaDraft.archivo.name}</strong></span>
+                <div className="boleta-actions">
+                  {docRecargaDraft.yaCargado && (
+                    <button className="secondary-button" type="button" onClick={() => verDocumentoRecarga(docRecargaDraft.compraId)}>
+                      <UiIcon name="eye" /> Ver el actual
+                    </button>
+                  )}
+                  <button className="secondary-button" type="button" disabled={docRecargaBusy} onClick={() => setDocRecargaDraft(null)}>Cancelar</button>
+                  <button className="primary-button" type="submit" disabled={docRecargaBusy}>
+                    <UiIcon name="check" />{docRecargaBusy ? 'Guardando…' : 'Guardar y enviar al comprador'}
+                  </button>
                 </div>
-              )}
-            </FieldLabel>
-
-            {docRecargaError && <div className="notice error">{docRecargaError}</div>}
-
-            <div className="form-actions">
-              {docRecargaDraft.yaCargado && (
-                <button
-                  className="secondary-button"
-                  type="button"
-                  onClick={() => verDocumentoRecarga(docRecargaDraft.compraId)}
-                >
-                  <UiIcon name="eye" /> Ver el actual
-                </button>
-              )}
-              <button
-                className="secondary-button"
-                type="button"
-                disabled={docRecargaBusy}
-                onClick={() => setDocRecargaDraft(null)}
-              >
-                Cancelar
-              </button>
-              <button className="primary-button" type="submit" disabled={docRecargaBusy}>
-                {docRecargaBusy ? 'Guardando…' : 'Guardar y enviar al comprador'}
-              </button>
-            </div>
-          </form>
-        </Modal>
-      )}
+              </div>
+            </form>
+          </PpModal>
+        );
+      })()}
 
       {selectedAdvertisingOrder && (
         <Modal
@@ -4677,8 +4464,8 @@ export default function AdminFinancePage() {
                 <strong>{formatMoney(selectedAdvertisingOrder.montoPagado)}</strong>
               </div>
               <div className="advertising-highlight negative">
-                <span>IVA de la venta</span>
-                <strong>− {formatMoney(selectedAdvertisingOrder.ivaVenta ?? Math.max(0, selectedAdvertisingOrder.montoPagado - selectedAdvertisingOrder.montoNeto))}</strong>
+                <span>IVA de la venta + Flow sin IVA</span>
+                <strong>− {formatMoney(selectedAdvertisingOrder.montoPagado - selectedAdvertisingOrder.montoNeto)}</strong>
               </div>
               <div className="advertising-highlight positive">
                 <span>Ganancia RepuesTop</span>
