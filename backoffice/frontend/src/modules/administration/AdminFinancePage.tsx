@@ -994,7 +994,8 @@ function AdminFinancePageContent() {
 
   /**
    * Convergencia total de ingresos (pedidos y publicidad):
-   * - Pedidos: ganancia neta (5% tarifa fundador o 10%/7%/5% normal menos pasarela/IVA) -> 70% a caja.
+   * - Pedidos: ganancia neta (comisión de servicio sin IVA ni pasarela: 7% estándar, 0% fundador en
+   *   marcha blanca; la tasa la manda el servidor por venta) -> 70% a caja.
    * - Publicidad: venta sin IVA menos la comisión de Flow sin IVA (14-oct, decisión del usuario: la
    *   comisión de la pasarela la asume RepuesTop) -> 70% a caja. Lo calcula el backend (montoNeto).
    */
@@ -1237,9 +1238,12 @@ function AdminFinancePageContent() {
 
     const pedidosEntries: PartnerIncomeEntry[] = periodPartnerSettlements.map((settlement) => {
       const order = ordersMap.get(settlement.orderId) || ordersMap.get(settlement.id);
-      const commissionLabel = settlement.sellerFounder && Math.round(settlement.serviceCommissionRate * 100) === 5
-        ? 'Tarifa Fundador (5%)'
-        : `Comisión (${Math.round(settlement.serviceCommissionRate * 100)}%)`;
+      // 18-oct: fundador por flag del servidor; la marcha blanca es 0% y las ventas fundadoras
+      // antiguas conservan su tasa (5%).
+      const ratePct = Math.round(settlement.serviceCommissionRate * 100);
+      const commissionLabel = settlement.sellerFounder
+        ? (ratePct > 0 ? `Tarifa Fundador (${ratePct}%)` : 'Tarifa Fundador (0% · marcha blanca)')
+        : `Comisión (${ratePct}%)`;
       const netProfit = settlement.netSettlement;
       const partnerShare = Math.round(netProfit * 0.3);
 

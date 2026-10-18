@@ -8,8 +8,9 @@ export interface FounderSeller {
   email: string;
   founder: boolean;
   founderSince?: string | null;
-  /** O1: fin del beneficio (3 meses desde la aprobación). */
+  /** O1: fin del beneficio (18-oct: 2 meses de marcha blanca desde la aprobación). */
   founderUntil?: string | null;
+  /** Días transcurridos desde que es fundador (antigüedad), no los que quedan. */
   founderDays: number;
   registeredAt: string;
 }

@@ -58,6 +58,8 @@ export interface SellerResponse {
   bankAccountUpdatedAt?: string | null;
   founder?: boolean;
   founderSince?: string | null;
+  /** 18-oct: fin de la marcha blanca (0% tarifa de servicio). */
+  founderUntil?: string | null;
 }
 
 export interface SellerDetailResponse extends SellerResponse {

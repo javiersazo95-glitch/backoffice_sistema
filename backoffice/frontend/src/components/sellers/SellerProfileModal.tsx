@@ -761,7 +761,16 @@ export default function SellerProfileModal({
 
                 <div className="seller-profile-badges">
                   <Badge text={seller.status} variant={seller.status} />
-                  {seller.founder ? <span className="founder-badge"><UiIcon name="crown" />Fundador</span> : null}
+                  {seller.founder ? (
+                    <span
+                      className="founder-badge"
+                      title={seller.founderUntil
+                        ? `Marcha blanca: 0% tarifa de servicio hasta ${new Date(seller.founderUntil).toLocaleDateString('es-CL')}`
+                        : 'Marcha blanca: 0% tarifa de servicio'}
+                    >
+                      <UiIcon name="crown" />Fundador
+                    </span>
+                  ) : null}
                 </div>
               </div>
 

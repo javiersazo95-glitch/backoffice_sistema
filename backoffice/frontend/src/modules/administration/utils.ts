@@ -117,7 +117,9 @@ export function getSettlements(orders: Order[], statuses: Record<string, Settlem
       const descuento = Number(order.descuento ?? 0);
       const saleTotal = Number(order.total ?? (Math.max(0, subtotal - descuento) + Number(order.costoEnvio ?? 0)));
       const serviceCommission = Number(order.comisionServicio ?? 0);
-      const serviceCommissionRate = Number(order.comisionServicioPorcentaje ?? (order.sellerFounder ? 0.05 : subtotal > 250000 ? 0.05 : subtotal > 100000 ? 0.07 : 0.10));
+      // 18-oct: respaldo si el servidor no manda la tasa. Fundador = 0% (marcha blanca de 2 meses);
+      // estándar = 7% + IVA, sin tramos. Las ventas antiguas traen su propia tasa guardada.
+      const serviceCommissionRate = Number(order.comisionServicioPorcentaje ?? (order.sellerFounder ? 0 : 0.07));
       const serviceCommissionIva = Number(order.ivaComisionServicio ?? 0);
       const gatewayFeeSeller = Number(order.comisionPagoFlowVendedor ?? 0);
       const gatewayFeeRepuestop = Number(order.comisionPagoFlowRepuestop ?? 0);

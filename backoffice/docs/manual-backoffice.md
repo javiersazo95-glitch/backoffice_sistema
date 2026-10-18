@@ -135,8 +135,9 @@ Un correo que ya pertenece a un captador no puede ser del equipo.
 **Fundador**
 
 - La **Ranura general** está activa mientras queden cupos.
-- Cada tienda que se aprueba en ese período recibe la tarifa Fundador (5 % + IVA) durante sus
-  primeros meses, hasta llenar el cupo.
+- Cada tienda que se aprueba en ese período recibe la tarifa Fundador: **0 % de tarifa de servicio**
+  (gratis) durante sus primeros 2 meses de marcha blanca, hasta llenar el cupo de 100 tiendas. En ese
+  tiempo solo paga la comisión de Flow; después rige la tarifa estándar (7 % + IVA).
 - Abajo se puede ver y cambiar la condición de cada tienda.
 
 ### 2.4 Moverse dentro de un área
@@ -192,23 +193,27 @@ lo es solo la comisión.
 
 ### 4.2 Cuánto es de cada uno
 
-**La comisión de RepuesTop** es el 8 % de la venta más IVA. Las tiendas **Fundador** pagan 5 % más
-IVA durante sus primeros meses. La venta incluye productos y despacho, menos el descuento de
-cotización. **La comisión de Flow** (2,89 % más IVA) también se descuenta a la tienda.
+**La comisión de RepuesTop** es el 7 % de la venta más IVA. Las tiendas **Fundador** pagan 0 % de
+tarifa de servicio durante sus primeros 2 meses de marcha blanca (solo pagan Flow). La venta incluye
+productos y despacho, menos el descuento de cotización. **La comisión de Flow** (2,89 % más IVA)
+también se descuenta a la tienda.
 
 Ejemplo, una venta de $100.000 en una tienda normal:
 
 | Concepto | Monto |
 |---|---|
 | Venta (productos + despacho) | $100.000 |
-| Comisión RepuesTop 8 % | − $8.000 |
-| IVA de la comisión | − $1.520 |
+| Comisión RepuesTop 7 % | − $7.000 |
+| IVA de la comisión | − $1.330 |
 | Comisión Flow (2,89 % + IVA) | − $3.439 |
-| **La tienda recibe** | **$87.041** |
-| **Ganancia neta de RepuesTop** | **$8.000** (el IVA va al Fisco; lo de Flow se le paga a Flow) |
+| **La tienda recibe** | **$88.231** |
+| **Ganancia neta de RepuesTop** | **$7.000** (el IVA va al Fisco; lo de Flow se le paga a Flow) |
 
 De la ganancia neta, el **70 %** va a la caja de la empresa (sueldos y gastos) y el **30 %** a los
-socios. En el ejemplo: $5.600 a caja y $2.400 a socios.
+socios. En el ejemplo: $4.900 a caja y $2.100 a socios.
+
+En una tienda **Fundador** en marcha blanca la comisión y su IVA son $0: la tienda recibe $96.561 y
+RepuesTop no gana nada por esa venta (solo se le paga a Flow lo suyo).
 
 **Monedas del Mural (publicidad).** Esa venta sí es de RepuesTop. De una recarga de $5.000 quedan
 $4.057 de ganancia, después de restar el IVA y la comisión de Flow.
@@ -955,7 +960,8 @@ hasta que se aprueba.
    Aparece "Verificación registrada. Ya puedes aprobar la tienda", la pantalla baja a **Decisión** y
    **Aprobar solicitud** queda destacado. Registrar la verificación **no** aprueba la tienda.
 6. **Aprobar.** Pulsar **Aprobar solicitud**. Sale **Solicitud aprobada**, la tienda pasa a
-   Vendedores y recibe un correo. Si quedan cupos, queda como Fundador.
+   Vendedores y recibe un correo. Si quedan cupos, queda como Fundador (0 % de tarifa de servicio
+   durante 2 meses de marcha blanca).
 
 **Cuándo NO se puede aprobar:**
 
@@ -1005,7 +1011,7 @@ del jueves. Sin factura completa, el retiro no se puede pagar.
 
    | Línea | Qué es |
    |---|---|
-   | **Comisión de servicio RepuesTop** | El 8 % (o 5 % Fundador) de las ventas del retiro |
+   | **Comisión de servicio RepuesTop** | El 7 % de las ventas del retiro ($0 si la tienda es Fundador en marcha blanca) |
    | **Cargo por procesamiento de pago** | Lo que se le descuenta a la tienda por Flow |
 
    Cada línea muestra su neto, y abajo están el neto total, el IVA y el total. El total es lo que
@@ -1405,13 +1411,13 @@ No dejan avisos al equipo, pero explican por qué algunas cosas cambian solas.
 |---|---|
 | **Certificado de cumplimiento tributario** | Documento que la tienda descarga de su sitio en sii.cl y que dice si "Cumple" o "No cumple" sus obligaciones tributarias. El SII lo actualiza en enero y julio |
 | **Ciclo de pago** | De jueves a miércoles; se paga el jueves siguiente |
-| **Comisión** | Lo que cobra RepuesTop por cada venta: 8 % + IVA (5 % + IVA para Fundador) |
+| **Comisión** | Lo que cobra RepuesTop por cada venta: 7 % + IVA (0 % para Fundador en marcha blanca) |
 | **Custodia** | El dinero de la tienda que RepuesTop guarda hasta que puede retirarlo |
 | **Declaración de IVA** | La constancia de la tienda de que es contribuyente de IVA. Sin ella, el IVA de sus ventas lo paga RepuesTop |
 | **DTE** | Documento tributario electrónico: factura (33), boleta (39), nota de crédito (61) |
 | **F29** | Declaración mensual de IVA ante el SII |
 | **Folio** | El número que el SII asigna a cada documento emitido |
-| **Fundador** | Tienda de las primeras en entrar, con comisión rebajada al 5 % por un tiempo |
+| **Fundador** | Tienda de las primeras 100 en entrar: no paga tarifa de servicio (0 %) durante sus 2 meses de marcha blanca; solo paga Flow |
 | **Inicio de actividades** | El trámite con que una tienda se registra en el SII para vender. Si hace término de giro, deja de estar vigente |
 | **Liquidación** | El cálculo de lo que se le debe pagar a la tienda por una venta |
 | **Mediación** | La intervención de RepuesTop en un reclamo entre comprador y tienda |

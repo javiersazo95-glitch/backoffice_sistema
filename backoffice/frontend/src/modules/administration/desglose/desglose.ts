@@ -113,11 +113,16 @@ export function boletaDeVenta(settlement: Settlement) {
   };
 }
 
+/**
+ * 18-oct: el fundador se detecta por el flag del servidor, no por la tasa. Hoy la marcha blanca es
+ * 0% de tarifa de servicio; las ventas fundadoras antiguas (al 5%) muestran su tasa guardada.
+ */
 function comisionLabel(settlement: Settlement) {
   const rate = settlement.serviceCommissionRate;
-  return settlement.sellerFounder && Math.round(rate * 100) === 5
+  if (!settlement.sellerFounder) return `Comisión de servicio RepuesTop (${pct(rate)})`;
+  return rate > 0
     ? `Tarifa RepuesTop Fundador (${pct(rate)})`
-    : `Comisión de servicio RepuesTop (${pct(rate)})`;
+    : 'Tarifa RepuesTop Fundador (0% · marcha blanca)';
 }
 
 const BOLETA_POR_QUE =
@@ -276,9 +281,13 @@ export function desgloseGrupo(
   const recibe = retiroMonto ?? payout;
   const factura = opciones.factura ?? null;
   const rates = [...new Set(settlements.map((s) => Math.round(s.serviceCommissionRate * 10000)))];
-  const comisionEtiqueta = rates.length === 1
-    ? `Comisión de servicio RepuesTop (${pct(rates[0]! / 10000)})`
-    : 'Comisión de servicio RepuesTop (según la tasa de cada venta)';
+  // Si todas las ventas son de la misma tienda fundadora, la etiqueta dice lo mismo que en cada venta.
+  const todasFundadoras = settlements.length > 0 && settlements.every((s) => s.sellerFounder);
+  const comisionEtiqueta = rates.length === 1 && todasFundadoras
+    ? comisionLabel(settlements[0]!)
+    : rates.length === 1
+      ? `Comisión de servicio RepuesTop (${pct(rates[0]! / 10000)})`
+      : 'Comisión de servicio RepuesTop (según la tasa de cada venta)';
 
   const avisos: string[] = [];
   if (reembolsos > 0) avisos.push(`${reembolsos} venta${reembolsos === 1 ? '' : 's'} con reembolso por mediación: la base y la comisión ya lo descuentan.`);

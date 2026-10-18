@@ -1,7 +1,10 @@
 // Fecha LOCAL: toISOString() es UTC y desde las 21:00 en Chile ya devolvia el dia siguiente.
 export const TODAY = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })();
 
-export const COMMISSION_RATE = 0.05;
+// 18-oct: tarifa de servicio estándar 7% + IVA (sin tramos). Las fundadoras pagan 0% durante la
+// marcha blanca de 2 meses. Referencia: la tasa real de cada venta la manda el servidor.
+export const COMMISSION_RATE = 0.07;
+export const FOUNDER_COMMISSION_RATE = 0;
 export const MIN_COMMISSION = 690;
 export const MAX_COMMISSION = 9990;
 export const GATEWAY_RATE = 0.0289;

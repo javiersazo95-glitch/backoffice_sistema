@@ -24,9 +24,12 @@ export function buildCashEntries(
     .filter((settlement) => isWithinRange(settlement.date, start, end))
     .map((settlement) => {
       const order = ordersMap.get(settlement.orderId) || ordersMap.get(settlement.id);
-      const commissionLabel = settlement.sellerFounder && Math.round(settlement.serviceCommissionRate * 100) === 5
-        ? 'Tarifa Fundador (5%)'
-        : `Comisión RepuesTop (${Math.round(settlement.serviceCommissionRate * 100)}%)`;
+      // 18-oct: fundador por flag del servidor; la marcha blanca es 0% y las ventas fundadoras
+      // antiguas conservan su tasa (5%).
+      const ratePct = Math.round(settlement.serviceCommissionRate * 100);
+      const commissionLabel = settlement.sellerFounder
+        ? (ratePct > 0 ? `Tarifa Fundador (${ratePct}%)` : 'Tarifa Fundador (0% · marcha blanca)')
+        : `Comisión RepuesTop (${ratePct}%)`;
       const netProfit = settlement.netSettlement;
       return {
         id: settlement.orderId,

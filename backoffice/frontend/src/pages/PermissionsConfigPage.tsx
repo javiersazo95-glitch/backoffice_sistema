@@ -74,6 +74,18 @@ function invitationStatus(user: permissionsApi.PermissionUser) {
   return { value: status, label: status === 'PENDIENTE' ? 'Pendiente' : status === 'RECHAZADO' ? 'Rechazado' : 'Aceptado' };
 }
 
+/**
+ * 18-oct: `founderDays` es la antigüedad (días transcurridos); lo que queda de marcha blanca se
+ * calcula desde `founderUntil` para que la columna "Beneficio hasta" diga cuánto falta.
+ */
+function founderRemainingLabel(founderUntil: string) {
+  const until = new Date(founderUntil).getTime();
+  if (Number.isNaN(until)) return '';
+  const remaining = Math.ceil((until - Date.now()) / 86_400_000);
+  if (remaining <= 0) return 'Beneficio terminado';
+  return remaining === 1 ? 'Queda 1 día' : `Quedan ${remaining} días`;
+}
+
 export default function PermissionsConfigPage() {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
@@ -651,7 +663,7 @@ export default function PermissionsConfigPage() {
               <div>
                 <span className="founder-badge"><UiIcon name="crown" />Fundador</span>
                 <h3>Ranura general</h3>
-                <p>Mientras esté activa, cada tienda que se apruebe recibe la condición Fundador (5% + IVA) durante sus primeros {founderConfig?.durationMonths ?? 3} meses, hasta completar las primeras {founderConfig?.storeQuota ?? 100} tiendas. El beneficio se da una sola vez por tienda.</p>
+                <p>Mientras esté activa, cada tienda que se apruebe recibe la condición Fundador: tarifa de servicio 0% (gratis) durante sus primeros {founderConfig?.durationMonths ?? 2} meses de marcha blanca, hasta completar las primeras {founderConfig?.storeQuota ?? 100} tiendas. Solo paga la pasarela Flow; después rige 7% + IVA. El beneficio se da una sola vez por tienda.</p>
                 {founderConfig?.grantedStores != null && (
                   <p className="muted">Cupo: {Math.min(founderConfig.grantedStores, founderConfig.storeQuota ?? 100)} de {founderConfig.storeQuota ?? 100} tiendas ya recibieron el beneficio.</p>
                 )}
@@ -684,7 +696,12 @@ export default function PermissionsConfigPage() {
                   <td><strong>{seller.storeName}</strong><br /><span className="muted">{seller.userName}</span></td>
                   <td>{seller.email}</td><td>{new Date(seller.registeredAt).toLocaleDateString('es-CL')}</td>
                   <td>{seller.founder ? `${seller.founderDays} días` : '—'}</td>
-                  <td>{seller.founder && seller.founderUntil ? new Date(seller.founderUntil).toLocaleDateString('es-CL') : '—'}</td>
+                  <td>{seller.founder && seller.founderUntil ? (
+                    <>
+                      {new Date(seller.founderUntil).toLocaleDateString('es-CL')}
+                      <br /><span className="muted">{founderRemainingLabel(seller.founderUntil)}</span>
+                    </>
+                  ) : '—'}</td>
                   <td><label className="role-toggle-label"><input type="checkbox" checked={seller.founder}
                     disabled={founderMutation.isPending}
                     onChange={(event) => founderMutation.mutate({ sellerId: seller.sellerId, founder: event.target.checked })} />

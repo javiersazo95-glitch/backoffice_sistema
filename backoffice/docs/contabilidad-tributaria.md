@@ -53,7 +53,7 @@ venta propia el total del pedido.
 |---|---|---|---|
 | Total pagado por el comprador | Dinero de terceros en tránsito | No | No |
 | Monto a pagar a la tienda | Pasivo (fondos por liquidar) | No | No |
-| Comisión de servicio (8 %, o 5 % fundadoras) | Ingreso por servicios | **Sí** | **Sí**, IVA débito 19 % |
+| Comisión de servicio (7 %; 0 % para fundadoras en marcha blanca) | Ingreso por servicios | **Sí** | **Sí**, IVA débito 19 % |
 | IVA de la comisión | Impuesto por enterar | No | Sí, débito fiscal |
 | Comisión de Flow sobre la venta | Gasto de RepuesTop (Flow le factura a RepuesTop). Lo que RepuesTop descuenta a la tienda por ese concepto es **parte de su remuneración** según el criterio del SII (ver abajo) | **Sí**, como parte de la remuneración | Débito: lo descontado a la tienda. Crédito: la factura de Flow. **Hoy el sistema no lo factura (hallazgo Y)** |
 | Venta de Monedas del Mural (publicidad) | Ingreso por publicidad | **Sí** | **Sí**, IVA débito 19 % |
@@ -62,10 +62,12 @@ venta propia el total del pedido.
 
 **Tasas vigentes** (`application.properties` del backend):
 
-- `repuestop.comision.tasa.alta/media/baja = 0.08`: los tres tramos en la misma tasa desde el
-  24 de septiembre de 2026. Los pedidos anteriores conservan el esquema 10/7/5 %.
-- `repuestop.comision.fundador.porcentaje = 0.05`: primeras 100 tiendas fundadoras, durante sus
-  primeros 3 meses (`ConfiguracionFundador`).
+- `repuestop.comision.tasa.alta/media/baja = 0.07`: los tres tramos en la misma tasa (7 % + IVA,
+  sin tramos desde el 18 de octubre de 2026; antes 8 %). Los pedidos anteriores conservan la tasa
+  con la que se compraron.
+- `repuestop.comision.fundador.porcentaje = 0.00`: primeras 100 tiendas fundadoras, 0 % de tarifa de
+  servicio durante sus primeros 2 meses de marcha blanca desde la aprobación
+  (`ConfiguracionFundador`). En ese período solo pagan la pasarela Flow.
 - `repuestop.comision.iva = 0.19`.
 - Flow: 2,89 % + IVA sobre productos + despacho, cobrado a la tienda.
 - Cada ítem guarda su `comision_tasa_aplicada` al comprarse: un cambio de tarifa no reescribe el
@@ -97,9 +99,9 @@ Aplicado al ejemplo de una venta de $100.000:
 
 | | Hoy (sistema) | Según el criterio del SII |
 |---|---|---|
-| Retenido a la tienda (precio − monto rendido) | $12.959 | $12.959 |
-| Neto facturado a la tienda | $8.000 | $10.890 |
-| IVA débito | $1.520 | $2.069 |
+| Retenido a la tienda (precio − monto rendido) | $11.769 | $11.769 |
+| Neto facturado a la tienda | $7.000 | $9.890 |
+| IVA débito | $1.330 | $1.879 |
 | Factura de Flow a RepuesTop | $2.890 + $549 de IVA (crédito fiscal) | igual |
 
 Si RepuesTop usa como crédito el IVA de la factura de Flow sin declarar el débito por lo que traspasa a
