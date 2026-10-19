@@ -13,7 +13,8 @@ import { PAGE_SIZES } from '@/utils/constants';
 import AreaHomeShortcut from '@/components/shared/AreaHomeShortcut';
 import FounderSellerName from '@/components/shared/FounderSellerName';
 import UiIcon from '@/components/shared/UiIcon';
-import type { ReportObjectType, ReportResponse } from '@/types/report';
+import type { OpinionReportType, ReportObjectType, ReportResponse } from '@/types/report';
+import OpinionModerationPanel from './OpinionModerationPanel';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { RecordCard, RecordList, EmptyState, FilterSheet, FilterTrigger } from '@/components/mobile';
 import { countActiveFilters } from '@/utils/filters';
@@ -23,11 +24,21 @@ const OBJECT_TYPE_META: Record<ReportObjectType, { label: string; tone: string }
   PRODUCTO: { label: 'Producto', tone: 'violet' },
   TIENDA: { label: 'Tienda', tone: 'green' },
   CHAT_COTIZACION: { label: 'Chat de cotización', tone: 'amber' },
+  OPINION_PRODUCTO: { label: 'Opinión de producto', tone: 'orange' },
+  OPINION_TIENDA: { label: 'Opinión de tienda', tone: 'red' },
   OTRO: { label: 'Otro', tone: '' },
 };
 
 function reportObjectType(report: ReportResponse): ReportObjectType {
-  return report.tipoObjeto ?? (report.conversacionId ? 'CHAT_COTIZACION' : 'OTRO');
+  const tipo = report.tipoObjeto ?? (report.conversacionId ? 'CHAT_COTIZACION' : 'OTRO');
+  // Un tipo que el backoffice todavia no conoce se muestra como "Otro" en vez de romper la fila.
+  return tipo in OBJECT_TYPE_META ? tipo : 'OTRO';
+}
+
+/** Reportes sobre la opinion de un comprador: se moderan desde el detalle (ocultar / restaurar). */
+function opinionReportType(report: ReportResponse): OpinionReportType | null {
+  const tipo = reportObjectType(report);
+  return (tipo === 'OPINION_PRODUCTO' || tipo === 'OPINION_TIENDA') && report.objetoId != null ? tipo : null;
 }
 
 export default function ReportsPage() {
@@ -136,6 +147,8 @@ export default function ReportsPage() {
       <option value="PRODUCTO">Productos</option>
       <option value="TIENDA">Tiendas</option>
       <option value="CHAT_COTIZACION">Chats de cotización</option>
+      <option value="OPINION_PRODUCTO">Opiniones de producto</option>
+      <option value="OPINION_TIENDA">Opiniones de tienda</option>
     </select>
   );
   const originSelect = (
@@ -202,7 +215,7 @@ export default function ReportsPage() {
       <div className="page-header">
         <div className="page-title">
           <h1>Reportes</h1>
-          <p>Gestión de reportes enviados desde la aplicación sobre anuncios, productos, tiendas y chats de cotización</p>
+          <p>Gestión de reportes enviados desde la aplicación sobre anuncios, productos, tiendas, chats de cotización y opiniones de compradores</p>
         </div>
         <div className="header-actions">
           <AreaHomeShortcut />
@@ -355,8 +368,8 @@ export default function ReportsPage() {
                     onPress={() => handleOpenDetail(report.id)}
                     actions={(
                       <button type="button" className="mb-action mb-action--primary" onClick={() => handleOpenDetail(report.id)}>
-                        <UiIcon name="eye" />
-                        Ver detalle
+                        <UiIcon name={opinionReportType(report) ? 'shieldX' : 'eye'} />
+                        {opinionReportType(report) ? 'Moderar opinión' : 'Ver detalle'}
                       </button>
                     )}
                   />
@@ -465,7 +478,7 @@ export default function ReportsPage() {
                           <button
                             className="row-action"
                             onClick={() => handleOpenDetail(report.id)}
-                            title="Ver Detalle"
+                            title={opinionReportType(report) ? 'Moderar opinión' : 'Ver Detalle'}
                             style={{
                               display: 'flex',
                               alignItems: 'center',
@@ -479,7 +492,7 @@ export default function ReportsPage() {
                               fontWeight: 500,
                             }}
                           >
-                            Detalle
+                            {opinionReportType(report) ? 'Moderar' : 'Detalle'}
                           </button>
                         </td>
                       </tr>
@@ -585,6 +598,13 @@ export default function ReportsPage() {
                 </p>
               </div>
             </div>
+
+            {(() => {
+              const opinionTipo = opinionReportType(selectedReport);
+              return opinionTipo && selectedReport.objetoId != null ? (
+                <OpinionModerationPanel tipo={opinionTipo} opinionId={selectedReport.objetoId} />
+              ) : null;
+            })()}
           </div>
         )}
       </Modal>
