@@ -398,7 +398,7 @@ export default function ReportsPage() {
                     <th>Motivo</th>
                     <th>Descripción</th>
                     <th>Fecha</th>
-                    <th style={{ width: 100 }}>Acciones</th>
+                    <th style={{ width: 120, minWidth: 120 }}>Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -489,6 +489,8 @@ export default function ReportsPage() {
                               borderRadius: '6px',
                               padding: '6px 12px',
                               color: '#1d4ed8',
+                              whiteSpace: 'nowrap',
+                              minWidth: 96,
                               cursor: 'pointer',
                               fontWeight: 500,
                             }}
