@@ -483,11 +483,12 @@ export default function ReportsPage() {
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
-                              background: 'rgba(255,255,255,0.05)',
-                              border: '1px solid rgba(255,255,255,0.1)',
-                              borderRadius: '4px',
+                              // 19-oct: los colores eran de un tema oscuro y en el claro el boton no se veia.
+                              background: '#eff6ff',
+                              border: '1px solid #bfdbfe',
+                              borderRadius: '6px',
                               padding: '6px 12px',
-                              color: '#fff',
+                              color: '#1d4ed8',
                               cursor: 'pointer',
                               fontWeight: 500,
                             }}
@@ -586,12 +587,13 @@ export default function ReportsPage() {
                 <strong>Descripción:</strong>
                 <p
                   style={{
-                    background: 'rgba(0,0,0,0.2)',
+                    background: '#f1f5f9',
+                    border: '1px solid #e2e8f0',
                     padding: 12,
                     borderRadius: 4,
                     marginTop: 6,
                     whiteSpace: 'pre-wrap',
-                    color: '#e2e8f0',
+                    color: '#0f172a',
                   }}
                 >
                   {selectedReport.descripcion}

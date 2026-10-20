@@ -167,12 +167,13 @@ export default function OpinionModerationPanel({ tipo, opinionId }: OpinionModer
         <strong>Comentario:</strong>
         <p
           style={{
-            background: 'rgba(0,0,0,0.2)',
+            background: '#f1f5f9',
+                    border: '1px solid #e2e8f0',
             padding: 12,
             borderRadius: 4,
             marginTop: 6,
             whiteSpace: 'pre-wrap',
-            color: '#e2e8f0',
+            color: '#0f172a',
           }}
         >
           {opinion.comment?.trim() ? opinion.comment : <em>Sin comentario.</em>}
