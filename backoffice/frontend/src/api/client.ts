@@ -77,6 +77,10 @@ const apiClient: AxiosInstance = axios.create({
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
+    // Contrato del Mantenedor común (sección 6): cada cliente se identifica con `X-Client`
+    // (`app`, `market`, `panel`, `backoffice`, `mantenedor`). El backend ya lo leía de la app
+    // movil (ClientOriginFilter) y lo usa para resolver flags/listas por cliente.
+    'X-Client': 'backoffice',
   },
 });
 
@@ -101,6 +105,10 @@ const RUTAS_DE_SESION = [
   '/auth/backoffice/google',
   '/auth/refresh',
   '/auth/logout',
+  // Endpoints públicos del Mantenedor común (permitAll). Un 401 ahí no dice nada de la sesión
+  // del operador; cerrársela por una consulta de configuración en segundo plano sería un error.
+  '/config/bootstrap',
+  '/config/version',
 ];
 
 type ManejadorDeSesionCaducada = () => void;

@@ -1,8 +1,11 @@
 import { useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import type { UserSummaryResponse } from '@/types/auth';
+import { FLAG_NAV_MANTENEDOR } from '@/types/remoteConfig';
 import UiIcon from '@/components/shared/UiIcon';
-import { getVisibleSections } from './navConfig';
+import { MANTENEDOR_URL } from '@/components/shared/mantenedorUrl';
+import { useFlag } from '@/hooks/useRemoteConfig';
+import { getMantenedorNavItem, getVisibleSections } from './navConfig';
 
 
 interface SidebarProps {
@@ -19,6 +22,11 @@ export default function Sidebar({ user, mobileOpen, onMobileClose }: SidebarProp
     () => getVisibleSections(user, location.pathname),
     [location.pathname, user],
   );
+
+  // Enlace al Mantenedor común: solo SUPER_ADMIN y solo si el flag `backoffice.nav.mantenedor`
+  // sigue encendido (sin bootstrap se asume encendido, como hoy).
+  const mantenedorHabilitado = useFlag(FLAG_NAV_MANTENEDOR, true);
+  const mantenedorItem = getMantenedorNavItem(user, MANTENEDOR_URL, mantenedorHabilitado);
 
   return (
     <aside className={`sidebar${mobileOpen ? ' mobile-open' : ''}`}>
@@ -67,6 +75,17 @@ export default function Sidebar({ user, mobileOpen, onMobileClose }: SidebarProp
               })}
             </div>
           ))
+        )}
+
+        {mantenedorItem && (
+          <div className="nav-section" key={mantenedorItem.path}>
+            <span className="nav-section-title">Configuración</span>
+            {/* App aparte: se abre en otra pestaña para no perder lo que se estaba haciendo aquí. */}
+            <a className="nav-link" href={mantenedorItem.href} target="_blank" rel="noopener noreferrer">
+              <span className="nav-icon"><UiIcon name={mantenedorItem.icon} /></span>
+              {mantenedorItem.label}
+            </a>
+          </div>
         )}
       </nav>
 

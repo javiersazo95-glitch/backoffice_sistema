@@ -12,6 +12,32 @@ export interface NavItem {
   aliases?: string[];
   /** Etiqueta corta para la barra inferior movil, donde la completa no cabe. */
   shortLabel?: string;
+  /**
+   * Enlace externo (otra app, p. ej. el Mantenedor común). Cuando viene, `path` es solo un
+   * identificador estable para keys/activo y el shell debe abrir `href` en una pestaña nueva.
+   */
+  href?: string;
+}
+
+/* ------------------------------------------------------------------ */
+/* Mantenedor común (app aparte, solo SUPER_ADMIN)                      */
+/* ------------------------------------------------------------------ */
+
+/**
+ * URL por defecto del mantenedor. El web la sobreescribe con `VITE_MANTENEDOR_URL`; se resuelve en
+ * el shell (Sidebar / AreaSelector) y no aquí porque este archivo se copia a Backoffice_movil,
+ * donde `import.meta` no existe.
+ */
+export const MANTENEDOR_URL_FALLBACK = 'https://mantenedor.repuestop.cl';
+
+/**
+ * Entrada "Mantenedor común" del menú, o null si no corresponde mostrarla. Solo SUPER_ADMIN (el
+ * mantenedor rechaza a cualquier otro rol) y solo con el flag `backoffice.nav.mantenedor`
+ * encendido; el que llama lo resuelve con `useFlag(..., true)` y pasa el resultado.
+ */
+export function getMantenedorNavItem(user: UserSummaryResponse | null, url: string, habilitado: boolean): NavItem | null {
+  if (!habilitado || user?.role !== Role.SUPER_ADMIN) return null;
+  return { path: '/mantenedor', label: 'Mantenedor común', badge: 0, icon: 'settings', href: url };
 }
 
 export interface NavSection {

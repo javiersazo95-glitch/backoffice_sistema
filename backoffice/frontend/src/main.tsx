@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { AuthProvider } from '@/context/AuthContext';
+import { RemoteConfigProvider } from '@/context/RemoteConfigContext';
 import Toast, { showToast } from '@/components/layout/Toast';
 import { estadoHttpDe } from '@/api/client';
 import MobileTableLabeler from '@/components/mobile/MobileTableLabeler';
@@ -49,9 +50,12 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       <BrowserRouter>
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
-            <App />
-            <Toast />
-            <MobileTableLabeler />
+            {/* Config del Mantenedor común: no bloquea el render, los hijos parten con caché o fallbacks. */}
+            <RemoteConfigProvider>
+              <App />
+              <Toast />
+              <MobileTableLabeler />
+            </RemoteConfigProvider>
           </AuthProvider>
         </QueryClientProvider>
       </BrowserRouter>

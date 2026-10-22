@@ -2,10 +2,25 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
+import { useFlag } from '@/hooks/useRemoteConfig';
 import UiIcon from '@/components/shared/UiIcon';
+import { MANTENEDOR_URL } from '@/components/shared/mantenedorUrl';
+import { getMantenedorNavItem } from '@/components/layout/navConfig';
 import { Role } from '@/types/auth';
+import { FLAG_AREA_ADMINISTRACION, FLAG_AREA_MEDIACION, FLAG_AREA_SOPORTE, FLAG_NAV_MANTENEDOR } from '@/types/remoteConfig';
 
 type AreaKey = 'administracion' | 'soporte' | 'confianza';
+
+/**
+ * Flag del mantenedor que oculta cada área del selector (`backoffice.area.<area>`, contrato
+ * sección 5). Sin bootstrap todas quedan visibles, como hoy. Solo esconde la tarjeta: el acceso
+ * real lo siguen decidiendo los permisos y las guardas de ruta.
+ */
+const AREA_FLAG: Record<AreaKey, string> = {
+  administracion: FLAG_AREA_ADMINISTRACION,
+  soporte: FLAG_AREA_SOPORTE,
+  confianza: FLAG_AREA_MEDIACION,
+};
 
 interface AreaCard {
   key: AreaKey;
@@ -112,6 +127,16 @@ export default function AreaSelectorPage() {
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const isSuperAdmin = user?.role === Role.SUPER_ADMIN;
 
+  // Un hook por área (orden fijo) para que el selector se re-pinte cuando llegue el bootstrap.
+  const areaVisible: Record<AreaKey, boolean> = {
+    administracion: useFlag(AREA_FLAG.administracion, true),
+    soporte: useFlag(AREA_FLAG.soporte, true),
+    confianza: useFlag(AREA_FLAG.confianza, true),
+  };
+  const areasVisibles = areas.filter((area) => areaVisible[area.key]);
+  const mantenedorHabilitado = useFlag(FLAG_NAV_MANTENEDOR, true);
+  const mantenedorItem = getMantenedorNavItem(user, MANTENEDOR_URL, mantenedorHabilitado);
+
   useEffect(() => {
     if (!profileMenuOpen) return;
 
@@ -204,7 +229,7 @@ export default function AreaSelectorPage() {
           </div>
 
           <div className="area-selector-grid">
-            {areas.map((area) => {
+            {areasVisibles.map((area) => {
               const enabled = isAreaEnabled(area.key, user);
               return (
                 <article className={`area-selector-card ${area.accent} ${enabled ? 'enabled' : 'disabled'}`} key={area.key}>
@@ -249,6 +274,23 @@ export default function AreaSelectorPage() {
                 Ir a Gestión de Permisos
                 <UiIcon name="arrowRight" />
               </button>
+            </article>
+          )}
+
+          {mantenedorItem && (
+            <article className="area-selector-banner">
+              <span className="area-selector-banner-icon">
+                <UiIcon name={mantenedorItem.icon} />
+              </span>
+              <div className="area-selector-banner-copy">
+                <h3>{mantenedorItem.label}</h3>
+                <p>Marcas, categorías, listas, comisiones y visibilidad de los cuatro clientes, sin tocar código.</p>
+              </div>
+              {/* App aparte (mantenedor.repuestop.cl): se abre en otra pestaña con la misma cuenta SUPER_ADMIN. */}
+              <a className="secondary-button area-selector-banner-action" href={mantenedorItem.href} target="_blank" rel="noopener noreferrer">
+                Abrir el mantenedor
+                <UiIcon name="arrowRight" />
+              </a>
             </article>
           )}
 

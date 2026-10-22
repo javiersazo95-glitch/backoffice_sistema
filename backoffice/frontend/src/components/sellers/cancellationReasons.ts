@@ -1,4 +1,6 @@
 import type { SellerCancellationRate, SellerSaleResponse } from '@/types/seller';
+import { LISTA_MOTIVO_CANCELACION_PEDIDO } from '@/types/remoteConfig';
+import { remoteConfig } from '@/utils/remoteConfigStore';
 
 export type CancellationLevel = 'none' | 'warn' | 'high';
 
@@ -11,12 +13,19 @@ export function cancellationLevel(rate: SellerCancellationRate): CancellationLev
 /**
  * Etiquetas de MotivoCancelacionPedido. El backend guarda el código y cada cliente arma el texto,
  * igual que con los estados de mediación.
+ *
+ * 20-oct (Mantenedor común): la etiqueta se toma primero de la lista `MOTIVO_CANCELACION_PEDIDO`
+ * (lista `sistema`: el mantenedor solo edita texto/orden/visibilidad, los valores siguen siendo
+ * los del enum del backend). Este mapa queda como fallback para cuando no hay bootstrap, y para
+ * motivos que el mantenedor haya ocultado pero que una venta antigua todavía tenga guardados.
  */
-const MOTIVO_LABEL: Record<string, string> = {
+const MOTIVO_LABEL_FALLBACK: Record<string, string> = {
   SIN_STOCK: 'Sin stock',
   ERROR_PRECIO: 'Error de precio',
   PRODUCTO_NO_DISPONIBLE: 'Producto no disponible',
   IMPOSIBILIDAD_DESPACHO: 'Imposibilidad de despacho',
+  // 8-oct: el vendedor comprobó en el paso de compatibilidad que el repuesto no sirve al vehículo.
+  INCOMPATIBLE_VEHICULO: 'Incompatible con el vehículo del comprador',
   EXPIRACION_PAGO: 'No se completó el pago a tiempo',
   BLOQUEO_VENDEDOR: 'Tienda suspendida o bloqueada',
   SOLICITUD_DEL_COMPRADOR: 'Lo pidió el comprador',
@@ -39,7 +48,8 @@ const ORIGEN_POR_ESTADO_ITEM: Record<string, string> = {
 
 export function motivoCancelacionLabel(codigo?: string | null): string {
   if (!codigo) return 'Sin motivo registrado';
-  return MOTIVO_LABEL[codigo.toUpperCase()] ?? codigo;
+  const clave = codigo.toUpperCase();
+  return remoteConfig.etiquetaDeLista(LISTA_MOTIVO_CANCELACION_PEDIDO, clave) ?? MOTIVO_LABEL_FALLBACK[clave] ?? codigo;
 }
 
 export function origenCancelacionLabel(origen?: string | null): string | null {

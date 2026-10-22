@@ -16,12 +16,11 @@ import SellerListTooltip from '@/components/shared/SellerListTooltip';
 import * as administrationApi from '@/api/administration';
 import apiClient, { mensajeDeError } from '@/api/client';
 import type { TipoRetiro } from '@/api/administration';
+import { useBancosBci, useTipoCuentaOptions } from '@/hooks/useRemoteConfig';
 import {
-  BANCOS_BCI,
   EXPENSE_CATEGORIES,
   ORDER_STATUS_OPTIONS,
   PARTNERS,
-  TIPO_CUENTA_OPTIONS,
   TODAY,
   WITHDRAWAL_REASON_ACCUMULATED,
   WITHDRAWAL_REASON_MONTHLY,
@@ -689,6 +688,10 @@ function AdminFinancePageContent() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
+  // 20-oct: bancos y tipos de cuenta salen del Mantenedor común (listas BANCO y
+  // TIPO_CUENTA_BANCARIA) con la nómina local como fallback; misma forma que las constantes de antes.
+  const bancosBci = useBancosBci();
+  const tipoCuentaOptions = useTipoCuentaOptions();
   const orderImportRef = useRef<HTMLInputElement | null>(null);
   const receiptInputRef = useRef<HTMLInputElement | null>(null);
   const hydratedRef = useRef(false);
@@ -1891,7 +1894,7 @@ function AdminFinancePageContent() {
       rut: socio?.rut ?? '',
       banco: socio?.banco ?? '',
       bankCode: socio?.bankCode ?? null,
-      tipoCuenta: socio?.tipoCuenta ?? TIPO_CUENTA_OPTIONS[0],
+      tipoCuenta: socio?.tipoCuenta ?? tipoCuentaOptions[0] ?? 'Cuenta Corriente',
       numeroCuenta: socio?.numeroCuenta ?? '',
       titular: socio?.titular ?? partner,
       email: socio?.email ?? '',
@@ -4090,18 +4093,25 @@ function AdminFinancePageContent() {
                 className="select"
                 value={socioBancoDraft.banco}
                 onChange={(event) => {
-                  const banco = BANCOS_BCI.find((option) => option.nombre === event.target.value);
+                  const banco = bancosBci.find((option) => option.nombre === event.target.value);
                   setSocioBancoDraft({ ...socioBancoDraft, banco: event.target.value, bankCode: banco?.code ?? null });
                 }}
                 required
               >
                 <option value="">Selecciona un banco</option>
-                {BANCOS_BCI.map((banco) => <option key={banco.nombre} value={banco.nombre}>{banco.nombre}</option>)}
+                {/* Un banco guardado con un nombre que el mantenedor ya renombró u ocultó se sigue mostrando, no se pierde en blanco. */}
+                {socioBancoDraft.banco && !bancosBci.some((banco) => banco.nombre === socioBancoDraft.banco) && (
+                  <option value={socioBancoDraft.banco}>{socioBancoDraft.banco}</option>
+                )}
+                {bancosBci.map((banco) => <option key={banco.nombre} value={banco.nombre}>{banco.nombre}</option>)}
               </select>
             </FieldLabel>
             <FieldLabel label="Tipo de cuenta">
               <select className="select" value={socioBancoDraft.tipoCuenta} onChange={(event) => setSocioBancoDraft({ ...socioBancoDraft, tipoCuenta: event.target.value })} required>
-                {TIPO_CUENTA_OPTIONS.map((tipo) => <option key={tipo}>{tipo}</option>)}
+                {socioBancoDraft.tipoCuenta && !tipoCuentaOptions.includes(socioBancoDraft.tipoCuenta) && (
+                  <option>{socioBancoDraft.tipoCuenta}</option>
+                )}
+                {tipoCuentaOptions.map((tipo) => <option key={tipo}>{tipo}</option>)}
               </select>
             </FieldLabel>
             <FieldLabel label="Número de cuenta">

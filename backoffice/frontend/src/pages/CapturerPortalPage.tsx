@@ -9,7 +9,7 @@ import CapturerAvatar from '@/components/capturers/CapturerAvatar';
 import { formatCurrency } from '@/utils/formatters';
 import type { CapturerConfig,CapturerDashboard,CapturerMovement } from '@/types/capturer';
 import { DEFAULT_CAPTURER_CONFIG } from '@/types/capturer';
-import { BANCOS_BCI,TIPO_CUENTA_OPTIONS } from '@/modules/administration/constants';
+import { useBancosBci, useTipoCuentaOptions } from '@/hooks/useRemoteConfig';
 import CapturerLayout from '@/components/capturer/CapturerLayout';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { RecordCard, RecordList, EmptyState } from '@/components/mobile';
@@ -453,6 +453,9 @@ function pageList(current:number,pages:number):Array<number|'…'>{
 const bankRequired:Array<keyof BankForm>=['rut','titular','banco','tipoCuenta','numeroCuenta'];
 function Finanzas({d,bank,onBank,amount,onAmount,receipt,onReceipt,onSaveBank,onWithdraw}:{d:CapturerDashboard;bank:BankForm;onBank:(v:BankForm|((b:BankForm)=>BankForm))=>void;amount:string;onAmount:(v:string)=>void;receipt:File|null;onReceipt:(f:File|null)=>void;onSaveBank:(e:React.FormEvent)=>void;onWithdraw:(e:React.FormEvent)=>void}){
  const isMobile=useIsMobile();
+ // 20-oct: listas BANCO y TIPO_CUENTA_BANCARIA del Mantenedor común, con la nómina local como fallback.
+ const bancosBci=useBancosBci();
+ const tipoCuentaOptions=useTipoCuentaOptions();
  const set=(patch:Partial<BankForm>)=>onBank(b=>({...b,...patch}));
  const bankComplete=bankRequired.every(k=>String(bank[k]??'').trim().length>0);
  const solicitudEnCurso=d.retiros.find(r=>r.estado==='PENDIENTE'||r.estado==='EN_REVISION');
@@ -513,15 +516,18 @@ function Finanzas({d,bank,onBank,amount,onAmount,receipt,onReceipt,onSaveBank,on
       <input className="cap-control" placeholder="Nombre completo" value={bank.titular} onChange={e=>set({titular:e.target.value})} required/>
      </label>
      <label className="cap-field">Banco
-      <select className="cap-control" value={bank.banco} onChange={e=>{const opt=BANCOS_BCI.find(o=>o.nombre===e.target.value);set({banco:e.target.value,bankCode:opt?.code??null});}} required>
+      <select className="cap-control" value={bank.banco} onChange={e=>{const opt=bancosBci.find(o=>o.nombre===e.target.value);set({banco:e.target.value,bankCode:opt?.code??null});}} required>
        <option value="">Selecciona un banco</option>
-       {BANCOS_BCI.map(o=><option key={o.nombre} value={o.nombre}>{o.nombre}</option>)}
+       {/* Banco ya guardado con un nombre que el mantenedor renombró u ocultó: se conserva visible. */}
+       {bank.banco&&!bancosBci.some(o=>o.nombre===bank.banco)&&<option value={bank.banco}>{bank.banco}</option>}
+       {bancosBci.map(o=><option key={o.nombre} value={o.nombre}>{o.nombre}</option>)}
       </select>
      </label>
      <label className="cap-field">Tipo de cuenta
       <select className="cap-control" value={bank.tipoCuenta} onChange={e=>set({tipoCuenta:e.target.value})} required>
        <option value="">Selecciona el tipo</option>
-       {TIPO_CUENTA_OPTIONS.map(t=><option key={t} value={t}>{t}</option>)}
+       {bank.tipoCuenta&&!tipoCuentaOptions.includes(bank.tipoCuenta)&&<option value={bank.tipoCuenta}>{bank.tipoCuenta}</option>}
+       {tipoCuentaOptions.map(t=><option key={t} value={t}>{t}</option>)}
       </select>
      </label>
      <label className="cap-field">Número de cuenta
