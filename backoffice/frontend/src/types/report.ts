@@ -1,6 +1,8 @@
 export type OpinionReportType = 'OPINION_PRODUCTO' | 'OPINION_TIENDA';
 
-export type ReportObjectType = 'ANUNCIO' | 'PRODUCTO' | 'TIENDA' | 'CHAT_COTIZACION' | OpinionReportType | 'OTRO';
+export type FallaReportType = 'FALLA' | 'FALLA_COMENTARIO';
+
+export type ReportObjectType = 'ANUNCIO' | 'PRODUCTO' | 'TIENDA' | 'CHAT_COTIZACION' | OpinionReportType | FallaReportType | 'OTRO';
 
 export interface ReportResponse {
   id: number;
@@ -66,4 +68,54 @@ export interface OpinionModerationDetail {
   hiddenReason?: string | null;
   hiddenBy?: string | null;
   reports: number;
+}
+
+/** Respuesta de GET /validations/fallas (FallaModeracionDTOs.Resumen). */
+export interface FallaResumen {
+  id: number;
+  titulo: string;
+  vehiculo?: string | null;
+  patente?: string | null;
+  autorNombre?: string | null;
+  autorEmail?: string | null;
+  comuna?: string | null;
+  estado: string;
+  vigente: boolean;
+  diagnosticos: number;
+  createdAt: string;
+}
+
+export interface FallaModeracionComentario {
+  id: number;
+  respondeAId?: number | null;
+  texto: string;
+  precioDesde?: number | null;
+  precioHasta?: number | null;
+  autorNombre?: string | null;
+  autorEmail?: string | null;
+  autorRol?: string | null;
+  taller?: string | null;
+  createdAt: string;
+}
+
+/** Falla con sus comentarios, vista por el moderador (FallaModeracionDTOs.Detalle). */
+export interface FallaModeracionDetail {
+  id: number;
+  titulo: string;
+  descripcion?: string | null;
+  antesDelFallo?: string | null;
+  vehiculo?: string | null;
+  patente?: string | null;
+  autorNombre?: string | null;
+  autorEmail?: string | null;
+  region?: string | null;
+  comuna?: string | null;
+  sintomas?: string[] | null;
+  fotos?: string[] | null;
+  estado: string;
+  vigente: boolean;
+  venceEn?: string | null;
+  cerradaEn?: string | null;
+  createdAt: string;
+  comentarios: FallaModeracionComentario[];
 }
