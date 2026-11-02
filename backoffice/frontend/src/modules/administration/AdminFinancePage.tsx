@@ -185,7 +185,7 @@ const GrupoFacturaCell = ({ group }: { group: LiquidationSellerGroup }) => {
   );
 };
 
-/** Ganancia de una compra de Monedas con su "i" (Publicidad, Caja y socios). */
+/** Ganancia de una compra de Monedas con su "i" (tab Monedas, Caja y socios). */
 const GananciaRecargaValue = ({ ad, value, strong = false }: { ad: AdvertisingOrder; value: number; strong?: boolean }) => (
   <MontoInfo value={value} strong={strong} foco="ganancia" fuente={() => desgloseRecarga(ad)} label="Ganancia" />
 );
@@ -711,9 +711,9 @@ function AdminFinancePageContent() {
   const [statusHistory, setStatusHistory] = useState<Record<string, StatusHistoryItem[]>>(initialStatusHistory);
   const [settlementStatuses, setSettlementStatuses] = useState<Record<string, SettlementStatus>>({});
   const [liquidationTab, setLiquidationTab] = useState<LiquidationStatus>('PENDIENTE_LIQUIDACION');
-  /** Tab del menú Pedidos: ventas de repuestos o compras de publicidad. */
+  /** Tab del menú Pedidos: ventas de repuestos o compras de Monedas (activación de agenda). */
   const [searchParams] = useSearchParams();
-  /** Tab del menú Pedidos: ventas de repuestos o compras de publicidad. */
+  /** Tab del menú Pedidos: ventas de repuestos o compras de Monedas (activación de agenda). */
   const [ordersTab, setOrdersTab] = useState<'pedidos' | 'publicidad'>(() => searchParams.get('tab') === 'publicidad' ? 'publicidad' : 'pedidos');
   /** Tab del menú Caja y gastos: 'caja' o 'gastos'. */
   const [cajaExpenseTab, setCajaExpenseTab] = useState<CajaExpenseTab>('caja');
@@ -721,7 +721,7 @@ function AdminFinancePageContent() {
   const [cajaQuery, setCajaQuery] = useState('');
   const [advertisingQuery, setAdvertisingQuery] = useState('');
   /**
-   * Filtro de documento tributario del tab Publicidad. Arranca en 'todas': el tab es el registro
+   * Filtro de documento tributario del tab Monedas. Arranca en 'todas': el tab es el registro
    * de las compras de Monedas, y abrirlo solo con las pendientes de documento hacia que, con todo
    * emitido, pareciera que nunca se habia comprado nada. El boton "Sin documento (N)" sigue
    * mostrando cuantas faltan.
@@ -836,7 +836,7 @@ function AdminFinancePageContent() {
     queryFn: administrationApi.getWithdrawals,
   });
   const { data: paidPayments = [], isError: paymentsError, refetch: refetchPayments } = useQuery({ queryKey: ['withdrawal-payments'], queryFn: administrationApi.getWithdrawalPayments });
-  // Compras de fichas para publicidad: se muestran en su propio tab de Pedidos
+  // Compras de Monedas (activación de agenda): se muestran en su propio tab de Pedidos
   // para no mezclarlas con las ventas de repuestos.
   const {
     data: advertising,
@@ -888,7 +888,7 @@ function AdminFinancePageContent() {
     setBackendWorkspace(bootstrap.workspace);
   }, [bootstrap]);
 
-  /** Compras de publicidad que calzan con la búsqueda del tab, sin mirar el filtro de documento. */
+  /** Compras de Monedas que calzan con la búsqueda del tab, sin mirar el filtro de documento. */
   const searchedAdvertisingOrders = useMemo(() => {
     const rows = advertising?.compras ?? [];
     const term = normalizeText(advertisingQuery);
@@ -937,12 +937,12 @@ function AdminFinancePageContent() {
     };
   }, [advertising, advertisingQuery, searchedAdvertisingOrders]);
 
-  /** Texto del estado vacío del tab Publicidad, según por qué quedó vacío. */
+  /** Texto del estado vacío del tab Monedas, según por qué quedó vacío. */
   const advertisingEmptyText = useMemo(() => {
-    if (advertisingQuery) return 'No hay compras de publicidad que coincidan con la búsqueda.';
+    if (advertisingQuery) return 'No hay compras de Monedas que coincidan con la búsqueda.';
     if (advertisingDocFilter === 'sin') return 'No hay recargas pendientes de documento. Mira "Todas" para ver el historial completo.';
     if (advertisingDocFilter === 'con') return 'Ninguna recarga tiene todavía su boleta o factura emitida.';
-    return 'Todavía no se han registrado compras de Monedas para publicidad.';
+    return 'Todavía no se han registrado compras de Monedas para activar la agenda.';
   }, [advertisingQuery, advertisingDocFilter]);
 
   const filteredOrders = useMemo(() => {
@@ -1226,14 +1226,14 @@ function AdminFinancePageContent() {
     return settlements.filter((settlement) => isWithinRange(settlement.date, filters.retiros.start, filters.retiros.end));
   }, [filters.retiros.start, filters.retiros.end, settlements]);
 
-  /** Compras de publicidad dentro del periodo de filtro de Retiros/Socios. */
+  /** Compras de Monedas dentro del periodo de filtro de Retiros/Socios. */
   const periodPartnerAds = useMemo(() => {
     const rows = advertising?.compras ?? [];
     return rows.filter((row) => isWithinRange(chileDay(row.fecha), filters.retiros.start, filters.retiros.end));
   }, [advertising?.compras, filters.retiros.start, filters.retiros.end]);
 
   /**
-   * Ingresos de socios: Convergencia de pedidos finalizados y compras de fichas de publicidad.
+   * Ingresos de socios: Convergencia de pedidos finalizados y compras de Monedas.
    * De cada ingreso neto, el 30% corresponde al pool repartible de los socios.
    */
   const partnerIncomesAll = useMemo<PartnerIncomeEntry[]>(() => {
@@ -1274,8 +1274,8 @@ function AdminFinancePageContent() {
         id: ad.codigo,
         type: 'publicidad',
         date: ad.fecha,
-        concept: ad.pack ? `Fichas Mural: ${ad.pack} (${ad.cantidadFichas.toLocaleString('es-CL')} fichas)` : `Compra Fichas (${ad.cantidadFichas.toLocaleString('es-CL')})`,
-        sellerOrPack: ad.pack || 'Fichas Mural',
+        concept: ad.pack ? `Monedas · activación de agenda: ${ad.pack} (${ad.cantidadFichas.toLocaleString('es-CL')} Monedas)` : `Compra de Monedas (${ad.cantidadFichas.toLocaleString('es-CL')})`,
+        sellerOrPack: ad.pack || 'Monedas',
         sellerFounder: false,
         // 14-oct: la comisión de Flow la asume RepuesTop: se resta sin IVA (su IVA es crédito fiscal).
         commissionLabel: `IVA de la venta (-${formatMoney(ad.ivaVenta ?? 0)}) · Flow sin IVA (-${formatMoney(ad.comisionPasarela - (ad.ivaPasarela ?? 0))})`,
@@ -2219,7 +2219,7 @@ function AdminFinancePageContent() {
     const rows = [
       ['Tipo', 'Código', 'Fecha', 'Concepto', 'Comprador', 'Vendedor / Pack', 'Venta Total', 'Comisión / Retención', 'Ganancia Neta RepuesTop', 'Aporte Caja 70% (Sueldos y Operación)'],
       ...filteredCajaEntries.map((entry) => [
-        entry.type === 'pedido' ? 'Pedido Repuesto' : 'Publicidad Fichas',
+        entry.type === 'pedido' ? 'Pedido Repuesto' : 'Monedas (activación de agenda)',
         entry.id,
         formatDateTimeLocal(entry.date),
         entry.concept,
@@ -2558,7 +2558,7 @@ function AdminFinancePageContent() {
           <div className="module-tabs" role="tablist" aria-label="Tipo de pedido">
             {([
               ['pedidos', 'Pedidos'],
-              ['publicidad', 'Publicidad'],
+              ['publicidad', 'Monedas'],
             ] as const).map(([tab, label]) => (
               <button
                 key={tab}
@@ -2646,7 +2646,7 @@ function AdminFinancePageContent() {
               </div>
             </div>
             {isMobile ? (
-<RecordList ariaLabel="Compras de publicidad" empty={<EmptyState icon="megaphone" title={advertisingDocFilter === 'sin' && !advertisingQuery ? 'Sin recargas pendientes' : 'Sin compras de publicidad'} description={advertisingEmptyText} />}>
+<RecordList ariaLabel="Compras de Monedas" empty={<EmptyState icon="megaphone" title={advertisingDocFilter === 'sin' && !advertisingQuery ? 'Sin recargas pendientes' : 'Sin compras de Monedas'} description={advertisingEmptyText} />}>
   {filteredAdvertisingOrders.map((row) => (
     <RecordCard
       key={row.id}
@@ -3200,7 +3200,7 @@ function AdminFinancePageContent() {
               iconName="wallet"
             />
             <MetricCard
-              label="Publicidad"
+              label="Monedas"
               value={formatMoney(cajaMetrics.publicidadCaja)}
               tone="amber"
               description={`70% de ${formatMoney(cajaMetrics.publicidadProfit)} neta · ${cajaMetrics.publicidadCount} compras`}
@@ -3210,7 +3210,7 @@ function AdminFinancePageContent() {
 
           <div className="notice">
             <UiIcon name="note" />
-            Esta caja concentra el 70% de todas las ganancias generadas (tanto por pedidos de repuestos como por compra de fichas para publicidad). Estos fondos están destinados al pago de sueldos y remuneraciones del personal y gastos operacionales de la empresa.
+            Esta caja concentra el 70% de todas las ganancias generadas (tanto por pedidos de repuestos como por compra de Monedas para activar la agenda). Estos fondos están destinados al pago de sueldos y remuneraciones del personal y gastos operacionales de la empresa.
           </div>
 
           <section className="table-shell">
@@ -3255,7 +3255,7 @@ function AdminFinancePageContent() {
                     setPagination((current) => ({ ...current, caja: { ...current.caja, page: 1 } }));
                   }}
                 >
-                  Publicidad ({cajaMetrics.publicidadCount})
+                  Monedas ({cajaMetrics.publicidadCount})
                 </button>
               </div>
               <select
@@ -3294,7 +3294,7 @@ function AdminFinancePageContent() {
       key={`${entry.type}-${entry.id}`}
       title={entry.concept}
       subtitle={`${entry.id} · ${formatDate(entry.date)}${entry.date.includes('T') ? ` ${toChileIso(entry.date).split('T')[1]?.slice(0, 5) ?? ''}` : ''}`}
-      badge={<span className={`status-pill ${entry.type === 'pedido' ? 'finalizado' : 'preparando'}`}>{entry.type === 'pedido' ? 'Pedido' : 'Publicidad'}</span>}
+      badge={<span className={`status-pill ${entry.type === 'pedido' ? 'finalizado' : 'preparando'}`}>{entry.type === 'pedido' ? 'Pedido' : 'Monedas'}</span>}
       meta={[
         { label: 'En caja (70%)', value: <strong style={{ color: '#059669' }}>{formatMoney(entry.cashAmount)}</strong> },
         { label: 'Ganancia neta', value: entry.originalAdvertising ? <GananciaRecargaValue ad={entry.originalAdvertising} value={entry.netProfit} /> : entry.originalSettlement ? <SettlementMonto settlement={entry.originalSettlement} value={entry.netProfit} foco="ganancia" /> : formatMoney(entry.netProfit) },
@@ -3337,7 +3337,7 @@ function AdminFinancePageContent() {
                   <tr key={`${entry.type}-${entry.id}`}>
                     <td>
                       <span className={`status-pill ${entry.type === 'pedido' ? 'finalizado' : 'preparando'}`} style={{ fontWeight: 600 }}>
-                        {entry.type === 'pedido' ? 'Pedido' : 'Publicidad'}
+                        {entry.type === 'pedido' ? 'Pedido' : 'Monedas'}
                       </span>
                     </td>
                     <td><strong>{entry.id}</strong></td>
@@ -3392,7 +3392,7 @@ function AdminFinancePageContent() {
                             className="action-button neutral"
                             type="button"
                             onClick={() => setSelectedAdvertisingOrder(entry.originalAdvertising!)}
-                            title="Ver detalle de publicidad"
+                            title="Ver detalle de la compra de Monedas"
                           >
                             <UiIcon name="eye" />
                           </button>
@@ -3580,7 +3580,7 @@ function AdminFinancePageContent() {
               iconName="clipboard"
             />
             <MetricCard
-              label="Publicidad"
+              label="Monedas"
               value={formatMoney(partnerIncomeMetrics.publicidadShare)}
               tone="amber"
               description={`30% de ${formatMoney(partnerIncomeMetrics.publicidadNet)} neta · ${partnerIncomeMetrics.publicidadCount} compras`}
@@ -3590,7 +3590,7 @@ function AdminFinancePageContent() {
 
           <div className="notice">
             <UiIcon name="note" />
-            Este apartado concentra el 30% de las ganancias netas generadas (tanto por pedidos de repuestos finalizados como por compras de fichas para publicidad) para libre disposición y retiro de los socios. El 70% restante se mantiene en la caja de la empresa para sueldos y costos operacionales.
+            Este apartado concentra el 30% de las ganancias netas generadas (tanto por pedidos de repuestos finalizados como por compras de Monedas para activar la agenda) para libre disposición y retiro de los socios. El 70% restante se mantiene en la caja de la empresa para sueldos y costos operacionales.
           </div>
 
           <section className="table-shell">
@@ -3625,7 +3625,7 @@ function AdminFinancePageContent() {
                     setPagination((current) => ({ ...current, ingresos: { ...current.ingresos, page: 1 } }));
                   }}
                 >
-                  Publicidad ({partnerIncomeMetrics.publicidadCount})
+                  Monedas ({partnerIncomeMetrics.publicidadCount})
                 </button>
               </div>
               <div style={{ marginLeft: 'auto', display: 'inline-flex', gap: '10px', alignItems: 'center', flexShrink: 0 }}>
@@ -3656,7 +3656,7 @@ function AdminFinancePageContent() {
       key={`${entry.type}-${entry.id}`}
       title={entry.concept}
       subtitle={`${entry.id} · ${formatDate(entry.date)}`}
-      badge={<span className={`status-pill ${entry.type === 'pedido' ? 'finalizado' : 'preparando'}`}>{entry.type === 'pedido' ? 'Pedido' : 'Publicidad'}</span>}
+      badge={<span className={`status-pill ${entry.type === 'pedido' ? 'finalizado' : 'preparando'}`}>{entry.type === 'pedido' ? 'Pedido' : 'Monedas'}</span>}
       meta={[
         { label: 'Total socios (30%)', value: <strong style={{ color: '#7c3aed' }}>{formatMoney(entry.partnerShare)}</strong> },
         { label: 'Ganancia neta', value: entry.originalAdvertising ? <GananciaRecargaValue ad={entry.originalAdvertising} value={entry.netProfit} /> : entry.originalSettlement ? <SettlementMonto settlement={entry.originalSettlement} value={entry.netProfit} foco="ganancia" /> : formatMoney(entry.netProfit) },
@@ -3699,7 +3699,7 @@ function AdminFinancePageContent() {
                   <tr key={`${entry.type}-${entry.id}`}>
                     <td>
                       <span className={`status-pill ${entry.type === 'pedido' ? 'finalizado' : 'preparando'}`} style={{ fontWeight: 600 }}>
-                        {entry.type === 'pedido' ? 'Pedido' : 'Publicidad'}
+                        {entry.type === 'pedido' ? 'Pedido' : 'Monedas'}
                       </span>
                     </td>
                     <td><strong>{entry.id}</strong></td>
@@ -3742,7 +3742,7 @@ function AdminFinancePageContent() {
                             className="action-button neutral"
                             type="button"
                             onClick={() => setSelectedAdvertisingOrder(entry.originalAdvertising!)}
-                            title="Ver detalle de publicidad"
+                            title="Ver detalle de la compra de Monedas"
                           >
                             <UiIcon name="eye" />
                           </button>
@@ -4466,7 +4466,7 @@ function AdminFinancePageContent() {
 
       {selectedAdvertisingOrder && (
         <Modal
-          title={`Compra de publicidad ${selectedAdvertisingOrder.codigo}`}
+          title={`Compra de Monedas ${selectedAdvertisingOrder.codigo}`}
           badges={<span className={`status-pill ${slug(selectedAdvertisingOrder.estado)}`}>{selectedAdvertisingOrder.estado}</span>}
           onClose={() => setSelectedAdvertisingOrder(null)}
         >

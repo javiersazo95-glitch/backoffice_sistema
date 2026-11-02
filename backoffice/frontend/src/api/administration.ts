@@ -30,7 +30,7 @@ export async function getOrderHistory(pedidoId: number, proveedorId?: number | n
   return response.data;
 }
 
-/** Compras de fichas para publicidad: alimentan el tab "Publicidad" de Pedidos. */
+/** Compras de Monedas (activación de agenda): alimentan el tab "Monedas" de Pedidos. */
 export async function getAdvertisingOrders(): Promise<AdvertisingOrdersResponse> {
   const response = await apiClient.get<AdvertisingOrdersResponse>('/administration/advertising-orders');
   return response.data;

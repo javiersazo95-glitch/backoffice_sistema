@@ -415,7 +415,7 @@ export interface PagoProveedorResponse {
   retirosSocios: Withdrawal[];
 }
 
-/** Una compra de fichas para publicar avisos, como la muestra el tab Publicidad. */
+/** Una compra de Monedas (activación de agenda), como la muestra el tab Monedas. */
 export interface AdvertisingOrder {
   id: number;
   codigo: string;
@@ -450,7 +450,7 @@ export interface AdvertisingOrder {
   documentoSubidoAt: string | null;
 }
 
-/** Compras de publicidad más las métricas de las tarjetas superiores. */
+/** Compras de Monedas más las métricas de las tarjetas superiores. */
 export interface AdvertisingOrdersResponse {
   compras: AdvertisingOrder[];
   cantidadPedidos: number;
