@@ -24,6 +24,8 @@ const OBJECT_TYPE_META: Record<ReportObjectType, { label: string; tone: string }
   ANUNCIO: { label: 'Anuncio', tone: 'blue' },
   PRODUCTO: { label: 'Producto', tone: 'violet' },
   TIENDA: { label: 'Tienda', tone: 'green' },
+  TALLER: { label: 'Taller', tone: 'blue' },
+  NECESIDAD_COMPRA: { label: 'Búsqueda de repuestos', tone: 'violet' },
   CHAT_COTIZACION: { label: 'Chat de cotización', tone: 'amber' },
   OPINION_PRODUCTO: { label: 'Opinión de producto', tone: 'orange' },
   OPINION_TIENDA: { label: 'Opinión de tienda', tone: 'red' },
@@ -31,6 +33,11 @@ const OBJECT_TYPE_META: Record<ReportObjectType, { label: string; tone: string }
   FALLA_COMENTARIO: { label: 'Comentario de falla', tone: 'amber' },
   OTRO: { label: 'Otro', tone: '' },
 };
+
+/** Tipo de cuenta en la tarjeta: el backend también envía TALLER (aunque el tipo solo declare dos), y no se rotula como vendedor. */
+function accountTypeLabel(type: string): string {
+  return type === 'COMPRADOR' ? 'Comprador' : type === 'TALLER' ? 'Taller' : 'Vendedor';
+}
 
 function reportObjectType(report: ReportResponse): ReportObjectType {
   const tipo = report.tipoObjeto ?? (report.conversacionId ? 'CHAT_COTIZACION' : 'OTRO');
@@ -159,6 +166,8 @@ export default function ReportsPage() {
       <option value="ANUNCIO">Anuncios</option>
       <option value="PRODUCTO">Productos</option>
       <option value="TIENDA">Tiendas</option>
+      <option value="TALLER">Talleres</option>
+      <option value="NECESIDAD_COMPRA">Búsquedas de repuestos</option>
       <option value="CHAT_COTIZACION">Chats de cotización</option>
       <option value="OPINION_PRODUCTO">Opiniones de producto</option>
       <option value="OPINION_TIENDA">Opiniones de tienda</option>
@@ -364,7 +373,7 @@ export default function ReportsPage() {
                         value: (
                           <>
                             <FounderSellerName name={report.reportanteName} founder={report.reportanteType === 'VENDEDOR' && report.reportanteFounder} />
-                            <small className="mb-meta-sub">{report.reportanteType === 'COMPRADOR' ? 'Comprador' : 'Vendedor'}</small>
+                            <small className="mb-meta-sub">{accountTypeLabel(report.reportanteType)}</small>
                           </>
                         ),
                       },
@@ -373,7 +382,7 @@ export default function ReportsPage() {
                         value: (
                           <>
                             <FounderSellerName name={report.reportadoName} founder={report.reportadoType === 'VENDEDOR' && report.reportadoFounder} />
-                            <small className="mb-meta-sub">{report.reportadoType === 'COMPRADOR' ? 'Comprador' : 'Vendedor'}</small>
+                            <small className="mb-meta-sub">{accountTypeLabel(report.reportadoType)}</small>
                           </>
                         ),
                       },
