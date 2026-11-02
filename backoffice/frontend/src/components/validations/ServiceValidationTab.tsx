@@ -56,7 +56,8 @@ export default function ServiceValidationTab() {
   const [notes, setNotes] = useState('');
 
   const query = useQuery({ queryKey: ['automotive-service-validations'], queryFn: api.listServices });
-  const services = query.data ?? [];
+  // Los acreditados ya no se revisan aquí: se siguen en la pestaña Talleres de Vendedores y talleres.
+  const services = useMemo(() => (query.data ?? []).filter((s) => statusOf(s) !== 'APROBADO'), [query.data]);
 
   const mutation = useMutation({
     mutationFn: ({ id, action, notas }: { id: number; action: 'approve' | DecisionAction; notas?: string }) =>
@@ -92,7 +93,6 @@ export default function ServiceValidationTab() {
     total: services.length,
     pendientes: services.filter((s) => statusOf(s) === 'PENDIENTE').length,
     porCorregir: services.filter((s) => statusOf(s) === 'POR_CORREGIR').length,
-    aprobados: services.filter((s) => statusOf(s) === 'APROBADO').length,
     rechazados: services.filter((s) => statusOf(s) === 'RECHAZADO').length,
   }), [services]);
 
@@ -167,8 +167,8 @@ export default function ServiceValidationTab() {
           <div><h3>Por corregir</h3><strong>{metrics.porCorregir}</strong><p className="metric-description">Esperando correcciones</p></div>
         </div>
         <div className="metric-card">
-          <div className="metric-icon green"><UiIcon name="check" /></div>
-          <div><h3>Acreditados</h3><strong>{metrics.aprobados}</strong><p className="metric-description">Habilitados en la plataforma</p></div>
+          <div className="metric-icon red"><UiIcon name="shieldX" /></div>
+          <div><h3>Rechazados</h3><strong>{metrics.rechazados}</strong><p className="metric-description">Expedientes rechazados</p></div>
         </div>
       </div>
 
@@ -196,7 +196,6 @@ export default function ServiceValidationTab() {
             <button type="button" className={statusFilter === 'TODOS' ? 'primary-button' : 'secondary-button'} onClick={() => { setStatusFilter('TODOS'); setPage(1); }}>Todos ({metrics.total})</button>
             <button type="button" className={statusFilter === 'PENDIENTE' ? 'primary-button' : 'secondary-button'} onClick={() => { setStatusFilter('PENDIENTE'); setPage(1); }}>Pendientes ({metrics.pendientes})</button>
             <button type="button" className={statusFilter === 'POR_CORREGIR' ? 'primary-button' : 'secondary-button'} onClick={() => { setStatusFilter('POR_CORREGIR'); setPage(1); }}>Por corregir ({metrics.porCorregir})</button>
-            <button type="button" className={statusFilter === 'APROBADO' ? 'primary-button' : 'secondary-button'} onClick={() => { setStatusFilter('APROBADO'); setPage(1); }}>Acreditados ({metrics.aprobados})</button>
             <button type="button" className={statusFilter === 'RECHAZADO' ? 'primary-button' : 'secondary-button'} onClick={() => { setStatusFilter('RECHAZADO'); setPage(1); }}>Rechazados ({metrics.rechazados})</button>
           </div>
 

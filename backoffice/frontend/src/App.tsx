@@ -12,7 +12,8 @@ import CumplimientoSiiPage from '@/modules/administration/CumplimientoSiiPage';
 import PagoCaptadoresPage from '@/modules/administration/PagoCaptadoresPage';
 import SupportPage from '@/modules/support/SupportPage';
 import DashboardPage from '@/components/dashboard/DashboardPage';
-import SellersPage from '@/components/sellers/SellersPage';
+import SellersWorkshopsPage from '@/components/sellers/SellersWorkshopsPage';
+import PublicationTrackingPage from '@/components/tracking/PublicationTrackingPage';
 import CapturersPage from '@/components/capturers/CapturersPage';
 import ValidationsPage from '@/components/validations/ValidationsPage';
 import MediationsPage from '@/components/mediations/MediacionesPage';
@@ -169,7 +170,8 @@ export default function App() {
           <AppShell>
             <Routes>
               <Route index element={<DashboardPage />} />
-              <Route path="sellers" element={<SellersPage />} />
+              <Route path="sellers" element={<SellersWorkshopsPage />} />
+              <Route path="seguimiento" element={<PublicationTrackingPage />} />
               <Route path="captadores" element={<CapturersPage />} />
               <Route path="validations" element={<ValidationsPage />} />
               <Route path="mediations" element={<MediationsPage />} />

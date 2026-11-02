@@ -84,7 +84,9 @@ export const navSections: NavSection[] = [
       { path: '/confianza', label: 'Resumen', badge: 0, icon: 'shield', exact: true },
       { path: '/confianza/validations', label: 'Validaciones', badge: 0, icon: 'fileCheck' },
       { path: '/confianza/mediations', label: 'Mediaciones', badge: 0, icon: 'scale' },
-      { path: '/confianza/sellers', label: 'Vendedores', badge: 0, icon: 'store' },
+      { path: '/confianza/sellers', label: 'Vendedores y talleres', shortLabel: 'Vendedores', badge: 0, icon: 'store' },
+      // Lanzamiento: fallas y necesidades sin respuesta, con la antiguedad y los perfiles por llamar.
+      { path: '/confianza/seguimiento', label: 'Seguimiento de publicaciones', shortLabel: 'Seguimiento', badge: 0, icon: 'clock' },
       // 9-oct: situacion tributaria de las tiendas (reverificacion de enero y julio).
       { path: '/confianza/cumplimiento-tributario', label: 'Cumplimiento tributario', shortLabel: 'Tributario', badge: 0, icon: 'shieldCheck' },
       { path: '/confianza/captadores', label: 'Captadores', badge: 0, icon: 'users' },

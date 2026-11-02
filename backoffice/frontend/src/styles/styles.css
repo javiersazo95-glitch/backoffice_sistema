@@ -22681,3 +22681,88 @@ button.desglose-hero:hover { filter: brightness(0.98); box-shadow: 0 2px 8px rgb
 .boleta-actions .primary-button { display: inline-flex; align-items: center; gap: 6px; }
 
 .factura-sii-total td { border-top: 2px solid var(--ink); color: #1d4ed8; }
+
+/* Seguimiento de publicaciones y Talleres: columnas con ancho propio para que no se aprieten (overflow-wrap:anywhere global las dejaba en 50 px). */
+.tracking-table,
+.workshop-table {
+  min-width: 1000px;
+}
+
+.tracking-table th,
+.workshop-table th {
+  white-space: nowrap;
+}
+
+.tracking-table td,
+.workshop-table td {
+  overflow-wrap: normal;
+  word-break: normal;
+  vertical-align: middle;
+}
+
+.tracking-table .col-title,
+.workshop-table .col-title {
+  min-width: 220px;
+  max-width: 320px;
+  overflow-wrap: break-word;
+}
+
+.tracking-table .col-author,
+.workshop-table .col-author {
+  min-width: 150px;
+}
+
+.tracking-table th.col-actions,
+.tracking-table td.col-actions,
+.workshop-table th.col-actions,
+.workshop-table td.col-actions {
+  width: 1%;
+  white-space: nowrap;
+  text-align: right;
+}
+
+.tracking-table td:not(.col-title):not(.col-author) .badge {
+  white-space: nowrap;
+}
+
+.tracking-table .seller-actions,
+.workshop-table .seller-actions {
+  min-width: 0;
+}
+
+.tracking-table th,
+.tracking-table td,
+.workshop-table th,
+.workshop-table td {
+  padding-left: 8px;
+  padding-right: 8px;
+}
+
+.tracking-table .col-title,
+.workshop-table .col-title {
+  min-width: 190px;
+}
+
+.tracking-table .col-author,
+.workshop-table .col-author {
+  min-width: 130px;
+}
+
+.tracking-table {
+  min-width: 900px;
+}
+
+.tracking-table .col-title,
+.workshop-table .col-title {
+  min-width: 165px;
+}
+
+.tracking-table th,
+.tracking-table td {
+  padding-left: 6px;
+  padding-right: 6px;
+}
+
+.workshop-table {
+  min-width: 900px;
+}

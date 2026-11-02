@@ -12,7 +12,6 @@ import { STATUS_LABELS } from '@/utils/constants';
 import { SellerStatus, type SellerResponse } from '@/types/seller';
 import { ValidationStatus, type ValidationResponse } from '@/types/validation';
 import { buildDocumentDownloadName, downloadDocument, previewDocument, resolveDocumentUrl } from '@/utils/documentUrls';
-import AdValidationTab from './AdValidationTab';
 import CapturerValidationTab from './CapturerValidationTab';
 import ServiceValidationTab from './ServiceValidationTab';
 import SocialLinksReview, { type StoreSocialLinks } from './SocialLinksReview';
@@ -329,7 +328,7 @@ function parseObservationHistory(notes: string | undefined): ObservationHistoryI
 }
 
 export default function ValidationsPage() {
-  const [activeTab, setActiveTab] = useState<'registros' | 'captadores' | 'servicios' | 'anuncios'>('registros');
+  const [activeTab, setActiveTab] = useState<'registros' | 'captadores' | 'servicios'>('registros');
   const [selectedSellerId, setSelectedSellerId] = useState<number | null>(null);
   const isMobile = useIsMobile();
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -608,9 +607,9 @@ export default function ValidationsPage() {
     <section className="validation-workspace">
       <div className="validation-page-head">
         <div>
-          <h1>{{registros:'Validación de registros',captadores:'Registros captadores',servicios:'Servicios automotrices',anuncios:'Tablero de anuncios'}[activeTab]}</h1>
+          <h1>{{registros:'Validación de registros',captadores:'Registros captadores',servicios:'Servicios automotrices'}[activeTab]}</h1>
           <p>
-            {{registros:'Revisa y valida solicitudes de registro de vendedores y documentación KYC.',captadores:'Aprueba o rechaza las postulaciones de nuevos captadores.',servicios:'Revisa la acreditación legal independiente de talleres y servicios automotrices.',anuncios:'Modera y valida publicaciones del Mural de Anuncios (talleres, servicios y publicidad).'}[activeTab]}
+            {{registros:'Revisa y valida solicitudes de registro de vendedores y documentación KYC.',captadores:'Aprueba o rechaza las postulaciones de nuevos captadores.',servicios:'Revisa la acreditación legal independiente de talleres y servicios automotrices.'}[activeTab]}
           </p>
         </div>
         <button className="validation-help-button" type="button" aria-label="Ayuda">
@@ -631,19 +630,9 @@ export default function ValidationsPage() {
         </button>
         <button type="button" className={activeTab === 'captadores' ? 'active' : ''} onClick={() => setActiveTab('captadores')}><UiIcon name="users" />Registros captadores</button>
         <button type="button" className={activeTab === 'servicios' ? 'active' : ''} onClick={() => setActiveTab('servicios')}><UiIcon name="tools" />Servicios automotrices</button>
-        <button
-          type="button"
-          className={activeTab === 'anuncios' ? 'active' : ''}
-          onClick={() => setActiveTab('anuncios')}
-        >
-          <UiIcon name="megaphone" />
-          Tablero de anuncios
-        </button>
       </div>
 
-      {activeTab === 'captadores' ? <CapturerValidationTab /> : activeTab === 'servicios' ? <ServiceValidationTab /> : activeTab === 'anuncios' ? (
-        <AdValidationTab />
-      ) : (
+      {activeTab === 'captadores' ? <CapturerValidationTab /> : activeTab === 'servicios' ? <ServiceValidationTab /> : (
         <>
           {isMobile ? (
             <>
