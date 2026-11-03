@@ -2,7 +2,7 @@ export type OpinionReportType = 'OPINION_PRODUCTO' | 'OPINION_TIENDA';
 
 export type FallaReportType = 'FALLA' | 'FALLA_COMENTARIO';
 
-export type ReportObjectType = 'ANUNCIO' | 'PRODUCTO' | 'TIENDA' | 'CHAT_COTIZACION' | OpinionReportType | FallaReportType | 'OTRO';
+export type ReportObjectType = 'ANUNCIO' | 'PRODUCTO' | 'TIENDA' | 'TALLER' | 'NECESIDAD_COMPRA' | 'CHAT_COTIZACION' | OpinionReportType | FallaReportType | 'OTRO';
 
 export interface ReportResponse {
   id: number;
