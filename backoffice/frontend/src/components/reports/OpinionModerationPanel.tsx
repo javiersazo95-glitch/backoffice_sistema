@@ -15,6 +15,7 @@ export const MAX_HIDE_REASON = 300;
 const OPINION_TYPE_LABEL: Record<OpinionReportType, string> = {
   OPINION_PRODUCTO: 'Opinión de producto',
   OPINION_TIENDA: 'Opinión de tienda',
+  TALLER_OPINION: 'Opinión de taller',
 };
 
 const sectionTitleStyle = {
@@ -145,7 +146,7 @@ export default function OpinionModerationPanel({ tipo, opinionId }: OpinionModer
       </h3>
 
       <DetailRow label="Tipo" value={OPINION_TYPE_LABEL[opinion.tipo] ?? OPINION_TYPE_LABEL[tipo]} />
-      <DetailRow label="Tienda" value={opinion.storeName || '—'} />
+      <DetailRow label={opinion.tipo === 'TALLER_OPINION' ? 'Taller' : 'Tienda'} value={opinion.storeName || '—'} />
       {(opinion.productName || opinion.tipo === 'OPINION_PRODUCTO') && (
         <DetailRow label="Producto" value={opinion.productName || '—'} />
       )}

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { getWorkshopDetail } from '@/api/workshops';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { getWorkshopDetail, reactivateWorkshop, suspendWorkshop } from '@/api/workshops';
 import { downloadServiceDocument, viewServiceDocument } from '@/api/capturers';
 import { resolveProfileImageUrl } from '@/api/client';
 import Badge from '@/components/shared/Badge';
@@ -125,6 +125,38 @@ export default function WorkshopProfileModal({ workshop, onClose, initialTab = '
   const [tab, setTab] = useState<WorkshopProfileTab>(initialTab);
   const [page, setPage] = useState(0);
   const workshopId = workshop?.id ?? 0;
+  const queryClient = useQueryClient();
+  const [isSuspendFormOpen, setIsSuspendFormOpen] = useState(false);
+  const [suspendReason, setSuspendReason] = useState('');
+  const [suspendError, setSuspendError] = useState<string | null>(null);
+
+  const refreshAfterChange = () => {
+    void queryClient.invalidateQueries({ queryKey: ['workshop-detail', workshopId] });
+    void queryClient.invalidateQueries({ queryKey: ['workshops'] });
+    void queryClient.invalidateQueries({ queryKey: ['automotive-service-validations'] });
+  };
+  const errorOf = (err: unknown, fallback: string) =>
+    (err as { response?: { data?: { message?: string } } }).response?.data?.message || fallback;
+  const suspendMutation = useMutation({
+    mutationFn: (motivo: string) => suspendWorkshop(workshopId, motivo),
+    onSuccess: () => {
+      setIsSuspendFormOpen(false);
+      setSuspendReason('');
+      setSuspendError(null);
+      showToast('Taller suspendido: sus citas vigentes se cancelaron y se le avisó el motivo.');
+      refreshAfterChange();
+    },
+    onError: (err) => setSuspendError(errorOf(err, 'No se pudo suspender el taller.')),
+  });
+  const reactivateMutation = useMutation({
+    mutationFn: () => reactivateWorkshop(workshopId),
+    onSuccess: () => {
+      setSuspendError(null);
+      showToast('Taller reactivado.');
+      refreshAfterChange();
+    },
+    onError: (err) => setSuspendError(errorOf(err, 'No se pudo reactivar el taller.')),
+  });
 
   const { data: detail, isLoading, isError } = useQuery({
     queryKey: ['workshop-detail', workshopId],
@@ -196,6 +228,41 @@ export default function WorkshopProfileModal({ workshop, onClose, initialTab = '
                 {detail?.servicioDomicilio && <Badge text="A domicilio" variant="blue" />}
               </div>
             </div>
+
+            {(summary.estado === 'APROBADO' || summary.estado === 'SUSPENDIDO') && (
+              <div className="seller-profile-quick-panel">
+                <SectionHeader icon="shield" title="Suspensión" tone="red" />
+                {summary.estado === 'SUSPENDIDO' ? (
+                  <>
+                    <p className="row-sub">Suspendido: no aparece en el buscador, no recibe citas ni comenta fallas.{detail?.notasRevision ? ` Motivo: ${detail.notasRevision}` : ''}</p>
+                    <button className="secondary-button" type="button" disabled={reactivateMutation.isPending}
+                      onClick={() => { if (window.confirm('¿Levantar la suspensión de este taller?')) reactivateMutation.mutate(); }}>
+                      {reactivateMutation.isPending ? 'Reactivando…' : 'Reactivar taller'}
+                    </button>
+                  </>
+                ) : isSuspendFormOpen ? (
+                  <>
+                    <label className="row-sub" htmlFor="suspend-reason">Motivo (se le informa al taller):</label>
+                    <textarea id="suspend-reason" className="textarea" rows={3} maxLength={300} value={suspendReason}
+                      onChange={(event) => setSuspendReason(event.target.value)} />
+                    <button className="primary-button" type="button" disabled={suspendMutation.isPending}
+                      onClick={() => {
+                        const motivo = suspendReason.trim();
+                        if (!motivo) { setSuspendError('Indica el motivo: se le informa al taller.'); return; }
+                        if (!window.confirm('¿Suspender este taller? Saldrá del buscador y sus citas vigentes se cancelarán con aviso a los clientes.')) return;
+                        setSuspendError(null);
+                        suspendMutation.mutate(motivo);
+                      }}>
+                      {suspendMutation.isPending ? 'Suspendiendo…' : 'Confirmar suspensión'}
+                    </button>
+                    <button className="secondary-button" type="button" onClick={() => { setIsSuspendFormOpen(false); setSuspendError(null); }}>Cancelar</button>
+                  </>
+                ) : (
+                  <button className="secondary-button" type="button" onClick={() => setIsSuspendFormOpen(true)}>Suspender taller</button>
+                )}
+                {suspendError && <p className="row-sub" role="alert" style={{ color: '#dc2626' }}>{suspendError}</p>}
+              </div>
+            )}
 
             <div className="seller-profile-quick-panel">
               <SectionHeader icon="shield" title="Resumen rápido" tone="violet" />

@@ -1,4 +1,4 @@
-export type OpinionReportType = 'OPINION_PRODUCTO' | 'OPINION_TIENDA';
+export type OpinionReportType = 'OPINION_PRODUCTO' | 'OPINION_TIENDA' | 'TALLER_OPINION';
 
 export type FallaReportType = 'FALLA' | 'FALLA_COMENTARIO';
 

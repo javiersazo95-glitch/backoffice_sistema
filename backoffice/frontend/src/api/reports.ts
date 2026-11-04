@@ -23,8 +23,9 @@ export async function getReportsSummary(): Promise<ReportsSummaryResponse> {
 
 // Moderacion de opiniones reportadas. El backend acepta OPINION_PRODUCTO/OPINION_TIENDA (el mismo
 // tipoObjeto del reporte) y el id es el objetoId del reporte.
+// Las calificaciones de taller (TALLER_OPINION, 4-nov) viven en /reports/opiniones/taller/{id}, con la misma forma de respuesta.
 const opinionPath = (tipo: OpinionReportType, id: number) =>
-  `/reports/opiniones/${encodeURIComponent(tipo)}/${encodeURIComponent(String(id))}`;
+  `/reports/opiniones/${tipo === 'TALLER_OPINION' ? 'taller' : encodeURIComponent(tipo)}/${encodeURIComponent(String(id))}`;
 
 export async function getOpinionModeration(tipo: OpinionReportType, id: number): Promise<OpinionModerationDetail> {
   const response = await apiClient.get<OpinionModerationDetail>(opinionPath(tipo, id));

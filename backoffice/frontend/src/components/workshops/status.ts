@@ -4,6 +4,7 @@ const LABELS: Record<string, string> = {
   APROBADO: 'Acreditado',
   POR_CORREGIR: 'Por corregir',
   RECHAZADO: 'Rechazado',
+  SUSPENDIDO: 'Suspendido',
 };
 
 const TONES: Record<string, string> = {
@@ -12,6 +13,7 @@ const TONES: Record<string, string> = {
   APROBADO: 'green',
   POR_CORREGIR: 'orange',
   RECHAZADO: 'red',
+  SUSPENDIDO: 'red',
 };
 
 export const WORKSHOP_STATUS_OPTIONS = Object.entries(LABELS).map(([value, label]) => ({ value, label }));

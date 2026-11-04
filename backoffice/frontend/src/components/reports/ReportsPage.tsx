@@ -29,6 +29,7 @@ const OBJECT_TYPE_META: Record<ReportObjectType, { label: string; tone: string }
   CHAT_COTIZACION: { label: 'Chat de cotización', tone: 'amber' },
   OPINION_PRODUCTO: { label: 'Opinión de producto', tone: 'orange' },
   OPINION_TIENDA: { label: 'Opinión de tienda', tone: 'red' },
+  TALLER_OPINION: { label: 'Opinión de taller', tone: 'red' },
   FALLA: { label: 'Falla', tone: 'amber' },
   FALLA_COMENTARIO: { label: 'Comentario de falla', tone: 'amber' },
   OTRO: { label: 'Otro', tone: '' },
@@ -48,7 +49,7 @@ function reportObjectType(report: ReportResponse): ReportObjectType {
 /** Reportes sobre la opinion de un comprador: se moderan desde el detalle (ocultar / restaurar). */
 function opinionReportType(report: ReportResponse): OpinionReportType | null {
   const tipo = reportObjectType(report);
-  return (tipo === 'OPINION_PRODUCTO' || tipo === 'OPINION_TIENDA') && report.objetoId != null ? tipo : null;
+  return (tipo === 'OPINION_PRODUCTO' || tipo === 'OPINION_TIENDA' || tipo === 'TALLER_OPINION') && report.objetoId != null ? tipo : null;
 }
 
 /** Reportes sobre una falla automotriz o uno de sus comentarios: se moderan desde el detalle. */
@@ -171,6 +172,7 @@ export default function ReportsPage() {
       <option value="CHAT_COTIZACION">Chats de cotización</option>
       <option value="OPINION_PRODUCTO">Opiniones de producto</option>
       <option value="OPINION_TIENDA">Opiniones de tienda</option>
+      <option value="TALLER_OPINION">Opiniones de taller</option>
       <option value="FALLA">Fallas</option>
       <option value="FALLA_COMENTARIO">Comentarios de falla</option>
     </select>
