@@ -1,14 +1,19 @@
 import { useSearchParams } from 'react-router-dom';
 import UiIcon from '@/components/shared/UiIcon';
 import WorkshopsPage from '@/components/workshops/WorkshopsPage';
+import WorkshopReferralsTab from '@/components/workshops/WorkshopReferralsTab';
 import SellersPage from './SellersPage';
 
-type Tab = 'vendedores' | 'talleres';
+type Tab = 'vendedores' | 'talleres' | 'referidos';
 
-/** Menú "Vendedores y talleres" de Gestión de Confianza: dos pestañas, la de vendedores de siempre y la de talleres. */
+/**
+ * Menú "Vendedores y talleres" de Gestión de Confianza: la pestaña de vendedores de siempre, la de talleres y la de referidos
+ * (seguimiento de la captación de compradores por los talleres).
+ */
 export default function SellersWorkshopsPage() {
   const [params, setParams] = useSearchParams();
-  const tab: Tab = params.get('tab') === 'talleres' ? 'talleres' : 'vendedores';
+  const requested = params.get('tab');
+  const tab: Tab = requested === 'talleres' || requested === 'referidos' ? requested : 'vendedores';
 
   const select = (next: Tab) => {
     const nextParams = new URLSearchParams(params);
@@ -28,8 +33,12 @@ export default function SellersWorkshopsPage() {
           <UiIcon name="settings" />
           Talleres
         </button>
+        <button type="button" className={tab === 'referidos' ? 'active' : ''} onClick={() => select('referidos')} aria-pressed={tab === 'referidos'}>
+          <UiIcon name="users" />
+          Referidos
+        </button>
       </nav>
-      {tab === 'talleres' ? <WorkshopsPage /> : <SellersPage />}
+      {tab === 'referidos' ? <WorkshopReferralsTab /> : tab === 'talleres' ? <WorkshopsPage /> : <SellersPage />}
     </>
   );
 }
