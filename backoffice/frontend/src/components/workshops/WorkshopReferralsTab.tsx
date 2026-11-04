@@ -7,6 +7,7 @@ import AreaHomeShortcut from '@/components/shared/AreaHomeShortcut';
 import MetricCard from '@/components/shared/MetricCard';
 import Notice from '@/components/shared/Notice';
 import Badge from '@/components/shared/Badge';
+import Modal from '@/components/shared/Modal';
 import UiIcon from '@/components/shared/UiIcon';
 import { EmptyState, RecordCard, RecordList } from '@/components/mobile';
 import { useIsMobile } from '@/hooks/useIsMobile';
@@ -31,7 +32,7 @@ function goalBadge(workshop: WorkshopReferralSummary) {
 /**
  * Pestaña "Referidos" de Vendedores y talleres: seguimiento de la captación. Muestra cuántos talleres comparten su código, los
  * compradores nuevos que van registrando, cuánto llevan de su meta (25 compradores = un periodo gratis de agendamiento) y los
- * días gratis ganados. Al elegir un taller se ven los compradores que se registraron con su código.
+ * días gratis ganados. Al elegir un taller se abre un popup con su detalle y los compradores que se registraron con su código.
  */
 export default function WorkshopReferralsTab() {
   const isMobile = useIsMobile();
@@ -153,7 +154,7 @@ export default function WorkshopReferralsTab() {
                       <td className="col-actions">
                         <div className="seller-actions">
                           <button className="row-action" type="button" onClick={() => setSelectedId(workshop.id)}
-                            aria-label="Ver compradores del taller" title="Ver compradores del taller">
+                            aria-label="Ver detalle del taller" title="Ver detalle del taller">
                             <UiIcon name="users" />
                           </button>
                         </div>
@@ -169,15 +170,19 @@ export default function WorkshopReferralsTab() {
         </article>
       </section>
 
-      {selected && (
-        <section className="seller-layout">
-          <article className="panel">
-            <div className="panel-header">
-              <h2>Compradores de {selected.nombreNegocio}</h2>
-              <button type="button" className="row-action" onClick={() => setSelectedId(null)} aria-label="Cerrar detalle" title="Cerrar detalle">
-                <UiIcon name="close" />
-              </button>
-            </div>
+      <Modal isOpen={selected !== null} onClose={() => setSelectedId(null)} title={selected ? `Referidos de ${selected.nombreNegocio}` : 'Referidos'} wide>
+        {selected && (
+          <>
+            <section className="metric-grid compact">
+              <MetricCard label="Código" value={selected.codigo ?? 'Sin compartir'} tone="blue" iconName="store" description={location(selected)} />
+              <MetricCard label="Compradores" value={selected.registrados} tone="green" iconName="users"
+                description={`${selected.pendientes} por verificar el correo.`} />
+              <MetricCard label="Avance de la meta" value={goalLabel(selected)} tone="amber" iconName="calendar"
+                description={`Faltan ${selected.paraProximo} para el próximo periodo gratis.`} />
+              <MetricCard label="Días gratis ganados" value={selected.diasGanados > 0 ? `${selected.diasGanados} días` : '—'} tone="violet" iconName="calendar"
+                description={selected.ultimoReferidoEn ? `Último registro: ${formatDate(selected.ultimoReferidoEn)}` : 'Sin registros todavía.'} />
+            </section>
+            <h3>Compradores registrados con su código</h3>
             {detailQuery.isLoading ? (
               <div className="panel-body">Cargando compradores...</div>
             ) : detailQuery.isError ? (
@@ -208,9 +213,9 @@ export default function WorkshopReferralsTab() {
                 </table>
               </div>
             )}
-          </article>
-        </section>
-      )}
+          </>
+        )}
+      </Modal>
     </>
   );
 }
