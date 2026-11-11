@@ -19,6 +19,10 @@ export interface FounderSeller {
 export interface FounderConfig {
   founderForNewSellers: boolean;
   durationMonths?: number | null;
+  /** 10-nov: meses que conservan las tiendas que postularon antes de `durationChangedAt` (2). */
+  previousDurationMonths?: number | null;
+  /** Desde cuándo una postulación recibe `durationMonths` (2026-11-11 00:00 de Chile). */
+  durationChangedAt?: string | null;
   storeQuota?: number | null;
   /** SEC-BACKEND-154: tiendas que ya recibieron el beneficio (consumen el cupo). */
   grantedStores?: number | null;

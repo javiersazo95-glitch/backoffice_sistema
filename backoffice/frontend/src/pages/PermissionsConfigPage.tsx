@@ -86,6 +86,9 @@ function founderRemainingLabel(founderUntil: string) {
   return remaining === 1 ? 'Queda 1 día' : `Quedan ${remaining} días`;
 }
 
+/** "1 mes" / "2 meses" para la marcha blanca Fundador. */
+const mesesTexto = (meses: number) => (meses === 1 ? '1 mes' : `${meses} meses`);
+
 export default function PermissionsConfigPage() {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
@@ -663,7 +666,7 @@ export default function PermissionsConfigPage() {
               <div>
                 <span className="founder-badge"><UiIcon name="crown" />Fundador</span>
                 <h3>Ranura general</h3>
-                <p>Mientras esté activa, cada tienda que se apruebe recibe la condición Fundador: tarifa de servicio 0% (gratis) durante sus primeros {founderConfig?.durationMonths ?? 2} meses de marcha blanca, hasta completar las primeras {founderConfig?.storeQuota ?? 100} tiendas. Solo paga la pasarela Flow; después rige 7% + IVA. El beneficio se da una sola vez por tienda.</p>
+                <p>Mientras esté activa, cada tienda que se apruebe recibe la condición Fundador: tarifa de servicio 0% (gratis) durante su marcha blanca de {mesesTexto(founderConfig?.durationMonths ?? 1)}{founderConfig?.previousDurationMonths && founderConfig?.durationChangedAt ? ` (las que postularon antes del ${new Date(founderConfig.durationChangedAt).toLocaleDateString('es-CL', { timeZone: 'America/Santiago' })} conservan ${mesesTexto(founderConfig.previousDurationMonths)})` : ''}, hasta completar las primeras {founderConfig?.storeQuota ?? 100} tiendas. Solo paga la pasarela Flow; después rige 7% + IVA. El beneficio se da una sola vez por tienda.</p>
                 {founderConfig?.grantedStores != null && (
                   <p className="muted">Cupo: {Math.min(founderConfig.grantedStores, founderConfig.storeQuota ?? 100)} de {founderConfig.storeQuota ?? 100} tiendas ya recibieron el beneficio.</p>
                 )}
