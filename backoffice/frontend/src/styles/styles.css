@@ -22766,3 +22766,43 @@ button.desglose-hero:hover { filter: brightness(0.98); box-shadow: 0 2px 8px rgb
 .workshop-table {
   min-width: 900px;
 }
+
+/* ---- Acceso asistido: icono de "Ayuda con la carga" y su ventana (17-nov) ---- */
+.acceso-asistido-action { position: relative; display: inline-flex; align-items: center; gap: 4px; }
+.acceso-asistido-action.acceso-espera { color: #b45309; background: #fef3c7; }
+.acceso-asistido-action.acceso-pedido { color: #6d28d9; background: #ede9fe; }
+.acceso-asistido-action.acceso-activo { color: #047857; background: #d1fae5; }
+.acceso-asistido-tiempo { font-size: 0.72rem; font-weight: 700; line-height: 1; white-space: nowrap; font-variant-numeric: tabular-nums; }
+/* Con el tiempo restante el boton se ensancha (row-action mide 34 px fijos y el texto se salia). */
+.row-action.acceso-asistido-action.acceso-activo { display: inline-flex; flex-direction: row; align-items: center; width: auto; min-width: 34px; padding: 0 9px; justify-content: center; gap: 5px; border-color: #a7f3d0; }
+.row-action.acceso-asistido-action.acceso-activo svg { flex: 0 0 auto; }
+.acceso-asistido-punto { position: absolute; top: 2px; right: 2px; width: 8px; height: 8px; border-radius: 50%; background: #7c3aed; animation: acceso-asistido-pulso 1.4s ease-in-out infinite; }
+@keyframes acceso-asistido-pulso { 0%, 100% { box-shadow: 0 0 0 0 rgba(124, 58, 237, 0.55); } 50% { box-shadow: 0 0 0 6px rgba(124, 58, 237, 0); } }
+@media (prefers-reduced-motion: reduce) { .acceso-asistido-punto { animation: none; } }
+.acceso-asistido-modal { max-width: 640px; }
+.acceso-asistido-nivel { display: flex; gap: 10px; align-items: flex-start; padding: 8px 10px; margin-bottom: 6px; border: 1px solid #e2e8f0; border-radius: 10px; cursor: pointer; }
+.acceso-asistido-nivel.activo { border-color: #2563eb; }
+.acceso-asistido-nivel span { display: grid; gap: 2px; }
+.acceso-asistido-nivel small { color: #475569; line-height: 1.4; }
+.acceso-asistido-contador { margin-bottom: 12px; padding: 12px; border-radius: 12px; text-align: center; background: #f1f5f9; display: grid; gap: 2px; }
+.acceso-asistido-contador strong { font-size: 1.8rem; font-variant-numeric: tabular-nums; }
+.acceso-asistido-contador.tono-ambar { background: #fef3c7; }
+.acceso-asistido-contador.tono-rojo { background: #fee2e2; color: #991b1b; }
+.acceso-asistido-datos { display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; margin: 0 0 14px; }
+.acceso-asistido-datos dt { color: #64748b; font-size: 0.85rem; }
+.acceso-asistido-datos dd { margin: 0; overflow-wrap: anywhere; }
+.acceso-asistido-acciones { display: flex; flex-wrap: wrap; gap: 8px; }
+/* Espera de la respuesta del vendedor dentro del mismo popup, y el aviso cuando responde. */
+.acceso-asistido-espera { display: flex; align-items: flex-start; gap: 10px; margin: 0 0 12px; padding: 10px 12px; border-radius: 10px; background: #fffbeb; border: 1px solid #fde68a; color: #92400e; font-size: 0.9rem; line-height: 1.4; }
+.acceso-asistido-pulso { flex: 0 0 10px; width: 10px; height: 10px; margin-top: 5px; border-radius: 50%; background: #f59e0b; animation: acceso-asistido-pulso 1.4s ease-in-out infinite; }
+@keyframes acceso-asistido-pulso { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .35; transform: scale(.7); } }
+.acceso-asistido-respuesta { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 12px; padding: 10px 12px; border-radius: 10px; font-weight: 600; font-size: 0.92rem; }
+.acceso-asistido-respuesta.ok { background: #dcfce7; border: 1px solid #86efac; color: #166534; }
+.acceso-asistido-respuesta.error { background: #fee2e2; border: 1px solid #fca5a5; color: #991b1b; }
+.acceso-asistido-respuesta svg { flex: 0 0 auto; margin-top: 2px; }
+@media (prefers-reduced-motion: reduce) { .acceso-asistido-pulso { animation: none; } }
+.acceso-asistido-historial { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.acceso-asistido-fila { width: 100%; text-align: left; display: grid; gap: 2px; padding: 8px 10px; border: 1px solid #e2e8f0; border-radius: 10px; background: #fff; cursor: pointer; }
+.acceso-asistido-fila small { color: #64748b; }
+.acceso-asistido-eventos { margin: 6px 0 0; padding-left: 18px; font-size: 0.85rem; display: grid; gap: 4px; }
+.acceso-asistido-eventos time { color: #64748b; margin-right: 4px; }

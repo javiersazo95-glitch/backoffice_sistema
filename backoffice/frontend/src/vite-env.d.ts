@@ -5,6 +5,8 @@ interface ImportMetaEnv {
   readonly VITE_GOOGLE_CLIENT_ID?: string;
   /** URL del Mantenedor común; vacía o ausente → https://mantenedor.repuestop.cl */
   readonly VITE_MANTENEDOR_URL?: string;
+  /** URL del panel del vendedor para el acceso asistido (ej. http://localhost:5173 en local). */
+  readonly VITE_PANEL_URL?: string;
 }
 
 declare module '*.svg' {

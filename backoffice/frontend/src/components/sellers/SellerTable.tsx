@@ -9,6 +9,8 @@ import CancellationRateCell from './CancellationRateCell';
 import { getSellerOperationalStatus, getSellerStatusLabel, getSellerStatusTone } from './status';
 import { formatDate } from '@/utils/formatters';
 import { resolveProfileImageUrl } from '@/api/client';
+import type { ResumenTiendaAcceso } from '@/api/accesoAsistido';
+import { iconoDeAcceso } from './accesoAsistidoIcono';
 
 interface SellerTableProps {
   sellers: SellerResponse[];
@@ -25,6 +27,9 @@ interface SellerTableProps {
   selectedSellerId?: number | null;
   /** Cancelaciones por tienda, indexadas por `proveedorId` (= `seller.id`). */
   cancellationRates?: Record<number, SellerCancellationRate>;
+  /** Acceso asistido: solicitud viva por tienda (indexada por `proveedorId`) y la acción que abre su ventana. */
+  accesosAsistidos?: Record<number, ResumenTiendaAcceso>;
+  onOpenAccesoAsistido?: (seller: SellerResponse) => void;
 }
 
 function getLogoClass(index: number): string {
@@ -39,6 +44,8 @@ export default function SellerTable({
   onReviewMediation,
   onOpenMediation,
   onOpenReports,
+  accesosAsistidos,
+  onOpenAccesoAsistido,
   onShowBlockHistory,
   expandedId,
   onToggleExpand,
@@ -151,6 +158,25 @@ export default function SellerTable({
                               <UiIcon name="flag" />
                             </button>
                           )}
+                          {onOpenAccesoAsistido && (() => {
+                            const icono = iconoDeAcceso(accesosAsistidos?.[seller.id]);
+                            return (
+                              <button
+                                className={`row-action acceso-asistido-action acceso-${icono.clase}`}
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onOpenAccesoAsistido(seller);
+                                }}
+                                aria-label={icono.titulo}
+                                title={icono.titulo}
+                              >
+                                <UiIcon name="headset" />
+                                {icono.pulsa && <span className="acceso-asistido-punto" aria-hidden="true" />}
+                                {icono.tiempo && <span className="acceso-asistido-tiempo">{icono.tiempo}</span>}
+                              </button>
+                            );
+                          })()}
                           <button
                             className={`row-action expand-toggle ${isExpanded ? 'open' : ''}`}
                             type="button"

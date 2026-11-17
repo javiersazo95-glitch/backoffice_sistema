@@ -28,6 +28,9 @@ import AreaHomeShortcut from '@/components/shared/AreaHomeShortcut';
 import SellerDocumentsModal from './SellerDocumentsModal';
 import SellerProfileModal, { SellerBlockHistoryModal, SellerReportsModal } from './SellerProfileModal';
 import SuspendSellerModal from './SuspendSellerModal';
+import AccesoAsistidoModal from './AccesoAsistidoModal';
+import { useResumenAccesos } from '@/hooks/useAccesoAsistido';
+import { useFlag } from '@/hooks/useRemoteConfig';
 import SellerActiveMediationsModal from './SellerActiveMediationsModal';
 import { showToast } from '@/components/layout/Toast';
 
@@ -583,6 +586,11 @@ export default function SellersPage() {
 
   // H62: el motivo lo escribe el operador en el dialogo (antes iba fijo "Bloqueado desde perfil").
   const [suspendTargetId, setSuspendTargetId] = useState<number | null>(null);
+  // Acceso asistido: soporte carga repuestos por el vendedor, con su permiso. El icono cambia según la solicitud viva.
+  // Sale a produccion con el flag `global.acceso-asistido` del mantenedor (sin bootstrap: apagado).
+  const accesoAsistidoHabilitado = useFlag('global.acceso-asistido', false);
+  const { porTienda: accesosAsistidos } = useResumenAccesos(accesoAsistidoHabilitado);
+  const [accesoAsistidoTargetId, setAccesoAsistidoTargetId] = useState<number | null>(null);
 
   const handleBlockAccount = (id: number) => {
     setSuspendTargetId(id);
@@ -680,6 +688,8 @@ export default function SellersPage() {
                   onOpenReports={handleOpenSellerReports}
                   onShowBlockHistory={handleShowBlockHistory}
                   selectedSellerId={selectedSellerId}
+                  accesosAsistidos={accesosAsistidos}
+                  onOpenAccesoAsistido={accesoAsistidoHabilitado ? (s) => setAccesoAsistidoTargetId(s.id) : undefined}
                 />
               ) : (
               <SellerTable
@@ -696,6 +706,8 @@ export default function SellersPage() {
                 onOpenReports={handleOpenSellerReports}
                 onShowBlockHistory={handleShowBlockHistory}
                 selectedSellerId={selectedSellerId}
+                accesosAsistidos={accesosAsistidos}
+                onOpenAccesoAsistido={accesoAsistidoHabilitado ? (s) => setAccesoAsistidoTargetId(s.id) : undefined}
               />
               )}
 
@@ -805,6 +817,12 @@ export default function SellersPage() {
         onSuspend={handleBlockAccount}
       />
 
+      <AccesoAsistidoModal
+        isOpen={accesoAsistidoTargetId != null}
+        proveedorId={accesoAsistidoTargetId}
+        storeName={accesoAsistidoTargetId != null ? findSellerById(accesoAsistidoTargetId)?.storeName ?? null : null}
+        onClose={() => setAccesoAsistidoTargetId(null)}
+      />
       <SuspendSellerModal
         isOpen={suspendTargetId != null}
         storeName={suspendTargetId != null ? findSellerById(suspendTargetId)?.storeName ?? sellerDetailView?.storeName : null}

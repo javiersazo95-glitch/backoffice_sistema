@@ -369,6 +369,45 @@ Qué pasa después:
 > **Ojo:** las columnas **Fecha de ingreso** y **Creado el** muestran en realidad la fecha de la
 > última actividad de la tienda.
 
+### 7.1 Ayuda con la carga (acceso asistido)
+
+Para el super administrador y el área **Mediación y Confianza**. Permite entrar al panel de la tienda
+como **invitado** para cargar repuestos por el vendedor, con su permiso y por un tiempo acotado.
+Aparece solo si el flag `global.acceso-asistido` está encendido en el Mantenedor común.
+
+- **Icono de auriculares en Acciones** (tabla y tarjetas móviles):
+  - gris: no hay nada; pulsarlo abre la solicitud;
+  - ámbar: esperando que el vendedor autorice;
+  - violeta con punto que late: **el vendedor pidió ayuda**;
+  - verde con mm:ss: hay un acceso activo.
+- **Niveles:** **Básico** (ver el inventario y crear repuestos uno a uno), **Medio** (además cambiar
+  el precio de repuestos que ya existen; el stock no se toca) y **Completo** (además subir repuestos
+  nuevos con Excel, sin el borrador del vendedor).
+- **Lo que nunca puede hacer el invitado:** editar, eliminar, pausar o marcar Top; ver pedidos,
+  monedero, datos bancarios, contrato o chats. El backend lo bloquea aunque se intente a mano.
+
+**Pedir acceso (lo inicia soporte):**
+
+1. Pulsar el icono → escribir el **motivo** (10 a 500 caracteres) y el nivel → **Solicitar**.
+2. El vendedor recibe un correo con un enlace firmado (vale 48 h), un push y un aviso. Puede
+   autorizar desde el correo, el Market o la app, elegir la duración (2 h, 8 h, 1 día o 3 días) y
+   bajar el nivel.
+3. Espera la respuesta **en el mismo popup**: muestra cuánto falta para que venza la solicitud y se
+   actualiza solo. **Ingresar al panel** queda desactivado hasta que el vendedor autoriza; entonces
+   aparece el aviso en verde y el botón abre el panel en una ventana nueva. Si el vendedor rechaza o la
+   solicitud vence, el popup lo avisa en rojo. **Reenviar correo** se permite cada 10 minutos.
+
+**Atender una solicitud del vendedor:** con el icono violeta, abrir la pestaña **Acceso**: muestra
+la justificación, el nivel, la duración y, si la adjuntó, **Ver adjunto del vendedor** (su lista de
+repuestos; un Excel se descarga). **Aceptar e ingresar** parte el contador en ese momento.
+
+**Durante el acceso:** el panel muestra un marco ámbar y la barra "Modo invitado" con el tiempo que
+queda. El vendedor puede cortar el acceso cuando quiera y el corte rige en la petición siguiente.
+Al vencer o terminar, el vendedor recibe un resumen con lo creado y los precios cambiados.
+
+**Historial:** la pestaña **Historial** del mismo modal lista cada acceso con operador, nivel,
+duración y cada repuesto creado o precio cambiado.
+
 ## 8. Mediaciones
 
 La mediación es la intervención de RepuesTop cuando un comprador y una tienda no se ponen de acuerdo.

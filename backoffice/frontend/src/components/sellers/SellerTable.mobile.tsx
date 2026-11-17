@@ -8,6 +8,8 @@ import { SellerExpandedContent } from './SellerExpandedRow';
 import { getSellerOperationalStatus, getSellerStatusLabel, getSellerStatusTone } from './status';
 import { formatDate } from '@/utils/formatters';
 import { resolveProfileImageUrl } from '@/api/client';
+import type { ResumenTiendaAcceso } from '@/api/accesoAsistido';
+import { iconoDeAcceso } from './accesoAsistidoIcono';
 import { RecordCard, RecordList, EmptyState, DetailSheet, CardAvatar } from '@/components/mobile';
 
 interface SellerCardListProps {
@@ -25,6 +27,9 @@ interface SellerCardListProps {
   cancellationRates?: Record<number, SellerCancellationRate>;
   blockedMediations?: Record<number, ImpactMediation[]>;
   selectedSellerId?: number | null;
+  /** Acceso asistido: solicitud viva por tienda y la acción que abre su ventana. */
+  accesosAsistidos?: Record<number, ResumenTiendaAcceso>;
+  onOpenAccesoAsistido?: (seller: SellerResponse) => void;
 }
 
 /** Versión móvil de SellerTable: tarjetas por tienda y detalle en hoja a pantalla completa. */
@@ -42,6 +47,8 @@ export function SellerCardList({
   blockedMediations,
   selectedSellerId,
   cancellationRates,
+  accesosAsistidos,
+  onOpenAccesoAsistido,
 }: SellerCardListProps) {
   const expandedSeller = expandedId ? sellers.find((seller) => seller.id === expandedId) ?? null : null;
 
@@ -104,6 +111,16 @@ export function SellerCardList({
                     <button type="button" className="mb-action mb-action--danger" onClick={() => onOpenReports?.(seller.id)}>
                       <UiIcon name="flag" />
                       Reportes
+                    </button>
+                  )}
+                  {onOpenAccesoAsistido && (
+                    <button
+                      type="button"
+                      className={`mb-action acceso-asistido-action acceso-${iconoDeAcceso(accesosAsistidos?.[seller.id]).clase}`}
+                      onClick={() => onOpenAccesoAsistido(seller)}
+                    >
+                      <UiIcon name="headset" />
+                      Ayuda con la carga
                     </button>
                   )}
                 </>
