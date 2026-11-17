@@ -122,10 +122,11 @@ export default function AccesoAsistidoModal({ isOpen, proveedorId, storeName, on
     }
     const cerrado = detalle.data.historial.find((a) => a.id === idEsperado);
     if (!cerrado) return;
+    // CANCELADO no se avisa: mientras se espera al vendedor solo el propio operador puede cancelar, y ya lo
+    // confirma el toast «Solicitud cancelada»; un aviso rojo encima del formulario nuevo parecía un error.
     const textos: Partial<Record<EstadoAcceso, string>> = {
       RECHAZADO: `El vendedor rechazó la solicitud${cerrado.comentarioRechazo ? `: «${cerrado.comentarioRechazo}»` : '.'}`,
       EXPIRADO: 'La solicitud venció sin respuesta del vendedor. Puedes solicitarla de nuevo.',
-      CANCELADO: 'La solicitud se canceló.',
     };
     const texto = textos[cerrado.estado];
     if (texto) setRespuesta({ tono: 'error', texto });
@@ -166,6 +167,8 @@ export default function AccesoAsistidoModal({ isOpen, proveedorId, storeName, on
   const confirmarSolicitud = async () => {
     setConfirmando(false);
     if (proveedorId == null) return;
+    // El aviso de la solicitud anterior (rechazo o vencimiento) ya no aplica a la nueva.
+    setRespuesta(null);
     try {
       // Soporte espera aquí mismo: el panel se abre recién cuando el vendedor autoriza ("Ingresar al panel").
       const creado = await acciones.solicitar.mutateAsync({ nivel, motivo: motivo.trim() });
@@ -173,7 +176,11 @@ export default function AccesoAsistidoModal({ isOpen, proveedorId, storeName, on
       setMotivo('');
       showToast('Solicitud enviada. Le avisamos al vendedor por correo.');
     } catch (err) {
-      showToast(mensajeDeError(err));
+      // El rechazo (p. ej. el tope de 3 solicitudes por tienda en 24 h) queda fijo en el popup: el toast solo
+      // dura unos segundos y el formulario quedaba igual, como si el botón no hiciera nada.
+      const texto = mensajeDeError(err);
+      setRespuesta({ tono: 'error', texto });
+      showToast(texto);
     }
   };
 
