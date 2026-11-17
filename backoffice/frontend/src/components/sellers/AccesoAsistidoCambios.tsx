@@ -25,6 +25,7 @@ export const TEXTO_EVENTO: Record<string, string> = {
   PRODUCTO_CREADO: 'Creó un repuesto',
   PRECIO_ACTUALIZADO: 'Cambió un precio',
   EXCEL_CARGADO: 'Cargó un Excel',
+  FOTOS_AGREGADAS: 'Agregó fotos',
   REVOCADO: 'El vendedor cortó el acceso',
   FINALIZADO: 'Salió del panel',
   EXPIRADO: 'Venció',
@@ -33,7 +34,7 @@ export const TEXTO_EVENTO: Record<string, string> = {
 const ICONO_EVENTO: Record<string, string> = {
   SOLICITADO: 'mail', REENVIADO: 'mail', AUTORIZADO: 'shieldCheck', ACEPTADO: 'shieldCheck', RECHAZADO: 'shieldX',
   CANCELADO: 'close', INGRESO: 'monitor', PRODUCTO_CREADO: 'plus', PRECIO_ACTUALIZADO: 'percent',
-  EXCEL_CARGADO: 'upload', REVOCADO: 'lock', FINALIZADO: 'logout', EXPIRADO: 'clock',
+  EXCEL_CARGADO: 'upload', FOTOS_AGREGADAS: 'upload', REVOCADO: 'lock', FINALIZADO: 'logout', EXPIRADO: 'clock',
 };
 
 function detalleEvento(detalle: string | null): string {
@@ -41,7 +42,7 @@ function detalleEvento(detalle: string | null): string {
   try {
     const d = JSON.parse(detalle) as Record<string, unknown>;
     if (d.nombre) return `${String(d.nombre)}${d.sku ? ` (${String(d.sku)})` : ''}`;
-    if (d.sku) return `SKU ${String(d.sku)}${d.precioAntes != null ? ` · ${pesos(Number(d.precioAntes))} → ${pesos(Number(d.precioDespues))}` : ''}`;
+    if (d.sku) return `SKU ${String(d.sku)}${d.precioAntes != null ? ` · ${pesos(Number(d.precioAntes))} → ${pesos(Number(d.precioDespues))}` : ''}${d.fotos != null ? ` · ${String(d.fotos)} ${Number(d.fotos) === 1 ? 'foto' : 'fotos'}` : ''}`;
     if (d.cargados != null) return `${d.archivo ? `${String(d.archivo)}: ` : ''}${String(d.cargados)} de ${String(d.filas)} filas`;
   } catch {
     // Detalle ilegible: se omite.
