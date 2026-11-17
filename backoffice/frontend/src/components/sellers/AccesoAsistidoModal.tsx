@@ -22,7 +22,7 @@ export const TITULO_NIVEL: Record<NivelAcceso, string> = {
 
 const NIVELES: { valor: NivelAcceso; icono: string; detalle: string; incluye: string[] }[] = [
   { valor: 'BASICO', icono: 'plus', detalle: 'Crear repuestos nuevos con el formulario.', incluye: ['Ver el inventario', 'Crear uno a uno'] },
-  { valor: 'MEDIO', icono: 'percent', detalle: 'Además, cambiar precios de lo que ya existe.', incluye: ['Todo lo básico', 'Precios (no stock)'] },
+  { valor: 'MEDIO', icono: 'percent', detalle: 'Además, ajustar el precio de lo que cargues en este acceso.', incluye: ['Todo lo básico', 'Precios (no stock)'] },
   { valor: 'COMPLETO', icono: 'upload', detalle: 'Además, subir repuestos nuevos con un Excel.', incluye: ['Todo lo anterior', 'Carga masiva'] },
 ];
 
