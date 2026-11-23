@@ -17,6 +17,8 @@ export interface ValidationResponse {
   instagramUrl?: string | null;
   facebookUrl?: string | null;
   tiktokUrl?: string | null;
+  /** La tienda declaro al registrarse que vende usados o reacondicionados; null = no se le pregunto. */
+  vendeUsados?: boolean | null;
   documentType: string;
   documentUrl?: string;
   uploadedAt: string;

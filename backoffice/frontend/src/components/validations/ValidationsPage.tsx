@@ -46,6 +46,7 @@ type ValidationRequestGroup = {
   status: RequiredDocumentStatus;
   uploadedAt: string;
   socialLinks: StoreSocialLinks;
+  vendeUsados: boolean | null;
 };
 
 const REQUIRED_DOCUMENTS: RequiredDocumentDefinition[] = [
@@ -213,6 +214,7 @@ function buildValidationGroups(validations: ValidationResponse[]): ValidationReq
           facebookUrl: firstDocument?.facebookUrl ?? null,
           tiktokUrl: firstDocument?.tiktokUrl ?? null,
         },
+        vendeUsados: firstDocument?.vendeUsados ?? null,
       };
     })
     .sort((a, b) => new Date(a.uploadedAt).getTime() - new Date(b.uploadedAt).getTime());
@@ -773,6 +775,10 @@ export default function ValidationsPage() {
                         <InfoRow label="Ciudad" value={sellerMeta.city} />
                         <InfoRow label="Dirección" value={sellerMeta.address} />
                         <InfoRow label="Giro comercial" value={sellerMeta.businessLine} />
+                        <InfoRow
+                          label="Vende usados o reacondicionados"
+                          value={selectedGroup.vendeUsados === null ? 'Sin dato' : selectedGroup.vendeUsados ? 'Sí' : 'No'}
+                        />
                       </div>
 
                       <div className="validation-info-box">
