@@ -23,6 +23,7 @@ import AuditPage from '@/components/audit/AuditPage';
 import ReportsPage from '@/components/reports/ReportsPage';
 import FeedbackPage from '@/components/feedback/FeedbackPage';
 import CumplimientoTributarioPage from '@/components/cumplimiento/CumplimientoTributarioPage';
+import FichasCodigoPage from '@/components/fichasCodigo/FichasCodigoPage';
 import PermissionsConfigPage from '@/pages/PermissionsConfigPage';
 import CapturerRegisterPage from '@/pages/CapturerRegisterPage';
 import CapturerPortalPage from '@/pages/CapturerPortalPage';
@@ -181,6 +182,7 @@ export default function App() {
               <Route path="reports" element={<ReportsPage />} />
               <Route path="feedback" element={<FeedbackPage />} />
               <Route path="cumplimiento-tributario" element={<CumplimientoTributarioPage />} />
+              <Route path="fichas" element={<FichasCodigoPage />} />
             </Routes>
           </AppShell>
         </RequireArea>

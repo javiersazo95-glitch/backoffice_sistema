@@ -90,6 +90,8 @@ export const navSections: NavSection[] = [
       // 9-oct: situacion tributaria de las tiendas (reverificacion de enero y julio).
       { path: '/confianza/cumplimiento-tributario', label: 'Cumplimiento tributario', shortLabel: 'Tributario', badge: 0, icon: 'shieldCheck' },
       { path: '/confianza/captadores', label: 'Captadores', badge: 0, icon: 'users' },
+      // 25-nov: fichas completadas por el codigo del fabricante (verificar, corregir, equivalencias).
+      { path: '/confianza/fichas', label: 'Fichas por código', shortLabel: 'Fichas', badge: 0, icon: 'clipboard' },
       { path: '/confianza/reports', label: 'Reportes', badge: 0, icon: 'flag' },
       { path: '/confianza/feedback', label: 'Feedback', badge: 0, icon: 'message' },
     ],
