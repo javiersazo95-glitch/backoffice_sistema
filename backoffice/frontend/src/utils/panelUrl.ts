@@ -3,10 +3,10 @@
  * - dev-backoffice (o dev.*) -> https://dev-inventario.repuestop.cl
  * - backoffice.repuestop.cl  -> https://inventario.repuestop.cl
  * - VITE_PANEL_URL, si está definida
- * - backoffice en localhost sin VITE_PANEL_URL -> el panel local (http://localhost:5175, puerto fijo del panel).
+ * - backoffice en localhost sin VITE_PANEL_URL -> el panel local (http://localhost:5180, puerto fijo del panel).
  *   Antes caía en producción, cuyo panel no conoce el ticket del invitado y mostraba el login.
  */
-export const PANEL_LOCAL_URL = 'http://localhost:5175';
+export const PANEL_LOCAL_URL = 'http://localhost:5180';
 
 export function getPanelBaseUrl(): string {
   if (typeof window !== 'undefined') {
